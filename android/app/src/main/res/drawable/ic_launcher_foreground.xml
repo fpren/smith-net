@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Background circle -->
+    <path
+        android:fillColor="#58A6FF"
+        android:pathData="M54,54m-40,0a40,40 0,1 1,80 0a40,40 0,1 1,-80 0"/>
+    <!-- Mesh icon - center node -->
+    <path
+        android:fillColor="#0D1117"
+        android:pathData="M54,44a6,6 0,1 0,0 12,6 6,0 0,0 0,-12z"/>
+    <!-- Mesh icon - outer nodes -->
+    <path
+        android:fillColor="#0D1117"
+        android:pathData="M34,54a5,5 0,1 0,0 10,5 5,0 0,0 0,-10z"/>
+    <path
+        android:fillColor="#0D1117"
+        android:pathData="M74,54a5,5 0,1 0,0 10,5 5,0 0,0 0,-10z"/>
+    <path
+        android:fillColor="#0D1117"
+        android:pathData="M44,68a5,5 0,1 0,0 10,5 5,0 0,0 0,-10z"/>
+    <path
+        android:fillColor="#0D1117"
+        android:pathData="M64,68a5,5 0,1 0,0 10,5 5,0 0,0 0,-10z"/>
+    <!-- Connection lines -->
+    <path
+        android:strokeColor="#0D1117"
+        android:strokeWidth="2"
+        android:pathData="M50,54L39,57"/>
+    <path
+        android:strokeColor="#0D1117"
+        android:strokeWidth="2"
+        android:pathData="M58,54L69,57"/>
+    <path
+        android:strokeColor="#0D1117"
+        android:strokeWidth="2"
+        android:pathData="M51,56L47,70"/>
+    <path
+        android:strokeColor="#0D1117"
+        android:strokeWidth="2"
+        android:pathData="M57,56L61,70"/>
+</vector>

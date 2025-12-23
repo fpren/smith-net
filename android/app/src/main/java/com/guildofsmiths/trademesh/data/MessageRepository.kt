@@ -1,0 +1,212 @@
+package com.guildofsmiths.trademesh.data
+
+import android.content.Context
+import com.guildofsmiths.trademesh.db.AppDatabase
+import com.guildofsmiths.trademesh.db.MessageEntity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import java.util.ArrayDeque
+
+/**
+ * Repository for managing messages.
+ * Uses Room for persistence and in-memory cache for fast access.
+ */
+object MessageRepository {
+    
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    
+    /** In-memory cache of all messages */
+    private val _allMessages = MutableStateFlow<List<Message>>(emptyList())
+    val allMessages: StateFlow<List<Message>> = _allMessages.asStateFlow()
+    
+    /** Queue of mesh messages pending sync to chat backend */
+    private val pendingSyncQueue = ArrayDeque<Message>()
+    
+    /** Set of message IDs to prevent duplicates */
+    private val seenMessageIds = mutableSetOf<String>()
+    
+    /** Database instance */
+    private var database: AppDatabase? = null
+    
+    /**
+     * Initialize with context (call from Application.onCreate).
+     */
+    fun init(context: Context) {
+        database = AppDatabase.getInstance(context)
+        
+        // Load existing messages from database
+        scope.launch {
+            val dao = database?.messageDao() ?: return@launch
+            val entities = dao.getLatestMessagePerChannel()
+            // Load recent messages from each channel
+            val allChannels = entities.map { it.beaconId to it.channelId }.distinct()
+            val messages = mutableListOf<Message>()
+            for ((beaconId, channelId) in allChannels) {
+                val channelMessages = dao.getMessagesForChannelOnce(beaconId, channelId)
+                messages.addAll(channelMessages.map { it.toMessage() })
+            }
+            _allMessages.value = messages.sortedBy { it.timestamp }
+            seenMessageIds.addAll(messages.map { it.id })
+        }
+    }
+    
+    /**
+     * Get messages flow filtered by beacon and channel.
+     */
+    fun messagesFlow(beaconId: String, channelId: String): Flow<List<Message>> {
+        return _allMessages.map { messages ->
+            messages.filter { it.beaconId == beaconId && it.channelId == channelId }
+                .sortedBy { it.timestamp }
+        }
+    }
+    
+    /**
+     * Get messages flow from database (persistent).
+     */
+    fun messagesFlowFromDb(beaconId: String, channelId: String): Flow<List<Message>>? {
+        return database?.messageDao()?.getMessagesForChannel(beaconId, channelId)
+            ?.map { entities -> entities.map { it.toMessage() } }
+    }
+    
+    /**
+     * Add a message to the repository.
+     * Automatically deduplicates by message ID.
+     * Messages are sorted by timestamp (chronological order).
+     */
+    @Synchronized
+    fun addMessage(message: Message) {
+        if (seenMessageIds.contains(message.id)) {
+            return // Duplicate, ignore
+        }
+        seenMessageIds.add(message.id)
+        
+        // Add to in-memory cache
+        _allMessages.update { current ->
+            (current + message).sortedBy { it.timestamp }
+        }
+        
+        // Persist to database
+        scope.launch {
+            database?.messageDao()?.insert(MessageEntity.fromMessage(message))
+        }
+        
+        // Update channel with last message preview
+        BeaconRepository.updateChannelLastMessage(
+            beaconId = message.beaconId,
+            channelId = message.channelId,
+            preview = message.content,
+            time = message.timestamp,
+            incrementUnread = message.isMeshOrigin
+        )
+        
+        // If mesh origin, queue for later sync
+        if (message.isMeshOrigin) {
+            pendingSyncQueue.addLast(message)
+        }
+    }
+    
+    /**
+     * Get all messages (for debugging).
+     */
+    fun getAllMessages(): List<Message> = _allMessages.value
+    
+    /**
+     * Get messages for the currently active channel.
+     */
+    fun getActiveChannelMessages(): List<Message> {
+        val beacon = BeaconRepository.getActiveBeacon() ?: return emptyList()
+        val channel = BeaconRepository.getActiveChannel() ?: return emptyList()
+        return _allMessages.value
+            .filter { it.beaconId == beacon.id && it.channelId == channel.id }
+            .sortedBy { it.timestamp }
+    }
+    
+    /**
+     * Get all messages pending sync to the chat backend.
+     */
+    @Synchronized
+    fun getPendingSyncMessages(): List<Message> {
+        return pendingSyncQueue.toList()
+    }
+    
+    /**
+     * Mark messages as synced (remove from pending queue).
+     */
+    @Synchronized
+    fun markAsSynced(messageIds: Set<String>) {
+        pendingSyncQueue.removeAll { it.id in messageIds }
+        
+        // Update in database
+        scope.launch {
+            database?.messageDao()?.markAsSynced(messageIds.toList())
+        }
+    }
+    
+    /**
+     * Clear all messages (for testing/reset).
+     */
+    @Synchronized
+    fun clear() {
+        _allMessages.value = emptyList()
+        seenMessageIds.clear()
+        pendingSyncQueue.clear()
+        
+        scope.launch {
+            database?.messageDao()?.deleteAll()
+        }
+    }
+    
+    /**
+     * Clear messages for a specific channel.
+     */
+    @Synchronized
+    fun clearChannel(beaconId: String, channelId: String) {
+        _allMessages.update { messages ->
+            messages.filter { !(it.beaconId == beaconId && it.channelId == channelId) }
+        }
+        
+        scope.launch {
+            database?.messageDao()?.deleteChannelMessages(beaconId, channelId)
+        }
+    }
+    
+    /**
+     * Get message count for debugging.
+     */
+    fun getMessageCount(): Int = _allMessages.value.size
+    
+    /**
+     * Get message count for a specific channel.
+     */
+    fun getChannelMessageCount(beaconId: String, channelId: String): Int {
+        return _allMessages.value.count { it.beaconId == beaconId && it.channelId == channelId }
+    }
+    
+    /**
+     * Get pending sync count for debugging.
+     */
+    fun getPendingSyncCount(): Int = pendingSyncQueue.size
+    
+    /**
+     * Clean up old messages (keep last 7 days).
+     */
+    fun pruneOldMessages() {
+        val cutoff = System.currentTimeMillis() - (7 * 24 * 60 * 60 * 1000L)
+        
+        _allMessages.update { messages ->
+            messages.filter { it.timestamp >= cutoff }
+        }
+        
+        scope.launch {
+            database?.messageDao()?.deleteOlderThan(cutoff)
+        }
+    }
+}

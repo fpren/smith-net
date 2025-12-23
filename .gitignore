@@ -1,0 +1,42 @@
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/*.iml
+android/.idea/
+android/captures/
+android/.externalNativeBuild/
+android/.cxx/
+
+# iOS
+ios/Pods/
+ios/*.xcworkspace
+ios/*.xcuserdata
+ios/build/
+ios/DerivedData/
+
+# Desktop Python
+desktop/python/__pycache__/
+desktop/python/*.pyc
+desktop/python/.venv/
+desktop/python/venv/
+desktop/python/*.egg-info/
+
+# General
+.DS_Store
+*.log
+*.tmp
+*.swp
+*~
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.code-workspace
+
+# Secrets
+*.keystore
+*.jks
+google-services.json

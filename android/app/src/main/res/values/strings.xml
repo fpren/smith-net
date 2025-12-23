@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">smith net</string>
+    <string name="mesh_service_notification_title">smith net active</string>
+    <string name="mesh_service_notification_text">BLE mesh running</string>
+</resources>

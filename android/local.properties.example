@@ -1,0 +1,5 @@
+# SDK location - update this to your Android SDK path
+# Windows example:
+# sdk.dir=C:\\Users\\YourUser\\AppData\\Local\\Android\\Sdk
+# macOS/Linux example:
+# sdk.dir=/Users/YourUser/Library/Android/sdk
