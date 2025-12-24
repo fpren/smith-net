@@ -15,6 +15,10 @@ object NavRoutes {
     const val CREATE_CHANNEL = "create_channel/{beaconId}"
     const val CREATE_BEACON = "create_beacon"
     
+    // Separate components (C-11, C-12)
+    const val JOB_BOARD = "job_board"     // C-11: Job Board / Task View
+    const val TIME_TRACKING = "time_clock" // C-12: Time Tracking Core
+    
     fun channelList(beaconId: String) = "channels/$beaconId"
     fun conversation(beaconId: String, channelId: String) = "conversation/$beaconId/$channelId"
     fun conversationDM(beaconId: String, channelId: String, peerId: String, peerName: String) = 

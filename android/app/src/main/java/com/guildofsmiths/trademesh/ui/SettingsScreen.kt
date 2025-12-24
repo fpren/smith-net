@@ -38,6 +38,8 @@ import com.guildofsmiths.trademesh.engine.BoundaryEngine
 fun SettingsScreen(
     onBackClick: () -> Unit,
     onNameChanged: (String) -> Unit,
+    onJobBoardClick: (() -> Unit)? = null,
+    onTimeTrackingClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var userName by remember { mutableStateOf(UserPreferences.getUserName()) }
@@ -272,6 +274,58 @@ fun SettingsScreen(
                 text = "Relay bridges mesh messages to online backend",
                 style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
             )
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            ConsoleSeparator()
+            
+            Spacer(modifier = Modifier.height(20.dp))
+            
+            // Components (C-11, C-12)
+            Text(text = "COMPONENTS", style = ConsoleTheme.captionBold)
+            Spacer(modifier = Modifier.height(10.dp))
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .clickable { onJobBoardClick?.invoke() }
+                    .padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "📋", style = ConsoleTheme.body)
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = "JOB BOARD", style = ConsoleTheme.bodyBold)
+                    Text(
+                        text = "Task management & assignments",
+                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+                    )
+                }
+                Text(text = "→", style = ConsoleTheme.body)
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .clickable { onTimeTrackingClick?.invoke() }
+                    .padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "⏱️", style = ConsoleTheme.body)
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = "TIME CLOCK", style = ConsoleTheme.bodyBold)
+                    Text(
+                        text = "Clock in/out & time logs",
+                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+                    )
+                }
+                Text(text = "→", style = ConsoleTheme.body)
+            }
             
             Spacer(modifier = Modifier.height(24.dp))
             

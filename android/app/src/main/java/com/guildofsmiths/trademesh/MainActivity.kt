@@ -47,6 +47,8 @@ import com.guildofsmiths.trademesh.ui.NavRoutes
 import com.guildofsmiths.trademesh.ui.PeersScreen
 import com.guildofsmiths.trademesh.ui.SettingsScreen
 import com.guildofsmiths.trademesh.ui.WelcomeScreen
+import com.guildofsmiths.trademesh.ui.jobboard.JobBoardScreen
+import com.guildofsmiths.trademesh.ui.timetracking.TimeTrackingScreen
 import com.guildofsmiths.trademesh.ui.theme.TradeMeshTheme
 
 /**
@@ -268,6 +270,30 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onNameChanged = { newName ->
                                     viewModel.setUserName(newName)
+                                },
+                                onJobBoardClick = {
+                                    navController.navigate(NavRoutes.JOB_BOARD)
+                                },
+                                onTimeTrackingClick = {
+                                    navController.navigate(NavRoutes.TIME_TRACKING)
+                                }
+                            )
+                        }
+                        
+                        // C-11: Job Board
+                        composable(NavRoutes.JOB_BOARD) {
+                            JobBoardScreen(
+                                onNavigateBack = {
+                                    navController.popBackStack()
+                                }
+                            )
+                        }
+                        
+                        // C-12: Time Tracking
+                        composable(NavRoutes.TIME_TRACKING) {
+                            TimeTrackingScreen(
+                                onNavigateBack = {
+                                    navController.popBackStack()
                                 }
                             )
                         }
