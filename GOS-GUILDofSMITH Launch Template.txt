@@ -1,0 +1,238 @@
+============================================================
+GUILD OF SMITHS (GoS) — 9-PHASE ADAPTIVE EXECUTION FRAMEWORK
+============================================================
+Formalized, execution-grade governance document.
+Nothing is invented. Nothing is softened.
+This defines timing, priorities, gates, and activation law.
+
+------------------------------------------------------------
+I. CANONICAL SEQUENCING AND GOVERNANCE LAW
+------------------------------------------------------------
+This document defines:
+- ALL lawful sequence of activation
+- How components evolve in controlled order (C-01 → C-35)
+- How to re-rank these components post-launch based on user adaptability, revenue, and system sustainability
+
+This is *execution law*, not product brainstorming.
+
+Adaptation model mirrors Android OS tiered upgrade cadence.
+Each phase = one release band. Deferred modules = future OS versions.
+Total Phases: P0 → P8 (9 phases total)
+
+------------------------------------------------------------
+II. PHASE TIMING OVERVIEW (REALISTIC WINDOWS)
+------------------------------------------------------------
+
+| Phase | Internal Name  | Typical Duration | Target Window | Primary Goal |
+| ------ | --------------- | ---------------- | -------------- | --------------- |
+| P0 | Forge | 3–6 weeks | Internal Lab Build | Stability & core schema freeze |
+| P1 | Anvil | 4–8 weeks | Beta / internal use | Foundational usability and messaging |
+| P2 | Hammer | 6–9 weeks | Public Entry | Build monetization base |
+| P3 | Temper | 8–12 weeks | Post-launch | AI leverage, conversion efficiency |
+| P4 | Alloy | 10–16 weeks | Scale-up | Organizational layer ready |
+| P5 | Citadel | 12–20 weeks | Institutional phase | High-trust + compliance |
+| P6 | Apex | Variable (6–12 wks) | Partner Engagement | Controlled API release |
+| P7 | Ascent | Flexible | Mature ecosystem | Optimize deferred upgrades |
+| P8 | Legacy | Continuous | National/long-term | Sovereign-grade stabilization |
+
+------------------------------------------------------------
+III. PROJECTED TIMELINE TABLE (MONTH-BY-MONTH EXECUTION PLAN)
+------------------------------------------------------------
+Assumes Dec 18, 2025 start date. Adaptive compression/expansion applies.
+
+| Month | Week Range | Phase Active | Key Milestones | Components Activated | Revenue Target | User Target |
+|-------|------------|--------------|----------------|---------------------|----------------|-------------|
+| Dec 2025 | Wk 1-4 | P0 Forge | Schema freeze, auth complete | C-01→C-05 | $0 | Internal only |
+| Jan 2026 | Wk 5-8 | P1 Anvil | Beta launch, core chat live | C-06→C-12, C-21 | $0 | 50 beta users |
+| Feb 2026 | Wk 9-12 | P2 Hammer | Public v1.0, first invoices | C-13,C-15,C-16,C-20 | $500 MRR | 500 DAU |
+| Mar 2026 | Wk 13-16 | P3 Temper | AI summaries, advanced billing | C-14,C-17,C-18,C-22 | $2k MRR | 1.5k DAU |
+| Apr 2026 | Wk 17-20 | P4 Alloy | Org accounts, payroll ready | C-19,C-23,C-25→C-27 | $5k MRR | 3k DAU |
+| May 2026 | Wk 21-24 | P5 Citadel | Nation tenant prototype | C-30,C-31 | $10k MRR | 5k DAU |
+| Jun 2026 | Wk 25-28 | P6 Apex | Partner SDK launch | C-33,C-34 | $20k MRR | 8k DAU |
+| Jul 2026 | Wk 29-32 | P7 Ascent | Deferred modules unlock | C-24,C-28,C-29,C-35 | $30k MRR | 12k DAU |
+| Aug 2026+ | Wk 33+ | P8 Legacy | Full resilience, sustained | C-32 + all cleared | $50k+ MRR | 20k+ DAU |
+
+ADAPTIVE SCENARIOS:
+- FAST TRACK: ≥$10k MRR by Mar → Skip to P4 by Apr
+- SLOW TRACK: Stability issues → Extend each phase +2 weeks
+- EMERGENCY: National event → Jump P5→P8 directly
+
+------------------------------------------------------------
+IV. MASTER COMPONENT INVENTORY (C-01 → C-35)
+------------------------------------------------------------
+Every component appears once in a lawful activation phase.  
+No duplication. Deferred = deliberate delay. Nothing omitted.
+
+(A) CORE SYSTEM COMPONENTS
+------------------------------------------------------------
+| ID | Component | Description | Phase | Target Readiness | Risk |
+|----|------------|--------------|--------|------------------|------|
+| C-01 | Authentication & Identity | Base auth, session, tokens | P0 | Week 2 | Security regression |
+| C-02 | Role Engine | Solo → Foreman → Enterprise | P0 | Week 4 | Access rule bug |
+| C-03 | Schema & Boundary Engine | Data model isolation | P0 | Week 3 | Schema churn |
+| C-04 | Vendor-Neutral LLM Interface | Low-cost AI adapter | P0 | Week 5 | API variance |
+| C-05 | Data Retention Core | Durable logs, no auto expiry | P0 | Week 6 | Data weight |
+
+(B) COMMUNICATION & PRESENCE
+------------------------------------------------------------
+| ID | Component | Description | Phase | ETA | Risk |
+|----|-------------|-------------|--------|------|------|
+| C-06 | IP Chat (1:1 + Group) | Primary direct comms | P1 | Week 9 | Sync overhead |
+| C-07 | BLE Mesh Messaging | Offline local transfer | P1 | Week 10 | Range stability |
+| C-08 | Presence Signals | Status & heartbeat | P1 | Week 11 | Stale presence |
+| C-09 | Mesh-Aware Presence Sync | Local + Cloud blending | P1 | Week 12 | Desync fatigue |
+| C-10 | Foreman Local Hub Mode | Local memory relay | P2 | Week 16 | Cache corruption |
+
+(C) TIME AND JOB CONTROL
+------------------------------------------------------------
+| ID | Component | Description | Phase | ETA | Risk |
+|----|-------------|-------------|--------|------|------|
+| C-11 | Job Board / Task View | Adaptive board by role | P1 | Week 12 | Confusion UX |
+| C-12 | Time Tracking Core | Manual logging core | P1 | Week 13 | Tamper risk |
+| C-13 | GPS / Geofence Clocking | Locational entry tracking | P2 | Week 17 | Privacy pushback |
+| C-14 | AI Time Compression | AI summary of time logs | P3 | Week 22 | Cost overhead |
+
+(D) FINANCIAL + INVOICING
+------------------------------------------------------------
+| ID | Component | Description | Phase | ETA | Risk |
+|----|-------------|-------------|--------|------|------|
+| C-15 | Standard Solo Invoice | Individual billing base | P2 | Week 18 | Tax errors |
+| C-16 | Enterprise Invoice | Crew / multi-role billing | P2 | Week 20 | Scaling load |
+| C-17 | Advanced Solo Invoice + AI | Audit-augmented details | P3 | Week 23 | Computation surge |
+| C-18 | Advanced Enterprise Invoice | Deep ledger per team | P3 | Week 26 | Revenue calc bugs |
+| C-19 | Paystub & Check Generator | Payroll realism layer | P4 | Week 29 | Compliance lock |
+| C-20 | Pricing Tier Logic | Free-to-premium logic | P2 | Week 19 | Revenue mismatch |
+
+(E) AI MODES & SUPERVISION
+------------------------------------------------------------
+| ID | Component | Description | Phase | ETA | Risk |
+|----|-------------|-------------|--------|------|------|
+| C-21 | Rule-Based Assistant | Local inference core | P1 | Week 11 | Token waste |
+| C-22 | Hybrid AI Supervisor | Co-managed AI behavior | P3 | Week 24 | User confusion |
+| C-23 | Project AI Reports | AI-assisted reporting | P4 | Week 28 | Misreport risk |
+| C-24 | Dialect Learning | Adaptive AI voice models | P7 | Conditional | Cost scaling |
+
+(F) ORGANIZATIONAL SCALE
+------------------------------------------------------------
+| ID | Component | Description | Phase | ETA | Risk |
+|----|-------------|-------------|--------|------|------|
+| C-25 | Enterprise Org Account | Org control layer | P4 | Week 27 | Admin friction |
+| C-26 | Role Strictness Toggle | Role granularity setting | P4 | Week 27 | Misconfig risk |
+| C-27 | Team Dashboards | Centralized visibility | P4 | Week 28 | Data lag |
+
+(G) QUOTING & RESILIENCE
+------------------------------------------------------------
+| ID | Component | Description | Phase | ETA | Risk |
+|----|-------------|-------------|--------|------|------|
+| C-28 | Auto-Quote Engine | Data-assisted estimates | P7 | Conditional | Legal exposure |
+| C-29 | Region Pricing Logic | Location-based dynamic pricing | P7 | Conditional | Inconsistent parity |
+
+(H) INSTITUTIONAL SCALE
+------------------------------------------------------------
+| ID | Component | Description | Phase | ETA | Risk |
+|----|-------------|-------------|--------|------|------|
+| C-30 | Nation Tenant | Multi-institution hosting | P5 | Week 36 | Security risk |
+| C-31 | Bulk AI Credit System | Token economics | P5 | Week 37 | Misbilling risk |
+| C-32 | Disaster / Offline Mode | Mesh failsafe | P8 | Conditional | Latency pressure |
+
+(I) ECOSYSTEM EXTENSIONS
+------------------------------------------------------------
+| ID | Component | Description | Phase | ETA | Risk |
+|----|-------------|-------------|--------|------|------|
+| C-33 | Partner SDK (Gated) | Controlled plug-in system | P6 | Week 33 | Partner breach |
+| C-34 | Modular AI Tiers | Variable AI pricing | P6 | Week 34 | Tier leakage |
+| C-35 | Developer APIs | Public integration entry | P7 | Conditional | Abuse exposure |
+
+------------------------------------------------------------
+V. PRIORITIZATION LAW — POST-LAUNCH ORDER (N1 → N6)
+------------------------------------------------------------
+Ranking based on user adaptability + necessity.
+
+| Priority | Focus Band | Purpose | Expected Activation Window |
+|-----------|-------------|----------|-----------------------------|
+| N1 | Habit Formation | Core chat, mesh, and time features for instant value | P1–P2 (Weeks 9–17) |
+| N2 | Revenue Proving | Billing and pricing for early monetization | P2 (Weeks 17–21) |
+| N3 | Leverage Layer | Controlled AI automation | P3 (Weeks 22–26) |
+| N4 | Organizational Scale | Expand to crews and payroll | P4 (Weeks 27–30) |
+| N5 | Institutional Scope | Ecosystem, SDKs, and national layers | P5–P6 (Weeks 31–38) |
+| N6 | Deferred / Conditional | Resilience, regional pricing, experiments | P7–P8 (Conditional onwards) |
+
+------------------------------------------------------------
+VI. PRACTICAL PHASE GATES (ADAPTIVE TIMING)
+------------------------------------------------------------
+| Phase | Gate Trigger | Validation |
+|--------|---------------|------------|
+| P1 | 7-day stable use | No auth or sync bugs |
+| P2 | ≥1 paid invoice | Stable sessions + MRR ≥ $500/mo |
+| P3 | AI ROI ≥ cost baseline | Feedback positive |
+| P4 | ≥3 active orgs | 10+ users per org sustained |
+| P5 | Legal + funding signed | Compliance documented |
+| P6 | Partner acceptance | SDK security audit complete |
+| P7 | Deferred unlock approved | Infra load <70% |
+| P8 | 60-day sustained uptime | User base retention ≥90% |
+
+------------------------------------------------------------
+VII. ADAPTIVE COMPRESSION / EXPANSION LOGIC
+------------------------------------------------------------
+Live indicators modify phase timing automatically:
+
+| Signal | Action |
+|---------|---------|
+| ≥$10k MRR | Accelerate forward one phase |
+| Daily active users >5k | Freeze features 14 days for optimization |
+| AI cost ratio > revenue 20% | Revert to rule-based mode |
+| Market competition surge | Allow controlled AI rollout |
+| National impact / outage | Jump directly into P8 Resilience Mode |
+
+------------------------------------------------------------
+VIII. DEFERRED / WATCHED / DECADESISTED POOLS
+------------------------------------------------------------
+DEFERRED:
+- C-24 Dialect Learning
+- C-28 Auto-Quote Engine
+- C-29 Regional Pricing
+- C-32 Disaster Mode (Emergency only)
+- C-35 Developer APIs (Post P6 security signoff)
+
+WATCHED:
+- AI consumption vs revenue
+- User retention post upgrade
+- Org-level adoption stress
+- Feature overload index
+
+DECADESISTED (Execution Halted unless reinstated):
+- Non-productive social layer
+- Cosmetic-only UI personalization
+- AI beyond core productivity
+
+------------------------------------------------------------
+IX. ANDROID-LIKE UPGRADE SEQUENCING MODEL
+------------------------------------------------------------
+Rule: Each subsequent GoS phase = Android-style "version release"
+- Stable phase → triggers limited upgrade sequence
+- Deferred features = staged updates
+- Watched components = monitored but dormant
+- Maintenance patches allowed between phases (e.g., P2.1, P2.2)
+
+Example OS Mode:
+- GoS v1.x : Core mesh + invoice base
+- GoS v2.x : AI summaries + org visibility
+- GoS v3.x : Partnership scaling + SDK hooks
+- GoS v4.x : National resilience + full automation
+
+------------------------------------------------------------
+X. FINAL GOVERNANCE PRINCIPLE (GoS LAW)
+------------------------------------------------------------
+Progress is not measured by quantity—
+but by what can be sustained without strain.
+
+System evolves only on verified stability, revenue, and user readiness.
+
+*If any factor fails → phase pauses automatically.*
+
+------------------------------------------------------------
+END OF DOCUMENT
+------------------------------------------------------------
+This document defines how the Guild of Smiths framework evolves,
+when upgrades are justified,
+and how feature activation is governed across time, users, and markets.
