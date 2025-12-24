@@ -35,6 +35,8 @@ import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
 import com.guildofsmiths.trademesh.service.MeshService
 import com.guildofsmiths.trademesh.service.NotificationHelper
+import com.guildofsmiths.trademesh.service.AuthService
+import com.guildofsmiths.trademesh.ui.AuthScreen
 import com.guildofsmiths.trademesh.ui.BeaconListScreen
 import com.guildofsmiths.trademesh.ui.ChannelListScreen
 import com.guildofsmiths.trademesh.ui.ConversationScreen
@@ -193,18 +195,40 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val navController = rememberNavController()
                     
-                    // Determine start destination based on onboarding status
-                    val startDestination = if (UserPreferences.hasUserName()) {
-                        NavRoutes.BEACON_LIST
-                    } else {
-                        NavRoutes.WELCOME
+                    // Determine start destination based on auth/onboarding status
+                    val startDestination = when {
+                        !UserPreferences.hasUserName() -> NavRoutes.AUTH
+                        else -> NavRoutes.BEACON_LIST
                     }
                     
                     NavHost(
                         navController = navController,
                         startDestination = startDestination
                     ) {
-                        // Welcome/onboarding screen
+                        // Auth screen (C-01)
+                        composable(NavRoutes.AUTH) {
+                            AuthScreen(
+                                onAuthSuccess = {
+                                    // Sync auth name with local preferences
+                                    AuthService.getUserName()?.let { name ->
+                                        UserPreferences.setUserName(name)
+                                        viewModel.setUserName(name)
+                                    }
+                                    UserPreferences.setOnboardingComplete()
+                                    navController.navigate(NavRoutes.BEACON_LIST) {
+                                        popUpTo(NavRoutes.AUTH) { inclusive = true }
+                                    }
+                                },
+                                onSkip = {
+                                    // Skip to welcome for offline/mesh mode
+                                    navController.navigate(NavRoutes.WELCOME) {
+                                        popUpTo(NavRoutes.AUTH) { inclusive = true }
+                                    }
+                                }
+                            )
+                        }
+                        
+                        // Welcome/onboarding screen (offline mode)
                         composable(NavRoutes.WELCOME) {
                             WelcomeScreen(
                                 onComplete = { userName ->

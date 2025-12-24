@@ -4,6 +4,7 @@ package com.guildofsmiths.trademesh.ui
  * Navigation routes for the app.
  */
 object NavRoutes {
+    const val AUTH = "auth"  // C-01: Authentication screen
     const val WELCOME = "welcome"
     const val BEACON_LIST = "beacons"
     const val CHANNEL_LIST = "channels/{beaconId}"
