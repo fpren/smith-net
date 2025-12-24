@@ -20,6 +20,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavType
@@ -92,6 +95,68 @@ class MainActivity : ComponentActivity() {
             ).show()
         }
     }
+    
+    // ══════════════════════════════════════════════════════════════════
+    // MEDIA LAUNCHERS
+    // ══════════════════════════════════════════════════════════════════
+    
+    /** Camera capture launcher */
+    private val cameraLauncher = registerForActivityResult(
+        ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            Log.i(TAG, "📷 Camera capture successful")
+            viewModel.onCameraCaptured(pendingDmPeerId, pendingDmPeerName)
+        } else {
+            Log.w(TAG, "📷 Camera capture cancelled or failed")
+        }
+        pendingDmPeerId = null
+        pendingDmPeerName = null
+    }
+    
+    /** File picker launcher */
+    private val filePickerLauncher = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            Log.i(TAG, "📁 File selected: $uri")
+            viewModel.onFileSelected(uri, pendingDmPeerId, pendingDmPeerName)
+        } else {
+            Log.w(TAG, "📁 File picker cancelled")
+        }
+        pendingDmPeerId = null
+        pendingDmPeerName = null
+    }
+    
+    /** Camera permission launcher */
+    private val cameraPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            Log.i(TAG, "Camera permission granted")
+            launchCamera()
+        } else {
+            Log.w(TAG, "Camera permission denied")
+            Toast.makeText(this, "Camera permission required", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /** Microphone permission launcher */
+    private val micPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            Log.i(TAG, "Microphone permission granted")
+            startVoiceRecording()
+        } else {
+            Log.w(TAG, "Microphone permission denied")
+            Toast.makeText(this, "Microphone permission required", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    // Track DM context for media callbacks
+    private var pendingDmPeerId: String? = null
+    private var pendingDmPeerName: String? = null
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -280,20 +345,46 @@ class MainActivity : ComponentActivity() {
                                 Peer(userId = dmPeerId, userName = dmPeerName)
                             } else null
                             
+                            // Check if user can delete for all in this channel
+                            val canDeleteForAll = channel?.canDeleteForAll(viewModel.getLocalUserId()) ?: false
+                            
+                            // Track DM peer for media callbacks
+                            var currentDmPeer by remember { mutableStateOf(initialDmPeer) }
+                            
                             ConversationScreen(
                                 messages = messages,
                                 onSendMessage = { content, peer ->
+                                    currentDmPeer = peer ?: initialDmPeer
                                     viewModel.sendMessage(
                                         content = content,
                                         recipientId = peer?.userId,
                                         recipientName = peer?.userName
                                     )
                                 },
+                                onMessageAction = { message, action ->
+                                    viewModel.handleMessageAction(message, action)
+                                },
                                 localUserId = viewModel.getLocalUserId(),
                                 channel = channel,
                                 beaconName = beacon?.name,
+                                canDeleteForAll = canDeleteForAll,
                                 onBackClick = {
                                     navController.popBackStack()
+                                },
+                                onVoiceClick = {
+                                    pendingDmPeerId = currentDmPeer?.userId ?: initialDmPeer?.userId
+                                    pendingDmPeerName = currentDmPeer?.userName ?: initialDmPeer?.userName
+                                    requestMicrophoneAndRecord()
+                                },
+                                onCameraClick = {
+                                    pendingDmPeerId = currentDmPeer?.userId ?: initialDmPeer?.userId
+                                    pendingDmPeerName = currentDmPeer?.userName ?: initialDmPeer?.userName
+                                    requestCameraAndCapture()
+                                },
+                                onFileClick = {
+                                    pendingDmPeerId = currentDmPeer?.userId ?: initialDmPeer?.userId
+                                    pendingDmPeerName = currentDmPeer?.userName ?: initialDmPeer?.userName
+                                    launchFilePicker()
                                 },
                                 initialDmPeer = initialDmPeer
                             )
@@ -400,5 +491,66 @@ class MainActivity : ComponentActivity() {
         
         // Set initial state
         BoundaryEngine.updateConnectivityState(this)
+    }
+    
+    // ══════════════════════════════════════════════════════════════════
+    // MEDIA HELPERS
+    // ══════════════════════════════════════════════════════════════════
+    
+    /**
+     * Request camera permission and launch camera if granted.
+     */
+    private fun requestCameraAndCapture() {
+        when {
+            ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) 
+                == PackageManager.PERMISSION_GRANTED -> {
+                launchCamera()
+            }
+            else -> {
+                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            }
+        }
+    }
+    
+    /**
+     * Launch the camera to capture a photo.
+     */
+    private fun launchCamera() {
+        val uri = viewModel.createCameraUri()
+        if (uri != null) {
+            cameraLauncher.launch(uri)
+        } else {
+            Toast.makeText(this, "Failed to create camera file", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * Request microphone permission and start recording if granted.
+     */
+    private fun requestMicrophoneAndRecord() {
+        when {
+            ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) 
+                == PackageManager.PERMISSION_GRANTED -> {
+                startVoiceRecording()
+            }
+            else -> {
+                micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            }
+        }
+    }
+    
+    /**
+     * Toggle voice recording (start/stop).
+     * Called when the mic button is pressed.
+     */
+    private fun startVoiceRecording() {
+        viewModel.toggleVoiceRecording(pendingDmPeerId, pendingDmPeerName)
+    }
+    
+    /**
+     * Launch file picker for any file type.
+     */
+    private fun launchFilePicker() {
+        filePickerLauncher.launch("*/*")
     }
 }

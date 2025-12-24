@@ -61,6 +61,7 @@ data class Channel(
     val type: ChannelType = ChannelType.BROADCAST,
     val members: List<String> = emptyList(), // Empty = public/open
     val creatorId: String = "",  // User ID of creator/owner (can delete/archive)
+    val deletePermissions: List<String> = emptyList(),  // User IDs who can delete for all
     val createdAt: Long = System.currentTimeMillis(),
     val isArchived: Boolean = false,  // Hidden from active list but history preserved
     val isDeleted: Boolean = false,   // Tombstone - shows "[deleted]" message
@@ -73,6 +74,14 @@ data class Channel(
      */
     fun isOwner(userId: String): Boolean {
         return creatorId.isNotEmpty() && creatorId == userId
+    }
+    
+    /**
+     * Check if a user can delete messages for everyone in this channel.
+     * True if user is creator OR has been granted permission.
+     */
+    fun canDeleteForAll(userId: String): Boolean {
+        return isOwner(userId) || deletePermissions.contains(userId)
     }
     
     /**

@@ -23,6 +23,14 @@ desktop/python/.venv/
 desktop/python/venv/
 desktop/python/*.egg-info/
 
+# Desktop Portal
+desktop/portal/node_modules/
+desktop/portal/dist/
+
+# Backend
+backend/node_modules/
+backend/dist/
+
 # General
 .DS_Store
 *.log

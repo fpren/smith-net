@@ -11,6 +11,9 @@ import android.bluetooth.BluetoothManager
 import android.bluetooth.le.AdvertiseCallback
 import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertiseSettings
+import android.bluetooth.le.AdvertisingSet
+import android.bluetooth.le.AdvertisingSetCallback
+import android.bluetooth.le.AdvertisingSetParameters
 import android.bluetooth.le.BluetoothLeAdvertiser
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
@@ -71,11 +74,11 @@ class MeshService : Service() {
         /** Maximum outbound queue size */
         private const val MAX_OUTBOUND_QUEUE_SIZE = 50
         
-        /** Beacon payload constraints — reduced for broader device support */
+        /** Beacon payload constraints — BLE 4.x legacy ads limit: ~20 bytes service data */
         private const val SENDER_ID_BYTES = 4      // Shortened sender ID
         private const val CHANNEL_HASH_BYTES = 2   // 2-byte channel hash for routing
         private const val TIMESTAMP_BYTES = 4      // Use 4-byte timestamp (seconds, not ms)
-        private const val MAX_CONTENT_BYTES = 10   // Message content
+        private const val MAX_CONTENT_BYTES = 10   // Message content (~10 chars due to BLE limits)
         private const val MAX_PAYLOAD_BYTES = SENDER_ID_BYTES + CHANNEL_HASH_BYTES + TIMESTAMP_BYTES + MAX_CONTENT_BYTES // 20
         
         /** Special channel hash for invites */
@@ -83,6 +86,9 @@ class MeshService : Service() {
         
         /** Special channel hash for channel deletions (tombstones) */
         private const val DELETE_CHANNEL_HASH: Short = 0x7FFE.toShort()
+        
+        /** Special channel hash for ACK packets */
+        private const val ACK_CHANNEL_HASH: Short = 0x7FFD.toShort()
     }
     
     private val binder = MeshBinder()
@@ -103,6 +109,10 @@ class MeshService : Service() {
     /** Set of recently seen message hashes for deduplication */
     private val recentPayloadHashes = LinkedHashSet<Int>()
     private val maxRecentHashes = 100
+    
+    /** Cache of recent outbound messages for retry lookup */
+    private val recentOutboundMessages = LinkedHashMap<String, Message>(50, 0.75f, true)
+    private val maxRecentOutbound = 50
     
     /** Scan timeout runnable */
     private val scanTimeoutRunnable = Runnable {
@@ -140,6 +150,11 @@ class MeshService : Service() {
         
         initializeBluetooth()
         BoundaryEngine.registerMeshService(this)
+        
+        // Set up ACK retry callback
+        MeshAckManager.setRetryCallback { messageId ->
+            retryMessageById(messageId)
+        }
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -154,6 +169,7 @@ class MeshService : Service() {
         handler.removeCallbacks(advertiseStopRunnable)
         stopScanning()
         stopAdvertising()
+        MeshAckManager.clearAll()
         BoundaryEngine.unregisterMeshService()
         super.onDestroy()
     }
@@ -243,8 +259,13 @@ class MeshService : Service() {
             buffer.put(if (i < senderBytes.size) senderBytes[i] else 0)
         }
         
-        // Channel hash: 2 bytes
-        val hash = channelHash(message.channelId)
+        // Channel hash: 2 bytes - use special hashes for special channels
+        val hash = when (message.channelId) {
+            "__INVITE__" -> INVITE_CHANNEL_HASH
+            "__DELETE__" -> DELETE_CHANNEL_HASH
+            "_ack" -> ACK_CHANNEL_HASH
+            else -> channelHash(message.channelId)
+        }
         Log.d(TAG, "📤 Serializing: channel=${message.channelId}, hash=$hash, content='${message.content}'")
         buffer.putShort(hash)
         
@@ -316,6 +337,22 @@ class MeshService : Service() {
                 Log.i(TAG, "🗑️ Received channel deletion: #$content from $senderId")
                 BoundaryEngine.onChannelDeletionReceived(content, senderId)
                 return null // Don't display deletion as a regular message
+            }
+            
+            // Check if this is an ACK packet
+            if (channelHashValue == ACK_CHANNEL_HASH) {
+                // Return a message object so ACK can be processed
+                val id = "${senderId}_${timestamp}_ack"
+                return Message(
+                    id = id,
+                    beaconId = "default",
+                    channelId = "_ack",
+                    senderId = senderId,
+                    senderName = senderId,
+                    timestamp = timestamp,
+                    content = content,
+                    isMeshOrigin = true
+                )
             }
             
             // Resolve channel by hash - only show if we're a member
@@ -522,11 +559,19 @@ class MeshService : Service() {
             .setServiceUuid(MESH_SERVICE_PARCEL_UUID)
             .build()
         
-        // Balanced scan settings for better reception
-        val scanSettings = ScanSettings.Builder()
+        // Scan settings - scan for BOTH legacy and extended advertisements
+        val scanSettingsBuilder = ScanSettings.Builder()
             .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
             .setReportDelay(0) // Immediate reporting
-            .build()
+        
+        // On API 26+, explicitly enable ALL PHYs but keep legacy=true to receive both types
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            scanSettingsBuilder.setPhy(ScanSettings.PHY_LE_ALL_SUPPORTED)
+            // Note: setLegacy(true) is the default - receives legacy ads
+            // Extended ads are received automatically when PHY_LE_ALL_SUPPORTED is set
+        }
+        
+        val scanSettings = scanSettingsBuilder.build()
         
         try {
             scanner.startScan(listOf(scanFilter), scanSettings, scanCallback)
@@ -668,6 +713,17 @@ class MeshService : Service() {
             return
         }
         
+        // Check if this is an ACK packet
+        if (MeshAckManager.isAckPacket(message.content)) {
+            val originalMessageId = MeshAckManager.extractAckMessageId(message.content)
+            if (originalMessageId != null) {
+                Log.d(TAG, "   📨 ACK packet received for: ${originalMessageId.take(8)}...")
+                MeshAckManager.onAckReceived(originalMessageId)
+            }
+            return
+        }
+        
+        // Regular message (chunking disabled - unreliable over BLE)
         Log.i(TAG, "   ✅ PARSED MESSAGE:")
         Log.i(TAG, "      ID: ${message.id}")
         Log.i(TAG, "      Sender: ${message.senderId}")
@@ -675,6 +731,11 @@ class MeshService : Service() {
         Log.i(TAG, "      Timestamp: ${message.timestamp}")
         Log.i(TAG, "      RSSI: $rssi dBm")
         Log.d(TAG, "────────────────────────────────────────")
+        
+        // Send ACK for non-presence messages
+        if (MeshAckManager.requiresAck(message.channelId, message.content)) {
+            sendAck(message.id, message.senderId)
+        }
         
         // Route to BoundaryEngine with RSSI for peer tracking
         BoundaryEngine.onMeshMessageReceived(message, rssi)
@@ -700,13 +761,51 @@ class MeshService : Service() {
     
     /**
      * Broadcast a message via BLE advertising.
-     * Uses low-power, non-connectable mode for battery efficiency.
+     * Automatically chunks long messages into multiple advertisements.
      */
     fun broadcastMessage(message: Message) {
         Log.i(TAG, "════════════════════════════════════════")
         Log.i(TAG, "📤 BROADCAST REQUEST")
         Log.i(TAG, "   Content: \"${message.content}\"")
         Log.i(TAG, "   Sender: ${message.senderId}")
+        
+        // For now, truncate long messages with "..." indicator
+        // BLE mesh payload limit is ~10 chars, chunking is unreliable over air
+        val truncatedContent = if (message.content.length > 10) {
+            message.content.take(7) + "..."
+        } else {
+            message.content
+        }
+        
+        val finalMessage = if (truncatedContent != message.content) {
+            Log.i(TAG, "   ⚠️ Truncating: '${message.content}' → '$truncatedContent'")
+            message.copy(content = truncatedContent)
+        } else {
+            message
+        }
+        
+        // Broadcast (potentially truncated) message
+        broadcastSingleMessage(finalMessage)
+    }
+    
+    /**
+     * Broadcast a single message (or chunk) via BLE advertising.
+     */
+    private fun broadcastSingleMessage(message: Message) {
+        Log.d(TAG, "📤 Broadcasting: \"${message.content}\"")
+        
+        // Register for ACK tracking if required
+        if (MeshAckManager.requiresAck(message.channelId, message.content)) {
+            MeshAckManager.registerOutbound(message.id, message.content)
+            // Cache for retry
+            synchronized(recentOutboundMessages) {
+                recentOutboundMessages[message.id] = message
+                if (recentOutboundMessages.size > maxRecentOutbound) {
+                    val oldest = recentOutboundMessages.keys.first()
+                    recentOutboundMessages.remove(oldest)
+                }
+            }
+        }
         
         if (!checkBlePermissions()) {
             Log.e(TAG, "   ❌ BLE permissions not granted")
@@ -738,25 +837,33 @@ class MeshService : Service() {
             stopAdvertising()
         }
         
-        // Build advertise settings - LOW POWER, NON-CONNECTABLE
+        // Always use legacy advertising - extended ads not reliably supported on most devices
+        // BLE 4.x hardware limits service data to ~20 bytes (10 chars after headers)
+        startLegacyAdvertising(advertiser, payload, message)
+    }
+    
+    @Suppress("DEPRECATION")
+    private fun startLegacyAdvertising(advertiser: BluetoothLeAdvertiser, payload: ByteArray, message: Message) {
+        // Legacy advertising has ~20 byte limit for service data
+        val truncatedPayload = if (payload.size > 20) payload.copyOf(20) else payload
+        
         val advertiseSettings = AdvertiseSettings.Builder()
             .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_POWER)
-            .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM) // Medium for better range
+            .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM)
             .setConnectable(false)
-            .setTimeout(0) // No timeout - we manage it ourselves
+            .setTimeout(0)
             .build()
         
-        // Build advertise data with service UUID and service data
         val advertiseData = AdvertiseData.Builder()
             .setIncludeDeviceName(false)
             .setIncludeTxPowerLevel(false)
             .addServiceUuid(MESH_SERVICE_PARCEL_UUID)
-            .addServiceData(MESH_SERVICE_PARCEL_UUID, payload)
+            .addServiceData(MESH_SERVICE_PARCEL_UUID, truncatedPayload)
             .build()
         
         try {
             advertiser.startAdvertising(advertiseSettings, advertiseData, advertiseCallback)
-            Log.i(TAG, "   ⏳ Starting advertisement...")
+            Log.i(TAG, "   ⏳ Starting legacy advertisement (${truncatedPayload.size} bytes)...")
             Log.i(TAG, "════════════════════════════════════════")
         } catch (e: SecurityException) {
             Log.e(TAG, "   ❌ SecurityException: ${e.message}")
@@ -765,6 +872,82 @@ class MeshService : Service() {
             Log.e(TAG, "   ❌ Error: ${e.message}")
             queueOutboundMessage(message)
         }
+    }
+    
+    private var currentAdvertisingSet: AdvertisingSet? = null
+    
+    private fun startExtendedAdvertising(advertiser: BluetoothLeAdvertiser, payload: ByteArray, message: Message) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            startLegacyAdvertising(advertiser, payload, message)
+            return
+        }
+        
+        try {
+            val parameters = AdvertisingSetParameters.Builder()
+                .setLegacyMode(false) // Use extended advertising
+                .setConnectable(false)
+                .setScannable(true)
+                .setInterval(AdvertisingSetParameters.INTERVAL_LOW) // ~100ms
+                .setTxPowerLevel(AdvertisingSetParameters.TX_POWER_MEDIUM)
+                .build()
+            
+            val advertiseData = AdvertiseData.Builder()
+                .setIncludeDeviceName(false)
+                .setIncludeTxPowerLevel(false)
+                .addServiceUuid(MESH_SERVICE_PARCEL_UUID)
+                .addServiceData(MESH_SERVICE_PARCEL_UUID, payload)
+                .build()
+            
+            val extendedCallback = object : AdvertisingSetCallback() {
+                override fun onAdvertisingSetStarted(advertisingSet: AdvertisingSet?, txPower: Int, status: Int) {
+                    if (status == AdvertisingSetCallback.ADVERTISE_SUCCESS) {
+                        currentAdvertisingSet = advertisingSet
+                        isAdvertising = true
+                        Log.i(TAG, "════════════════════════════════════════")
+                        Log.i(TAG, "📢 EXTENDED ADVERTISE STARTED")
+                        Log.i(TAG, "   Payload: ${payload.size} bytes")
+                        Log.i(TAG, "   TxPower: $txPower")
+                        Log.i(TAG, "   Duration: ${ADVERTISE_DURATION_MS}ms")
+                        Log.i(TAG, "════════════════════════════════════════")
+                        
+                        if (!isScanning) startScanning()
+                        handler.postDelayed({ stopExtendedAdvertising() }, ADVERTISE_DURATION_MS)
+                    } else {
+                        Log.e(TAG, "❌ Extended advertising failed: $status, falling back to legacy")
+                        startLegacyAdvertising(advertiser, payload, message)
+                    }
+                }
+                
+                override fun onAdvertisingSetStopped(advertisingSet: AdvertisingSet?) {
+                    isAdvertising = false
+                    currentAdvertisingSet = null
+                    Log.i(TAG, "⏹️ EXTENDED ADVERTISE STOPPED")
+                    processOutboundQueue()
+                }
+            }
+            
+            advertiser.startAdvertisingSet(parameters, advertiseData, null, null, null, extendedCallback)
+            Log.i(TAG, "   ⏳ Starting extended advertisement (${payload.size} bytes)...")
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "   ❌ Extended advertising error: ${e.message}, falling back to legacy")
+            startLegacyAdvertising(advertiser, payload, message)
+        }
+    }
+    
+    private fun stopExtendedAdvertising() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            currentAdvertisingSet?.let { set ->
+                try {
+                    bleAdvertiser?.stopAdvertisingSet(object : AdvertisingSetCallback() {})
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error stopping extended advertising: ${e.message}")
+                }
+            }
+            currentAdvertisingSet = null
+        }
+        isAdvertising = false
+        processOutboundQueue()
     }
     
     fun stopAdvertising() {
@@ -849,6 +1032,79 @@ class MeshService : Service() {
     }
     
     fun getOutboundQueueSize(): Int = outboundQueue.size
+    
+    /**
+     * Retry a message by ID (called by MeshAckManager).
+     */
+    private fun retryMessageById(messageId: String) {
+        val message = synchronized(recentOutboundMessages) {
+            recentOutboundMessages[messageId]
+        }
+        
+        if (message == null) {
+            Log.w(TAG, "⚠️ Cannot retry - message not in cache: ${messageId.take(8)}...")
+            return
+        }
+        
+        Log.i(TAG, "🔄 Retrying broadcast: ${messageId.take(8)}...")
+        
+        // Re-serialize and broadcast (don't re-register for ACK)
+        val payload = serializeToBeacon(message)
+        broadcastPayloadDirect(payload)
+    }
+    
+    /**
+     * Broadcast a raw payload directly (for retries and ACKs).
+     */
+    private fun broadcastPayloadDirect(payload: ByteArray) {
+        if (!checkBlePermissions()) return
+        
+        val advertiser = bleAdvertiser ?: return
+        
+        if (isAdvertising) {
+            stopAdvertising()
+        }
+        
+        val advertiseSettings = AdvertiseSettings.Builder()
+            .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_POWER)
+            .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM)
+            .setConnectable(false)
+            .setTimeout(0)
+            .build()
+        
+        val advertiseData = AdvertiseData.Builder()
+            .setIncludeDeviceName(false)
+            .setIncludeTxPowerLevel(false)
+            .addServiceUuid(MESH_SERVICE_PARCEL_UUID)
+            .addServiceData(MESH_SERVICE_PARCEL_UUID, payload)
+            .build()
+        
+        try {
+            advertiser.startAdvertising(advertiseSettings, advertiseData, advertiseCallback)
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Direct broadcast error: ${e.message}")
+        }
+    }
+    
+    /**
+     * Send an ACK for a received message.
+     */
+    fun sendAck(originalMessageId: String, originalSenderId: String) {
+        Log.d(TAG, "📨 Sending ACK for: ${originalMessageId.take(8)}...")
+        
+        val ackContent = MeshAckManager.createAckContent(originalMessageId)
+        
+        val ackMessage = Message(
+            senderId = com.guildofsmiths.trademesh.data.UserPreferences.getUserId(),
+            senderName = com.guildofsmiths.trademesh.data.UserPreferences.getDisplayName(),
+            channelId = "_ack", // Special ACK channel
+            content = ackContent,
+            isMeshOrigin = true
+        )
+        
+        val payload = serializeToBeacon(ackMessage)
+        broadcastPayloadDirect(payload)
+    }
     
     // ══════════════════════════════════════════════════════════════════
     // PERMISSIONS

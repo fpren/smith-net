@@ -1,16 +1,22 @@
 package com.guildofsmiths.trademesh.ui
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -26,6 +32,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -51,16 +59,27 @@ import java.util.Date
 import java.util.Locale
 
 /**
+ * Message action types for swipe actions.
+ */
+enum class MessageAction {
+    DELETE_FOR_ME,      // Delete only from this device
+    DELETE_FOR_EVERYONE, // Delete from backend + all devices (requires permission)
+    ARCHIVE             // Archive the message
+}
+
+/**
  * Smith Net conversation — bold, chic, left/right aligned.
- * Now with media buttons and DM selection.
+ * Swipe RIGHT = Archive, Swipe LEFT = Delete options.
  */
 @Composable
 fun ConversationScreen(
     messages: List<Message>,
     onSendMessage: (String, Peer?) -> Unit,  // content + optional DM recipient
+    onMessageAction: ((Message, MessageAction) -> Unit)? = null,  // Swipe action handler
     localUserId: String = "",
     channel: Channel? = null,
     beaconName: String? = null,
+    canDeleteForAll: Boolean = false,  // True if user created channel or has permission
     onBackClick: (() -> Unit)? = null,
     onVoiceClick: (() -> Unit)? = null,
     onCameraClick: (() -> Unit)? = null,
@@ -267,7 +286,156 @@ fun ConversationScreen(
                     !message.isMeshOrigin
                 }
                 
-                MessageBlock(message = message, isSentByMe = isSentByMe)
+                // Swipe state
+                var offsetX by remember { mutableStateOf(0f) }
+                val animatedOffsetX by animateFloatAsState(
+                    targetValue = offsetX,
+                    label = "swipe"
+                )
+                
+                // Action button width
+                val actionButtonWidth = 80.dp
+                val density = androidx.compose.ui.platform.LocalDensity.current
+                
+                // Left side: Archive (swipe right reveals)
+                val maxSwipeRight = with(density) { actionButtonWidth.toPx() }
+                
+                // Right side: Delete options (swipe left reveals)
+                // Show "Delete for all" only if user has permission (created channel or granted)
+                val maxSwipeLeft = with(density) {
+                    if (canDeleteForAll) actionButtonWidth.toPx() * 2 else actionButtonWidth.toPx()
+                }
+                
+                // Fixed height for swipe actions
+                val messageHeight = 60.dp
+                
+                // Can only delete YOUR OWN messages
+                // Archive is available for any message (just hides from your view)
+                val canDelete = isSentByMe
+                val canDeleteAll = isSentByMe && canDeleteForAll
+                
+                // Adjust max swipe based on what's available
+                val actualMaxSwipeLeft = with(density) {
+                    when {
+                        canDeleteAll -> actionButtonWidth.toPx() * 2  // Delete for me + Delete for all
+                        canDelete -> actionButtonWidth.toPx()          // Only Delete for me
+                        else -> 0f                                      // Can't delete others' messages
+                    }
+                }
+                
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(messageHeight)
+                ) {
+                    // LEFT SIDE - Archive button (revealed on swipe RIGHT)
+                    // Archive is always available - just hides from YOUR view
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .width(actionButtonWidth)
+                            .fillMaxHeight()
+                            .background(ConsoleTheme.accent)
+                            .clickable {
+                                offsetX = 0f
+                                onMessageAction?.invoke(message, MessageAction.ARCHIVE)
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "Archive",
+                            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.background)
+                        )
+                    }
+                    
+                    // RIGHT SIDE - Delete buttons (only for YOUR OWN messages)
+                    if (canDelete) {
+                        Row(
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .fillMaxHeight(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Delete for me button (only for your own messages)
+                            Box(
+                                modifier = Modifier
+                                    .width(actionButtonWidth)
+                                    .fillMaxHeight()
+                                    .background(ConsoleTheme.warning)
+                                    .clickable {
+                                        offsetX = 0f
+                                        onMessageAction?.invoke(message, MessageAction.DELETE_FOR_ME)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        "Delete",
+                                        style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.background)
+                                    )
+                                    Text(
+                                        "for me",
+                                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.background)
+                                    )
+                                }
+                            }
+                            
+                            // Delete for everyone (only if you sent it AND have permission)
+                            if (canDeleteAll) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(actionButtonWidth)
+                                        .fillMaxHeight()
+                                        .background(ConsoleTheme.error)
+                                        .clickable {
+                                            offsetX = 0f
+                                            onMessageAction?.invoke(message, MessageAction.DELETE_FOR_EVERYONE)
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            "Delete",
+                                            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.background)
+                                        )
+                                        Text(
+                                            "for all",
+                                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.background)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Foreground message (swipeable)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .offset { IntOffset(animatedOffsetX.roundToInt(), 0) }
+                            .background(ConsoleTheme.background)
+                            .draggable(
+                                orientation = Orientation.Horizontal,
+                                state = rememberDraggableState { delta ->
+                                    // Swipe RIGHT = archive (always allowed)
+                                    // Swipe LEFT = delete (only for own messages)
+                                    val newOffset = (offsetX + delta).coerceIn(-actualMaxSwipeLeft, maxSwipeRight)
+                                    offsetX = newOffset
+                                },
+                                onDragStopped = {
+                                    // Snap to open or closed position
+                                    offsetX = when {
+                                        offsetX > maxSwipeRight / 2 -> maxSwipeRight  // Snap open right (archive)
+                                        offsetX < -actualMaxSwipeLeft / 2 && canDelete -> -actualMaxSwipeLeft  // Snap open left (delete) - only if allowed
+                                        else -> 0f  // Snap closed
+                                    }
+                                }
+                            ),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        MessageBlock(message = message, isSentByMe = isSentByMe)
+                    }
+                }
                 
                 // Variable gap
                 val gap = if (message.content.length > 50) 12.dp else 8.dp
@@ -282,144 +450,174 @@ fun ConversationScreen(
         // Input bar — pixel art + and hold-to-record voice
         var showAttachMenu by remember { mutableStateOf(false) }
         var isRecording by remember { mutableStateOf(false) }
+        var recordingDuration by remember { mutableStateOf(0L) }
         
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(ConsoleTheme.surface)
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Pixel art + button for attachments
-            Box {
-                PixelPlusButton(
-                    enabled = isOnline,
-                    onClick = { showAttachMenu = !showAttachMenu }
-                )
-                
-                // Borderless transparent popup menu
-                androidx.compose.material3.DropdownMenu(
-                    expanded = showAttachMenu,
-                    onDismissRequest = { showAttachMenu = false },
-                    modifier = Modifier.background(ConsoleTheme.background)
-                ) {
-                    // Photo option with pixel camera
-                    Row(
-                        modifier = Modifier
-                            .clickable(enabled = isOnline) {
-                                showAttachMenu = false
-                                onCameraClick?.invoke()
-                            }
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        PixelCamera(enabled = isOnline)
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = "photo",
-                            style = ConsoleTheme.body.copy(
-                                color = if (isOnline) ConsoleTheme.text else ConsoleTheme.textDim
-                            )
-                        )
-                    }
-                    
-                    // File option with pixel file
-                    Row(
-                        modifier = Modifier
-                            .clickable(enabled = isOnline) {
-                                showAttachMenu = false
-                                onFileClick?.invoke()
-                            }
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        PixelFile(enabled = isOnline)
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = "file",
-                            style = ConsoleTheme.body.copy(
-                                color = if (isOnline) ConsoleTheme.text else ConsoleTheme.textDim
-                            )
-                        )
-                    }
+        // Recording timer
+        LaunchedEffect(isRecording) {
+            if (isRecording) {
+                recordingDuration = 0L
+                while (isRecording) {
+                    kotlinx.coroutines.delay(100)
+                    recordingDuration += 100
                 }
             }
-            
-            Spacer(modifier = Modifier.width(8.dp))
-            
-            Text(text = ">", style = ConsoleTheme.prompt)
-            
-            Spacer(modifier = Modifier.width(8.dp))
-            
-            // For DM channels, always send to the DM peer
-            val effectivePeer = if (isDmChannel) initialDmPeer else selectedPeer
-            
-            BasicTextField(
-                value = inputText,
-                onValueChange = { inputText = it },
-                modifier = Modifier.weight(1f),
-                textStyle = ConsoleTheme.body,
-                cursorBrush = SolidColor(ConsoleTheme.cursor),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(onSend = {
-                    if (inputText.isNotBlank()) {
-                        onSendMessage(inputText.trim(), effectivePeer)
-                        inputText = ""
-                        if (!isDmChannel) selectedPeer = null  // Only clear if not in DM channel
-                    }
-                }),
-                singleLine = true,
-                decorationBox = { innerTextField ->
-                    Box {
-                        if (inputText.isEmpty()) {
-                            Text(
-                                text = if (isDmChannel) "message ${initialDmPeer?.userName ?: ""}" 
-                                       else if (selectedPeer != null) "DM ${selectedPeer?.userName}" 
-                                       else "message",
-                                style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder)
-                            )
-                        }
-                        innerTextField()
-                    }
+        }
+        
+        // For DM channels, always send to the DM peer
+        val effectivePeer = if (isDmChannel) initialDmPeer else selectedPeer
+        
+        // Show RECORDING BAR when recording, otherwise show normal input
+        if (isRecording) {
+            // ═══════════════════════════════════════════════════════════
+            // RECORDING MODE - Full width recording indicator
+            // ═══════════════════════════════════════════════════════════
+            RecordingBar(
+                duration = recordingDuration,
+                onCancel = {
+                    isRecording = false
+                    // Cancel recording without sending
+                },
+                onStop = {
+                    isRecording = false
+                    onVoiceClick?.invoke()  // Stop and send
                 }
             )
-            
-            Spacer(modifier = Modifier.width(8.dp))
-            
-            // Right side: SEND or Voice record button
-            if (inputText.isNotBlank()) {
-                Text(
-                    text = if (isDmChannel || selectedPeer != null) "DM" else "SEND",
-                    style = ConsoleTheme.action.copy(
-                        color = if (isDmChannel || selectedPeer != null) ConsoleTheme.accent else ConsoleTheme.action.color
-                    ),
-                    modifier = Modifier
-                        .clickable {
+        } else {
+            // ═══════════════════════════════════════════════════════════
+            // NORMAL INPUT MODE
+            // ═══════════════════════════════════════════════════════════
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Pixel art + button for attachments
+                Box {
+                    PixelPlusButton(
+                        enabled = isOnline,
+                        onClick = { showAttachMenu = !showAttachMenu }
+                    )
+                    
+                    // Borderless transparent popup menu
+                    androidx.compose.material3.DropdownMenu(
+                        expanded = showAttachMenu,
+                        onDismissRequest = { showAttachMenu = false },
+                        modifier = Modifier.background(ConsoleTheme.background)
+                    ) {
+                        // Photo option with pixel camera
+                        Row(
+                            modifier = Modifier
+                                .clickable(enabled = isOnline) {
+                                    showAttachMenu = false
+                                    onCameraClick?.invoke()
+                                }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            PixelCamera(enabled = isOnline)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "photo",
+                                style = ConsoleTheme.body.copy(
+                                    color = if (isOnline) ConsoleTheme.text else ConsoleTheme.textDim
+                                )
+                            )
+                        }
+                        
+                        // File option with pixel file
+                        Row(
+                            modifier = Modifier
+                                .clickable(enabled = isOnline) {
+                                    showAttachMenu = false
+                                    onFileClick?.invoke()
+                                }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            PixelFile(enabled = isOnline)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "file",
+                                style = ConsoleTheme.body.copy(
+                                    color = if (isOnline) ConsoleTheme.text else ConsoleTheme.textDim
+                                )
+                            )
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.width(8.dp))
+                
+                Text(text = ">", style = ConsoleTheme.prompt)
+                
+                Spacer(modifier = Modifier.width(8.dp))
+                
+                BasicTextField(
+                    value = inputText,
+                    onValueChange = { inputText = it },
+                    modifier = Modifier.weight(1f),
+                    textStyle = ConsoleTheme.body,
+                    cursorBrush = SolidColor(ConsoleTheme.cursor),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(onSend = {
+                        if (inputText.isNotBlank()) {
                             onSendMessage(inputText.trim(), effectivePeer)
                             inputText = ""
                             if (!isDmChannel) selectedPeer = null  // Only clear if not in DM channel
                         }
-                        .padding(4.dp)
-                )
-            } else {
-                // Pixel art mic — hold to record
-                PixelMicButton(
-                    isRecording = isRecording,
-                    enabled = isOnline,
-                    onStartRecording = { 
-                        isRecording = true
-                        onVoiceClick?.invoke()
-                    },
-                    onStopRecording = { 
-                        isRecording = false
-                        // Voice recording stopped — would trigger send
+                    }),
+                    singleLine = true,
+                    decorationBox = { innerTextField ->
+                        Box {
+                            if (inputText.isEmpty()) {
+                                Text(
+                                    text = if (isDmChannel) "message ${initialDmPeer?.userName ?: ""}" 
+                                           else if (selectedPeer != null) "DM ${selectedPeer?.userName}" 
+                                           else "message",
+                                    style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder)
+                                )
+                            }
+                            innerTextField()
+                        }
                     }
                 )
+                
+                Spacer(modifier = Modifier.width(8.dp))
+                
+                // Right side: SEND or Voice record button
+                if (inputText.isNotBlank()) {
+                    Text(
+                        text = if (isDmChannel || selectedPeer != null) "DM" else "SEND",
+                        style = ConsoleTheme.action.copy(
+                            color = if (isDmChannel || selectedPeer != null) ConsoleTheme.accent else ConsoleTheme.action.color
+                        ),
+                        modifier = Modifier
+                            .clickable {
+                                onSendMessage(inputText.trim(), effectivePeer)
+                                inputText = ""
+                                if (!isDmChannel) selectedPeer = null  // Only clear if not in DM channel
+                            }
+                            .padding(4.dp)
+                    )
+                } else {
+                    // Pixel art mic — tap to start recording
+                    PixelMicButton(
+                        isRecording = false,
+                        enabled = isOnline,
+                        onStartRecording = { 
+                            isRecording = true
+                            onVoiceClick?.invoke()  // Start recording
+                        },
+                        onStopRecording = { }
+                    )
+                }
             }
         }
         
         // Offline media hint
-        if (!isOnline) {
+        if (!isOnline && !isRecording) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -511,15 +709,21 @@ private fun MessageBlock(
             Row {
                 if (isSentByMe) {
                     Column(horizontalAlignment = Alignment.End) {
-                        // Media type indicator
+                        // Interactive media player (voice/image/file)
                         if (message.hasMedia()) {
-                            MediaIndicator(message.mediaType, message.media?.fileName)
+                            MediaIndicator(
+                                type = message.mediaType, 
+                                media = message.media
+                            )
                         }
-                        Text(
-                            text = if (message.hasMedia()) message.getMeshPlaceholder() else message.content,
-                            style = ConsoleTheme.body,
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
+                        // Text content (or queued placeholder for media)
+                        if (!message.hasMedia() || message.isMediaQueued()) {
+                            Text(
+                                text = if (message.hasMedia()) message.getMeshPlaceholder() else message.content,
+                                style = ConsoleTheme.body,
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                        }
                     }
                     // Faint vertical line
                     Box(
@@ -530,15 +734,21 @@ private fun MessageBlock(
                     )
                 } else {
                     Column(horizontalAlignment = Alignment.Start) {
-                        // Media type indicator
+                        // Interactive media player (voice/image/file)
                         if (message.hasMedia()) {
-                            MediaIndicator(message.mediaType, message.media?.fileName)
+                            MediaIndicator(
+                                type = message.mediaType, 
+                                media = message.media
+                            )
                         }
-                        Text(
-                            text = if (message.hasMedia()) message.getMeshPlaceholder() else message.content,
-                            style = ConsoleTheme.body,
-                            modifier = Modifier.padding(start = 16.dp)
-                        )
+                        // Text content (or queued placeholder for media)
+                        if (!message.hasMedia() || message.isMediaQueued()) {
+                            Text(
+                                text = if (message.hasMedia()) message.getMeshPlaceholder() else message.content,
+                                style = ConsoleTheme.body,
+                                modifier = Modifier.padding(start = 16.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -547,24 +757,24 @@ private fun MessageBlock(
 }
 
 /**
- * Simple text-based media indicator — no emojis.
+ * Interactive media display — pixel art style with playback/open functionality.
+ * - [■] document/file — tap to open
+ * - [▶] [■■■■■■□□□□] voice — tap to play with animated progress
+ * - [▣] image — tap to view full screen
  */
 @Composable
 private fun MediaIndicator(
     type: MediaType,
-    fileName: String?
+    media: com.guildofsmiths.trademesh.data.MediaAttachment?,
+    modifier: Modifier = Modifier
 ) {
-    val indicator = when (type) {
-        MediaType.IMAGE -> "[image]"
-        MediaType.VOICE -> "[voice]"
-        MediaType.FILE -> "[${fileName ?: "file"}]"
-        MediaType.TEXT -> return
-    }
+    if (type == MediaType.TEXT || media == null) return
     
-    Text(
-        text = indicator,
-        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
-        modifier = Modifier.padding(bottom = 2.dp)
+    // Use the interactive media player
+    InteractiveMediaPlayer(
+        mediaType = type,
+        media = media,
+        modifier = modifier.padding(bottom = 4.dp)
     )
 }
 
@@ -741,6 +951,131 @@ private fun PixelMicButton(
 
 private fun formatTime(timestamp: Long): String {
     return SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestamp))
+}
+
+/**
+ * Recording bar - shows when voice recording is active.
+ * Displays: [●] REC [||||] 0:05 [✕] [■]
+ */
+@Composable
+private fun RecordingBar(
+    duration: Long,
+    onCancel: () -> Unit,
+    onStop: () -> Unit
+) {
+    // Audio level (0-5) - updated from MediaHelper
+    var audioLevel by remember { mutableStateOf(0) }
+    
+    // Poll audio level from recorder
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(100)
+            audioLevel = com.guildofsmiths.trademesh.service.MediaHelper.getAudioLevel()
+        }
+    }
+    
+    // Format duration as m:ss
+    val seconds = (duration / 1000).toInt()
+    val mins = seconds / 60
+    val secs = seconds % 60
+    val timeText = "$mins:${secs.toString().padStart(2, '0')}"
+    
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(ConsoleTheme.surface)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Pulsing REC indicator
+        val pulseAlpha = if ((duration / 500) % 2 == 0L) 1f else 0.5f
+        Text(
+            text = "[●]",
+            style = ConsoleTheme.body.copy(
+                color = ConsoleTheme.warning.copy(alpha = pulseAlpha)
+            )
+        )
+        
+        Spacer(modifier = Modifier.width(4.dp))
+        
+        Text(
+            text = "REC",
+            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.warning)
+        )
+        
+        Spacer(modifier = Modifier.width(8.dp))
+        
+        // Audio level waveform: [|||||] - reacts to sound
+        AudioLevelBars(level = audioLevel)
+        
+        Spacer(modifier = Modifier.width(8.dp))
+        
+        // Duration
+        Text(
+            text = timeText,
+            style = ConsoleTheme.body.copy(color = ConsoleTheme.text)
+        )
+        
+        Spacer(modifier = Modifier.weight(1f))
+        
+        // Cancel button
+        Text(
+            text = "[✕]",
+            style = ConsoleTheme.body.copy(color = ConsoleTheme.textMuted),
+            modifier = Modifier
+                .clickable(onClick = onCancel)
+                .padding(4.dp)
+        )
+        
+        Spacer(modifier = Modifier.width(8.dp))
+        
+        // Stop & Send button - [■] matches the [▶] play style
+        Text(
+            text = "[■]",
+            style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.accent),
+            modifier = Modifier
+                .clickable(onClick = onStop)
+                .padding(4.dp)
+        )
+    }
+}
+
+/**
+ * Audio level bars that react to actual microphone input.
+ * Shows [||||||||||] where bars light up based on volume level (0-12)
+ */
+@Composable
+private fun AudioLevelBars(
+    level: Int,
+    modifier: Modifier = Modifier
+) {
+    val maxBars = 12
+    // Scale level (0-6) to maxBars
+    val activeBars = ((level / 6.0) * maxBars).toInt().coerceIn(0, maxBars)
+    
+    val pattern = buildString {
+        append("[")
+        for (i in 0 until maxBars) {
+            if (i < activeBars) {
+                append("|")
+            } else {
+                append("·")  // Dim dot for inactive
+            }
+        }
+        append("]")
+    }
+    
+    Text(
+        text = pattern,
+        style = ConsoleTheme.body.copy(
+            color = when {
+                activeBars >= 10 -> ConsoleTheme.warning  // Loud = orange/yellow
+                activeBars >= 5 -> ConsoleTheme.accent    // Medium = accent color
+                else -> ConsoleTheme.textMuted            // Quiet = muted
+            }
+        ),
+        modifier = modifier
+    )
 }
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)

@@ -44,6 +44,8 @@ fun SettingsScreen(
     var hasChanges by remember { mutableStateOf(false) }
     val isScanning by BoundaryEngine.isScanning.collectAsState()
     val isMeshConnected by BoundaryEngine.isMeshConnected.collectAsState()
+    val isGatewayConnected by BoundaryEngine.isGatewayConnected.collectAsState()
+    var gatewayUrl by remember { mutableStateOf("ws://192.168.8.163:3000") }
     
     Column(
         modifier = modifier
@@ -190,6 +192,84 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = "Scanning discovers nearby peers and enables messaging",
+                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+            )
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            ConsoleSeparator()
+            
+            Spacer(modifier = Modifier.height(20.dp))
+            
+            // Gateway Connection
+            Text(text = "GATEWAY RELAY", style = ConsoleTheme.captionBold)
+            Spacer(modifier = Modifier.height(10.dp))
+            
+            BasicTextField(
+                value = gatewayUrl,
+                onValueChange = { gatewayUrl = it },
+                textStyle = ConsoleTheme.bodySmall,
+                cursorBrush = SolidColor(ConsoleTheme.cursor),
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .padding(14.dp),
+                decorationBox = { innerTextField ->
+                    Box {
+                        if (gatewayUrl.isEmpty()) {
+                            Text(
+                                text = "ws://ip:port",
+                                style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder)
+                            )
+                        }
+                        innerTextField()
+                    }
+                }
+            )
+            
+            Spacer(modifier = Modifier.height(10.dp))
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (isGatewayConnected) ConsoleTheme.success else ConsoleTheme.textDim
+                        )
+                )
+                
+                Spacer(modifier = Modifier.width(12.dp))
+                
+                Text(
+                    text = if (isGatewayConnected) "Connected to backend" else "Offline",
+                    style = ConsoleTheme.body,
+                    modifier = Modifier.weight(1f)
+                )
+                
+                // Only show CONNECT button when not connected
+                // Disconnect is controlled from dashboard (admin only)
+                if (!isGatewayConnected) {
+                    Text(
+                        text = "CONNECT",
+                        style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                        modifier = Modifier
+                            .clickable { BoundaryEngine.connectGateway(gatewayUrl) }
+                            .padding(8.dp)
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Relay bridges mesh messages to online backend",
                 style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
             )
             

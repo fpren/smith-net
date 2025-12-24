@@ -74,6 +74,9 @@ dependencies {
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
     
+    // OkHttp for WebSocket
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    
     // Core library desugaring
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
     

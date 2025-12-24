@@ -179,6 +179,93 @@ object MessageRepository {
     }
     
     /**
+     * Clear messages for a channel by channelId only (matches any beacon).
+     * Used when dashboard clears a channel.
+     */
+    @Synchronized
+    fun clearChannel(channelId: String) {
+        android.util.Log.d("MessageRepository", "🗑️ Clearing all messages for channel: $channelId")
+        val beforeCount = _allMessages.value.size
+        
+        _allMessages.update { messages ->
+            messages.filter { it.channelId != channelId }
+        }
+        
+        val afterCount = _allMessages.value.size
+        android.util.Log.d("MessageRepository", "🗑️ Cleared ${beforeCount - afterCount} messages")
+        
+        // Also clear seen IDs for this channel so messages can be re-received
+        seenMessageIds.removeAll { id ->
+            _allMessages.value.none { it.id == id }
+        }
+        
+        scope.launch {
+            database?.messageDao()?.deleteByChannelId(channelId)
+        }
+    }
+    
+    /**
+     * Clear messages older than a timestamp for a channel.
+     * Used when syncing after reconnect - clears messages that were cleared while offline.
+     */
+    @Synchronized
+    fun clearMessagesOlderThan(channelId: String, timestamp: Long) {
+        android.util.Log.d("MessageRepository", "🗑️ Clearing messages older than $timestamp for channel: $channelId")
+        val beforeCount = _allMessages.value.size
+        
+        _allMessages.update { messages ->
+            messages.filter { !(it.channelId == channelId && it.timestamp < timestamp) }
+        }
+        
+        val afterCount = _allMessages.value.size
+        android.util.Log.d("MessageRepository", "🗑️ Cleared ${beforeCount - afterCount} old messages")
+        
+        // Update seen IDs
+        seenMessageIds.removeAll { id ->
+            _allMessages.value.none { it.id == id }
+        }
+        
+        scope.launch {
+            database?.messageDao()?.deleteOlderThanForChannel(channelId, timestamp)
+        }
+    }
+    
+    /**
+     * Remove a single message by ID (swipe to delete).
+     */
+    @Synchronized
+    fun removeMessage(messageId: String) {
+        _allMessages.update { messages ->
+            messages.filter { it.id != messageId }
+        }
+        seenMessageIds.remove(messageId)
+        pendingSyncQueue.removeAll { it.id == messageId }
+        
+        scope.launch {
+            database?.messageDao()?.deleteById(messageId)
+        }
+    }
+    
+    /**
+     * Archive a message (hide from view but keep in storage).
+     * The message is removed from the active list but can be retrieved later.
+     */
+    @Synchronized
+    fun archiveMessage(messageId: String) {
+        // For now, archive just removes from active view
+        // In a full implementation, you'd mark it as archived in the database
+        _allMessages.update { messages ->
+            messages.filter { it.id != messageId }
+        }
+        
+        scope.launch {
+            // Mark as archived in DB (would need schema update for full implementation)
+            // For now, we just hide it from the active list
+            android.util.Log.d("MessageRepository", "📦 Archived message: $messageId")
+        }
+    }
+    
+    /**
      * Get message count for debugging.
      */
     fun getMessageCount(): Int = _allMessages.value.size

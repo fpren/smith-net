@@ -14,6 +14,8 @@ object UserPreferences {
     private const val KEY_USER_ID = "user_id"
     private const val KEY_USER_NAME = "user_name"
     private const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
+    private const val KEY_GATEWAY_ENABLED = "gateway_enabled"
+    private const val KEY_GATEWAY_URL = "gateway_url"
     
     private var prefs: SharedPreferences? = null
     
@@ -89,6 +91,34 @@ object UserPreferences {
     fun getDisplayName(): String {
         val name = getUserName()
         return if (name.isNotBlank()) name else "User_${getUserId().take(4)}"
+    }
+    
+    /**
+     * Check if gateway mode is enabled.
+     */
+    fun isGatewayEnabled(): Boolean {
+        return prefs?.getBoolean(KEY_GATEWAY_ENABLED, false) ?: false
+    }
+    
+    /**
+     * Set gateway mode enabled/disabled.
+     */
+    fun setGatewayEnabled(enabled: Boolean) {
+        prefs?.edit()?.putBoolean(KEY_GATEWAY_ENABLED, enabled)?.apply()
+    }
+    
+    /**
+     * Get gateway URL.
+     */
+    fun getGatewayUrl(): String {
+        return prefs?.getString(KEY_GATEWAY_URL, "ws://192.168.8.163:3000") ?: "ws://192.168.8.163:3000"
+    }
+    
+    /**
+     * Set gateway URL.
+     */
+    fun setGatewayUrl(url: String) {
+        prefs?.edit()?.putString(KEY_GATEWAY_URL, url)?.apply()
     }
     
     /**

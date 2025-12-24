@@ -68,13 +68,14 @@ data class Message(
     /**
      * Get placeholder text for media when sent over mesh.
      * Since mesh can't transmit media, we send a text placeholder.
+     * Uses pixel art style indicators.
      */
     fun getMeshPlaceholder(): String {
         return when (mediaType) {
             MediaType.TEXT -> content
-            MediaType.IMAGE -> "[image queued]"
-            MediaType.VOICE -> "[voice ${formatDuration(media?.duration ?: 0)} queued]"
-            MediaType.FILE -> "[${media?.fileName ?: "file"} queued]"
+            MediaType.IMAGE -> "[▣] image queued"
+            MediaType.VOICE -> "[▶] voice ${formatDuration(media?.duration ?: 0)} queued"
+            MediaType.FILE -> "[■] ${media?.fileName ?: "file"} queued"
         }
     }
     

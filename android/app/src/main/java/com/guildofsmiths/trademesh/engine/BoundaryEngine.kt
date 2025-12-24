@@ -15,6 +15,7 @@ import com.guildofsmiths.trademesh.data.Peer
 import com.guildofsmiths.trademesh.data.PeerRepository
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.service.ChatManager
+import com.guildofsmiths.trademesh.service.GatewayClient
 import com.guildofsmiths.trademesh.service.MeshService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -51,8 +52,8 @@ object BoundaryEngine {
     private val _isOnline = MutableStateFlow(false)
     val isOnline: StateFlow<Boolean> = _isOnline
     
-    /** Force mesh mode (ignore internet connectivity) - for Phase 0 testing */
-    private var forceMeshMode = true // Always use mesh in Phase 0
+    /** Force mesh mode (ignore internet connectivity) - for testing */
+    private var forceMeshMode = false // Use smart routing: online if available, mesh if offline
     
     /** Channel membership: maps channel hash -> channel ID for channels user has joined */
     private val channelMembership = mutableMapOf<Int, String>()
@@ -65,6 +66,10 @@ object BoundaryEngine {
     private val _queuedMedia = MutableStateFlow<List<Message>>(emptyList())
     val queuedMedia: StateFlow<List<Message>> = _queuedMedia
     
+    /** Gateway mode enabled */
+    private val _isGatewayConnected = MutableStateFlow(false)
+    val isGatewayConnected: StateFlow<Boolean> = _isGatewayConnected
+    
     /**
      * Register the mesh service for message routing.
      * Called by MeshService on startup.
@@ -73,6 +78,53 @@ object BoundaryEngine {
         meshService = service
         _isMeshConnected.value = true
         Log.d(TAG, "MeshService registered")
+        
+        // Setup gateway message listener
+        GatewayClient.setMessageListener(object : GatewayClient.OnlineMessageListener {
+            override fun onOnlineMessage(message: Message) {
+                // Store online message locally
+                MessageRepository.addMessage(message)
+                Log.d(TAG, "📨 Online message stored: ${message.content.take(20)}")
+            }
+        })
+        
+        // Setup gateway connection state listener to update UI
+        GatewayClient.setConnectionStateListener(object : GatewayClient.ConnectionStateListener {
+            override fun onConnectionStateChanged(connected: Boolean) {
+                Log.d(TAG, "🌐 Gateway connection state changed: $connected")
+                _isGatewayConnected.value = connected
+            }
+        })
+        
+        // Setup channel cleared listener to sync with dashboard (real-time clear)
+        GatewayClient.setChannelClearedListener(object : GatewayClient.ChannelClearedListener {
+            override fun onChannelCleared(channelId: String) {
+                Log.d(TAG, "🗑️ Clearing messages for channel from dashboard: $channelId")
+                // Clear local messages for this channel
+                // The channelId from dashboard is a UUID, but we store by channel name
+                // For now, clear all messages if it's the general channel
+                MessageRepository.clearChannel(channelId)
+                // Also try clearing by name "general" since we use that locally
+                MessageRepository.clearChannel("general")
+            }
+        })
+        
+        // Setup sync cleared listener (for reconnecting after being offline)
+        GatewayClient.setSyncClearedListener(object : GatewayClient.SyncClearedListener {
+            override fun onSyncCleared(channelId: String, clearedAtTimestamp: Long) {
+                Log.d(TAG, "🔄 Sync: clearing messages older than $clearedAtTimestamp for channel $channelId")
+                // Clear messages older than the clear timestamp
+                MessageRepository.clearMessagesOlderThan(channelId, clearedAtTimestamp)
+                MessageRepository.clearMessagesOlderThan("general", clearedAtTimestamp)
+            }
+        })
+        
+        // Initialize ChatManager with backend URL for online messaging
+        ChatManager.setBackendUrl("http://192.168.8.163:3000")
+        
+        // Auto-connect to online chat (for receiving messages)
+        ChatManager.connect()
+        Log.i(TAG, "🌐 Auto-connecting to online chat for receiving messages")
     }
     
     /**
@@ -123,6 +175,102 @@ object BoundaryEngine {
      * Check if mesh service is available.
      */
     fun isMeshServiceAvailable(): Boolean = meshService != null
+    
+    // ════════════════════════════════════════════════════════════════════
+    // GATEWAY MODE
+    // ════════════════════════════════════════════════════════════════════
+    
+    /**
+     * Connect to online backend as a gateway relay.
+     */
+    fun connectGateway(backendUrl: String) {
+        Log.i(TAG, "════════════════════════════════════════")
+        Log.i(TAG, "🌐 CONNECT GATEWAY: $backendUrl")
+        
+        // Save settings for auto-reconnect
+        UserPreferences.setGatewayUrl(backendUrl)
+        UserPreferences.setGatewayEnabled(true)
+        
+        GatewayClient.setBackendUrl(backendUrl)
+        GatewayClient.connect()
+        _isGatewayConnected.value = true
+        Log.i(TAG, "════════════════════════════════════════")
+    }
+    
+    /**
+     * Disconnect from gateway.
+     */
+    fun disconnectGateway() {
+        Log.i(TAG, "🔌 DISCONNECT GATEWAY")
+        
+        // Disable auto-reconnect
+        UserPreferences.setGatewayEnabled(false)
+        
+        GatewayClient.disconnect()
+        _isGatewayConnected.value = false
+    }
+    
+    /**
+     * Forward a mesh message to the gateway (backend).
+     * Called when a mesh message is received and gateway is connected.
+     */
+    fun forwardToGateway(message: Message) {
+        if (GatewayClient.isConnected()) {
+            GatewayClient.forwardMeshMessage(message)
+        }
+    }
+    
+    /**
+     * Inject a message from gateway (online) to BLE mesh.
+     * Called by GatewayClient when backend requests injection.
+     */
+    fun injectFromGateway(message: Message) {
+        Log.d(TAG, "🔄 Injecting from gateway to mesh: ${message.content.take(30)}")
+        Log.d(TAG, "   Original channelId: ${message.channelId}")
+        
+        // Track this message ID to prevent re-forwarding when we hear our own broadcast
+        synchronized(recentlyInjectedIds) {
+            recentlyInjectedIds.add(message.id)
+            if (recentlyInjectedIds.size > MAX_INJECTED_IDS) {
+                recentlyInjectedIds.remove(recentlyInjectedIds.first())
+            }
+        }
+        
+        // Convert UUID channelId to channel name for mesh
+        // The mesh uses channel names (like "general") not UUIDs
+        val channelName = resolveChannelNameFromId(message.channelId)
+        Log.d(TAG, "   Resolved to: $channelName")
+        
+        val meshMessage = if (channelName != null && channelName != message.channelId) {
+            message.copy(channelId = channelName)
+        } else {
+            message
+        }
+        
+        meshService?.broadcastMessage(meshMessage)
+    }
+    
+    /**
+     * Resolve a channel UUID to its name for mesh broadcast.
+     * Returns the name if found, or the original ID if not.
+     */
+    private fun resolveChannelNameFromId(channelId: String): String? {
+        // If it's already a simple name (not a UUID), return as-is
+        if (!channelId.contains("-")) {
+            return channelId
+        }
+        
+        // Look up in our channel membership mappings (hash -> name)
+        for ((_, name) in channelMembership) {
+            // Try to match by looking at common channel names
+            if (name.isNotEmpty()) {
+                return name
+            }
+        }
+        
+        // Default to "general" for broadcast channels
+        return "general"
+    }
     
     /**
      * Determine if mesh path should be used based on network connectivity.
@@ -262,6 +410,10 @@ object BoundaryEngine {
         ChatManager.sendMessage(message)
     }
     
+    // Track recently injected message IDs to avoid re-forwarding our own broadcasts
+    private val recentlyInjectedIds = mutableSetOf<String>()
+    private const val MAX_INJECTED_IDS = 50
+    
     /**
      * Handle incoming mesh message from BLE scan.
      * Called by MeshService when a peer message is received.
@@ -278,8 +430,20 @@ object BoundaryEngine {
             return
         }
         
+        // Don't forward messages that WE just injected (prevents echo loop)
+        val myUserId = UserPreferences.getUserId()
+        if (recentlyInjectedIds.contains(message.id) || message.senderId == myUserId) {
+            Log.d(TAG, "   (own message or recently injected - not re-forwarding to backend)")
+            // Still add to local repo for display
+            MessageRepository.addMessage(message)
+            return
+        }
+        
         // Add to repository - deduplication handled there
         MessageRepository.addMessage(message)
+        
+        // Forward to gateway if connected (bridge mesh → online)
+        forwardToGateway(message)
     }
     
     /**
@@ -503,6 +667,14 @@ object BoundaryEngine {
         // Auto-join general channel only
         joinChannel("general")
         Log.i(TAG, "Initialized default channel membership: general")
+        
+        // Auto-connect gateway if enabled
+        if (UserPreferences.isGatewayEnabled()) {
+            val url = UserPreferences.getGatewayUrl()
+            Log.i(TAG, "🌐 Auto-connecting gateway: $url")
+            GatewayClient.setBackendUrl(url)
+            GatewayClient.connect()
+        }
     }
     
     /**
@@ -796,4 +968,13 @@ object BoundaryEngine {
      * Check if heartbeat is currently active.
      */
     fun isHeartbeatActive(): Boolean = isHeartbeatRunning
+    
+    /**
+     * Delete a message from the backend (for "Delete for everyone").
+     * Called when user chooses to delete for everyone.
+     */
+    fun deleteMessageFromBackend(message: Message) {
+        Log.i(TAG, "🗑️ Requesting backend deletion for message: ${message.id}")
+        ChatManager.deleteMessage(message.id, message.channelId)
+    }
 }

@@ -86,16 +86,36 @@ interface MessageDao {
     suspend fun deleteOlderThan(timestamp: Long)
     
     /**
+     * Delete messages older than timestamp for a specific channel.
+     * Used when syncing after reconnect.
+     */
+    @Query("DELETE FROM messages WHERE channelId = :channelId AND timestamp < :timestamp")
+    suspend fun deleteOlderThanForChannel(channelId: String, timestamp: Long)
+    
+    /**
      * Delete all messages for a channel.
      */
     @Query("DELETE FROM messages WHERE beaconId = :beaconId AND channelId = :channelId")
     suspend fun deleteChannelMessages(beaconId: String, channelId: String)
     
     /**
+     * Delete all messages for a channel by channelId only (any beacon).
+     * Used when dashboard clears a channel.
+     */
+    @Query("DELETE FROM messages WHERE channelId = :channelId")
+    suspend fun deleteByChannelId(channelId: String)
+    
+    /**
      * Delete all messages.
      */
     @Query("DELETE FROM messages")
     suspend fun deleteAll()
+    
+    /**
+     * Delete a single message by ID.
+     */
+    @Query("DELETE FROM messages WHERE id = :messageId")
+    suspend fun deleteById(messageId: String)
     
     /**
      * Check if message exists.

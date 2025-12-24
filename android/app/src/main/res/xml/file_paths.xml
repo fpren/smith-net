@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
+    <!-- Media cache for camera captures, voice recordings, and file copies -->
     <cache-path name="media" path="media/" />
-    <files-path name="files" path="." />
+    <cache-path name="images" path="media/images/" />
+    <cache-path name="voice" path="media/voice/" />
+    <cache-path name="files" path="media/files/" />
+    
+    <!-- App files -->
+    <files-path name="app_files" path="." />
+    
+    <!-- External files (if needed) -->
+    <external-files-path name="external" path="." />
 </paths>
