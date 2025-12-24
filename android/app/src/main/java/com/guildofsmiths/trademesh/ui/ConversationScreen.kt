@@ -83,6 +83,7 @@ fun ConversationScreen(
     onBackClick: (() -> Unit)? = null,
     onVoiceClick: (() -> Unit)? = null,
     onCameraClick: (() -> Unit)? = null,
+    onVideoClick: (() -> Unit)? = null,
     onFileClick: (() -> Unit)? = null,
     initialDmPeer: Peer? = null,  // Pre-select peer for DM (from Peers screen)
     modifier: Modifier = Modifier
@@ -526,6 +527,26 @@ fun ConversationScreen(
                             )
                         }
                         
+                        // Video option with pixel video icon
+                        Row(
+                            modifier = Modifier
+                                .clickable(enabled = isOnline) {
+                                    showAttachMenu = false
+                                    onVideoClick?.invoke()
+                                }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            PixelVideo(enabled = isOnline)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "video",
+                                style = ConsoleTheme.body.copy(
+                                    color = if (isOnline) ConsoleTheme.text else ConsoleTheme.textDim
+                                )
+                            )
+                        }
+                        
                         // File option with pixel file
                         Row(
                             modifier = Modifier
@@ -831,6 +852,39 @@ private fun PixelFile(enabled: Boolean) {
                 .height(px * 2)
                 .background(ConsoleTheme.background)
         )
+    }
+}
+
+/**
+ * Pixel art video/film — 8-bit style.
+ */
+@Composable
+private fun PixelVideo(enabled: Boolean) {
+    val color = if (enabled) ConsoleTheme.text else ConsoleTheme.textDim
+    val px = 2.dp
+    
+    Box(
+        modifier = Modifier.size(20.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        // Film frame body
+        Box(modifier = Modifier.width(px * 6).height(px * 4).background(color))
+        // Sprocket holes (top)
+        Row(
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 1.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Box(modifier = Modifier.size(px).background(ConsoleTheme.background))
+            Box(modifier = Modifier.size(px).background(ConsoleTheme.background))
+        }
+        // Sprocket holes (bottom)
+        Row(
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 1.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Box(modifier = Modifier.size(px).background(ConsoleTheme.background))
+            Box(modifier = Modifier.size(px).background(ConsoleTheme.background))
+        }
     }
 }
 

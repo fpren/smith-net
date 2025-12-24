@@ -34,6 +34,7 @@ import com.guildofsmiths.trademesh.data.Peer
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
 import com.guildofsmiths.trademesh.service.MeshService
+import com.guildofsmiths.trademesh.service.NotificationHelper
 import com.guildofsmiths.trademesh.ui.BeaconListScreen
 import com.guildofsmiths.trademesh.ui.ChannelListScreen
 import com.guildofsmiths.trademesh.ui.ConversationScreen
@@ -109,6 +110,20 @@ class MainActivity : ComponentActivity() {
             viewModel.onCameraCaptured(pendingDmPeerId, pendingDmPeerName)
         } else {
             Log.w(TAG, "📷 Camera capture cancelled or failed")
+        }
+        pendingDmPeerId = null
+        pendingDmPeerName = null
+    }
+    
+    /** Video capture launcher */
+    private val videoLauncher = registerForActivityResult(
+        ActivityResultContracts.CaptureVideo()
+    ) { success ->
+        if (success) {
+            Log.i(TAG, "🎬 Video capture successful")
+            viewModel.onVideoCaptured(pendingDmPeerId, pendingDmPeerName)
+        } else {
+            Log.w(TAG, "🎬 Video capture cancelled or failed")
         }
         pendingDmPeerId = null
         pendingDmPeerName = null
@@ -381,6 +396,11 @@ class MainActivity : ComponentActivity() {
                                     pendingDmPeerName = currentDmPeer?.userName ?: initialDmPeer?.userName
                                     requestCameraAndCapture()
                                 },
+                                onVideoClick = {
+                                    pendingDmPeerId = currentDmPeer?.userId ?: initialDmPeer?.userId
+                                    pendingDmPeerName = currentDmPeer?.userName ?: initialDmPeer?.userName
+                                    launchVideoCapture()
+                                },
                                 onFileClick = {
                                     pendingDmPeerId = currentDmPeer?.userId ?: initialDmPeer?.userId
                                     pendingDmPeerName = currentDmPeer?.userName ?: initialDmPeer?.userName
@@ -393,6 +413,17 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        NotificationHelper.setAppForeground(true)
+        NotificationHelper.cancelAll(this)  // Clear notifications when app opens
+    }
+    
+    override fun onPause() {
+        super.onPause()
+        NotificationHelper.setAppForeground(false)
     }
     
     override fun onDestroy() {
@@ -552,5 +583,24 @@ class MainActivity : ComponentActivity() {
      */
     private fun launchFilePicker() {
         filePickerLauncher.launch("*/*")
+    }
+    
+    /**
+     * Launch video capture.
+     */
+    private fun launchVideoCapture() {
+        // Check camera permission first
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) 
+            != PackageManager.PERMISSION_GRANTED) {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            return
+        }
+        
+        val uri = viewModel.createVideoUri()
+        if (uri != null) {
+            videoLauncher.launch(uri)
+        } else {
+            Toast.makeText(this, "Failed to create video file", Toast.LENGTH_SHORT).show()
+        }
     }
 }

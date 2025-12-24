@@ -5,6 +5,7 @@ import android.util.Log
 import com.guildofsmiths.trademesh.data.MessageRepository
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
+import com.guildofsmiths.trademesh.service.NotificationHelper
 
 /**
  * Application class for TradeMesh.
@@ -29,6 +30,9 @@ class TradeMeshApplication : Application() {
         
         // Initialize message repository (with Room database)
         MessageRepository.init(this)
+        
+        // Initialize notification channels
+        NotificationHelper.initialize(this)
         
         // Initialize channel membership (auto-join default channels)
         BoundaryEngine.initializeChannelMembership()

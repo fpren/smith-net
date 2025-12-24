@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
-    <!-- Media cache for camera captures, voice recordings, and file copies -->
+    <!-- Media cache for camera captures, voice recordings, video, and file copies -->
     <cache-path name="media" path="media/" />
     <cache-path name="images" path="media/images/" />
     <cache-path name="voice" path="media/voice/" />
+    <cache-path name="video" path="media/video/" />
     <cache-path name="files" path="media/files/" />
     
     <!-- App files -->

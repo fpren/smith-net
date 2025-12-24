@@ -228,6 +228,9 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
     /** Pending camera capture file */
     private var pendingCameraFile: File? = null
     
+    /** Pending video capture file */
+    private var pendingVideoFile: File? = null
+    
     /** Voice recording state */
     private val _isRecording = MutableStateFlow(false)
     val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
@@ -267,6 +270,47 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
             fileSize = file.length(),
             width = width,
             height = height,
+            recipientId = recipientId,
+            recipientName = recipientName
+        )
+    }
+    
+    /**
+     * Create a URI for video capture.
+     * Call this before launching video capture intent.
+     */
+    fun createVideoUri(): Uri? {
+        val result = MediaHelper.createVideoUri(getApplication())
+        pendingVideoFile = result?.second
+        return result?.first
+    }
+    
+    /**
+     * Handle video capture result.
+     * Call this after video capture returns successfully.
+     */
+    fun onVideoCaptured(recipientId: String? = null, recipientName: String? = null) {
+        val file = pendingVideoFile ?: return
+        pendingVideoFile = null
+        
+        if (!file.exists() || file.length() == 0L) {
+            android.util.Log.w("ConversationVM", "Video capture file is empty or missing")
+            return
+        }
+        
+        android.util.Log.i("ConversationVM", "🎬 Video captured: ${file.absolutePath}")
+        
+        val metadata = MediaHelper.getVideoMetadata(file)
+        
+        sendMediaMessage(
+            mediaType = MediaType.VIDEO,
+            localPath = file.absolutePath,
+            mimeType = "video/mp4",
+            fileName = file.name,
+            fileSize = file.length(),
+            duration = metadata.durationMs,
+            width = metadata.width,
+            height = metadata.height,
             recipientId = recipientId,
             recipientName = recipientName
         )

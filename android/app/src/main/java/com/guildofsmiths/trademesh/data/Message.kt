@@ -7,12 +7,14 @@ import java.util.UUID
  * TEXT: Regular text (mesh + chat)
  * IMAGE: Photo/image (chat only, queued offline)
  * VOICE: Voice note (chat only, queued offline)
+ * VIDEO: Video clip (chat only, queued offline)
  * FILE: File attachment (chat only, queued offline)
  */
 enum class MediaType {
     TEXT,
     IMAGE,
     VOICE,
+    VIDEO,
     FILE
 }
 
@@ -75,6 +77,7 @@ data class Message(
             MediaType.TEXT -> content
             MediaType.IMAGE -> "[▣] image queued"
             MediaType.VOICE -> "[▶] voice ${formatDuration(media?.duration ?: 0)} queued"
+            MediaType.VIDEO -> "[▶] video ${formatDuration(media?.duration ?: 0)} queued"
             MediaType.FILE -> "[■] ${media?.fileName ?: "file"} queued"
         }
     }

@@ -221,6 +221,81 @@ object MediaHelper {
     }
     
     // ══════════════════════════════════════════════════════════════════
+    // VIDEO RECORDING
+    // ══════════════════════════════════════════════════════════════════
+    
+    /**
+     * Create a URI for video recording.
+     * Returns a FileProvider URI that can be passed to video capture intent.
+     */
+    fun createVideoUri(context: Context): Pair<Uri, File>? {
+        return try {
+            val mediaDir = File(context.cacheDir, "media/video")
+            if (!mediaDir.exists()) {
+                mediaDir.mkdirs()
+            }
+            
+            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+            val videoFile = File(mediaDir, "VID_$timestamp.mp4")
+            
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                videoFile
+            )
+            
+            Log.d(TAG, "Created video URI: $uri -> ${videoFile.absolutePath}")
+            Pair(uri, videoFile)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to create video URI", e)
+            null
+        }
+    }
+    
+    /**
+     * Get video metadata (duration, width, height).
+     */
+    fun getVideoMetadata(file: File): VideoMetadata {
+        return try {
+            val retriever = MediaMetadataRetriever()
+            retriever.setDataSource(file.absolutePath)
+            
+            val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+            val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
+            val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
+            
+            retriever.release()
+            
+            VideoMetadata(duration, width, height)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get video metadata", e)
+            VideoMetadata(0L, 0, 0)
+        }
+    }
+    
+    /**
+     * Get video thumbnail bitmap.
+     */
+    fun getVideoThumbnail(file: File): android.graphics.Bitmap? {
+        return try {
+            val retriever = MediaMetadataRetriever()
+            retriever.setDataSource(file.absolutePath)
+            val bitmap = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+            retriever.release()
+            bitmap
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get video thumbnail", e)
+            null
+        }
+    }
+    
+    data class VideoMetadata(
+        val durationMs: Long,
+        val width: Int,
+        val height: Int
+    )
+    
+    // ══════════════════════════════════════════════════════════════════
     // FILE HANDLING
     // ══════════════════════════════════════════════════════════════════
     

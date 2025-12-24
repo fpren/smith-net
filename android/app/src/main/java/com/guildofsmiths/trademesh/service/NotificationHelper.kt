@@ -1,0 +1,188 @@
+package com.guildofsmiths.trademesh.service
+
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import android.util.Log
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import com.guildofsmiths.trademesh.MainActivity
+import com.guildofsmiths.trademesh.R
+import com.guildofsmiths.trademesh.data.Message
+import com.guildofsmiths.trademesh.data.MediaType
+
+/**
+ * NotificationHelper: Shows local notifications for incoming messages
+ * when app is in background.
+ */
+object NotificationHelper {
+    
+    private const val TAG = "NotificationHelper"
+    
+    private const val CHANNEL_ID_MESSAGES = "smith_net_messages"
+    private const val CHANNEL_NAME_MESSAGES = "Messages"
+    
+    private const val CHANNEL_ID_MESH = "smith_net_mesh"
+    private const val CHANNEL_NAME_MESH = "Mesh Activity"
+    
+    private var notificationId = 1000
+    
+    /** Track if app is in foreground to avoid notifications */
+    private var isAppInForeground = true
+    
+    /**
+     * Initialize notification channels.
+     * Call this from Application.onCreate()
+     */
+    fun initialize(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            
+            // Message notifications channel
+            val messageChannel = NotificationChannel(
+                CHANNEL_ID_MESSAGES,
+                CHANNEL_NAME_MESSAGES,
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "New message notifications"
+                enableVibration(true)
+                setShowBadge(true)
+            }
+            notificationManager.createNotificationChannel(messageChannel)
+            
+            // Mesh activity channel (lower priority)
+            val meshChannel = NotificationChannel(
+                CHANNEL_ID_MESH,
+                CHANNEL_NAME_MESH,
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "BLE mesh activity notifications"
+                setShowBadge(false)
+            }
+            notificationManager.createNotificationChannel(meshChannel)
+            
+            Log.d(TAG, "Notification channels created")
+        }
+    }
+    
+    /**
+     * Set app foreground state.
+     * Call from Activity.onResume/onPause
+     */
+    fun setAppForeground(foreground: Boolean) {
+        isAppInForeground = foreground
+        Log.d(TAG, "App foreground: $foreground")
+    }
+    
+    /**
+     * Show notification for incoming message.
+     * Only shows if app is in background.
+     */
+    fun showMessageNotification(context: Context, message: Message) {
+        if (isAppInForeground) {
+            Log.d(TAG, "App in foreground, skipping notification")
+            return
+        }
+        
+        // Don't notify for own messages or system messages
+        if (message.senderName == "You" || message.senderName == "System") {
+            return
+        }
+        
+        try {
+            val intent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra("channelId", message.channelId)
+                putExtra("beaconId", message.beaconId)
+            }
+            
+            val pendingIntent = PendingIntent.getActivity(
+                context,
+                notificationId,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            
+            // Build notification content
+            val title = message.senderName
+            val content = when (message.mediaType) {
+                MediaType.IMAGE -> "[▣] Sent a photo"
+                MediaType.VOICE -> "[▶] Sent a voice message"
+                MediaType.VIDEO -> "[▶] Sent a video"
+                MediaType.FILE -> "[■] Sent a file"
+                else -> message.content.take(100)
+            }
+            
+            val channelId = if (message.isMeshOrigin) CHANNEL_ID_MESH else CHANNEL_ID_MESSAGES
+            
+            val notification = NotificationCompat.Builder(context, channelId)
+                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setContentTitle(title)
+                .setContentText(content)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent)
+                .setGroup("smith_net_messages")
+                .build()
+            
+            val notificationManager = NotificationManagerCompat.from(context)
+            
+            // Check notification permission for Android 13+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                if (context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) 
+                    != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    Log.w(TAG, "Notification permission not granted")
+                    return
+                }
+            }
+            
+            notificationManager.notify(notificationId++, notification)
+            Log.d(TAG, "📬 Notification shown: $title - $content")
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to show notification", e)
+        }
+    }
+    
+    /**
+     * Show summary notification for multiple messages.
+     */
+    fun showSummaryNotification(context: Context, messageCount: Int) {
+        if (isAppInForeground || messageCount < 2) return
+        
+        try {
+            val summary = NotificationCompat.Builder(context, CHANNEL_ID_MESSAGES)
+                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setContentTitle("Smith Net")
+                .setContentText("$messageCount new messages")
+                .setGroup("smith_net_messages")
+                .setGroupSummary(true)
+                .setAutoCancel(true)
+                .build()
+            
+            val notificationManager = NotificationManagerCompat.from(context)
+            
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                if (context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) 
+                    != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    return
+                }
+            }
+            
+            notificationManager.notify(0, summary)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to show summary notification", e)
+        }
+    }
+    
+    /**
+     * Cancel all notifications.
+     */
+    fun cancelAll(context: Context) {
+        NotificationManagerCompat.from(context).cancelAll()
+    }
+}

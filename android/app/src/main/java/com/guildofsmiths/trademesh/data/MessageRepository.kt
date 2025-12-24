@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.ArrayDeque
+import com.guildofsmiths.trademesh.service.NotificationHelper
 
 /**
  * Repository for managing messages.
@@ -36,10 +37,14 @@ object MessageRepository {
     /** Database instance */
     private var database: AppDatabase? = null
     
+    /** Application context for notifications */
+    private var appContext: Context? = null
+    
     /**
      * Initialize with context (call from Application.onCreate).
      */
     fun init(context: Context) {
+        appContext = context.applicationContext
         database = AppDatabase.getInstance(context)
         
         // Load existing messages from database
@@ -110,6 +115,14 @@ object MessageRepository {
         // If mesh origin, queue for later sync
         if (message.isMeshOrigin) {
             pendingSyncQueue.addLast(message)
+        }
+        
+        // Show notification for incoming messages (not from self)
+        val myUserId = UserPreferences.getUserId()
+        if (message.senderId != myUserId) {
+            appContext?.let { context ->
+                NotificationHelper.showMessageNotification(context, message)
+            }
         }
     }
     
