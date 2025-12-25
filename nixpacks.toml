@@ -1,0 +1,15 @@
+# Railway/Nixpacks configuration
+# Deploy only the backend folder
+
+[phases.setup]
+nixPkgs = ["nodejs_18"]
+
+[phases.install]
+cmds = ["cd backend && npm install"]
+
+[phases.build]
+cmds = ["cd backend && npm run build"]
+
+[start]
+cmd = "cd backend && npm run start"
+
