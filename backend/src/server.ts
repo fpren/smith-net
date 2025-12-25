@@ -27,7 +27,14 @@ const PORT = process.env.PORT || 3000;
 
 // Create Express app
 const app = express();
-app.use(cors());
+
+// CORS - Allow requests from anywhere (mobile apps, web clients)
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-User-Id', 'X-User-Name']
+}));
+
 app.use(express.json());
 
 // Mount Auth API (C-01, C-02)
