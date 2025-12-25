@@ -103,7 +103,7 @@ class OpenAIProvider implements ILLMProvider {
       throw new Error(`OpenAI API error: ${error}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as any;
     const latencyMs = Date.now() - startTime;
 
     return {
@@ -171,7 +171,7 @@ class AnthropicProvider implements ILLMProvider {
       throw new Error(`Anthropic API error: ${error}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as any;
     const latencyMs = Date.now() - startTime;
 
     return {
@@ -236,7 +236,7 @@ class LocalProvider implements ILLMProvider {
       throw new Error(`Local LLM error: ${error}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as any;
     const latencyMs = Date.now() - startTime;
 
     return {
