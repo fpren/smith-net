@@ -39,7 +39,7 @@ object MessageRepository {
     
     /** Application context for notifications */
     private var appContext: Context? = null
-    
+
     /**
      * Initialize with context (call from Application.onCreate).
      */
@@ -295,6 +295,77 @@ object MessageRepository {
      */
     fun getPendingSyncCount(): Int = pendingSyncQueue.size
     
+    /**
+     * Archive a message.
+     */
+    fun archiveMessage(messageId: String, reason: String? = null, relatedJobId: String? = null) {
+        _allMessages.update { messages ->
+            messages.map { message ->
+                if (message.id == messageId) {
+                    message.copy(
+                        isArchived = true,
+                        archivedAt = System.currentTimeMillis(),
+                        archiveReason = reason,
+                        relatedJobId = relatedJobId
+                    )
+                } else message
+            }
+        }
+
+        scope.launch {
+            database?.messageDao()?.updateArchivedStatus(messageId, true, System.currentTimeMillis(), reason, relatedJobId)
+        }
+    }
+
+    /**
+     * Unarchive a message (restore to active).
+     */
+    fun unarchiveMessage(messageId: String) {
+        _allMessages.update { messages ->
+            messages.map { message ->
+                if (message.id == messageId) {
+                    message.copy(
+                        isArchived = false,
+                        archivedAt = null,
+                        archiveReason = null,
+                        relatedJobId = null
+                    )
+                } else message
+            }
+        }
+
+        scope.launch {
+            database?.messageDao()?.updateArchivedStatus(messageId, false, null, null, null)
+        }
+    }
+
+    /**
+     * Get all archived messages.
+     */
+    fun getArchivedMessages(): List<Message> {
+        return _allMessages.value.filter { it.isArchived }
+    }
+
+    /**
+     * Get archived messages for a specific job.
+     */
+    fun getArchivedMessagesForJob(jobId: String): List<Message> {
+        return _allMessages.value.filter { it.isArchived && it.relatedJobId == jobId }
+    }
+
+    /**
+     * Permanently delete an archived message.
+     */
+    fun deleteArchivedMessage(messageId: String) {
+        _allMessages.update { messages ->
+            messages.filter { it.id != messageId }
+        }
+
+        scope.launch {
+            database?.messageDao()?.deleteById(messageId)
+        }
+    }
+
     /**
      * Clean up old messages (keep last 7 days).
      */

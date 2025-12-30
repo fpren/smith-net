@@ -58,6 +58,7 @@ fun BeaconListScreen(
     onBeaconClick: (Beacon) -> Unit,
     onSettingsClick: (() -> Unit)? = null,
     onPeersClick: (() -> Unit)? = null,
+    onProfileClick: (() -> Unit)? = null,
     onCreateBeaconClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -179,8 +180,10 @@ fun BeaconListScreen(
                 ) {
                     Text(
                         text = UserPreferences.getDisplayName(),
-                        style = ConsoleTheme.bodySmall,
-                        modifier = Modifier.weight(1f)
+                        style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.accent),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable(onClick = { onProfileClick?.invoke() })
                     )
                     
                     if (onPeersClick != null) {

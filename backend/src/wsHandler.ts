@@ -23,12 +23,18 @@ interface AuthenticatedClient {
 class WSHandler {
   private clients: Map<WebSocket, AuthenticatedClient> = new Map();
   private wss: WebSocketServer | null = null;
+  private presenceInterval: NodeJS.Timeout | null = null;
 
   /**
    * Initialize WebSocket server
    */
   initialize(wss: WebSocketServer): void {
     this.wss = wss;
+    
+    // Keep presence alive for all connected clients every 30 seconds
+    this.presenceInterval = setInterval(() => {
+      this.refreshAllPresence();
+    }, 30_000);
 
     wss.on('connection', (ws) => {
       console.log('[WS] New connection');
@@ -304,12 +310,13 @@ class WSHandler {
 
   /**
    * Broadcast presence update to all clients
+   * Can be called with a specific presence to broadcast, or will fetch all online
    */
-  private broadcastPresence(): void {
-    const presence = presenceManager.getOnline();
+  broadcastPresence(presence?: unknown): void {
+    const payload = presence || presenceManager.getOnline();
     const wsMsg: WSMessage = {
       type: 'presence_update',
-      payload: presence,
+      payload,
       timestamp: Date.now(),
     };
 
@@ -331,6 +338,93 @@ class WSHandler {
     for (const [ws] of this.clients) {
       this.send(ws, wsMsg);
     }
+
+    // Auto-subscribe all clients to new broadcast channels
+    if (type === 'channel_created' && channel && typeof channel === 'object') {
+      const ch = channel as { id: string; type: string; name: string };
+      if (ch.type === 'broadcast') {
+        this.subscribeAllToChannel(ch.id, ch.name);
+      }
+    }
+  }
+
+  /**
+   * Subscribe all connected clients to a channel
+   * Used when new broadcast channels are created
+   */
+  subscribeAllToChannel(channelId: string, channelName: string): void {
+    let subscribed = 0;
+    for (const [ws, client] of this.clients) {
+      if (!client.subscribedChannels.has(channelId)) {
+        client.subscribedChannels.add(channelId);
+        subscribed++;
+        
+        // Notify client of new subscription
+        this.send(ws, {
+          type: 'channel_subscribed',
+          payload: { channelId, channelName },
+          timestamp: Date.now(),
+        });
+      }
+    }
+    console.log(`[WS] Auto-subscribed ${subscribed} clients to #${channelName}`);
+  }
+
+  /**
+   * Get count of connected clients
+   */
+  getClientCount(): number {
+    return this.clients.size;
+  }
+
+  /**
+   * Refresh presence for all connected clients
+   * Keeps them marked as "online" while WebSocket is connected
+   */
+  refreshAllPresence(): void {
+    for (const [ws, client] of this.clients) {
+      if (ws.readyState === WebSocket.OPEN) {
+        presenceManager.update(client.userId, client.userName, 'online', client.isRelay ? 'gateway' : 'online');
+      }
+    }
+    // Also broadcast presence update to all clients
+    if (this.clients.size > 0) {
+      this.broadcastPresence();
+    }
+  }
+
+  /**
+   * Get list of connected users (for debugging)
+   */
+  getConnectedUsers(): Array<{userId: string; userName: string}> {
+    return Array.from(this.clients.values()).map(c => ({
+      userId: c.userId,
+      userName: c.userName
+    }));
+  }
+
+  /**
+   * Force refresh subscriptions for all clients
+   * Useful after channel creation when clients were already connected
+   */
+  refreshAllSubscriptions(): void {
+    for (const [ws, client] of this.clients) {
+      const channelIds = channelRegistry.subscribeUserToChannels(client.userId);
+      for (const channelId of channelIds) {
+        client.subscribedChannels.add(channelId);
+      }
+      
+      // Send updated channel list
+      const channels = channelRegistry.listForUser(client.userId);
+      this.send(ws, {
+        type: 'channels_updated',
+        payload: {
+          channels: channels.map(c => ({ id: c.id, name: c.name, type: c.type })),
+        },
+        timestamp: Date.now(),
+      });
+    }
+    console.log(`[WS] Refreshed subscriptions for ${this.clients.size} clients`);
   }
 }
 

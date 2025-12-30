@@ -112,6 +112,24 @@ interface MessageDao {
     suspend fun deleteAll()
     
     /**
+     * Update archived status for a message.
+     */
+    @Query("UPDATE messages SET isArchived = :isArchived, archivedAt = :archivedAt, archiveReason = :archiveReason, relatedJobId = :relatedJobId WHERE id = :messageId")
+    suspend fun updateArchivedStatus(messageId: String, isArchived: Boolean, archivedAt: Long?, archiveReason: String?, relatedJobId: String?)
+
+    /**
+     * Get all archived messages.
+     */
+    @Query("SELECT * FROM messages WHERE isArchived = 1 ORDER BY archivedAt DESC")
+    suspend fun getArchivedMessages(): List<MessageEntity>
+
+    /**
+     * Get archived messages for a specific job.
+     */
+    @Query("SELECT * FROM messages WHERE isArchived = 1 AND relatedJobId = :jobId ORDER BY archivedAt DESC")
+    suspend fun getArchivedMessagesForJob(jobId: String): List<MessageEntity>
+
+    /**
      * Delete a single message by ID.
      */
     @Query("DELETE FROM messages WHERE id = :messageId")

@@ -14,6 +14,8 @@ import {
   DailySummary,
   WeeklySummary,
   ClockInRequest,
+  ClockOutRequest,
+  ClockOutContext,
   ManualEntryRequest,
 } from './types';
 
@@ -35,6 +37,7 @@ class TimeStore {
       entryType: entry.entryType,
       source: entry.source,
       createdAt: entry.createdAt,
+      clockOutContext: entry.clockOutContext, // Include clock-out context in hash
     });
     return crypto.createHash('sha256').update(data).digest('hex');
   }
@@ -135,6 +138,50 @@ class TimeStore {
     this.activeEntries.delete(userId);
 
     console.log(`[TimeStore] Clock OUT: ${entry.userName} - ${entry.durationMinutes} minutes`);
+    return entry;
+  }
+
+  clockOutWithContext(
+    userId: string,
+    contextType: 'worker_note' | 'ai_summary',
+    content: string,
+    userName: string
+  ): TimeEntry | { error: string } {
+    const activeEntryId = this.activeEntries.get(userId);
+    if (!activeEntryId) {
+      return { error: 'Not clocked in.' };
+    }
+
+    const entry = this.entries.get(activeEntryId);
+    if (!entry) {
+      this.activeEntries.delete(userId);
+      return { error: 'Entry not found.' };
+    }
+
+    // Update entry (clock out time is mutable until set)
+    entry.clockOutTime = Date.now();
+    entry.durationMinutes = Math.round((entry.clockOutTime - entry.clockInTime) / 60000);
+    entry.status = 'completed';
+
+    // Create clock-out context (immutable once set)
+    const clockOutContext: ClockOutContext = {
+      type: contextType,
+      content,
+      generatedAt: Date.now(),
+      generatedBy: contextType === 'ai_summary' ? 'ai' : userId,
+      isImmutable: true
+    };
+
+    entry.clockOutContext = clockOutContext;
+
+    // Regenerate hash with clock out time and context
+    entry.immutableHash = this.generateHash(entry);
+
+    this.entries.set(entry.id, entry);
+    this.activeEntries.delete(userId);
+
+    console.log(`[TimeStore] Clock OUT with ${contextType}: ${entry.userName} - ${entry.durationMinutes} minutes`);
+
     return entry;
   }
 

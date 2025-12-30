@@ -17,6 +17,7 @@ import http from 'http';
 import path from 'path';
 import { apiRouter } from './api';
 import { authRouter } from './authRoutes';
+import adminRouter from './adminRoutes';
 import { wsHandler } from './wsHandler';
 import { channelRegistry } from './channelRegistry';
 import { mediaRouter, IMAGES_DIR, VOICE_DIR, FILES_DIR, cleanupOldMedia } from './mediaHandler';
@@ -39,6 +40,9 @@ app.use(express.json());
 
 // Mount Auth API (C-01, C-02)
 app.use('/api/auth', authRouter);
+
+// Mount Admin API
+app.use('/api/admin', adminRouter);
 
 // Mount API
 app.use('/api', apiRouter);

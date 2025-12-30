@@ -5,10 +5,13 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
+import android.os.Bundle
+import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat
-import com.google.android.gms.location.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -31,7 +34,6 @@ import kotlin.math.*
  * - Auto clock-out when exiting a geofence
  * - Dwell time requirements (must stay for X minutes to trigger)
  * - Background location monitoring
- * - Battery-efficient location updates
  */
 object GeofenceManager {
 
@@ -39,8 +41,8 @@ object GeofenceManager {
     
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     
-    private var fusedLocationClient: FusedLocationProviderClient? = null
-    private var locationCallback: LocationCallback? = null
+    private var locationManager: LocationManager? = null
+    private var locationListener: LocationListener? = null
     private var appContext: Context? = null
     
     // ════════════════════════════════════════════════════════════════════
@@ -79,7 +81,7 @@ object GeofenceManager {
     
     fun initialize(context: Context) {
         appContext = context.applicationContext
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+        locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
         Log.i(TAG, "GeofenceManager initialized")
         
         // Load saved geofences
@@ -198,32 +200,40 @@ object GeofenceManager {
             return
         }
         
-        val client = fusedLocationClient ?: return
+        val manager = locationManager ?: return
         
-        val locationRequest = LocationRequest.Builder(
-            Priority.PRIORITY_BALANCED_POWER_ACCURACY,
-            locationIntervalMs
-        ).apply {
-            setMinUpdateIntervalMillis(locationIntervalMs / 2)
-            setWaitForAccurateLocation(false)
-        }.build()
-        
-        locationCallback = object : LocationCallback() {
-            override fun onLocationResult(result: LocationResult) {
-                result.lastLocation?.let { location ->
-                    onLocationUpdate(location)
-                }
+        locationListener = object : LocationListener {
+            override fun onLocationChanged(location: Location) {
+                onLocationUpdate(location)
             }
+            
+            @Deprecated("Deprecated in Java")
+            override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+            override fun onProviderEnabled(provider: String) {}
+            override fun onProviderDisabled(provider: String) {}
         }
         
         try {
-            client.requestLocationUpdates(
-                locationRequest,
-                locationCallback!!,
-                Looper.getMainLooper()
-            )
-            _isTracking.value = true
-            Log.i(TAG, "▓▓▓ GEOFENCE TRACKING STARTED ▓▓▓")
+            // Try GPS first, fall back to network
+            val provider = when {
+                manager.isProviderEnabled(LocationManager.GPS_PROVIDER) -> LocationManager.GPS_PROVIDER
+                manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) -> LocationManager.NETWORK_PROVIDER
+                else -> null
+            }
+            
+            if (provider != null) {
+                manager.requestLocationUpdates(
+                    provider,
+                    locationIntervalMs,
+                    10f, // min distance in meters
+                    locationListener!!,
+                    Looper.getMainLooper()
+                )
+                _isTracking.value = true
+                Log.i(TAG, "▓▓▓ GEOFENCE TRACKING STARTED (provider: $provider) ▓▓▓")
+            } else {
+                Log.e(TAG, "No location provider available")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start location tracking: ${e.message}")
         }
@@ -233,10 +243,10 @@ object GeofenceManager {
      * Stop location tracking.
      */
     fun stopTracking() {
-        locationCallback?.let { callback ->
-            fusedLocationClient?.removeLocationUpdates(callback)
+        locationListener?.let { listener ->
+            locationManager?.removeUpdates(listener)
         }
-        locationCallback = null
+        locationListener = null
         _isTracking.value = false
         Log.i(TAG, "░░░ GEOFENCE TRACKING STOPPED ░░░")
     }
@@ -340,17 +350,10 @@ object GeofenceManager {
         
         scope.launch {
             try {
-                // Call time tracking API
-                // This would integrate with TimeTrackingViewModel
-                // For now, log the event
+                // Log the event - integrate with time tracking API
                 Log.i(TAG, "Clock in event: jobId=${geofence.jobId}, location=${geofence.name}")
                 
-                // TODO: Integrate with time tracking backend
-                // TimeTrackingApi.clockIn(
-                //     jobId = geofence.jobId,
-                //     location = geofence.name,
-                //     source = "geofence"
-                // )
+                // TODO: Integrate with time tracking backend when ready
             } catch (e: Exception) {
                 Log.e(TAG, "Auto clock-in failed: ${e.message}")
             }
@@ -366,10 +369,7 @@ object GeofenceManager {
             try {
                 Log.i(TAG, "Clock out event: location=${geofence.name}")
                 
-                // TODO: Integrate with time tracking backend
-                // TimeTrackingApi.clockOut(
-                //     note = "Auto clock-out (left ${geofence.name})"
-                // )
+                // TODO: Integrate with time tracking backend when ready
             } catch (e: Exception) {
                 Log.e(TAG, "Auto clock-out failed: ${e.message}")
             }
@@ -403,7 +403,6 @@ object GeofenceManager {
     
     private fun loadGeofences() {
         // TODO: Load from SharedPreferences or database
-        // For now, use empty list
         _geofences.value = emptyList()
     }
     

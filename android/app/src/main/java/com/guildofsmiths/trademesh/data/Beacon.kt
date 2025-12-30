@@ -59,7 +59,12 @@ data class Channel(
     val beaconId: String = "",
     val name: String,
     val type: ChannelType = ChannelType.BROADCAST,
+    val visibility: ChannelVisibility = ChannelVisibility.PUBLIC,  // NEW: Access control
     val members: List<String> = emptyList(), // Empty = public/open
+    val allowedUsers: List<String> = emptyList(),  // Specific users allowed (for RESTRICTED)
+    val blockedUsers: List<String> = emptyList(),   // Users explicitly blocked
+    val requiresApproval: Boolean = false,          // NEW: Manual approval needed
+    val pendingRequests: List<String> = emptyList(), // Users waiting for approval
     val creatorId: String = "",  // User ID of creator/owner (can delete/archive)
     val deletePermissions: List<String> = emptyList(),  // User IDs who can delete for all
     val createdAt: Long = System.currentTimeMillis(),
@@ -99,12 +104,110 @@ data class Channel(
     }
     
     /**
-     * Check if a user can access this channel.
+     * Check if a user can access this channel based on visibility settings.
      */
-    fun canAccess(userId: String): Boolean = when (type) {
-        ChannelType.BROADCAST -> true // Everyone can access broadcast
-        ChannelType.GROUP -> members.isEmpty() || members.contains(userId)
-        ChannelType.DM -> members.contains(userId)
+    fun canAccess(userId: String): Boolean {
+        // Creator always has access
+        if (isOwner(userId)) return true
+
+        // Check blocked users first
+        if (blockedUsers.contains(userId)) return false
+
+        return when (visibility) {
+            ChannelVisibility.PUBLIC -> {
+                // Public channels respect type-based access
+                when (type) {
+                    ChannelType.BROADCAST -> true
+                    ChannelType.GROUP -> members.isEmpty() || members.contains(userId)
+                    ChannelType.DM -> members.contains(userId)
+                }
+            }
+            ChannelVisibility.PRIVATE -> {
+                // Private channels require invitation
+                members.contains(userId)
+            }
+            ChannelVisibility.RESTRICTED -> {
+                // Restricted channels only allow specific users
+                allowedUsers.contains(userId)
+            }
+        }
+    }
+
+    /**
+     * Check if a user can request access to this channel.
+     */
+    fun canRequestAccess(userId: String): Boolean {
+        // Can't request if already have access
+        if (canAccess(userId)) return false
+
+        // Can't request if blocked
+        if (blockedUsers.contains(userId)) return false
+
+        // Can request for private channels with approval
+        return visibility == ChannelVisibility.PRIVATE && requiresApproval
+    }
+
+    /**
+     * Check if a user can see this channel in listings.
+     * For private/restricted channels, only show if user has access or can request access.
+     */
+    fun canSeeInList(userId: String): Boolean {
+        return when (visibility) {
+            ChannelVisibility.PUBLIC -> true
+            ChannelVisibility.PRIVATE, ChannelVisibility.RESTRICTED -> canAccess(userId) || canRequestAccess(userId)
+        }
+    }
+
+    /**
+     * Check if a user can manage this channel (add/remove members, change settings).
+     */
+    fun canManage(userId: String): Boolean {
+        return isOwner(userId) || deletePermissions.contains(userId)
+    }
+
+    /**
+     * Get the access status for a user.
+     */
+    fun getAccessStatus(userId: String): AccessStatus {
+        return when {
+            canAccess(userId) -> AccessStatus.GRANTED
+            pendingRequests.contains(userId) -> AccessStatus.PENDING
+            canRequestAccess(userId) -> AccessStatus.CAN_REQUEST
+            else -> AccessStatus.DENIED
+        }
+    }
+
+    /**
+     * Create a copy of this channel with updated access control.
+     * Only channel managers should call this.
+     */
+    fun withUpdatedAccess(
+        visibility: ChannelVisibility = this.visibility,
+        members: List<String> = this.members,
+        allowedUsers: List<String> = this.allowedUsers,
+        blockedUsers: List<String> = this.blockedUsers,
+        requiresApproval: Boolean = this.requiresApproval,
+        pendingRequests: List<String> = this.pendingRequests
+    ): Channel {
+        return copy(
+            visibility = visibility,
+            members = members,
+            allowedUsers = allowedUsers,
+            blockedUsers = blockedUsers,
+            requiresApproval = requiresApproval,
+            pendingRequests = pendingRequests
+        )
+    }
+
+    /**
+     * Get visibility description for UI.
+     */
+    fun getVisibilityDescription(): String {
+        return when (visibility) {
+            ChannelVisibility.PUBLIC -> "Anyone can join"
+            ChannelVisibility.PRIVATE -> if (requiresApproval) "Invite-only with approval" else "Invite-only"
+            ChannelVisibility.RESTRICTED -> "Restricted to specific users"
+        }
     }
     
     companion object {
@@ -124,13 +227,22 @@ data class Channel(
         /**
          * Create a group channel with creator as owner.
          */
-        fun createGroup(name: String, beaconId: String, creatorId: String, members: List<String> = emptyList()): Channel {
+        fun createGroup(
+            name: String,
+            beaconId: String,
+            creatorId: String,
+            visibility: ChannelVisibility = ChannelVisibility.PUBLIC,
+            members: List<String> = emptyList(),
+            requiresApproval: Boolean = false
+        ): Channel {
             return Channel(
                 beaconId = beaconId,
                 name = name,
                 type = ChannelType.GROUP,
+                visibility = visibility,
                 creatorId = creatorId,
-                members = if (members.isEmpty()) listOf(creatorId) else members
+                members = if (members.isEmpty()) listOf(creatorId) else members,
+                requiresApproval = requiresApproval
             )
         }
         
@@ -158,4 +270,23 @@ enum class ChannelType {
     BROADCAST,  // 1-to-many, public (like #general)
     GROUP,      // Many-to-many, can be invite-only
     DM          // 1-on-1 private direct message
+}
+
+/**
+ * Channel visibility and access control.
+ */
+enum class ChannelVisibility {
+    PUBLIC,      // Anyone can join and see
+    PRIVATE,     // Invite-only, admin approval required
+    RESTRICTED   // Only specific users can access
+}
+
+/**
+ * User's access status to a channel.
+ */
+enum class AccessStatus {
+    GRANTED,      // User has access
+    PENDING,      // Request submitted, waiting approval
+    CAN_REQUEST,  // User can submit request
+    DENIED        // Access denied/blocked
 }

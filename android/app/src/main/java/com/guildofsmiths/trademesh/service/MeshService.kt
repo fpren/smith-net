@@ -138,6 +138,59 @@ class MeshService : Service() {
     
     override fun onBind(intent: Intent?): IBinder = binder
     
+    // Bluetooth state receiver to stop service when BT is disabled
+    private val bluetoothStateReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == android.bluetooth.BluetoothAdapter.ACTION_STATE_CHANGED) {
+                val state = intent.getIntExtra(
+                    android.bluetooth.BluetoothAdapter.EXTRA_STATE,
+                    android.bluetooth.BluetoothAdapter.ERROR
+                )
+                // #region agent log
+                try {
+                    val data = mapOf(
+                        "sessionId" to "debug-session",
+                        "runId" to "bluetooth-detection-test",
+                        "hypothesisId" to "B",
+                        "location" to "MeshService.kt:144",
+                        "message" to "Bluetooth state change detected",
+                        "data" to mapOf(
+                            "newState" to state,
+                            "stateName" to when (state) {
+                                android.bluetooth.BluetoothAdapter.STATE_OFF -> "OFF"
+                                android.bluetooth.BluetoothAdapter.STATE_TURNING_OFF -> "TURNING_OFF"
+                                android.bluetooth.BluetoothAdapter.STATE_ON -> "ON"
+                                android.bluetooth.BluetoothAdapter.STATE_TURNING_ON -> "TURNING_ON"
+                                else -> "UNKNOWN"
+                            },
+                            "willStopService" to (state == android.bluetooth.BluetoothAdapter.STATE_OFF || state == android.bluetooth.BluetoothAdapter.STATE_TURNING_OFF)
+                        ),
+                        "timestamp" to System.currentTimeMillis()
+                    )
+                    val jsonPayload = org.json.JSONObject(data).toString()
+                    val url = java.net.URL("http://127.0.0.1:7242/ingest/0adb3485-1a4e-45bf-a3c0-30e8c05573e2")
+                    val connection = url.openConnection() as java.net.HttpURLConnection
+                    connection.requestMethod = "POST"
+                    connection.setRequestProperty("Content-Type", "application/json")
+                    connection.doOutput = true
+                    connection.outputStream.write(jsonPayload.toByteArray())
+                    connection.inputStream.close()
+                } catch (e: Exception) {
+                    // Ignore logging errors
+                }
+                // #endregion
+
+                when (state) {
+                    android.bluetooth.BluetoothAdapter.STATE_OFF,
+                    android.bluetooth.BluetoothAdapter.STATE_TURNING_OFF -> {
+                        Log.i(TAG, "🔴 Bluetooth disabled - stopping MeshService")
+                        stopSelf()
+                    }
+                }
+            }
+        }
+    }
+    
     override fun onCreate() {
         super.onCreate()
         Log.i(TAG, "════════════════════════════════════════")
@@ -155,6 +208,10 @@ class MeshService : Service() {
         MeshAckManager.setRetryCallback { messageId ->
             retryMessageById(messageId)
         }
+        
+        // Register Bluetooth state receiver
+        val filter = android.content.IntentFilter(android.bluetooth.BluetoothAdapter.ACTION_STATE_CHANGED)
+        registerReceiver(bluetoothStateReceiver, filter)
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -165,12 +222,27 @@ class MeshService : Service() {
     
     override fun onDestroy() {
         Log.i(TAG, "🛑 MeshService onDestroy")
+        
+        // Unregister Bluetooth state receiver
+        try {
+            unregisterReceiver(bluetoothStateReceiver)
+        } catch (e: Exception) {
+            Log.w(TAG, "Bluetooth receiver already unregistered")
+        }
+        
         handler.removeCallbacks(scanTimeoutRunnable)
         handler.removeCallbacks(advertiseStopRunnable)
         stopScanning()
         stopAdvertising()
         MeshAckManager.clearAll()
         BoundaryEngine.unregisterMeshService()
+        BoundaryEngine.stopHeartbeat()
+        
+        // Remove the notification
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager?.cancel(NOTIFICATION_ID)
+        
         super.onDestroy()
     }
     
@@ -391,19 +463,23 @@ class MeshService : Service() {
     /**
      * Broadcast a channel invite over BLE.
      * Creates a special message with INVITE_CHANNEL_HASH as channelId.
+     * Content format: "channelName|channelId" to include both name and UUID
      */
     fun broadcastInvite(channelId: String, channelName: String, senderId: String) {
-        Log.i(TAG, "📢 Broadcasting channel invite: #$channelName")
-        
+        Log.i(TAG, "📢 Broadcasting channel invite: #$channelName ($channelId)")
+
+        // Create invite content with both name and ID: "name|uuid"
+        val inviteContent = "$channelName|$channelId".take(MAX_CONTENT_BYTES)
+
         // Create an invite message - use special channelId that will serialize to INVITE_CHANNEL_HASH
         val inviteMessage = Message(
             senderId = senderId,
             senderName = senderId,
             channelId = "__INVITE__", // Special marker - will be replaced in serialization
-            content = channelName.take(MAX_CONTENT_BYTES), // Channel name goes in content
+            content = inviteContent,
             isMeshOrigin = true
         )
-        
+
         // Manually serialize with invite hash and broadcast
         broadcastInvitePayload(inviteMessage)
     }
@@ -738,7 +814,7 @@ class MeshService : Service() {
         }
         
         // Route to BoundaryEngine with RSSI for peer tracking
-        BoundaryEngine.onMeshMessageReceived(message, rssi)
+        BoundaryEngine.onMeshMessageReceived(this, message, rssi)
     }
     
     /**

@@ -7,6 +7,10 @@ import android.util.Log
 import com.guildofsmiths.trademesh.data.BeaconRepository
 import com.guildofsmiths.trademesh.data.Channel
 import com.guildofsmiths.trademesh.data.ChannelType
+import com.guildofsmiths.trademesh.data.CordEntry
+import com.guildofsmiths.trademesh.data.CordMessageClass
+import com.guildofsmiths.trademesh.data.CordRepository
+import com.guildofsmiths.trademesh.data.IdentityResolver
 import com.guildofsmiths.trademesh.data.MediaAttachment
 import com.guildofsmiths.trademesh.data.MediaType
 import com.guildofsmiths.trademesh.data.Message
@@ -17,6 +21,10 @@ import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.service.ChatManager
 import com.guildofsmiths.trademesh.service.GatewayClient
 import com.guildofsmiths.trademesh.service.MeshService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import org.json.JSONArray
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -49,7 +57,7 @@ object BoundaryEngine {
     val isScanning: kotlinx.coroutines.flow.StateFlow<Boolean> = _isScanning
     
     /** Observable IP/online state */
-    private val _isOnline = MutableStateFlow(false)
+    private val _isOnline = MutableStateFlow(true) // Start online - will be updated by connectivity monitoring
     val isOnline: StateFlow<Boolean> = _isOnline
     
     /** Force mesh mode (ignore internet connectivity) - for testing */
@@ -93,6 +101,11 @@ object BoundaryEngine {
             override fun onConnectionStateChanged(connected: Boolean) {
                 Log.d(TAG, "🌐 Gateway connection state changed: $connected")
                 _isGatewayConnected.value = connected
+
+                // When gateway connects, sync channels from backend
+                if (connected) {
+                    syncChannelsFromBackend()
+                }
             }
         })
         
@@ -119,12 +132,16 @@ object BoundaryEngine {
             }
         })
         
-        // Initialize ChatManager with backend URL for online messaging
+        // Initialize ChatManager with backend URL for online messaging (local network fallback)
         ChatManager.setBackendUrl("http://192.168.8.163:3000")
         
         // Auto-connect to online chat (for receiving messages)
         ChatManager.connect()
-        Log.i(TAG, "🌐 Auto-connecting to online chat for receiving messages")
+        Log.i(TAG, "🌐 Auto-connecting to local chat backend")
+        
+        // Connect to Supabase Realtime for GLOBAL chat (works anywhere in the world)
+        com.guildofsmiths.trademesh.service.SupabaseChat.connect()
+        Log.i(TAG, "🌍 Connecting to Supabase Realtime for global chat")
     }
     
     /**
@@ -215,8 +232,16 @@ object BoundaryEngine {
      * Called when a mesh message is received and gateway is connected.
      */
     fun forwardToGateway(message: Message) {
+        // Forward via Gateway WebSocket if connected
         if (GatewayClient.isConnected()) {
             GatewayClient.forwardMeshMessage(message)
+        }
+        
+        // Also forward via Supabase for global reach (auto-bridges mesh → online)
+        // This ensures mesh messages get uploaded to the cloud even without gateway mode
+        if (_isOnline.value) {
+            Log.d(TAG, "🌉 Auto-bridging mesh message to Supabase: ${message.content.take(20)}")
+            com.guildofsmiths.trademesh.service.SupabaseChat.sendMessage(message)
         }
     }
     
@@ -279,34 +304,52 @@ object BoundaryEngine {
      * In Phase 0, we force mesh mode to always be true for testing.
      */
     fun shouldUseMesh(context: Context): Boolean {
-        // Phase 0: Always use mesh for testing
+        // Phase 0: Check connectivity properly but log details
         if (forceMeshMode) {
             Log.d(TAG, "Force mesh mode enabled - using mesh")
             return true
         }
-        
+
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-            ?: return true // Default to mesh if we can't check
-        
+        if (connectivityManager == null) {
+            Log.w(TAG, "No ConnectivityManager - defaulting to mesh")
+            return true
+        }
+
         val network = connectivityManager.activeNetwork
         if (network == null) {
             Log.d(TAG, "No active network - using mesh")
             return true
         }
-        
+
         val capabilities = connectivityManager.getNetworkCapabilities(network)
         if (capabilities == null) {
             Log.d(TAG, "No network capabilities - using mesh")
             return true
         }
-        
-        val hasInternet = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-        
-        val useMesh = !hasInternet
-        Log.d(TAG, "Connectivity check: hasInternet=$hasInternet, useMesh=$useMesh")
-        
-        return useMesh
+
+        // For P0: Be more permissive - just check for internet capability
+        // Don't require VALIDATED which can fail even with working internet
+        val hasInternet = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        val hasValidated = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+
+        // Log network transport type for debugging
+        val isWifi = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+        val isCellular = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
+
+        Log.i(TAG, "🌐 Connectivity check: hasInternet=$hasInternet, hasValidated=$hasValidated")
+        Log.i(TAG, "   Transport: WIFI=$isWifi, CELLULAR=$isCellular")
+
+        // Use mesh only if there's no internet at all
+        // This prevents the app from staying offline when Supabase has issues
+        if (!hasInternet) {
+            Log.d(TAG, "No internet capability - using mesh")
+            return true
+        }
+
+        // We have internet - prefer online mode
+        Log.d(TAG, "Internet available - using online mode")
+        return false
     }
     
     /**
@@ -315,9 +358,23 @@ object BoundaryEngine {
     fun hasIpConnectivity(context: Context): Boolean {
         // In Phase 0 with force mesh mode, we're "offline" for media
         if (forceMeshMode) {
+            Log.d(TAG, "Force mesh mode - no IP connectivity")
             return false
         }
-        return !shouldUseMesh(context)
+
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return false
+
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+
+        // Check for internet capability and validation
+        val hasInternet = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        val hasValidated = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+
+        val result = hasInternet && hasValidated
+        Log.d(TAG, "IP connectivity check: internet=$hasInternet, validated=$hasValidated, result=$result")
+        return result
     }
     
     /**
@@ -330,14 +387,49 @@ object BoundaryEngine {
     
     /**
      * Route an outbound message through the appropriate path.
-     * - Text messages: Mesh (offline) or Chat (online)
+     * - When online: Send via BOTH Supabase (global) AND mesh (local)
+     * - When offline: Send via mesh only
      * - Media messages: Chat only (queued if offline)
      * 
      * Message is always added to local repository for immediate display.
      */
     fun routeMessage(context: Context, message: Message) {
+        // #region agent log
+        try {
+            val data = mapOf(
+                "sessionId" to "debug-session",
+                "runId" to "transport-indicators-test",
+                "hypothesisId" to "A",
+                "location" to "BoundaryEngine.kt:387",
+                "message" to "Message routing initiated",
+                "data" to mapOf(
+                    "messageId" to message.id.take(8),
+                    "content" to message.content.take(20),
+                    "senderName" to message.senderName,
+                    "isMeshOrigin" to message.isMeshOrigin,
+                    "hasMedia" to message.hasMedia(),
+                    "useMesh" to shouldUseMesh(context)
+                ),
+                "timestamp" to System.currentTimeMillis()
+            )
+            val jsonPayload = org.json.JSONObject(data).toString()
+            val url = java.net.URL("http://127.0.0.1:7242/ingest/0adb3485-1a4e-45bf-a3c0-30e8c05573e2")
+            val connection = url.openConnection() as java.net.HttpURLConnection
+            connection.requestMethod = "POST"
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.doOutput = true
+            connection.outputStream.write(jsonPayload.toByteArray())
+            connection.inputStream.close()
+        } catch (e: Exception) {
+            // Ignore logging errors
+        }
+        // #endregion
+
         // Always add to local repository first for immediate UI feedback
         MessageRepository.addMessage(message)
+
+        // For legal/financial records, also append to cord for provable correctness
+        createCordEntryIfNeeded(context, message)
         
         // Media messages require IP - queue if offline
         if (message.hasMedia()) {
@@ -345,11 +437,16 @@ object BoundaryEngine {
             return
         }
         
-        // Text messages can go via mesh or chat
-        if (shouldUseMesh(context)) {
-            routeViaMesh(message)
+        // When online: send via BOTH paths for maximum reach
+        // - Supabase: reaches dashboard and remote users globally
+        // - Mesh: reaches local peers quickly (even if their internet is spotty)
+        if (!shouldUseMesh(context)) {
+            Log.d(TAG, "📤 ONLINE: Sending via Supabase + Mesh")
+            routeViaChat(message)  // Supabase for global reach
+            routeViaMesh(message)  // Mesh for local peers
         } else {
-            routeViaChat(message)
+            Log.d(TAG, "📤 OFFLINE: Sending via Mesh only")
+            routeViaMesh(message)
         }
     }
     
@@ -403,10 +500,14 @@ object BoundaryEngine {
     }
     
     /**
-     * Route message via IP chat path (stub for Phase 0).
+     * Route message via IP chat path.
+     * Uses Supabase Realtime for global connectivity.
      */
     private fun routeViaChat(message: Message) {
         Log.d(TAG, "Routing via chat: ${message.id.take(8)}...")
+        // Use Supabase for global chat (works anywhere with internet)
+        com.guildofsmiths.trademesh.service.SupabaseChat.sendMessage(message)
+        // Also send via local ChatManager for backward compatibility
         ChatManager.sendMessage(message)
     }
     
@@ -418,32 +519,46 @@ object BoundaryEngine {
      * Handle incoming mesh message from BLE scan.
      * Called by MeshService when a peer message is received.
      */
-    fun onMeshMessageReceived(message: Message, rssi: Int = 0) {
+    fun onMeshMessageReceived(context: Context, message: Message, rssi: Int = 0) {
         Log.d(TAG, "Mesh message received: ${message.id.take(8)} from ${message.senderName}")
-        
+
+        // IDENTITY RESOLUTION: Ensure consistent author identity
+        // BLE messages may have device-based senderId that needs resolution
+        val resolvedSenderId = IdentityResolver.resolveAuthorId(
+            deviceId = message.deviceId ?: message.senderId, // Use deviceId if available
+            knownAuthorId = message.senderId
+        )
+
+        // If identity was resolved/changed, update the message
+        val resolvedMessage = if (resolvedSenderId != message.senderId) {
+            message.copy(senderId = resolvedSenderId)
+        } else {
+            message
+        }
+
         // Track the peer (always, even for heartbeats)
-        PeerRepository.onPeerSeen(message.senderId, message.senderName, rssi)
+        PeerRepository.onPeerSeen(resolvedMessage.senderId, resolvedMessage.senderName, rssi)
         
         // Filter out heartbeat/ping messages - they're only for presence tracking
-        if (isPresenceMessage(message.content)) {
+        if (isPresenceMessage(resolvedMessage.content)) {
             Log.d(TAG, "   (presence message - not displaying)")
             return
         }
-        
+
         // Don't forward messages that WE just injected (prevents echo loop)
         val myUserId = UserPreferences.getUserId()
-        if (recentlyInjectedIds.contains(message.id) || message.senderId == myUserId) {
+        if (recentlyInjectedIds.contains(resolvedMessage.id) || resolvedMessage.senderId == myUserId) {
             Log.d(TAG, "   (own message or recently injected - not re-forwarding to backend)")
             // Still add to local repo for display
-            MessageRepository.addMessage(message)
+            MessageRepository.addMessage(resolvedMessage)
             return
         }
-        
+
         // Add to repository - deduplication handled there
-        MessageRepository.addMessage(message)
-        
+        MessageRepository.addMessage(resolvedMessage)
+
         // Forward to gateway if connected (bridge mesh → online)
-        forwardToGateway(message)
+        forwardToGateway(resolvedMessage)
     }
     
     /**
@@ -474,6 +589,7 @@ object BoundaryEngine {
     /**
      * Sync all pending mesh messages to chat backend.
      * Preserves message ordering and attribution.
+     * Messages are uploaded to BOTH local backend AND Supabase for global reach.
      */
     private fun syncMeshMessagesToChat() {
         val pendingMessages = MessageRepository.getPendingSyncMessages()
@@ -482,19 +598,26 @@ object BoundaryEngine {
             return
         }
         
-        Log.i(TAG, "Syncing ${pendingMessages.size} mesh messages to chat")
+        Log.i(TAG, "🌊 Syncing ${pendingMessages.size} mesh messages to cloud (bobbling up!)")
         
         val syncedIds = mutableSetOf<String>()
         for (message in pendingMessages.sortedBy { it.timestamp }) {
             // Re-send via chat path, preserving original metadata
             val chatMessage = message.copy(isMeshOrigin = false)
+            
+            // Send to local backend
             ChatManager.sendMessage(chatMessage)
+            
+            // Also send to Supabase for global reach
+            com.guildofsmiths.trademesh.service.SupabaseChat.sendMessage(chatMessage)
+            
             syncedIds.add(message.id)
+            Log.d(TAG, "   ↑ Uploaded: ${message.content.take(30)}")
         }
         
         // Mark as synced to prevent re-sync
         MessageRepository.markAsSynced(syncedIds)
-        Log.i(TAG, "Mesh sync completed: ${syncedIds.size} messages")
+        Log.i(TAG, "✅ Mesh sync completed: ${syncedIds.size} messages uploaded to cloud")
     }
     
     /**
@@ -528,16 +651,66 @@ object BoundaryEngine {
      */
     fun updateConnectivityState(context: Context) {
         val currentState = shouldUseMesh(context)
-        
+        val isOnlineNow = !currentState
+
+        // #region agent log
+        try {
+            val data = mapOf(
+                "sessionId" to "debug-session",
+                "runId" to "connectivity-monitoring-test",
+                "hypothesisId" to "C",
+                "location" to "BoundaryEngine.kt:595",
+                "message" to "Connectivity state update",
+                "data" to mapOf(
+                    "currentMeshState" to currentState,
+                    "isOnlineNow" to isOnlineNow,
+                    "lastConnectivityState" to lastConnectivityState,
+                    "isStateChange" to (lastConnectivityState != null && lastConnectivityState != currentState),
+                    "transitionType" to if (lastConnectivityState != null && lastConnectivityState != currentState) {
+                        if (!currentState) "offline->online" else "online->offline"
+                    } else "no-change"
+                ),
+                "timestamp" to System.currentTimeMillis()
+            )
+            val jsonPayload = org.json.JSONObject(data).toString()
+            val url = java.net.URL("http://127.0.0.1:7242/ingest/0adb3485-1a4e-45bf-a3c0-30e8c05573e2")
+            val connection = url.openConnection() as java.net.HttpURLConnection
+            connection.requestMethod = "POST"
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.doOutput = true
+            connection.outputStream.write(jsonPayload.toByteArray())
+            connection.inputStream.close()
+        } catch (e: Exception) {
+            // Ignore logging errors
+        }
+        // #endregion
+
+        Log.d(TAG, "Connectivity update: mesh=$currentState, online=$isOnlineNow")
+
         if (lastConnectivityState != null && lastConnectivityState != currentState) {
             if (!currentState) {
                 // Transitioned from offline to online
+                Log.i(TAG, "🌐 Online connectivity restored")
                 onConnectivityRestored(context)
+            } else {
+                // Transitioned from online to offline
+                Log.i(TAG, "📶 Offline - switching to mesh mode")
             }
         }
-        
+
         lastConnectivityState = currentState
-        _isOnline.value = !currentState
+        _isOnline.value = isOnlineNow
+
+        // Connect/disconnect Supabase based on online state
+        try {
+            if (isOnlineNow) {
+                com.guildofsmiths.trademesh.service.SupabaseChat.connect()
+            } else {
+                com.guildofsmiths.trademesh.service.SupabaseChat.disconnect()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Supabase connection update failed", e)
+        }
     }
     
     // ══════════════════════════════════════════════════════════════════
@@ -560,6 +733,7 @@ object BoundaryEngine {
         val message = Message(
             senderId = UserPreferences.getUserId(),
             senderName = UserPreferences.getDisplayName(),
+            deviceId = UserPreferences.getDeviceId(), // Include physical device identity
             content = content,
             recipientId = recipientId,
             recipientName = recipientName
@@ -667,13 +841,83 @@ object BoundaryEngine {
         // Auto-join general channel only
         joinChannel("general")
         Log.i(TAG, "Initialized default channel membership: general")
-        
+
         // Auto-connect gateway if enabled
         if (UserPreferences.isGatewayEnabled()) {
             val url = UserPreferences.getGatewayUrl()
             Log.i(TAG, "🌐 Auto-connecting gateway: $url")
             GatewayClient.setBackendUrl(url)
             GatewayClient.connect()
+        }
+        
+        // Always sync channels from backend on startup (even without gateway mode)
+        // This ensures all devices see the same channels
+        Log.i(TAG, "🔄 Auto-syncing channels from backend on startup...")
+        syncChannelsFromBackend()
+    }
+
+    /**
+     * Sync channels from backend and join them locally.
+     * Called when gateway connects to ensure all devices have the same channel list.
+     */
+    fun syncChannelsFromBackend() {
+        Log.i(TAG, "🔄 Syncing channels from backend...")
+
+        GatewayClient.fetchChannels { channels, error ->
+            if (error != null) {
+                Log.e(TAG, "Failed to sync channels from backend", error)
+                return@fetchChannels
+            }
+
+            if (channels != null) {
+                Log.i(TAG, "📥 Processing ${channels.length()} channels from backend")
+
+                // Run on main thread to ensure UI updates
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    var addedCount = 0
+                    for (i in 0 until channels.length()) {
+                        try {
+                            val channelJson = channels.getJSONObject(i)
+                            val channelId = channelJson.getString("id")
+                            val channelName = channelJson.getString("name")
+                            val channelType = channelJson.getString("type")
+
+                            Log.d(TAG, "   Checking channel: #$channelName ($channelId)")
+
+                            // Check if we already have this channel locally
+                            val existing = BeaconRepository.getChannel("default", channelId)
+                            if (existing == null) {
+                                // Add to local repository
+                                val localChannel = com.guildofsmiths.trademesh.data.Channel(
+                                    id = channelId,
+                                    beaconId = "default",
+                                    name = channelName,
+                                    type = when (channelType) {
+                                        "broadcast" -> com.guildofsmiths.trademesh.data.ChannelType.BROADCAST
+                                        "group" -> com.guildofsmiths.trademesh.data.ChannelType.GROUP
+                                        "dm" -> com.guildofsmiths.trademesh.data.ChannelType.DM
+                                        else -> com.guildofsmiths.trademesh.data.ChannelType.GROUP
+                                    }
+                                )
+
+                                BeaconRepository.addChannel("default", localChannel)
+                                addedCount++
+                                Log.i(TAG, "✅ Added backend channel locally: #$channelName ($channelId)")
+                            } else {
+                                Log.d(TAG, "   Channel already exists locally: #$channelName")
+                            }
+
+                            // Join the channel for message routing
+                            joinChannel(channelId)
+
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error processing channel from backend", e)
+                        }
+                    }
+
+                    Log.i(TAG, "✅ Channel sync completed: added $addedCount new channels")
+                }
+            }
         }
     }
     
@@ -735,15 +979,32 @@ object BoundaryEngine {
     }
     
     /**
-     * Request channel discovery from nearby peers.
-     * This triggers a BLE scan refresh and broadcasts a discovery request.
-     * Nearby channel owners will re-broadcast their channel invites.
+     * Request channel discovery from nearby peers AND backend.
+     * This triggers:
+     * 1. Backend sync - fetches all channels from dashboard/server
+     * 2. BLE scan refresh - picks up nearby mesh broadcasts
+     * 3. Broadcasts our own channels so others can discover them
      */
     fun requestChannelDiscovery() {
         Log.i(TAG, "════════════════════════════════════════")
         Log.i(TAG, "🔍 CHANNEL DISCOVERY REQUESTED")
-        
-        // Restart BLE scanning to pick up any new broadcasts
+
+        // 1. Sync channels from backend (dashboard channels)
+        Log.i(TAG, "   📡 Syncing channels from backend...")
+        syncChannelsFromBackend()
+
+        // 2. Also fetch from Supabase if connected
+        Log.i(TAG, "   🌍 Fetching channels from Supabase...")
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val supabaseChannels = com.guildofsmiths.trademesh.service.SupabaseChat.fetchAvailableChannels()
+                Log.i(TAG, "   📋 Found ${supabaseChannels.size} Supabase channels")
+            } catch (e: Exception) {
+                Log.w(TAG, "   ⚠️ Supabase channel fetch failed: ${e.message}")
+            }
+        }
+
+        // 3. Restart BLE scanning to pick up any new broadcasts
         meshService?.let { service ->
             if (service.isScanningActive()) {
                 Log.i(TAG, "   Restarting BLE scan...")
@@ -754,32 +1015,38 @@ object BoundaryEngine {
         } ?: run {
             Log.w(TAG, "   ⚠️ MeshService not available")
         }
-        
-        // Also broadcast our own channels so others can discover them
+
+        // 4. Also broadcast our own channels so others can discover them
         val myUserId = UserPreferences.getUserId()
         val myChannels = BeaconRepository.getBeacon("default")?.channels
             ?.filter { it.isOwner(myUserId) && it.isVisible() && it.id != "general" }
             ?: emptyList()
-        
+
         Log.i(TAG, "   Broadcasting ${myChannels.size} owned channels...")
         myChannels.forEach { channel ->
             meshService?.broadcastInvite(channel.id, channel.name, myUserId)
         }
-        
+
         Log.i(TAG, "════════════════════════════════════════")
     }
     
     /**
      * Handle received channel invite.
+     * Content may be "channelName" or "channelName|channelId" format.
      */
-    fun onChannelInviteReceived(channelHash: Int, channelName: String, senderName: String) {
+    fun onChannelInviteReceived(channelHash: Int, content: String, senderName: String) {
+        // Parse content: could be "name" or "name|uuid"
+        val parts = content.split("|", limit = 2)
+        val channelName = parts[0]
+        val channelId = if (parts.size > 1) parts[1] else channelName.lowercase().replace(" ", "-")
+
         // Don't show invite if already a member
         if (channelMembership.containsKey(channelHash)) {
             Log.d(TAG, "Already member of channel #$channelName - ignoring invite")
             return
         }
-        
-        Log.i(TAG, "Received invite to #$channelName from $senderName")
+
+        Log.i(TAG, "Received invite to #$channelName ($channelId) from $senderName")
         _pendingInvites.value = _pendingInvites.value + (channelHash to Pair(channelName, senderName))
     }
     
@@ -789,21 +1056,28 @@ object BoundaryEngine {
     fun acceptInvite(channelHash: Int): String? {
         val invite = _pendingInvites.value[channelHash] ?: return null
         val (channelName, _) = invite
-        
-        // Create and join the channel
+
+        // For now, use derived ID. In future, we could look up by name from backend
         val channelId = channelName.lowercase().replace(" ", "-")
-        val channel = Channel(
-            id = channelId,
-            beaconId = "default",
-            name = channelName,
-            type = ChannelType.GROUP
-        )
-        BeaconRepository.addChannel("default", channel)
+
+        // Check if channel already exists locally (maybe from backend sync)
+        val existingChannel = BeaconRepository.getChannel("default", channelId)
+        if (existingChannel == null) {
+            // Create the channel locally
+            val channel = Channel(
+                id = channelId,
+                beaconId = "default",
+                name = channelName,
+                type = ChannelType.GROUP
+            )
+            BeaconRepository.addChannel("default", channel)
+        }
+
         joinChannel(channelId)
-        
+
         // Remove from pending
         _pendingInvites.value = _pendingInvites.value - channelHash
-        
+
         Log.i(TAG, "Accepted invite to #$channelName")
         return channelId
     }
@@ -976,5 +1250,133 @@ object BoundaryEngine {
     fun deleteMessageFromBackend(message: Message) {
         Log.i(TAG, "🗑️ Requesting backend deletion for message: ${message.id}")
         ChatManager.deleteMessage(message.id, message.channelId)
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // CORD-BASED STATE INTEGRATION
+    // ════════════════════════════════════════════════════════════════════
+
+    /**
+     * Create a cord entry if the message contains legal/financial data that needs provable correctness.
+     * This is transparent to the UI - cord entries provide auditability without changing user experience.
+     */
+    private fun createCordEntryIfNeeded(context: Context, message: Message) {
+        val messageClass = detectMessageClass(message)
+        if (messageClass == null) return // Regular chat, no cord needed
+
+        val cordRepository = CordRepository(context)
+
+        // Run cord append in background (non-blocking)
+        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val cordEntry = cordRepository.appendCordEntry(
+                    cordId = message.beaconId, // Use beacon as cord boundary
+                    hubId = message.beaconId,  // Beacon = permission domain
+                    channelId = message.channelId,
+                    authorId = message.senderId,
+                    authorName = message.senderName,
+                    messageClass = messageClass,
+                    payload = serializeMessageForCord(message),
+                    payloadType = "message",
+                    threadId = null, // TODO: Add thread support if needed
+                    deliveryMarker = getDeliveryMarker(message)
+                )
+
+                if (cordEntry != null) {
+                    Log.d(TAG, "📝 Cord entry created: ${cordEntry.messageId.take(8)} (${messageClass})")
+                } else {
+                    Log.w(TAG, "⚠️ Cord entry collision or failure for message: ${message.id}")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Failed to create cord entry", e)
+            }
+        }
+    }
+
+    /**
+     * Detect if a message should be cord-protected based on content and context.
+     */
+    private fun detectMessageClass(message: Message): CordMessageClass? {
+        val content = message.content.lowercase()
+
+        // WORK_LOG: Time entries, labor records
+        if (content.contains("clock") || content.contains("time") ||
+            content.contains("worked") || content.contains("hours") ||
+            message.aiContext?.contains("time_entry") == true) {
+            return CordMessageClass.WORK_LOG
+        }
+
+        // DECISION: Approvals, rejections, status changes
+        if (content.contains("approve") || content.contains("reject") ||
+            content.contains("decision") || content.contains("status") ||
+            message.aiContext?.contains("decision") == true) {
+            return CordMessageClass.DECISION
+        }
+
+        // COMMAND: Executable commands, job assignments
+        if (content.startsWith("/") || content.contains("assign") ||
+            content.contains("command") ||
+            message.aiContext?.contains("command") == true) {
+            return CordMessageClass.COMMAND
+        }
+
+        // ALERT: Warnings, notifications, safety alerts
+        if (content.contains("alert") || content.contains("warning") ||
+            content.contains("safety") || content.contains("urgent") ||
+            message.aiContext?.contains("alert") == true) {
+            return CordMessageClass.ALERT
+        }
+
+        // AI_SUMMARY: AI-generated summaries and reports
+        if (message.aiGenerated && message.aiSource == "llm") {
+            return CordMessageClass.AI_SUMMARY
+        }
+
+        // STATUS: System status updates
+        if (content.contains("status") || content.contains("update") ||
+            message.aiContext?.contains("status") == true) {
+            return CordMessageClass.STATUS
+        }
+
+        // Regular chat doesn't need cord protection
+        return null
+    }
+
+    /**
+     * Serialize message content for cord storage.
+     */
+    private fun serializeMessageForCord(message: Message): String {
+        // Create a JSON representation of the message for cord storage
+        // For semantic deduplication, exclude transport-specific fields
+        val cordPayload = mutableMapOf<String, Any?>(
+            "content" to message.content,
+            "aiGenerated" to message.aiGenerated,
+            "aiModel" to message.aiModel,
+            "aiSource" to message.aiSource,
+            "aiContext" to message.aiContext,
+            "hasMedia" to message.hasMedia(),
+            "recipientId" to message.recipientId,
+            "isArchived" to message.isArchived
+        )
+
+        // Include media-specific fields for semantic content (not transport-specific)
+        if (message.hasMedia() && message.media != null) {
+            cordPayload["mediaType"] = message.mediaType.name
+            cordPayload["mediaFilename"] = message.media?.fileName
+            cordPayload["mediaSize"] = message.media?.fileSize
+            // Note: We don't include URLs or upload timestamps as they're transport-specific
+        }
+
+        return org.json.JSONObject(cordPayload).toString()
+    }
+
+    /**
+     * Get delivery marker for cord telemetry.
+     */
+    private fun getDeliveryMarker(message: Message): String? {
+        return when {
+            message.isMeshOrigin -> "· sub"
+            else -> "· online"
+        }
     }
 }

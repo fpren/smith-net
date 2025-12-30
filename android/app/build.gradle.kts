@@ -2,22 +2,51 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp") version "1.9.21-1.0.15"
+    id("org.jetbrains.kotlin.plugin.serialization") version "1.9.21"
 }
 
 android {
     namespace = "com.guildofsmiths.trademesh"
     compileSdk = 34
+    
+    // NDK configuration for llama.cpp
+    ndkVersion = "25.2.9519653"
 
     defaultConfig {
         applicationId = "com.guildofsmiths.trademesh"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0-phase0"
+        versionCode = 2
+        versionName = "0.2.0-ai-alpha"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
+        }
+        
+        // Native build configuration for llama.cpp
+        externalNativeBuild {
+            cmake {
+                cppFlags += listOf("-std=c++17", "-fexceptions", "-frtti")
+                arguments += listOf(
+                    "-DANDROID_STL=c++_shared",
+                    "-DANDROID_ARM_NEON=TRUE",
+                    "-DLLAMA_NATIVE=OFF"
+                )
+            }
+        }
+        
+        // ABI filters - support arm64 and arm32
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
+    }
+    
+    // CMake build for JNI layer
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
         }
     }
 
@@ -76,6 +105,16 @@ dependencies {
     
     // OkHttp for WebSocket
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    
+    // Supabase - Cloud Backend
+    implementation(platform("io.github.jan-tennert.supabase:bom:2.0.4"))
+    implementation("io.github.jan-tennert.supabase:postgrest-kt")
+    implementation("io.github.jan-tennert.supabase:gotrue-kt")
+    implementation("io.github.jan-tennert.supabase:realtime-kt")
+    implementation("io.github.jan-tennert.supabase:storage-kt")
+    // Ktor with OkHttp engine for WebSocket support (required by Supabase Realtime)
+    implementation("io.ktor:ktor-client-okhttp:2.3.7")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
     
     // Core library desugaring
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")

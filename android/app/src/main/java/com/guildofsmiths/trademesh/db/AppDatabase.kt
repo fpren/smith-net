@@ -9,20 +9,21 @@ import androidx.room.RoomDatabase
  * Room database for TradeMesh.
  */
 @Database(
-    entities = [MessageEntity::class],
-    version = 1,
+    entities = [MessageEntity::class, CordEntity::class],
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
-    
+
     abstract fun messageDao(): MessageDao
-    
+    abstract fun cordDao(): CordDao
+
     companion object {
         private const val DATABASE_NAME = "trademesh_db"
-        
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
-        
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -30,6 +31,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     DATABASE_NAME
                 )
+                    .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING) // Enable WAL mode for append-only semantics
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance

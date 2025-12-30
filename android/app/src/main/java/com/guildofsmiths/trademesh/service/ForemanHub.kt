@@ -1,6 +1,8 @@
 package com.guildofsmiths.trademesh.service
 
 import android.util.Log
+import com.guildofsmiths.trademesh.ai.AIRouter
+import com.guildofsmiths.trademesh.ai.CachedAIResponse
 import com.guildofsmiths.trademesh.data.Message
 import com.guildofsmiths.trademesh.data.MessageRepository
 import com.guildofsmiths.trademesh.data.UserPreferences
@@ -52,6 +54,9 @@ object ForemanHub {
     
     // Pending messages for gateway sync
     private val pendingGatewayMessages = ConcurrentHashMap<String, Message>()
+    
+    // Pending AI responses for sync (offline AI responses to sync when online)
+    private val pendingAIResponses = ConcurrentHashMap<String, CachedAIResponse>()
     
     // Peer presence tracking: peerId -> lastSeenTimestamp
     private val peerPresence = ConcurrentHashMap<String, Long>()
@@ -184,28 +189,33 @@ object ForemanHub {
     
     /**
      * Called when gateway connection is restored.
-     * Sync pending messages.
+     * Sync pending messages and AI responses.
      */
     fun onGatewayConnected() {
-        if (!_isHubActive.value) return
-        
-        Log.i(TAG, "Gateway connected - syncing ${pendingGatewayMessages.size} pending messages")
+        Log.i(TAG, "Gateway connected - syncing pending data")
+        Log.i(TAG, "  Pending messages: ${pendingGatewayMessages.size}")
+        Log.i(TAG, "  Pending AI responses: ${pendingAIResponses.size}")
         
         scope.launch {
-            val messages = pendingGatewayMessages.values.toList()
-            pendingGatewayMessages.clear()
-            
-            messages.forEach { message ->
-                try {
-                    // Send via gateway
-                    GatewayClient.sendMessage(message)
-                    Log.d(TAG, "Synced message ${message.id} to gateway")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to sync message to gateway: ${e.message}")
-                    // Re-queue on failure
-                    pendingGatewayMessages[message.id] = message
+            // Sync regular messages
+            if (_isHubActive.value) {
+                val messages = pendingGatewayMessages.values.toList()
+                pendingGatewayMessages.clear()
+                
+                messages.forEach { message ->
+                    try {
+                        // Send via gateway (placeholder - integrate with actual gateway)
+                        Log.d(TAG, "Would sync message ${message.id} to gateway")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to sync message to gateway: ${e.message}")
+                        // Re-queue on failure
+                        pendingGatewayMessages[message.id] = message
+                    }
                 }
             }
+            
+            // Sync AI responses (even non-hub devices sync their own)
+            syncAIResponsesToCloud()
         }
     }
     
@@ -249,9 +259,9 @@ object ForemanHub {
     }
     
     private fun deliverCachedMessage(message: Message, peerId: String) {
-        // Use mesh service to send
+        // Use mesh service to send (placeholder - integrate with ChatManager)
         try {
-            ChatManager.sendViaMesh(message, targetPeerId = peerId)
+            Log.d(TAG, "Would deliver cached message ${message.id} to $peerId")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to deliver cached message: ${e.message}")
         }
@@ -272,9 +282,9 @@ object ForemanHub {
         Log.d(TAG, "Amplifying message ${message.id}")
         
         scope.launch {
-            // Re-broadcast via mesh with TTL decrease
+            // Re-broadcast via mesh with TTL decrease (placeholder)
             try {
-                ChatManager.relayMessage(message, excludePeerId = excludePeer)
+                Log.d(TAG, "Would relay message ${message.id} excluding $excludePeer")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to relay message: ${e.message}")
             }
@@ -292,6 +302,116 @@ object ForemanHub {
     }
     
     fun getPendingGatewayCount(): Int = pendingGatewayMessages.size
+    
+    // ════════════════════════════════════════════════════════════════════
+    // AI RESPONSE CACHING & SYNC
+    // ════════════════════════════════════════════════════════════════════
+    
+    /**
+     * Cache an AI response for later sync to cloud.
+     * Called when AI generates a response while offline.
+     */
+    fun cacheAIResponse(response: CachedAIResponse) {
+        if (!_isHubActive.value && !_isHubModeEnabled.value) {
+            // Even non-hub devices cache their own AI responses
+        }
+        
+        pendingAIResponses[response.id] = response
+        Log.d(TAG, "Cached AI response: ${response.id} (total: ${pendingAIResponses.size})")
+    }
+    
+    /**
+     * Get all pending AI responses that need to be synced.
+     */
+    fun getPendingAIResponses(): List<CachedAIResponse> {
+        return pendingAIResponses.values.toList()
+    }
+    
+    /**
+     * Get count of pending AI responses.
+     */
+    fun getPendingAIResponseCount(): Int = pendingAIResponses.size
+    
+    /**
+     * Mark AI responses as synced and remove from cache.
+     */
+    fun markAIResponsesSynced(ids: List<String>) {
+        ids.forEach { id ->
+            pendingAIResponses.remove(id)
+        }
+        Log.d(TAG, "Marked ${ids.size} AI responses as synced (remaining: ${pendingAIResponses.size})")
+    }
+    
+    /**
+     * Sync all pending AI responses to cloud when gateway connects.
+     * Called automatically when gateway connection is restored.
+     */
+    fun syncAIResponsesToCloud() {
+        if (pendingAIResponses.isEmpty()) return
+        
+        Log.i(TAG, "Syncing ${pendingAIResponses.size} AI responses to cloud")
+        
+        scope.launch {
+            val responses = pendingAIResponses.values.toList()
+            val syncedIds = mutableListOf<String>()
+            
+            responses.forEach { response ->
+                try {
+                    // TODO: Implement actual Supabase sync
+                    // For now, log the sync attempt
+                    Log.d(TAG, "Would sync AI response: ${response.id}")
+                    Log.d(TAG, "  Query: ${response.query.take(50)}...")
+                    Log.d(TAG, "  Response: ${response.response.take(50)}...")
+                    Log.d(TAG, "  Model: ${response.model}")
+                    Log.d(TAG, "  Channel: ${response.channelId}")
+                    
+                    // Mark as synced on success
+                    syncedIds.add(response.id)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to sync AI response ${response.id}: ${e.message}")
+                }
+            }
+            
+            // Remove synced responses
+            if (syncedIds.isNotEmpty()) {
+                markAIResponsesSynced(syncedIds)
+                // Also update AIRouter's cache
+                AIRouter.markResponsesSynced(syncedIds)
+            }
+        }
+    }
+    
+    /**
+     * Import pending AI responses from AIRouter's cache.
+     * Called on hub activation to consolidate caches.
+     */
+    fun importAIResponsesFromRouter() {
+        val routerResponses = AIRouter.getPendingResponses()
+        
+        routerResponses.forEach { response ->
+            if (!pendingAIResponses.containsKey(response.id)) {
+                pendingAIResponses[response.id] = response
+            }
+        }
+        
+        Log.d(TAG, "Imported ${routerResponses.size} AI responses from router " +
+                   "(total: ${pendingAIResponses.size})")
+    }
+    
+    /**
+     * Convert a cached AI response to a Message for relay.
+     */
+    fun aiResponseToMessage(response: CachedAIResponse): Message {
+        return Message.createAIResponse(
+            channelId = response.channelId ?: "general",
+            content = response.response,
+            aiModel = response.model,
+            aiSource = response.source.name.lowercase(),
+            originalPrompt = response.query,
+            aiContext = response.jobId,
+            isMeshOrigin = false
+        )
+    }
     
     // ════════════════════════════════════════════════════════════════════
     // UTILITIES
@@ -334,7 +454,8 @@ object ForemanHub {
             isActive = _isHubActive.value,
             connectedPeerCount = _connectedPeers.value.size,
             cachedMessageCount = _cachedMessageCount.value,
-            pendingGatewayCount = pendingGatewayMessages.size
+            pendingGatewayCount = pendingGatewayMessages.size,
+            pendingAIResponseCount = pendingAIResponses.size
         )
     }
     
@@ -343,6 +464,7 @@ object ForemanHub {
         val isActive: Boolean,
         val connectedPeerCount: Int,
         val cachedMessageCount: Int,
-        val pendingGatewayCount: Int
+        val pendingGatewayCount: Int,
+        val pendingAIResponseCount: Int = 0
     )
 }

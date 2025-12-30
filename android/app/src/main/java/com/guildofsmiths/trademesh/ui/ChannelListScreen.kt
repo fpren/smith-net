@@ -67,6 +67,7 @@ fun ChannelListScreen(
     onChannelClick: (Channel) -> Unit,
     onBackClick: () -> Unit,
     onCreateChannel: (() -> Unit)? = null,
+    onJoinDashboardChannels: (() -> Unit)? = null,  // Navigate to dashboard channels discovery
     modifier: Modifier = Modifier
 ) {
     val beacons by BeaconRepository.beacons.collectAsState()
@@ -170,6 +171,18 @@ fun ChannelListScreen(
                                if (archivedChannels.isNotEmpty()) " · ${archivedChannels.size} archived" else "",
                         style = ConsoleTheme.caption
                     )
+                }
+                
+                // Join dashboard channels button
+                if (onJoinDashboardChannels != null) {
+                    Text(
+                        text = "[⊕]",
+                        style = ConsoleTheme.title.copy(color = ConsoleTheme.accent),
+                        modifier = Modifier
+                            .clickable(onClick = onJoinDashboardChannels)
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                 }
                 
                 // Toggle archived view
@@ -445,8 +458,9 @@ private fun SwipeableChannelRow(
     onInvite: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    // Skip swipe for system channels like #general
-    val canSwipe = isOwner && channel.id != "general"
+    // Allow swipe for all channels except #general (system channel)
+    // Users can archive/delete any channel from their local view
+    val canSwipe = channel.id != "general"
     
     var offsetX by remember { mutableFloatStateOf(0f) }
     val swipeThreshold = with(LocalDensity.current) { 80.dp.toPx() }

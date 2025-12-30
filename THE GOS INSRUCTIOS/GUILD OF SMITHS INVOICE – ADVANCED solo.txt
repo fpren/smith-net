@@ -1,0 +1,256 @@
+GUILD OF SMITHS INVOICE – ADVANCED (AI Supervisor Report Attached)
+──────────────────────────────────────────────────────────────
+
+Invoice #       : INV-2025-12-0789-A
+Issue Date      : December 24, 2025
+Due Date        : January 7, 2026 (Net 14)
+
+From:
+  James Rivera
+  Rivera Electrical Services
+  Solo Electrician – Guild of Smiths (Hybrid Mode + AI Assistant)
+  Phone: (555) 867-5309
+  Email: james@riveraelec.com
+  Address: 1427 Forge Lane, Austin, TX 78701
+
+To:
+  Sarah Chen
+  Chen Property Management
+  819 Oakwood Blvd, Suite 300
+  Austin, TX 78704
+  Email: sarah@chenpm.com
+  Project Ref: Oakwood Apts – Panel Upgrade, Unit 212
+
+Description                                      | Qty | Rate    | Amount
+─────────────────────────────────────────────────┼─────┼─────────┼──────────
+Labor – Panel upgrade & circuit tracing          | 5.5h| $85.00  | $467.50
+Materials – 100A breaker (Square D QO)           | 1   | $68.40  | $68.40
+Materials – #2 AWG THHN wire (30 ft)             | 1   | $42.10  | $42.10
+Materials – Misc fittings & connectors           | 1   | $19.80  | $19.80
+Travel / site time (geofence logged)             | 1   | $45.00  | $45.00
+─────────────────────────────────────────────────┼─────┼─────────┼──────────
+Subtotal                                         |     |         | $642.80
+Sales Tax (8.25% – Travis County)                |     |         | $52.99
+─────────────────────────────────────────────────┼─────┼─────────┼──────────
+Total Due                                        |     |         | $695.79
+
+Payment Instructions:
+• Preferred: ACH / Zelle to james@riveraelec.com
+• Check: Payable to Rivera Electrical Services
+• Card payments via secure link (2.9% + $0.30 fee)
+• Reply in Smith chat for questions / adjustments
+
+AI Supervisor Report (Generated 2025-12-24 21:15)
+──────────────────────────────────────────────────────────────
+• Job executed within scheduled window: arrived 14:22, departed 19:41 (geofence boundary respected, no overtime flagged)
+• Total on-site time: 5 h 19 min active labor + 41 min setup/travel (matches billed 5.5 h labor)
+• AI Assistant interactions: Electrical checklist provided on arrival, "clock in" confirmations, material verification acknowledgments
+• 7 photos uploaded to project thread: before/after panel, breaker install, wire routing, final lockout/tagout
+• Voice note summary (2 min 14 sec transcribed): "Panel fully upgraded to 100 A, all circuits tested & labeled per NEC 2023. No faults detected. Client walkthrough completed at 19:15."
+• Materials cross-checked: all items match uploaded receipts; no discrepancies
+• Safety & compliance: NEC load calc verified (demand factor applied), OSHA lockout confirmed
+• Change orders: None required; scope unchanged from initial job description
+• Recommendation: Schedule follow-up inspection in 90 days (preventive maintenance flag)
+
+Notes:
+• AI Assistant provided contextual support: electrical checklist, time tracking confirmations, material acknowledgments
+• All logs, media, and timestamps synced from mesh → cloud (full audit trail available in thread)
+• Work completed & signed off 2025-12-23 19:15
+• Thank you for your business.
+
+Guild of Smiths – Built for the trades.
+
+
+
+GUILD OF SMITHS INVOICE
+──────────────────────────────
+
+Invoice #       : INV-2025-12-0789
+Issue Date      : December 24, 2025
+Due Date        : January 7, 2026 (Net 14)
+
+From:
+  James Rivera
+  Rivera Electrical Services
+  Solo Electrician – Guild of Smiths
+  Phone: (555) 867-5309
+  Email: james@riveraelec.com
+  Address: 1427 Forge Lane, Austin, TX 78701
+
+To:
+  Sarah Chen
+  Chen Property Management
+  819 Oakwood Blvd, Suite 300
+  Austin, TX 78704
+  Email: sarah@chenpm.com
+  Project Ref: Oakwood Apts – Panel Upgrade, Unit 212
+
+Description                                      | Qty | Rate    | Amount
+─────────────────────────────────────────────────┼─────┼─────────┼──────────
+Labor – Panel upgrade & circuit tracing          | 5.5h| $85.00  | $467.50
+Materials – 100A breaker (Square D QO)           | 1   | $68.40  | $68.40
+Materials – #2 AWG THHN wire (30 ft)             | 1   | $42.10  | $42.10
+Materials – Misc fittings & connectors           | 1   | $19.80  | $19.80
+Travel / site time (geofence logged)             | 1   | $45.00  | $45.00
+─────────────────────────────────────────────────┼─────┼─────────┼──────────
+Subtotal                                         |     |         | $642.80
+Sales Tax (8.25% – Travis County)                |     |         | $52.99
+─────────────────────────────────────────────────┼─────┼─────────┼──────────
+Total Due                                        |     |         | $695.79
+
+Payment Instructions:
+• Preferred: ACH / Zelle to james@riveraelec.com
+• Check: Payable to Rivera Electrical Services, mail to address above
+• Card payments accepted via link sent separately (2.9% + $0.30 fee applies)
+• Questions? Reply directly in Smith chat or call.
+
+Notes:
+• Work completed & verified 2025-12-23 14:30 – 19:15
+• Photos & geofence clock-in/out available in project thread
+• Thank you for your business.
+
+Guild of Smiths – Built for the trades.
+
+
+
+
+
+GUILD OF SMITHS INVOICE (ADVANCED SOLO)
+──────────────────────────────
+
+Invoice #       : INV-2025-12-0789
+Issue Date      : December 24, 2025
+Due Date        : January 7, 2026 (Net 14)
+
+From:
+  James Rivera
+  Rivera Electrical Services
+  Solo Electrician – Guild of Smiths (Hybrid Mode)
+  Phone: (555) 867-5309
+  Email: james@riveraelec.com
+  Address: 1427 Forge Lane, Austin, TX 78701
+
+To:
+  Sarah Chen
+  Chen Property Management
+  819 Oakwood Blvd, Suite 300
+  Austin, TX 78704
+  Email: sarah@chenpm.com
+  Project Ref: Oakwood Apts – Panel Upgrade, Unit 212
+
+Description                                      | Qty | Rate    | Amount
+─────────────────────────────────────────────────┼─────┼─────────┼──────────
+Labor – Panel upgrade & circuit tracing          | 5.5h| $85.00  | $467.50
+Materials – 100A breaker (Square D QO)           | 1   | $68.40  | $68.40
+Materials – #2 AWG THHN wire (30 ft)             | 1   | $42.10  | $42.10
+Materials – Misc fittings & connectors           | 1   | $19.80  | $19.80
+Travel / site time (geofence logged)             | 1   | $45.00  | $45.00
+Change Order – Added GFCI outlet per request     | 0.5h| $85.00  | $42.50
+─────────────────────────────────────────────────┼─────┼─────────┼──────────
+Subtotal                                         |     |         | $685.30
+Sales Tax (8.25% – Travis County)                |     |         | $56.54
+─────────────────────────────────────────────────┼─────┼─────────┼──────────
+Total Due                                        |     |         | $741.84
+
+Payment Instructions:
+• Preferred: ACH / Zelle to james@riveraelec.com
+• Check: Payable to Rivera Electrical Services, mail to address above
+• Card payments accepted via link sent separately (2.9% + $0.30 fee applies)
+• Questions? Reply directly in Smith chat or call.
+
+Notes:
+• Work completed & verified 2025-12-23 14:30 – 19:15
+• Photos, geofence logs, & voice notes available in project thread
+• Thank you for your business.
+
+AI Supervisor Report (Hybrid Mode Summary):
+────────────────────────────────────────────
+Generated by Smith AI on 2025-12-24 08:15. Based on geofence, logs, photos, and voice notes.
+
+• Hours Breakdown: 5.5h on-site labor (geofence entry: 14:32; exit: 19:47; idle <5%). Travel: 45min round-trip. Change order: 0.5h for GFCI add-on (client voice note confirmation at 16:12).
+• Efficiency Patterns: Circuit tracing completed 20% faster than avg (based on prior jobs). No anomalies in material use.
+• Safety & Compliance: NEC checks passed (voice note critique: "Grounding verified, no exposed wires"). Photos confirm pre/post states (3 uploaded: panel before, during, after).
+• Materials Rationale: Breaker/wire selected per load calcs (100A for 80A continuous). Misc fittings minimized waste.
+• Recommendations: Schedule follow-up inspection in 30 days (auto-flagged for high-humidity site). Total project cost under budget by 8%.
+
+This report makes your solo operation look like a full crew – powered by Smith Hybrid AI.
+
+Guild of Smiths – Built for the trades.
+
+
+
+GUILD OF SMITHS INVOICE – ADVANCED SOLO (Hybrid Mode)
+──────────────────────────────────────────────────────
+Invoice ID      : INV-2025-12-0789
+Series          : SOLO-2025-12
+Issue Date      : 2025-12-24
+Due Date        : 2025-01-07 (Net 14)
+Status          : Issued – Awaiting Payment
+
+From (Service Provider):
+  Name          : James Rivera
+  Business       : Rivera Electrical Services
+  Guild Role     : Solo (Hybrid Mode – AI Supervisor Enabled)
+  Contact        : (555) 867-5309 | james@riveraelec.com
+  Address        : 1427 Forge Lane, Austin, TX 78701
+  Tax ID         : TX-47-2891042 (for records only)
+
+To (Client):
+  Name          : Sarah Chen
+  Company       : Chen Property Management
+  Address       : 819 Oakwood Blvd, Suite 300, Austin, TX 78704
+  Email         : sarah@chenpm.com
+  Project Ref   : Oakwood Apts – Panel Upgrade, Unit 212 (PO #CPM-45219)
+
+Line Items
+──────────────────────────────────────────────────────
+Code    | Description                                      | Qty | Unit | Rate    | Total
+────────┼──────────────────────────────────────────────────┼─────┼──────┼─────────┼──────────
+LAB-01  | Labor – Panel upgrade & full circuit tracing     | 5.5 | hr   | $85.00  | $467.50
+MAT-100 | Materials – 100A breaker (Square D QO2100)       | 1   | ea   | $68.40  | $68.40
+MAT-2AWG| Materials – #2 AWG THHN wire (30 ft)             | 1   | lot  | $42.10  | $42.10
+MAT-MISC| Materials – Fittings, connectors, strain relief  | 1   | lot  | $19.80  | $19.80
+TRV-01  | Travel / on-site time (geofence logged)          | 1   | ea   | $45.00  | $45.00
+CO-001  | Change Order – Added GFCI outlet per client req  | 0.5 | hr   | $85.00  | $42.50
+────────┼──────────────────────────────────────────────────┼─────┼──────┼─────────┼──────────
+                                        Subtotal         |         |         | $685.30
+                                        Sales Tax (8.25% Travis Co.) |         | $56.54
+──────────────────────────────────────────────────────
+                                        TOTAL DUE        |         |         | $741.84 USD
+
+Payment Terms & Instructions
+──────────────────────────────────────────────────────
+• Preferred: ACH / Zelle → james@riveraelec.com (no fee)
+• Check: Rivera Electrical Services, 1427 Forge Lane, Austin, TX 78701
+• Card: Secure link sent via Smith chat (2.9% + $0.30 fee)
+• Late payments subject to 1.5% monthly interest after due date
+• Disputes: Must be raised in Smith project thread within 7 days
+
+Work & Verification Summary
+──────────────────────────────────────────────────────
+• Primary work window: 2025-12-23 14:30 – 19:15 (geofence confirmed)
+• Change order accepted: 2025-12-23 16:12 (voice note timestamp)
+• Media in thread: 3 photos (pre/post panel), 1 voice note (client approval), 2 short videos (final test)
+• Mesh-synced entries: Clock-in/out + initial status update (low-signal site, synced when foreman arrived)
+
+AI Supervisor Report – Hybrid Mode (Generated 2025-12-24 08:17)
+──────────────────────────────────────────────────────
+Scope: Full log analysis (geofence, time logs, photos, voice notes, material scans)
+
+• Time Integrity: 5.5h active labor + 0.5h change order. Total on-site: 5h 57m. Idle time <4% (door-open sensor quiet periods).
+• Efficiency: Circuit tracing 22% faster than personal 30-day average. No rework loops detected.
+• Material Accuracy: Breaker/wire match calculated load (80A continuous → 100A breaker). Waste minimized (fittings lot < $20).
+• Compliance Flags: 
+  - NEC 210.8(B) GFCI addition correct for kitchen-adjacent unit
+  - Ground continuity verified (voice note + photo confirmation)
+  - No OSHA red flags (PPE visible in all photos)
+• Risk / Anomaly: None critical. Minor note: High ambient humidity logged → recommend 30-day re-inspection (auto-task created in job board).
+• Projected Savings: Change order handled on-site → avoided $180–220 follow-up visit cost.
+• Next Actions (AI-suggested):
+  1. Schedule follow-up inspection (auto-reminder set for 2026-01-23)
+  2. Attach final signed acceptance if client replies in thread
+
+This document and attached AI report serve as auditable work record. All data immutable per Guild of Smiths retention policy.
+
+Guild of Smiths – Built for the trades. Hybrid AI active.
+Version: Smith Invoice Engine v0.9.2-ad (2025-12 spec)

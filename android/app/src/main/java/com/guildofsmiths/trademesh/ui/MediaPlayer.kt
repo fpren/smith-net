@@ -62,6 +62,8 @@ fun InteractiveMediaPlayer(
 ) {
     val context = LocalContext.current
     
+    Log.d(TAG, "🎬 InteractiveMediaPlayer: type=$mediaType media=$media localPath=${media?.localPath} remotePath=${media?.remotePath}")
+    
     when (mediaType) {
         MediaType.VOICE -> {
             VoicePlayer(
@@ -257,6 +259,7 @@ private fun PixelProgressBar(
 /**
  * Video display with popup viewer.
  * Shows pixel art [▶] [███▒▒▒] in chat, tap to open popup with thumbnail.
+ * Supports both local files and remote URLs.
  */
 @Composable
 private fun VideoPlayer(
@@ -273,7 +276,11 @@ private fun VideoPlayer(
     val mins = durationSec / 60
     val secs = durationSec % 60
     
-    // Load video thumbnail (for popup)
+    // Get video path (local or remote)
+    val videoPath = media?.localPath ?: media?.remotePath
+    val isRemote = media?.localPath == null && media?.remotePath != null
+    
+    // Load video thumbnail (for popup) - only for local files
     LaunchedEffect(media?.localPath) {
         media?.localPath?.let { path ->
             try {
@@ -287,7 +294,12 @@ private fun VideoPlayer(
     // Pixel art in chat: [▶] [███▒▒▒] 0:15
     Row(
         modifier = modifier
-            .clickable { showPopup = true }
+            .clickable { 
+                Log.d(TAG, "📹 Video clicked! isRemote=$isRemote localPath=${media?.localPath} remotePath=${media?.remotePath}")
+                // Always show popup for both local and remote videos
+                Log.d(TAG, "📹 Opening video popup (isRemote=$isRemote)")
+                showPopup = true 
+            }
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -296,17 +308,21 @@ private fun VideoPlayer(
         VideoProgressBar(progress = 0f)
         Spacer(modifier = Modifier.width(6.dp))
         Text(
-            "$mins:${secs.toString().padStart(2, '0')}",
+            if (isRemote) "video" else "$mins:${secs.toString().padStart(2, '0')}",
             style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
         )
+        if (isRemote) {
+            Text(" [↗]", style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent))
+        }
     }
     
-    // Popup modal
+    // Popup modal for both local and remote videos
     if (showPopup) {
         VideoPopupPlayer(
             media = media,
             thumbnail = thumbnail,
             duration = duration,
+            isRemote = isRemote,
             onDismiss = { showPopup = false },
             onOpenExternal = { openMedia(context, media) }
         )
@@ -315,12 +331,14 @@ private fun VideoPlayer(
 
 /**
  * Video popup with inline playback using VideoView.
+ * Supports both local files and remote URLs.
  */
 @Composable
 private fun VideoPopupPlayer(
     media: MediaAttachment?,
     thumbnail: android.graphics.Bitmap?,
     duration: Long,
+    isRemote: Boolean,
     onDismiss: () -> Unit,
     onOpenExternal: () -> Unit
 ) {
@@ -328,12 +346,20 @@ private fun VideoPopupPlayer(
     var progress by remember { mutableFloatStateOf(0f) }
     var currentPosition by remember { mutableStateOf(0L) }
     var videoViewRef by remember { mutableStateOf<android.widget.VideoView?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
+    var actualDuration by remember { mutableStateOf(duration) }
     
-    val durationSec = (duration / 1000).toInt()
+    val durationSec = (actualDuration / 1000).toInt()
     val mins = durationSec / 60
     val secs = durationSec % 60
     
     val localPath = media?.localPath
+    val remotePath = media?.remotePath
+    val videoUri = if (isRemote && remotePath != null) {
+        Uri.parse(remotePath)
+    } else if (localPath != null) {
+        Uri.fromFile(File(localPath))
+    } else null
     
     // Update progress while playing
     LaunchedEffect(isPlaying) {
@@ -342,7 +368,7 @@ private fun VideoPopupPlayer(
                 val vv = videoViewRef
                 if (vv != null && vv.isPlaying) {
                     currentPosition = vv.currentPosition.toLong()
-                    val totalDur = if (duration > 0) duration else vv.duration.toLong()
+                    val totalDur = if (actualDuration > 0) actualDuration else vv.duration.toLong()
                     progress = if (totalDur > 0) {
                         currentPosition.toFloat() / totalDur.toFloat()
                     } else 0f
@@ -438,25 +464,51 @@ private fun VideoPopupPlayer(
                             .height(180.dp)
                             .background(ConsoleTheme.surface)
                     ) {
-                        if (isPlaying && localPath != null) {
-                            // Show VideoView when playing
+                        if (isPlaying && videoUri != null) {
+                            // Show VideoView when playing (works for both local and remote)
                             androidx.compose.ui.viewinterop.AndroidView(
                                 factory = { context ->
                                     android.widget.VideoView(context).apply {
-                                        setVideoPath(localPath)
+                                        setVideoURI(videoUri)
                                         setOnCompletionListener {
                                             isPlaying = false
+                                            isLoading = false
                                             progress = 0f
                                             currentPosition = 0L
                                         }
-                                        setOnPreparedListener {
+                                        setOnPreparedListener { mp ->
+                                            isLoading = false
+                                            // Get actual duration from the video
+                                            actualDuration = mp.duration.toLong()
                                             start()
+                                            Log.d(TAG, "📹 Video prepared, duration=${actualDuration}ms")
+                                        }
+                                        setOnErrorListener { _, what, extra ->
+                                            Log.e(TAG, "📹 Video error: what=$what extra=$extra")
+                                            isPlaying = false
+                                            isLoading = false
+                                            // Fall back to external player on error
+                                            onOpenExternal()
+                                            onDismiss()
+                                            true
                                         }
                                         videoViewRef = this
                                     }
                                 },
                                 modifier = Modifier.fillMaxSize()
                             )
+                            
+                            // Loading indicator for remote videos
+                            if (isLoading) {
+                                Text(
+                                    text = "Loading...",
+                                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent),
+                                    modifier = Modifier
+                                        .align(Alignment.Center)
+                                        .background(ConsoleTheme.background.copy(alpha = 0.7f))
+                                        .padding(8.dp)
+                                )
+                            }
                         } else {
                             // Show thumbnail when not playing
                             if (thumbnail != null) {
@@ -466,6 +518,23 @@ private fun VideoPopupPlayer(
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = androidx.compose.ui.layout.ContentScale.Fit
                                 )
+                            } else if (isRemote) {
+                                // Show placeholder for remote videos (no thumbnail)
+                                Column(
+                                    modifier = Modifier.fillMaxSize(),
+                                    verticalArrangement = Arrangement.Center,
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = "[▶ VIDEO]",
+                                        style = ConsoleTheme.body.copy(color = ConsoleTheme.textMuted)
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "tap to play",
+                                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+                                    )
+                                }
                             }
                             
                             // Play button overlay - tap to start
@@ -476,8 +545,10 @@ private fun VideoPopupPlayer(
                                     .align(Alignment.Center)
                                     .background(ConsoleTheme.background.copy(alpha = 0.7f))
                                     .clickable {
-                                        if (localPath != null && File(localPath).exists()) {
+                                        if (videoUri != null) {
+                                            isLoading = isRemote
                                             isPlaying = true
+                                            Log.d(TAG, "📹 Starting video playback: $videoUri (remote=$isRemote)")
                                         }
                                     }
                                     .padding(12.dp)
@@ -501,10 +572,12 @@ private fun VideoPopupPlayer(
                                     if (isPlaying) {
                                         videoViewRef?.stopPlayback()
                                         isPlaying = false
+                                        isLoading = false
                                         progress = 0f
                                         currentPosition = 0L
                                     } else {
-                                        if (localPath != null && File(localPath).exists()) {
+                                        if (videoUri != null) {
+                                            isLoading = isRemote
                                             isPlaying = true
                                         }
                                     }
@@ -572,6 +645,7 @@ private fun VideoProgressBar(
 /**
  * Image display with popup viewer.
  * Shows pixel art [▣] in chat, tap to open popup with actual image.
+ * Supports both local files and remote URLs.
  */
 @Composable
 private fun ImageThumbnail(
@@ -583,10 +657,22 @@ private fun ImageThumbnail(
     var imageBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var showPopup by remember { mutableStateOf(false) }
     
+    val isRemote = media?.localPath == null && media?.remotePath != null
+    
     // Pixel art in chat: [▣] image
     Row(
         modifier = modifier
-            .clickable { showPopup = true }
+            .clickable { 
+                Log.d(TAG, "🖼 Image clicked! isRemote=$isRemote localPath=${media?.localPath} remotePath=${media?.remotePath}")
+                if (isRemote) {
+                    // For remote images, open directly in browser
+                    Log.d(TAG, "🖼 Opening remote image: ${media?.remotePath}")
+                    openMedia(context, media)
+                } else {
+                    Log.d(TAG, "🖼 Opening local image popup")
+                    showPopup = true 
+                }
+            }
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -601,11 +687,15 @@ private fun ImageThumbnail(
                 style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
             )
         }
+        
+        if (isRemote) {
+            Text(" [↗]", style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent))
+        }
     }
     
-    // Load image when popup opens
+    // Load image when popup opens (only for local files)
     LaunchedEffect(showPopup) {
-        if (showPopup && imageBitmap == null) {
+        if (showPopup && imageBitmap == null && !isRemote) {
             media?.localPath?.let { path ->
                 try {
                     val file = File(path)
@@ -636,8 +726,8 @@ private fun ImageThumbnail(
         }
     }
     
-    // Popup modal
-    if (showPopup) {
+    // Popup modal (only for local files)
+    if (showPopup && !isRemote) {
         ImagePopupViewer(
             media = media,
             bitmap = imageBitmap,
@@ -819,6 +909,7 @@ private fun FileAttachment(
 
 /**
  * Open media with appropriate app.
+ * Handles both local files and remote URLs.
  */
 private fun openMedia(context: Context, media: MediaAttachment?) {
     if (media == null) return
@@ -827,6 +918,8 @@ private fun openMedia(context: Context, media: MediaAttachment?) {
     val remotePath = media.remotePath
     
     try {
+        val isRemote = localPath == null && remotePath != null
+        
         val uri = when {
             localPath != null && File(localPath).exists() -> {
                 // Use FileProvider for local files
@@ -848,17 +941,32 @@ private fun openMedia(context: Context, media: MediaAttachment?) {
         val mimeType = media.mimeType ?: when (media.type) {
             MediaType.IMAGE -> "image/*"
             MediaType.VOICE -> "audio/*"
+            MediaType.VIDEO -> "video/*"
             MediaType.FILE -> "*/*"
             else -> "*/*"
         }
         
         val intent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, mimeType)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            if (!isRemote) {
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
         }
         
-        context.startActivity(intent)
-        Log.d(TAG, "Opening media: $uri ($mimeType)")
+        // For remote URLs, try browser if no app handles it
+        if (isRemote) {
+            try {
+                context.startActivity(intent)
+            } catch (e: android.content.ActivityNotFoundException) {
+                // Fallback to browser
+                val browserIntent = Intent(Intent.ACTION_VIEW, uri)
+                context.startActivity(browserIntent)
+            }
+        } else {
+            context.startActivity(intent)
+        }
+        
+        Log.d(TAG, "Opening media: $uri ($mimeType) isRemote=$isRemote")
         
     } catch (e: Exception) {
         Log.e(TAG, "Failed to open media", e)

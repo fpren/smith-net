@@ -15,6 +15,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.DeviceFontFamilyName
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -38,7 +40,10 @@ object ConsoleTheme {
     // FONTS
     // ═══════════════════════════════════════════════════════════════
     
-    val mono = FontFamily.Monospace
+    val mono = FontFamily(
+        Font(DeviceFontFamilyName("Courier New")),
+        Font(DeviceFontFamilyName("monospace"))
+    )
     
     // ═══════════════════════════════════════════════════════════════
     // COLORS — High contrast, minimal palette

@@ -709,7 +709,42 @@ private fun MessageBlock(
                         text = " [sub]",
                         style = ConsoleTheme.timestamp.copy(color = ConsoleTheme.textDim)
                     )
+                } else if (!message.isMeshOrigin && !isSentByMe) {
+                    Text(
+                        text = " [online]",
+                        style = ConsoleTheme.timestamp.copy(color = ConsoleTheme.textDim)
+                    )
                 }
+                // #region agent log
+                try {
+                    val data = mapOf(
+                        "sessionId" to "debug-session",
+                        "runId" to "transport-indicators-test",
+                        "hypothesisId" to "A",
+                        "location" to "ConversationScreen.kt:707",
+                        "message" to "Transport indicator check",
+                        "data" to mapOf(
+                            "messageId" to message.id.take(8),
+                            "senderName" to message.senderName,
+                            "isMeshOrigin" to message.isMeshOrigin,
+                            "isSentByMe" to isSentByMe,
+                            "hasSubIndicator" to (message.isMeshOrigin && !isSentByMe),
+                            "hasOnlineIndicator" to (!message.isMeshOrigin && !isSentByMe)
+                        ),
+                        "timestamp" to System.currentTimeMillis()
+                    )
+                    val jsonPayload = org.json.JSONObject(data).toString()
+                    val url = java.net.URL("http://127.0.0.1:7242/ingest/0adb3485-1a4e-45bf-a3c0-30e8c05573e2")
+                    val connection = url.openConnection() as java.net.HttpURLConnection
+                    connection.requestMethod = "POST"
+                    connection.setRequestProperty("Content-Type", "application/json")
+                    connection.doOutput = true
+                    connection.outputStream.write(jsonPayload.toByteArray())
+                    connection.inputStream.close()
+                } catch (e: Exception) {
+                    // Ignore logging errors
+                }
+                // #endregion
                 if (message.isDirectMessage()) {
                     Text(
                         text = " [DM]",
@@ -737,14 +772,11 @@ private fun MessageBlock(
                                 media = message.media
                             )
                         }
-                        // Text content (or queued placeholder for media)
-                        if (!message.hasMedia() || message.isMediaQueued()) {
-                            Text(
-                                text = if (message.hasMedia()) message.getMeshPlaceholder() else message.content,
-                                style = ConsoleTheme.body,
+                        // Text content
+                        MessageTextContent(
+                            message = message,
                                 modifier = Modifier.padding(end = 8.dp)
                             )
-                        }
                     }
                     // Faint vertical line
                     Box(
@@ -762,18 +794,40 @@ private fun MessageBlock(
                                 media = message.media
                             )
                         }
-                        // Text content (or queued placeholder for media)
-                        if (!message.hasMedia() || message.isMediaQueued()) {
-                            Text(
-                                text = if (message.hasMedia()) message.getMeshPlaceholder() else message.content,
-                                style = ConsoleTheme.body,
-                                modifier = Modifier.padding(start = 16.dp)
-                            )
-                        }
+                        // Text content
+                        MessageTextContent(
+                            message = message,
+                            modifier = Modifier.padding(start = 16.dp)
+                        )
                     }
                 }
             }
         }
+    }
+}
+
+/**
+ * Helper composable for rendering message text content
+ */
+@Composable
+private fun MessageTextContent(
+    message: Message,
+    modifier: Modifier = Modifier
+) {
+    // Only show text if NO media, or if media is queued (offline placeholder)
+                        // Don't show text when we have valid media with a remote URL
+                        // Also hide text if it's just a media placeholder from Dashboard (e.g., "[VIDEO] filename")
+                        val isMediaPlaceholderText = message.content.startsWith("[VIDEO]") || 
+                            message.content.startsWith("[IMAGE]") ||
+                            message.content.startsWith("[VOICE]") ||
+                            message.content.startsWith("[FILE]")
+                        val showTextContent = !message.hasMedia() && !isMediaPlaceholderText
+                        if (showTextContent) {
+                            Text(
+                                text = message.content,
+                                style = ConsoleTheme.body,
+            modifier = modifier
+                            )
     }
 }
 

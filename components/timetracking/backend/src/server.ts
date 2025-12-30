@@ -10,6 +10,7 @@ import { timeStore } from './timeStore';
 import {
   UserContext,
   ClockInRequest,
+  ClockOutRequest,
   ManualEntryRequest,
 } from './types';
 
@@ -107,11 +108,33 @@ app.post('/api/clock-in', authenticateToken, (req: AuthRequest, res) => {
 });
 
 // Clock out
-app.post('/api/clock-out', authenticateToken, (req: AuthRequest, res) => {
+app.post('/api/clock-out', authenticateToken, async (req: AuthRequest, res) => {
   const user = req.user!;
-  const { note } = req.body;
+  const request: ClockOutRequest = req.body;
 
-  const result = timeStore.clockOut(user.userId, note);
+  if (!request.contextType) {
+    return res.status(400).json({ error: 'contextType is required' });
+  }
+
+  if (request.contextType === 'worker_note' && !request.workerNote) {
+    return res.status(400).json({ error: 'workerNote is required when contextType is worker_note' });
+  }
+
+  let contextContent = request.workerNote || '';
+
+  // If AI summary requested, generate it (placeholder - would integrate with LLM)
+  if (request.contextType === 'ai_summary') {
+    try {
+      // TODO: Integrate with LLM to generate summary based on work performed
+      // For now, use a placeholder
+      contextContent = `[AI Summary] Work session completed at ${new Date().toLocaleString()}. Summary generation would analyze time entries, jobs worked on, and chat context.`;
+    } catch (error) {
+      console.error('AI summary generation failed:', error);
+      return res.status(500).json({ error: 'Failed to generate AI summary' });
+    }
+  }
+
+  const result = timeStore.clockOutWithContext(user.userId, request.contextType, contextContent, user.displayName);
 
   if ('error' in result) {
     return res.status(400).json({ error: result.error });

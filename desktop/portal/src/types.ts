@@ -16,6 +16,18 @@ export interface Channel {
 
 export type MessageOrigin = 'online' | 'mesh' | 'gateway' | 'online+mesh';
 
+export type MediaType = 'image' | 'voice' | 'video' | 'file';
+
+export interface MediaAttachment {
+  type: MediaType;
+  url: string;
+  filename?: string;
+  mimeType?: string;
+  size?: number;
+  duration?: number; // For voice/video in seconds
+  thumbnailUrl?: string;
+}
+
 export interface Message {
   id: string;
   channelId: string;
@@ -26,6 +38,7 @@ export interface Message {
   origin: MessageOrigin;
   recipientId?: string;
   recipientName?: string;
+  media?: MediaAttachment; // Optional media attachment
 }
 
 export interface Presence {

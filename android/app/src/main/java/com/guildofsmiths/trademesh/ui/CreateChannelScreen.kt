@@ -1,5 +1,6 @@
 package com.guildofsmiths.trademesh.ui
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -25,11 +26,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import android.os.Handler
+import android.os.Looper
 import com.guildofsmiths.trademesh.data.BeaconRepository
 import com.guildofsmiths.trademesh.data.Channel
 import com.guildofsmiths.trademesh.data.ChannelType
+import com.guildofsmiths.trademesh.data.ChannelVisibility
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
+import com.guildofsmiths.trademesh.service.GatewayClient
+import com.guildofsmiths.trademesh.service.SupabaseChat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+
+// Main thread handler for UI callbacks
+private val mainHandler = Handler(Looper.getMainLooper())
 
 /**
  * Create channel — bold, clean form.
@@ -44,6 +56,8 @@ fun CreateChannelScreen(
     val creatorId = remember { UserPreferences.getUserId() }
     var channelName by remember { mutableStateOf("") }
     var channelType by remember { mutableStateOf(ChannelType.GROUP) }
+    var channelVisibility by remember { mutableStateOf(ChannelVisibility.PUBLIC) }
+    var requiresApproval by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
     Column(
@@ -143,9 +157,57 @@ fun CreateChannelScreen(
                         .padding(6.dp)
                 )
             }
-            
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(text = "VISIBILITY", style = ConsoleTheme.captionBold)
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Visibility options
+            Column {
+                VisibilityOption(
+                    visibility = ChannelVisibility.PUBLIC,
+                    selected = channelVisibility == ChannelVisibility.PUBLIC,
+                    description = "Anyone can join and see",
+                    onSelect = { channelVisibility = ChannelVisibility.PUBLIC; requiresApproval = false }
+                )
+
+                VisibilityOption(
+                    visibility = ChannelVisibility.PRIVATE,
+                    selected = channelVisibility == ChannelVisibility.PRIVATE,
+                    description = "Invite-only",
+                    onSelect = { channelVisibility = ChannelVisibility.PRIVATE; requiresApproval = false }
+                )
+
+                VisibilityOption(
+                    visibility = ChannelVisibility.RESTRICTED,
+                    selected = channelVisibility == ChannelVisibility.RESTRICTED,
+                    description = "Specific users only",
+                    onSelect = { channelVisibility = ChannelVisibility.RESTRICTED; requiresApproval = false }
+                )
+            }
+
+            // Approval toggle for private channels
+            if (channelVisibility == ChannelVisibility.PRIVATE) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { requiresApproval = !requiresApproval }
+                ) {
+                    Text(
+                        text = if (requiresApproval) "☑" else "☐",
+                        style = ConsoleTheme.body,
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                    Text(
+                        text = "Require admin approval for joins",
+                        style = ConsoleTheme.bodySmall
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(32.dp))
-            
+
             if (channelName.trim().length >= 2) {
                 Text(
                     text = "CREATE →",
@@ -155,22 +217,71 @@ fun CreateChannelScreen(
                             val name = channelName.trim()
                             when {
                                 name.length < 2 -> errorMessage = "Name must be at least 2 characters"
-                                BeaconRepository.getChannel(beaconId, name) != null -> errorMessage = "Channel exists"
+                                BeaconRepository.getChannel(beaconId, name) != null -> errorMessage = "Channel exists locally"
                                 else -> {
-                                    val channel = Channel(
-                                        id = name,
-                                        beaconId = beaconId,
-                                        name = name,
-                                        type = channelType,
-                                        creatorId = creatorId  // Set creator for ownership
-                                    )
-                                    BeaconRepository.addChannel(beaconId, channel)
-                                    BoundaryEngine.joinChannel(name)
-                                    
-                                    // Broadcast invite to nearby peers so they can discover this channel
-                                    BoundaryEngine.broadcastChannelInvite(name, name)
-                                    
-                                    onChannelCreated(channel)
+                                    errorMessage = "Creating channel..."
+
+                                    // Create in Supabase for global availability
+                                    CoroutineScope(Dispatchers.IO).launch {
+                                        // For now, create as public in Supabase (visibility is enforced locally)
+                                        SupabaseChat.createChannel(name, channelType.name.lowercase(), creatorId) { supabaseChannel, supabaseError ->
+                                            // Always run UI updates on main thread
+                                            mainHandler.post {
+                                                if (supabaseError != null) {
+                                                    Log.e("CreateChannel", "Supabase creation failed", supabaseError)
+                                                    
+                                                    // Fallback: try backend
+                                                    GatewayClient.createChannel(name, channelType.name.lowercase()) { backendChannel, backendError ->
+                                                        mainHandler.post {
+                                                            if (backendError != null) {
+                                                                Log.e("CreateChannel", "Backend creation also failed", backendError)
+                                                                // Final fallback: create locally only
+                                                                errorMessage = "Offline - created locally only"
+                                                                createChannelLocally(name, channelType, channelVisibility, requiresApproval, beaconId, creatorId, onChannelCreated)
+                                                            } else if (backendChannel != null) {
+                                                                val backendChannelId = backendChannel.getString("id")
+                                                                val channel = Channel(
+                                                                    id = backendChannelId,
+                                                                    beaconId = beaconId,
+                                                                    name = name,
+                                                                    type = channelType,
+                                                                    visibility = channelVisibility,
+                                                                    requiresApproval = requiresApproval,
+                                                                    creatorId = creatorId
+                                                                )
+                                                                BeaconRepository.addChannel(beaconId, channel)
+                                                                BoundaryEngine.joinChannel(backendChannelId)
+                                                                BoundaryEngine.broadcastChannelInvite(backendChannelId, name)
+                                                                errorMessage = null
+                                                                onChannelCreated(channel)
+                                                            }
+                                                        }
+                                                    }
+                                                } else if (supabaseChannel != null) {
+                                                    Log.i("CreateChannel", "✅ Channel created in Supabase: #${supabaseChannel.name} (${supabaseChannel.id})")
+
+                                                    // Create locally with the Supabase UUID
+                                                    val channel = Channel(
+                                                        id = supabaseChannel.id,
+                                                        beaconId = beaconId,
+                                                        name = supabaseChannel.name,
+                                                        type = channelType,
+                                                        visibility = channelVisibility,
+                                                        requiresApproval = requiresApproval,
+                                                        creatorId = creatorId
+                                                    )
+                                                    BeaconRepository.addChannel(beaconId, channel)
+                                                    BoundaryEngine.joinChannel(supabaseChannel.id)
+
+                                                    // Broadcast invite to nearby peers via mesh
+                                                    BoundaryEngine.broadcastChannelInvite(supabaseChannel.id, supabaseChannel.name)
+
+                                                    errorMessage = null
+                                                    onChannelCreated(channel)
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -179,6 +290,34 @@ fun CreateChannelScreen(
             }
         }
     }
+}
+
+/**
+ * Helper function to create channel locally (fallback when backend is unavailable)
+ */
+private fun createChannelLocally(
+    name: String,
+    channelType: ChannelType,
+    visibility: ChannelVisibility,
+    requiresApproval: Boolean,
+    beaconId: String,
+    creatorId: String,
+    onChannelCreated: (Channel) -> Unit
+) {
+    val channel = Channel.createGroup(
+        name = name,
+        beaconId = beaconId,
+        creatorId = creatorId,
+        visibility = visibility,
+        requiresApproval = requiresApproval
+    )
+    BeaconRepository.addChannel(beaconId, channel)
+    BoundaryEngine.joinChannel(name)
+
+    // Broadcast invite to nearby peers so they can discover this channel
+    BoundaryEngine.broadcastChannelInvite(name, name)
+
+    onChannelCreated(channel)
 }
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
@@ -190,5 +329,48 @@ private fun CreateChannelScreenPreview() {
             onBackClick = { },
             onChannelCreated = { }
         )
+    }
+}
+
+@Composable
+private fun VisibilityOption(
+    visibility: ChannelVisibility,
+    selected: Boolean,
+    description: String,
+    onSelect: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onSelect)
+            .background(
+                if (selected) ConsoleTheme.accent.copy(alpha = 0.1f) else ConsoleTheme.surface
+            )
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = if (selected) "●" else "○",
+                    style = ConsoleTheme.body,
+                    color = if (selected) ConsoleTheme.accent else ConsoleTheme.textMuted,
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+                Text(
+                    text = visibility.name,
+                    style = ConsoleTheme.bodyBold.copy(
+                        color = if (selected) ConsoleTheme.accent else ConsoleTheme.text
+                    )
+                )
+            }
+            Text(
+                text = description,
+                style = ConsoleTheme.caption,
+                color = ConsoleTheme.textMuted,
+                modifier = Modifier.padding(start = 24.dp, top = 2.dp)
+            )
+        }
     }
 }

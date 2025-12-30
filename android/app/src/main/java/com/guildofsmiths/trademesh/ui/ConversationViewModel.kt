@@ -16,6 +16,7 @@ import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
 import com.guildofsmiths.trademesh.service.MediaHelper
 import com.guildofsmiths.trademesh.service.MediaUploadManager
+import com.guildofsmiths.trademesh.service.SupabaseChat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -45,20 +46,54 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
         _beaconId,
         _channelId
     ) { messages, beaconId, channelId ->
-        messages.filter { it.beaconId == beaconId && it.channelId == channelId }
+        val filtered = messages.filter { it.beaconId == beaconId && it.channelId == channelId }
             .sortedBy { it.timestamp }
+        // #region agent log
+        try {
+            val data = mapOf(
+                "sessionId" to "debug-session",
+                "runId" to "message-receipt-test",
+                "hypothesisId" to "D",
+                "location" to "ConversationViewModel.kt:44",
+                "message" to "Messages flow updated",
+                "data" to mapOf(
+                    "beaconId" to beaconId,
+                    "channelId" to channelId,
+                    "totalMessages" to messages.size,
+                    "filteredMessages" to filtered.size,
+                    "latestMessageId" to (filtered.lastOrNull()?.id?.take(8) ?: "none"),
+                    "latestContent" to (filtered.lastOrNull()?.content?.take(20) ?: "none"),
+                    "latestOrigin" to (filtered.lastOrNull()?.isMeshOrigin ?: false)
+                ),
+                "timestamp" to System.currentTimeMillis()
+            )
+            val jsonPayload = org.json.JSONObject(data).toString()
+            val url = java.net.URL("http://127.0.0.1:7242/ingest/0adb3485-1a4e-45bf-a3c0-30e8c05573e2")
+            val connection = url.openConnection() as java.net.HttpURLConnection
+            connection.requestMethod = "POST"
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.doOutput = true
+            connection.outputStream.write(jsonPayload.toByteArray())
+            connection.inputStream.close()
+        } catch (e: Exception) {
+            // Ignore logging errors
+        }
+        // #endregion
+        android.util.Log.d("ConversationVM", "Messages updated: ${filtered.size} messages for beacon=$beaconId channel=$channelId (total in repo: ${messages.size})")
+        filtered
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
+        started = SharingStarted.Eagerly,  // Keep flow active to receive real-time updates
         initialValue = emptyList()
     )
     
-    /** Current channel info - handles regular channels and DM channels */
+    /** Current channel info - handles regular channels, DM channels, and Supabase channels */
     val currentChannel: StateFlow<Channel?> = combine(
         BeaconRepository.beacons,
         _beaconId,
-        _channelId
-    ) { beacons, beaconId, channelId ->
+        _channelId,
+        SupabaseChat.availableChannels
+    ) { beacons, beaconId, channelId, supabaseChannels ->
         // Check if it's a DM channel (starts with "dm_")
         if (channelId.startsWith("dm_")) {
             // Create a synthetic DM channel object
@@ -69,7 +104,29 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
                 type = ChannelType.DM
             )
         } else {
-            beacons.find { it.id == beaconId }?.channels?.find { it.id == channelId }
+            // First check local BeaconRepository
+            val localChannel = beacons.find { it.id == beaconId }?.channels?.find { it.id == channelId }
+            if (localChannel != null) {
+                localChannel
+            } else {
+                // Check Supabase channels
+                val supabaseChannel = supabaseChannels.find { it.id == channelId }
+                if (supabaseChannel != null) {
+                    // Create a synthetic Channel object for Supabase channel
+                    Channel(
+                        id = supabaseChannel.id,
+                        beaconId = beaconId,
+                        name = supabaseChannel.name,
+                        type = when (supabaseChannel.type) {
+                            "broadcast" -> ChannelType.BROADCAST
+                            "dm" -> ChannelType.DM
+                            else -> ChannelType.GROUP
+                        }
+                    )
+                } else {
+                    null
+                }
+            }
         }
     }.stateIn(
         scope = viewModelScope,
@@ -108,6 +165,24 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
         
         // Clear unread for this channel
         BeaconRepository.clearUnread(beaconId, channelId)
+        
+        // If this is a Supabase channel (joined from dashboard), load messages from Supabase
+        if (SupabaseChat.isJoined(channelId)) {
+            android.util.Log.i("ConversationVM", "📥 Loading messages from Supabase channel: $channelId")
+            viewModelScope.launch {
+                try {
+                    val supabaseMessages = SupabaseChat.getChannelMessages(channelId)
+                    supabaseMessages.forEach { msg ->
+                        // Add to local repository with correct beaconId
+                        val localMsg = msg.copy(beaconId = beaconId)
+                        MessageRepository.addMessage(localMsg)
+                    }
+                    android.util.Log.i("ConversationVM", "✅ Loaded ${supabaseMessages.size} messages from Supabase")
+                } catch (e: Exception) {
+                    android.util.Log.e("ConversationVM", "Failed to load Supabase messages", e)
+                }
+            }
+        }
     }
     
     /**
@@ -165,6 +240,54 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
         android.util.Log.i("ConversationVM", "   Routing message via BoundaryEngine...")
         BoundaryEngine.routeMessage(getApplication(), message)
         android.util.Log.i("ConversationVM", "   ✅ Message routed")
+        
+        // NOTE: BoundaryEngine.routeMessage() already sends via SupabaseChat when online
+        // Do NOT call SupabaseChat.sendMessage() again here - it causes duplicates!
+
+        // Ambient AI observation - analyze our own messages for assistance opportunities
+        observeMessageForAI(message)
+    }
+
+    /**
+     * Observe sent messages for ambient AI assistance opportunities
+     */
+    private fun observeMessageForAI(message: Message) {
+        viewModelScope.launch {
+            try {
+                com.guildofsmiths.trademesh.ai.AIRouter.processMessage(
+                    message = message,
+                    messageContext = com.guildofsmiths.trademesh.ai.MessageContext.CHAT,
+                    metadata = com.guildofsmiths.trademesh.ai.AIMetadata(
+                        channelId = message.channelId,
+                        userId = message.senderId
+                    ),
+                    onResponse = { response ->
+                        if (response is com.guildofsmiths.trademesh.ai.AIResponse.Success && response.text.isNotBlank()) {
+                            // Create AI response message
+                            val aiResponse = Message(
+                                beaconId = message.beaconId,
+                                channelId = message.channelId,
+                                senderId = "ai-assistant",
+                                senderName = "Smith AI",
+                                content = response.text,
+                                timestamp = System.currentTimeMillis(),
+                                aiGenerated = true,
+                                aiModel = response.model,
+                                aiSource = response.source.name.lowercase(),
+                                aiContext = "ambient-assistance",
+                                aiPrompt = message.content
+                            )
+
+                            // Add AI response to conversation
+                            MessageRepository.addMessage(aiResponse)
+                            android.util.Log.i("ConversationVM", "AI assistance provided: ${response.text.take(50)}...")
+                        }
+                    }
+                )
+            } catch (e: Exception) {
+                android.util.Log.w("ConversationVM", "AI observation failed", e)
+            }
+        }
     }
     
     /**

@@ -1,0 +1,150 @@
+GUILD OF SMITHS INVOICE (ENTERPRISE / FOREMAN CREW – WEEK-LONG PROJECT)
+──────────────────────────────
+
+Invoice #       : INV-2025-12-0789-CREW-WEEK
+Issue Date      : December 24, 2025
+Due Date        : January 7, 2026 (Net 30 – approved terms)
+
+From:
+  Rivera Electrical Services (Foreman Account)
+  Crew Lead: James Rivera
+  Guild of Smiths – Foreman Hub Active + AI Assistant
+  Phone: (555) 867-5309
+  Email: james@riveraelec.com
+  Address: 1427 Forge Lane, Austin, TX 78701
+
+To:
+  Sarah Chen
+  Chen Property Management
+  819 Oakwood Blvd, Suite 300
+  Austin, TX 78704
+  Email: sarah@chenpm.com
+  Project Ref: Oakwood Apts – Full Building Electrical Retrofit (7-day scope)
+  PO #: CHEN-2025-1123
+  Project Duration: December 17 – December 23, 2025 (7 working days)
+
+Crew Deployment (Full Week):
+  Foreman: James Rivera
+  Journeyman: Maria Lopez
+  Apprentice: Carlos Mendoza
+  Apprentice: Elena Vasquez
+  Total crew-hours logged: 238.4h (geofence + mesh-synced, daily reconciliation)
+
+Detailed Daily Breakdown (Geofence + Mesh + Foreman Hub + AI Assistant Logs):
+Day | Date          | Start–End (Crew)     | Total Hours | Key Activities & Milestones                                                                 | Mesh/Chat Sync Notes                                      | Voice/Photo/Checklist Count | AI Assistance
+────┼───────────────┼──────────────────────┼─────────────┼─────────────────────────────────────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────────────────────────┼────────────────────────────
+1   | Dec 17, 2025  | 07:30 – 16:45        | 32.8h       | Site arrival, full building survey, existing panel documentation, demo planning, material staging & delivery verification | Full mesh coverage from arrival; geofence perimeter set at 07:32 | Photos: 14 (pre-demo), Voice: 3, Checklists: 2 | Electrical checklist provided; material verification AI confirmations
+2   | Dec 18, 2025  | 07:15 – 17:30        | 38.1h       | Panel demolition (floors 1–2), rough-in conduit & wire pulls, temporary power reroutes for occupied units | Brief mesh dropout 11:20–11:35 (density spike near elevator shaft); foreman hub relayed packets | Photos: 18, Voice: 5, Checklists: 3 | Safety checklist reminders; "clock in" confirmations
+3   | Dec 19, 2025  | 07:00 – 16:30        | 35.6h       | Main riser upgrade & feeder installation, grounding & bonding verification, first-floor panel landings | 99% mesh presence; mid-day chat sync of 7 photos during lunch break | Photos: 12, Voice: 4, Checklists: 4 (grounding sign-off)
+4   | Dec 20, 2025  | 07:30 – 17:15        | 36.4h       | Branch circuit runs (floors 1–3), GFCI/AFCI device installations in all wet areas, junction box terminations | Voice notes heavy (client walkthrough at 11:00); all synced via chat on afternoon reconnect | Photos: 15, Voice: 6, Checklists: 3 | Spanish translations for client communication
+5   | Dec 21, 2025  | 07:00 – 17:00        | 36.4h       | Remaining circuit pulls & device installs (floors 4–6), outlet & switch labeling prep, insulation resistance testing | High crew density + 2 subcontractors; mesh congestion noted but no packet loss (foreman hub prioritized) | Photos: 16, Voice: 3, Checklists: 5 (IR testing)
+6   | Dec 22, 2025  | 07:15 – 16:45        | 33.9h       | Full system energization, voltage & load balance checks, breaker labeling, correction of minor punch-list items | Mesh tool tracking active (thermal camera, megger); all EOD reconciliation via foreman hub | Photos: 13, Voice: 4, Checklists: 4
+7   | Dec 23, 2025  | 07:30 – 15:30        | 27.4h       | Final walkthrough with client, system commissioning sign-off, cleanup, demobilization, final documentation upload | Partial offline 14:00–16:00 (client meeting area low signal); foreman hub cached 45min → synced to chat at 16:15 | Photos: 9 (final), Voice: 2, Checklists: 3 (client sign-off)
+
+Description                                      | Qty       | Rate    | Amount
+─────────────────────────────────────────────────┼───────────┼─────────┼──────────
+Labor – Full crew (survey through commissioning) | 238.4h    | $85.00  | $20,264.00
+Materials – 100A breakers (Square D QO) x12      | 12        | $68.40  | $820.80
+Materials – #2 AWG THHN wire (approx. 840 ft)    | 840 ft    | $1.40/ft| $1,176.00
+Materials – GFCI/AFCI outlets & devices x24      | 24        | $22.50  | $540.00
+Materials – Conduit, fittings, labels, misc      | Lot       | —       | $892.50
+Travel / daily site coordination (7 days)        | 7         | $180.00 | $1,260.00
+─────────────────────────────────────────────────┼───────────┼─────────┼──────────
+Subtotal                                         |           |         | $24,953.30
+Sales Tax (8.25% – Travis County)                |           |         | $2,058.65
+─────────────────────────────────────────────────┼───────────┼─────────┼──────────
+Total Due                                        |           |         | $27,011.95
+
+Payment Instructions:
+• Preferred: ACH / wire transfer to Rivera Electrical Services (routing/account details sent separately)
+• Check: Payable to Rivera Electrical Services, mail to address above
+• Card payments accepted via secure link (2.9% + $0.30 fee applies)
+• Questions? Reply directly in Smith project thread or call.
+
+Notes:
+• Project completed & client walkthrough signed off December 23, 2025 15:30
+• All daily geofence entries/exits logged; mesh presence averaged 97.2% (dropouts relayed via foreman hub)
+• AI Assistant provided contextual support: checklists, translations, material confirmations, and time tracking assistance
+• Total media: 87 photos, 27 voice notes, 24 checklists, full compliance logs – persistent in project thread (mesh → chat sync complete by Dec 24 00:45)
+• Thank you for your business.
+
+Supervisor Report (Foreman / Crew Weekly Summary – Day-by-Day Integrated):
+────────────────────────────────────────────
+Smith report on 2025-12-24 10:30. Based on 7-day geofence logs, mesh presence packets, photos, voice notes, checklists, and foreman hub sync (offline periods cached locally and synced via chat when internet available).
+
+• Hours Summary (Productive + Travel):
+  Foreman Rivera: 58.4h | Journeyman Lopez: 56.2h | Apprentice Mendoza: 52.1h | Apprentice Vasquez: 51.7h
+  Total productive: 218.4h | Travel/coordination: 20.0h | Idle <3.8% fleet-wide (mesh-tracked daily)
+
+• Daily Efficiency & Key Flags:
+  - Day 1: Baseline established; material delivery verified 100%
+  - Day 2: Demo phase 12% faster than plan; minor mesh congestion resolved
+  - Day 3: Riser work on schedule; grounding compliance signed off
+  - Day 4: GFCI priority addressed per client voice note (11:00)
+  - Day 5: IR testing passed all circuits (>200MΩ); high density handled
+  - Day 6: Energization smooth; thermal camera confirmed no hot spots
+  - Day 7: Client walkthrough clean; final sign-off at 15:30
+
+• Safety & Compliance: NEC/OSHA full alignment. Daily checklists signed; photo sets cover pre/during/final for each major phase.
+
+• Materials: Usage variance <4%; regional pricing applied; waste tracked daily via foreman notes.
+
+• Recommendations:
+  - 90-day infrared scan scheduled (humidity + occupancy pattern)
+  - Phase 2 (lighting/controls) scoped for Q1 2026
+  - Weekly efficiency score: 93/100 | Project under budget by 11.4%
+
+Day-by-Day Summaries (Project Completion Report):
+──────────────────────────────────────────────────
+Day 1 – December 17, 2025
+Hours: 32.8h (07:30 – 16:45)
+Activities: Site arrival, complete building survey, documentation of existing panels, demo planning, material delivery verification and staging.
+Mesh/Chat: Full mesh coverage established on arrival; geofence perimeter activated 07:32. No dropouts.
+Media: 14 pre-demo photos, 3 voice notes, 2 checklists (site setup & material receipt).
+Key Notes: Baseline conditions recorded; all deliveries matched PO. No anomalies.
+
+Day 2 – December 18, 2025
+Hours: 38.1h (07:15 – 17:30)
+Activities: Panel demolition (floors 1–2), rough-in conduit installation, wire pulls, temporary power reroutes to maintain occupied units.
+Mesh/Chat: Brief mesh dropout 11:20–11:35 (high density near elevator shaft); foreman hub relayed all packets successfully. Afternoon chat sync of progress photos.
+Media: 18 photos (demo stages), 5 voice notes, 3 checklists.
+Key Notes: Demo phase completed 12% faster than planned. Congestion handled gracefully via hub priority.
+
+Day 3 – December 19, 2025
+Hours: 35.6h (07:00 – 16:30)
+Activities: Main riser upgrade and feeder installation, grounding & bonding verification, landing of first-floor panels.
+Mesh/Chat: 99% mesh presence throughout; mid-day chat sync of 7 photos during lunch break.
+Media: 12 photos (riser work), 4 voice notes, 4 checklists (including grounding sign-off).
+Key Notes: Grounding compliance verified and signed off. Work on schedule; no safety flags.
+
+Day 4 – December 20, 2025
+Hours: 36.4h (07:30 – 17:15)
+Activities: Branch circuit runs (floors 1–3), installation of GFCI/AFCI devices in all wet areas, junction box terminations.
+Mesh/Chat: Heavy voice note traffic during client walkthrough (11:00); full sync via chat on afternoon reconnect after minor signal dip.
+Media: 15 photos (device installs), 6 voice notes, 3 checklists.
+Key Notes: GFCI priority addressed per client voice note ("wet areas first"). All devices tested on-site.
+
+Day 5 – December 21, 2025
+Hours: 36.4h (07:00 – 17:00)
+Activities: Completion of circuit pulls and device installs (floors 4–6), outlet/switch labeling preparation, insulation resistance (megger) testing of all circuits.
+Mesh/Chat: High crew density + 2 subcontractors present; mesh congestion noted but zero packet loss (foreman hub prioritized critical status).
+Media: 16 photos (upper floors & testing), 3 voice notes, 5 checklists (IR testing results).
+Key Notes: All circuits passed IR testing (>200MΩ). High-density day handled without disruption.
+
+Day 6 – December 22, 2025
+Hours: 33.9h (07:15 – 16:45)
+Activities: Full system energization, voltage & load balance verification, breaker labeling, resolution of minor punch-list items.
+Mesh/Chat: Mesh tool tracking active (thermal camera, megger); end-of-day reconciliation completed via foreman hub.
+Media: 13 photos (energization & final checks), 4 voice notes, 4 checklists.
+Key Notes: Thermal scan showed no hot spots. System stable across all phases.
+
+Day 7 – December 23, 2025
+Hours: 27.4h (07:30 – 15:30)
+Activities: Final client walkthrough, system commissioning sign-off, site cleanup, demobilization, upload of final documentation.
+Mesh/Chat: Partial offline period 14:00–16:00 (low-signal client meeting area); foreman hub cached 45 minutes of activity → full sync to chat at 16:15.
+Media: 9 final photos (completed states), 2 voice notes, 3 checklists (client sign-off).
+Key Notes: Client walkthrough clean; full sign-off received 15:30. Project complete.
+
+This detailed daily-audited crew report provides complete transparency and chain-of-custody – grounded in persistent chat thread, mesh-synced presence, and foreman hub integration.
+
+Guild of Smiths – Built for the trades.

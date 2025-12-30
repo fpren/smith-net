@@ -1,32 +1,44 @@
 package com.guildofsmiths.trademesh.ui.timetracking
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.guildofsmiths.trademesh.ui.ConsoleHeader
+import com.guildofsmiths.trademesh.ui.ConsoleSeparator
+import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.roundToInt
 
 /**
  * C-12: Time Tracking Screen
- * Clock in/out interface with pixel art aesthetic
+ * Clock in/out interface matching Smith Net UI
  */
 
-private val ConsoleGreen = Color(0xFF00FF00)
-private val ConsoleDim = Color(0xFF00AA00)
-private val ConsoleBackground = Color(0xFF0A0A0A)
-private val ConsoleBorder = Color(0xFF00DD00)
-private val MonoFont = FontFamily.Monospace
+// Clock out reasons
+enum class ClockOutReason(val displayName: String, val icon: String) {
+    LUNCH("Lunch Break", "LUNCH"),
+    JOB_DONE("Job Completed", "DONE"),
+    END_DAY("End of Day", "END"),
+    BREAK("Short Break", "BREAK"),
+    OTHER("Other", "OTHER")
+}
 
 @Composable
 fun TimeTrackingScreen(
@@ -39,7 +51,27 @@ fun TimeTrackingScreen(
     val dailySummary by viewModel.dailySummary.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
-    val elapsedSeconds by viewModel.elapsedSeconds.collectAsState()
+    val availableJobs by viewModel.availableJobs.collectAsState()
+
+    // Active ticking timer - recalculate every second
+    var tickCount by remember { mutableStateOf(0) }
+    var displaySeconds by remember { mutableStateOf(0L) }
+    
+    // Timer that ticks every second
+    LaunchedEffect(isClockedIn, activeEntry, tickCount) {
+        val entry = activeEntry
+        if (isClockedIn && entry != null) {
+            displaySeconds = (System.currentTimeMillis() - entry.clockInTime) / 1000
+        }
+    }
+    
+    // Tick every second when clocked in
+    LaunchedEffect(isClockedIn) {
+        while (isClockedIn) {
+            delay(1000)
+            tickCount++
+        }
+    }
 
     var showClockInDialog by remember { mutableStateOf(false) }
     var showClockOutDialog by remember { mutableStateOf(false) }
@@ -47,528 +79,634 @@ fun TimeTrackingScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(ConsoleBackground)
-            .padding(8.dp)
+            .background(ConsoleTheme.background)
     ) {
         // Header
-        TimeTrackingHeader(
-            onBack = onNavigateBack,
-            onRefresh = {
-                viewModel.loadStatus()
-                viewModel.loadEntries()
-                viewModel.loadDailySummary()
-            }
+        ConsoleHeader(
+            title = "TIME CLOCK",
+            onBackClick = onNavigateBack
         )
-
-        Spacer(modifier = Modifier.height(8.dp))
+        
+        ConsoleSeparator()
 
         // Error banner
         error?.let { errorMsg ->
             Text(
-                text = "[!] $errorMsg",
-                color = Color.Red,
-                fontFamily = MonoFont,
-                fontSize = 12.sp,
+                text = "! $errorMsg",
+                style = ConsoleTheme.caption.copy(color = ConsoleTheme.error),
                 modifier = Modifier
-                    .padding(4.dp)
+                    .padding(16.dp)
                     .clickable { viewModel.clearError() }
             )
         }
 
         // Main clock display
-        ClockDisplay(
-            isClockedIn = isClockedIn,
-            activeEntry = activeEntry,
-            elapsedSeconds = elapsedSeconds,
-            isLoading = isLoading,
-            onClockIn = { showClockInDialog = true },
-            onClockOut = { showClockOutDialog = true }
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Daily summary
-        dailySummary?.let { summary ->
-            DailySummaryCard(summary)
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Recent entries
-        Text(
-            text = "╔═══ RECENT ENTRIES ═══╗",
-            color = ConsoleGreen,
-            fontFamily = MonoFont,
-            fontSize = 12.sp,
-            modifier = Modifier.padding(vertical = 4.dp)
-        )
-
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(ConsoleTheme.surface)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            items(entries) { entry ->
-                TimeEntryCard(entry)
-            }
-        }
-    }
-
-    // Clock In Dialog
-    if (showClockInDialog) {
-        ClockInDialog(
-            onDismiss = { showClockInDialog = false },
-            onClockIn = { entryType, note ->
-                viewModel.clockIn(entryType = entryType, note = note)
-                showClockInDialog = false
-            }
-        )
-    }
-
-    // Clock Out Dialog
-    if (showClockOutDialog) {
-        ClockOutDialog(
-            elapsedSeconds = elapsedSeconds,
-            onDismiss = { showClockOutDialog = false },
-            onClockOut = { note ->
-                viewModel.clockOut(note)
-                showClockOutDialog = false
-            }
-        )
-    }
-}
-
-@Composable
-private fun TimeTrackingHeader(
-    onBack: () -> Unit,
-    onRefresh: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, ConsoleBorder)
-            .padding(8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(
-                text = "[<]",
-                color = ConsoleGreen,
-                fontFamily = MonoFont,
-                fontSize = 14.sp,
-                modifier = Modifier.clickable { onBack() }
-            )
-            Text(
-                text = "╔═══ TIME CLOCK ═══╗",
-                color = ConsoleGreen,
-                fontFamily = MonoFont,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        Text(
-            text = "[↻]",
-            color = ConsoleGreen,
-            fontFamily = MonoFont,
-            fontSize = 14.sp,
-            modifier = Modifier.clickable { onRefresh() }
-        )
-    }
-}
-
-@Composable
-private fun ClockDisplay(
-    isClockedIn: Boolean,
-    activeEntry: TimeEntry?,
-    elapsedSeconds: Long,
-    isLoading: Boolean,
-    onClockIn: () -> Unit,
-    onClockOut: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(2.dp, if (isClockedIn) ConsoleGreen else ConsoleDim)
-            .background(Color(0xFF001100))
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Status indicator
-        Text(
-            text = if (isClockedIn) "▓▓▓ CLOCKED IN ▓▓▓" else "░░░ CLOCKED OUT ░░░",
-            color = if (isClockedIn) ConsoleGreen else ConsoleDim,
-            fontFamily = MonoFont,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Timer display
-        if (isClockedIn) {
-            val hours = elapsedSeconds / 3600
-            val minutes = (elapsedSeconds % 3600) / 60
-            val seconds = elapsedSeconds % 60
-
-            Text(
-                text = String.format("%02d:%02d:%02d", hours, minutes, seconds),
-                color = ConsoleGreen,
-                fontFamily = MonoFont,
-                fontSize = 48.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            activeEntry?.let { entry ->
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Started: ${formatTime(entry.clockInTime)}",
-                    color = ConsoleDim,
-                    fontFamily = MonoFont,
-                    fontSize = 12.sp
-                )
-                entry.jobTitle?.let { job ->
+            // Status with blinking indicator
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (isClockedIn) {
+                    // Blinking dot
+                    val visible = tickCount % 2 == 0
                     Text(
-                        text = "Job: $job",
-                        color = ConsoleDim,
-                        fontFamily = MonoFont,
-                        fontSize = 12.sp
+                        text = if (visible) ">" else " ",
+                        style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.success)
+                    )
+                }
+                Text(
+                    text = if (isClockedIn) "CLOCKED IN" else "CLOCKED OUT",
+                    style = ConsoleTheme.captionBold.copy(
+                        color = if (isClockedIn) ConsoleTheme.success else ConsoleTheme.textMuted
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Timer display
+            val hours = displaySeconds / 3600
+            val minutes = (displaySeconds % 3600) / 60
+            val seconds = displaySeconds % 60
+
+            if (isClockedIn) {
+                // Active timer with seconds
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = String.format("%02d:%02d", hours, minutes),
+                        style = ConsoleTheme.brand.copy(
+                            fontSize = 52.sp,
+                            color = ConsoleTheme.text
+                        )
+                    )
+                    Text(
+                        text = String.format(":%02d", seconds),
+                        style = ConsoleTheme.brand.copy(
+                            fontSize = 42.sp,
+                            color = ConsoleTheme.text
+                        )
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Entry info with job
+                activeEntry?.let { entry ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "Started ${formatTime(entry.clockInTime)} - ${entry.entryType.displayName}",
+                            style = ConsoleTheme.caption
+                        )
+                        entry.jobTitle?.let { job ->
+                            Text(
+                                text = "@ $job",
+                                style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
+                            )
+                        }
+                    }
+                }
+            } else {
+                Text(
+                    text = "--:--:--",
+                    style = ConsoleTheme.brand.copy(
+                        fontSize = 52.sp,
+                        color = ConsoleTheme.textDim
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Clock IN or OUT button
+            if (isClockedIn) {
+                // CLOCK OUT button
+                Box(
+                    modifier = Modifier
+                        .background(ConsoleTheme.error.copy(alpha = 0.15f))
+                        .clickable(enabled = !isLoading) { showClockOutDialog = true }
+                        .padding(horizontal = 48.dp, vertical = 16.dp)
+                ) {
+                    Text(
+                        text = if (isLoading) "..." else "CLOCK OUT",
+                        style = ConsoleTheme.header.copy(color = ConsoleTheme.error)
+                    )
+                }
+            } else {
+                // CLOCK IN button - opens entry type dialog
+                Box(
+                    modifier = Modifier
+                        .background(ConsoleTheme.success.copy(alpha = 0.15f))
+                        .clickable(enabled = !isLoading) { showClockInDialog = true }
+                        .padding(horizontal = 48.dp, vertical = 16.dp)
+                ) {
+                    Text(
+                        text = if (isLoading) "..." else "CLOCK IN",
+                        style = ConsoleTheme.header.copy(color = ConsoleTheme.success)
                     )
                 }
             }
-        } else {
-            Text(
-                text = "--:--:--",
-                color = ConsoleDim,
-                fontFamily = MonoFont,
-                fontSize = 48.sp
-            )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        ConsoleSeparator()
 
-        // Clock button
-        Box(
-            modifier = Modifier
-                .border(2.dp, if (isClockedIn) Color.Red else ConsoleGreen)
-                .background(if (isClockedIn) Color(0xFF110000) else Color(0xFF001100))
-                .clickable(enabled = !isLoading) {
-                    if (isClockedIn) onClockOut() else onClockIn()
-                }
-                .padding(horizontal = 32.dp, vertical = 16.dp)
-        ) {
-            Text(
-                text = if (isLoading) "[...]" else if (isClockedIn) "[■ CLOCK OUT]" else "[▶ CLOCK IN]",
-                color = if (isClockedIn) Color.Red else ConsoleGreen,
-                fontFamily = MonoFont,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
-
-@Composable
-private fun DailySummaryCard(summary: DailySummary) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, ConsoleBorder)
-            .padding(12.dp)
-    ) {
-        Text(
-            text = "╔═══ TODAY'S SUMMARY ═══╗",
-            color = ConsoleGreen,
-            fontFamily = MonoFont,
-            fontSize = 12.sp
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            SummaryItem("Total", summary.totalMinutes)
-            SummaryItem("Regular", summary.regularMinutes)
-            SummaryItem("OT", summary.overtimeMinutes)
-            SummaryItem("Break", summary.breakMinutes)
-        }
-
-        // Progress bar
-        Spacer(modifier = Modifier.height(8.dp))
-        val targetMinutes = 8 * 60 // 8 hours
-        val progress = (summary.totalMinutes.toFloat() / targetMinutes).coerceIn(0f, 1f)
-        val filledBlocks = (progress * 20).toInt()
-        val emptyBlocks = 20 - filledBlocks
-
-        Text(
-            text = "[" + "█".repeat(filledBlocks) + "░".repeat(emptyBlocks) + "] ${(progress * 100).toInt()}%",
-            color = if (progress >= 1f) ConsoleGreen else ConsoleDim,
-            fontFamily = MonoFont,
-            fontSize = 12.sp
-        )
-    }
-}
-
-@Composable
-private fun SummaryItem(label: String, minutes: Int) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = formatDuration(minutes),
-            color = ConsoleGreen,
-            fontFamily = MonoFont,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = label,
-            color = ConsoleDim,
-            fontFamily = MonoFont,
-            fontSize = 10.sp
-        )
-    }
-}
-
-@Composable
-private fun TimeEntryCard(entry: TimeEntry) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, ConsoleDim)
-            .background(Color(0xFF0A1A0A))
-            .padding(8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column {
+        // Daily summary bar
+        dailySummary?.let { summary ->
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .padding(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                Text(text = "TODAY", style = ConsoleTheme.captionBold)
+                
+                val targetMinutes = 8 * 60
+                val progress = (summary.totalMinutes.toFloat() / targetMinutes).coerceIn(0f, 1f)
+                val bars = (progress * 10).toInt()
+                
                 Text(
-                    text = entry.entryType.icon,
-                    color = ConsoleGreen,
-                    fontFamily = MonoFont,
-                    fontSize = 14.sp
+                    text = "[" + "=".repeat(bars) + "-".repeat(10 - bars) + "]",
+                    style = ConsoleTheme.body.copy(
+                        color = if (progress >= 1f) ConsoleTheme.success else ConsoleTheme.textMuted
+                    )
                 )
+                
                 Text(
-                    text = formatTime(entry.clockInTime),
-                    color = ConsoleGreen,
-                    fontFamily = MonoFont,
-                    fontSize = 12.sp
-                )
-                Text(
-                    text = "→",
-                    color = ConsoleDim,
-                    fontFamily = MonoFont,
-                    fontSize = 12.sp
-                )
-                Text(
-                    text = entry.clockOutTime?.let { formatTime(it) } ?: "...",
-                    color = if (entry.clockOutTime != null) ConsoleGreen else ConsoleDim,
-                    fontFamily = MonoFont,
-                    fontSize = 12.sp
+                    text = "${formatDuration(summary.totalMinutes)} / 8:00",
+                    style = ConsoleTheme.bodyBold
                 )
             }
+            ConsoleSeparator()
+        }
 
-            entry.jobTitle?.let { job ->
+        // Entries header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(text = "TODAY'S ENTRIES", style = ConsoleTheme.captionBold)
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(
-                    text = job,
-                    color = ConsoleDim,
-                    fontFamily = MonoFont,
-                    fontSize = 10.sp
+                    text = "< SWIPE TO DELETE",
+                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+                )
+                Text(
+                    text = "REFRESH",
+                    style = ConsoleTheme.action,
+                    modifier = Modifier.clickable {
+                        viewModel.loadStatus()
+                        viewModel.loadEntries()
+                        viewModel.loadDailySummary()
+                    }
                 )
             }
         }
 
-        Column(
-            horizontalAlignment = Alignment.End
+        // Entries list with swipe to delete
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Text(
-                text = entry.durationMinutes?.let { formatDuration(it) } ?: "--:--",
-                color = ConsoleGreen,
-                fontFamily = MonoFont,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = entry.status.displayName,
-                color = when (entry.status) {
-                    EntryStatus.APPROVED -> ConsoleGreen
-                    EntryStatus.PENDING_REVIEW -> Color.Yellow
-                    EntryStatus.DISPUTED -> Color.Red
-                    else -> ConsoleDim
-                },
-                fontFamily = MonoFont,
-                fontSize = 10.sp
-            )
+            items(entries, key = { it.id }) { entry ->
+                SwipeToDeleteEntry(
+                    entry = entry,
+                    onDelete = { viewModel.deleteEntry(entry.id) }
+                )
+            }
+            
+            if (entries.isEmpty()) {
+                item {
+                    Text(
+                        text = "No entries today",
+                        style = ConsoleTheme.caption,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            }
         }
     }
-}
 
-@Composable
-private fun ClockInDialog(
-    onDismiss: () -> Unit,
-    onClockIn: (EntryType, String?) -> Unit
-) {
-    var selectedType by remember { mutableStateOf(EntryType.REGULAR) }
-    var note by remember { mutableStateOf("") }
+    // Clock IN Dialog - Select entry type and optional job
+    if (showClockInDialog) {
+        // Refresh available jobs when dialog opens
+        LaunchedEffect(Unit) {
+            viewModel.refreshAvailableJobs()
+        }
+        
+        var selectedType by remember { mutableStateOf<EntryType?>(null) }
+        var selectedJob by remember { mutableStateOf<String?>(null) }
+        var customJobName by remember { mutableStateOf("") }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = ConsoleBackground,
-        title = {
-            Text(
-                text = "╔═══ CLOCK IN ═══╗",
-                color = ConsoleGreen,
-                fontFamily = MonoFont
-            )
-        },
-        text = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = "Entry Type:",
-                    color = ConsoleDim,
-                    fontFamily = MonoFont,
-                    fontSize = 12.sp
-                )
+        AlertDialog(
+            onDismissRequest = { showClockInDialog = false },
+            containerColor = ConsoleTheme.background,
+            modifier = Modifier.fillMaxHeight(0.8f),
+            title = {
+                Text(text = "CLOCK IN", style = ConsoleTheme.header)
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .imePadding(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Step 1: Entry Type
+                    Text(text = "1. SELECT ENTRY TYPE", style = ConsoleTheme.captionBold)
+                    
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    listOf(
+                        EntryType.REGULAR to "Regular work hours",
+                        EntryType.OVERTIME to "Overtime hours",
+                        EntryType.BREAK to "Break time",
+                        EntryType.TRAVEL to "Travel time",
+                        EntryType.ON_CALL to "On-call hours"
+                    ).forEach { (type, desc) ->
+                        val isSelected = selectedType == type
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    if (isSelected) ConsoleTheme.accent.copy(alpha = 0.1f)
+                                    else ConsoleTheme.surface
+                                )
+                                .clickable { selectedType = type }
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = type.displayName.uppercase(),
+                                    style = ConsoleTheme.bodyBold.copy(
+                                        color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.text
+                                    )
+                                )
+                                Text(text = desc, style = ConsoleTheme.caption)
+                            }
+                            if (isSelected) {
+                                Text(text = "[x]", style = ConsoleTheme.action)
+                            }
+                        }
+                    }
 
-                EntryType.values().forEach { type ->
+                    Spacer(modifier = Modifier.height(12.dp))
+                    ConsoleSeparator()
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Step 2: Job (optional)
+                    Text(text = "2. TAG TO JOB (optional)", style = ConsoleTheme.captionBold)
+                    
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    // No job option
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { selectedType = type }
-                            .padding(4.dp)
+                            .background(
+                                if (selectedJob == null && customJobName.isEmpty()) 
+                                    ConsoleTheme.accent.copy(alpha = 0.1f)
+                                else ConsoleTheme.surface
+                            )
+                            .clickable { 
+                                selectedJob = null
+                                customJobName = ""
+                            }
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
+                        Text(text = "No job (general time)", style = ConsoleTheme.body)
+                        if (selectedJob == null && customJobName.isEmpty()) {
+                            Text(text = "[x]", style = ConsoleTheme.action)
+                        }
+                    }
+
+                    // Available jobs from job board
+                    availableJobs.forEach { job ->
+                        val isSelected = selectedJob == job
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    if (isSelected) ConsoleTheme.accent.copy(alpha = 0.1f)
+                                    else ConsoleTheme.surface
+                                )
+                                .clickable { 
+                                    selectedJob = job
+                                    customJobName = ""
+                                }
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = job,
+                                style = ConsoleTheme.body.copy(
+                                    color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.text
+                                )
+                            )
+                            if (isSelected) {
+                                Text(text = "[x]", style = ConsoleTheme.action)
+                            }
+                        }
+                    }
+
+                    // Custom job name
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(text = "Or enter job name:", style = ConsoleTheme.caption)
+                    BasicTextField(
+                        value = customJobName,
+                        onValueChange = { 
+                            customJobName = it
+                            if (it.isNotEmpty()) selectedJob = null
+                        },
+                        textStyle = ConsoleTheme.body,
+                        cursorBrush = SolidColor(ConsoleTheme.cursor),
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(ConsoleTheme.surface)
+                            .padding(12.dp),
+                        decorationBox = { innerTextField ->
+                            Box {
+                                if (customJobName.isEmpty()) {
+                                    Text("Type job name...", style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder))
+                                }
+                                innerTextField()
+                            }
+                        }
+                    )
+                }
+            },
+            confirmButton = {
+                Text(
+                    text = "CLOCK IN",
+                    style = ConsoleTheme.action.copy(
+                        color = if (selectedType != null) ConsoleTheme.success else ConsoleTheme.textDim
+                    ),
+                    modifier = Modifier.clickable {
+                        selectedType?.let { type ->
+                            val jobName = when {
+                                customJobName.isNotBlank() -> customJobName
+                                selectedJob != null -> selectedJob
+                                else -> null
+                            }
+                            viewModel.clockIn(
+                                entryType = type,
+                                jobTitle = jobName
+                            )
+                            showClockInDialog = false
+                        }
+                    }
+                )
+            },
+            dismissButton = {
+                Text(
+                    text = "CANCEL",
+                    style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                    modifier = Modifier.clickable { showClockInDialog = false }
+                )
+            }
+        )
+    }
+
+    // Clock OUT Dialog - Select reason
+    if (showClockOutDialog) {
+        var selectedReason by remember { mutableStateOf<ClockOutReason?>(null) }
+        var otherNote by remember { mutableStateOf("") }
+        
+        val hours = displaySeconds / 3600
+        val minutes = (displaySeconds % 3600) / 60
+
+        AlertDialog(
+            onDismissRequest = { showClockOutDialog = false },
+            containerColor = ConsoleTheme.background,
+            modifier = Modifier.fillMaxHeight(0.75f),
+            title = {
+                Column {
+                    Text(text = "CLOCK OUT", style = ConsoleTheme.header)
+                    Text(
+                        text = "Duration: ${hours}h ${minutes}m",
+                        style = ConsoleTheme.caption
+                    )
+                    activeEntry?.jobTitle?.let { job ->
                         Text(
-                            text = if (selectedType == type) "[●]" else "[○]",
-                            color = if (selectedType == type) ConsoleGreen else ConsoleDim,
-                            fontFamily = MonoFont,
-                            fontSize = 12.sp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "${type.icon} ${type.displayName}",
-                            color = if (selectedType == type) ConsoleGreen else ConsoleDim,
-                            fontFamily = MonoFont,
-                            fontSize = 12.sp
+                            text = "Job: $job",
+                            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
                         )
                     }
                 }
-
-                OutlinedTextField(
-                    value = note,
-                    onValueChange = { note = it },
-                    label = { Text("Note (optional)", color = ConsoleDim, fontFamily = MonoFont) },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = ConsoleGreen,
-                        unfocusedTextColor = ConsoleGreen,
-                        focusedBorderColor = ConsoleGreen,
-                        unfocusedBorderColor = ConsoleDim,
-                        cursorColor = ConsoleGreen
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .imePadding(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(text = "SELECT REASON", style = ConsoleTheme.captionBold)
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    ClockOutReason.values().forEach { reason ->
+                        val isSelected = selectedReason == reason
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    if (isSelected) ConsoleTheme.accent.copy(alpha = 0.1f)
+                                    else ConsoleTheme.surface
+                                )
+                                .clickable { selectedReason = reason }
+                                .padding(14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = reason.displayName,
+                                style = ConsoleTheme.body.copy(
+                                    color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.text
+                                )
+                            )
+                            if (isSelected) {
+                                Text(text = "[x]", style = ConsoleTheme.action)
+                            }
+                        }
+                    }
+                    
+                    // Note field for "Other"
+                    if (selectedReason == ClockOutReason.OTHER) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(text = "SPECIFY REASON", style = ConsoleTheme.captionBold)
+                        BasicTextField(
+                            value = otherNote,
+                            onValueChange = { otherNote = it },
+                            textStyle = ConsoleTheme.body,
+                            cursorBrush = SolidColor(ConsoleTheme.cursor),
+                            singleLine = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(ConsoleTheme.surface)
+                                .padding(12.dp),
+                            decorationBox = { innerTextField ->
+                                Box {
+                                    if (otherNote.isEmpty()) {
+                                        Text("Enter reason...", style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder))
+                                    }
+                                    innerTextField()
+                                }
+                            }
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Text(
+                    text = "CLOCK OUT",
+                    style = ConsoleTheme.action.copy(
+                        color = if (selectedReason != null) ConsoleTheme.error else ConsoleTheme.textDim
                     ),
-                    textStyle = LocalTextStyle.current.copy(fontFamily = MonoFont),
-                    singleLine = true
+                    modifier = Modifier.clickable {
+                        selectedReason?.let { reason ->
+                            val note = if (reason == ClockOutReason.OTHER) otherNote else reason.displayName
+                            viewModel.clockOut(note)
+                            showClockOutDialog = false
+                        }
+                    }
+                )
+            },
+            dismissButton = {
+                Text(
+                    text = "CANCEL",
+                    style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                    modifier = Modifier.clickable { showClockOutDialog = false }
                 )
             }
-        },
-        confirmButton = {
-            Text(
-                text = "[▶ START]",
-                color = ConsoleGreen,
-                fontFamily = MonoFont,
-                modifier = Modifier.clickable {
-                    onClockIn(selectedType, note.ifBlank { null })
-                }
-            )
-        },
-        dismissButton = {
-            Text(
-                text = "[CANCEL]",
-                color = ConsoleDim,
-                fontFamily = MonoFont,
-                modifier = Modifier.clickable { onDismiss() }
-            )
-        }
-    )
+        )
+    }
 }
 
+// ════════════════════════════════════════════════════════════════════
+// SWIPE TO DELETE ENTRY
+// ════════════════════════════════════════════════════════════════════
+
 @Composable
-private fun ClockOutDialog(
-    elapsedSeconds: Long,
-    onDismiss: () -> Unit,
-    onClockOut: (String?) -> Unit
+private fun SwipeToDeleteEntry(
+    entry: TimeEntry,
+    onDelete: () -> Unit
 ) {
-    var note by remember { mutableStateOf("") }
+    var offsetX by remember { mutableStateOf(0f) }
+    val deleteThreshold = -200f
+    var isDeleting by remember { mutableStateOf(false) }
+    
+    val backgroundColor by animateColorAsState(
+        targetValue = if (offsetX < deleteThreshold / 2) ConsoleTheme.error.copy(alpha = 0.3f) 
+                      else ConsoleTheme.surface,
+        label = "bgColor"
+    )
 
-    val hours = elapsedSeconds / 3600
-    val minutes = (elapsedSeconds % 3600) / 60
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = ConsoleBackground,
-        title = {
-            Text(
-                text = "╔═══ CLOCK OUT ═══╗",
-                color = ConsoleGreen,
-                fontFamily = MonoFont
-            )
-        },
-        text = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(backgroundColor)
+    ) {
+        // Delete indicator (behind the entry)
+        if (offsetX < 0) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 16.dp)
             ) {
                 Text(
-                    text = "Duration: ${hours}h ${minutes}m",
-                    color = ConsoleGreen,
-                    fontFamily = MonoFont,
-                    fontSize = 14.sp
-                )
-
-                OutlinedTextField(
-                    value = note,
-                    onValueChange = { note = it },
-                    label = { Text("Note (optional)", color = ConsoleDim, fontFamily = MonoFont) },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = ConsoleGreen,
-                        unfocusedTextColor = ConsoleGreen,
-                        focusedBorderColor = ConsoleGreen,
-                        unfocusedBorderColor = ConsoleDim,
-                        cursorColor = ConsoleGreen
-                    ),
-                    textStyle = LocalTextStyle.current.copy(fontFamily = MonoFont),
-                    singleLine = true
+                    text = if (offsetX < deleteThreshold) "RELEASE TO DELETE" else "< DELETE",
+                    style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.error)
                 )
             }
-        },
-        confirmButton = {
-            Text(
-                text = "[■ STOP]",
-                color = Color.Red,
-                fontFamily = MonoFont,
-                modifier = Modifier.clickable {
-                    onClockOut(note.ifBlank { null })
+        }
+
+        // Entry content (swipeable)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset { IntOffset(offsetX.roundToInt(), 0) }
+                .background(ConsoleTheme.surface)
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            if (offsetX < deleteThreshold) {
+                                isDeleting = true
+                                onDelete()
+                            }
+                            offsetX = 0f
+                        },
+                        onDragCancel = { offsetX = 0f },
+                        onHorizontalDrag = { _, dragAmount ->
+                            // Only allow left swipe
+                            val newOffset = offsetX + dragAmount
+                            offsetX = newOffset.coerceIn(-300f, 0f)
+                        }
+                    )
                 }
-            )
-        },
-        dismissButton = {
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                // Time range
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(text = formatTime(entry.clockInTime), style = ConsoleTheme.body)
+                    Text(text = "-", style = ConsoleTheme.caption)
+                    Text(
+                        text = entry.clockOutTime?.let { formatTime(it) } ?: "NOW",
+                        style = ConsoleTheme.body.copy(
+                            color = if (entry.clockOutTime != null) ConsoleTheme.text 
+                                    else ConsoleTheme.success
+                        )
+                    )
+                }
+                
+                // Type, job, and reason
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = entry.entryType.displayName,
+                        style = ConsoleTheme.caption
+                    )
+                    // Show job if tagged
+                    entry.jobTitle?.let { job ->
+                        Text(
+                            text = "@ $job",
+                            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
+                        )
+                    }
+                    // Show clock out reason if present
+                    entry.notes.lastOrNull()?.text?.let { note ->
+                        Text(
+                            text = "- $note",
+                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                        )
+                    }
+                }
+            }
+
+            // Duration
             Text(
-                text = "[CANCEL]",
-                color = ConsoleDim,
-                fontFamily = MonoFont,
-                modifier = Modifier.clickable { onDismiss() }
+                text = entry.durationMinutes?.let { formatDuration(it) } ?: "--:--",
+                style = ConsoleTheme.bodyBold
             )
         }
-    )
+    }
 }
 
 // ════════════════════════════════════════════════════════════════════

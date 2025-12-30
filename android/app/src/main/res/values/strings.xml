@@ -3,4 +3,14 @@
     <string name="app_name">smith net</string>
     <string name="mesh_service_notification_title">smith net active</string>
     <string name="mesh_service_notification_text">BLE mesh running</string>
+
+    <!-- AI Assistant Strings -->
+    <string name="ai_assistant_enabled">AI Assistant enabled</string>
+    <string name="ai_assistant_disabled">AI Assistant disabled</string>
+    <string name="ai_standard_mode">Standard Mode (local AI)</string>
+    <string name="ai_hybrid_mode">Hybrid Mode (local + cloud AI)</string>
+    <string name="ai_battery_low">AI paused - battery low</string>
+    <string name="ai_offline_sync">AI responses queued for sync</string>
+    <string name="ai_checklist_available">Checklist available</string>
+    <string name="ai_translation_available">Translation available</string>
 </resources>

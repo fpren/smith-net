@@ -1,0 +1,54 @@
+PROJECT CONTEXT: Guild of Smiths / TradeMesh — dual-path messaging system (Phase 0/1 constrained)
+
+CORE ARCHITECTURE FACTS:
+• Two independent transport paths must coexist and handoff gracefully:
+  1. CHAT (internet / IP / Wi-Fi) — persistent, ordered, media-capable, scales to 50–100+ participants, stable when connected
+  2. BLE MESH (Bluetooth / local RF) — real-time, peer-to-peer, proximity-dependent, battery-sensitive, intermittent by design, short lightweight payloads only
+
+MANDATORY EARLY PRIORITIES (apply now — not later phases):
+• Battery preservation: minimize background mesh scanning/polling
+• Signal reality: treat connectivity dropouts, weak RSSI, and density congestion as normal
+• Graceful degradation: predictable behavior on signal loss or partial mesh participation
+• Dual-path handoff logic must clearly distinguish and route via:
+  - mesh only
+  - chat only
+  - mesh → chat sync (when internet returns)
+  - chat fallback (when mesh unavailable)
+• Mesh activity should eventually sync to chat for continuity / persistence
+• UI remains console-like (per Mesh chat.txt): same typography/layout for both paths, subtle textual transport indicators only — never fragment reading experience
+
+NEW UI REQUIREMENT (important addon — authoritative now):
+• Users can manually select transport mode OR keep automatic detection
+• In the chat window, every message MUST show one of these exact inline indicators (textual, non-intrusive, before or after sender/timestamp):
+  - [sub]    = message originated via BLE/mesh
+  - [online] = message originated via internet/Wi-Fi/chat
+• Indicators apply to both sent and received messages to preserve clarity and continuity
+
+OBSERVED FAILURE SYMPTOMS (persistent across test sessions):
+• App does not reliably detect, react to, or expose Bluetooth state changes:
+  - Turning Bluetooth OFF → app fails to detect loss of BLE → does not automatically fall back to [online] mode → messages stall or appear undeliverable
+  - Manually switching to online mode then turning Bluetooth OFF → app does not recognize the transition → no sync occurs, mesh-queued messages remain stuck without routing to chat/[online]
+  - Auto mode fails to trigger handoff when Bluetooth becomes unavailable or internet returns
+• Related prior issues still present:
+  - Test devices cannot reliably discover each other’s beacons/channels in either path
+  - Stale mesh group entries (e.g. “jobsite alpha Black Sea”) do not refresh or clear
+  - No observable cross-path synchronization even when both transports become available
+  - No visible [sub] / [online] indicators appearing in chat window as specified
+
+REQUEST:
+Observe and diagnose the current implementation with special focus on:
+• Boundary Engine (mesh vs IP chat separation, routing rules, sync queue)
+• BLE state monitoring / change detection (BluetoothAdapter listener, permissions, foreground/background behavior, Doze restrictions)
+• Transport mode state machine (auto vs manual selection, user toggle persistence)
+• Presence signal logic (C-08) and mesh sync engine (C-09)
+• Foreman hub caching behavior when acting as local relay
+• UI rendering pipeline for per-message transport indicators ([sub] / [online])
+• Event propagation from connectivity changes → mode switch → message routing → UI label
+
+Constraints for diagnosis / suggested fixes:
+• Stay within Phase 0/1 scope — no new features, only bug-fixing or minimal refinement of existing dual-path handoff, state detection, and UI labeling
+• Surface explicit tradeoffs: battery cost vs detection latency vs reliability vs UI clarity
+• If coding issue confirmed, indicate likely location(s) (e.g. ConnectivityObserver, BLEService, TransportRouter, MessageRenderer, SyncQueueHandler)
+• Propose narrow, high-signal reproduction tests that respect battery & signal reality priorities (e.g. force Bluetooth toggle while observing logs for mode change, indicator rendering, and routing)
+
+Can you confirm whether this is a coding / logic error in state detection, event handling, routing, mode persistence, or UI labeling — and if so, in which component(s) the failure most likely originates? Prioritize issues blocking [sub]/[online] visibility and automatic fallback.

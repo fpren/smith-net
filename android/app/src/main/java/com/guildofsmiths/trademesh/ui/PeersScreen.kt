@@ -46,6 +46,7 @@ import com.guildofsmiths.trademesh.data.Peer
 import com.guildofsmiths.trademesh.data.PeerRepository
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
+import com.guildofsmiths.trademesh.service.SupabaseChat
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -67,11 +68,14 @@ fun PeersScreen(
     var isRefreshing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     
-    // Refresh function - restarts BLE scanning to discover peers
+    // Refresh function - restarts BLE scanning AND online presence polling
     fun onRefresh() {
         scope.launch {
             isRefreshing = true
+            // Try BLE peer discovery (local mesh)
             BoundaryEngine.requestPeerDiscovery()
+            // Also refresh Supabase presence (global, works anywhere)
+            SupabaseChat.refreshOnlineUsers()
             delay(3000) // Show refreshing state for 3 seconds
             isRefreshing = false
         }

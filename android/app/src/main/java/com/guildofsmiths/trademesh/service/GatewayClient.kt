@@ -7,6 +7,8 @@ import com.guildofsmiths.trademesh.data.Message
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
 import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
@@ -280,7 +282,7 @@ object GatewayClient {
                 }
                 
                 "channel_created" -> {
-                    Log.d(TAG, "Channel created: ${payload?.optString("name")}")
+                    payload?.let { handleChannelCreated(it) }
                 }
                 
                 "channel_cleared" -> {
@@ -354,6 +356,44 @@ object GatewayClient {
     }
     
     /**
+     * Handle channel creation event from backend
+     */
+    private fun handleChannelCreated(payload: JSONObject) {
+        try {
+            val channelId = payload.getString("id")
+            val channelName = payload.getString("name")
+            val channelType = payload.getString("type")
+
+            Log.i(TAG, "📢 Channel created: #$channelName ($channelId)")
+
+            // Check if we already have this channel locally
+            if (com.guildofsmiths.trademesh.data.BeaconRepository.getChannel("default", channelId) == null) {
+                // Add to local repository
+                val localChannel = com.guildofsmiths.trademesh.data.Channel(
+                    id = channelId,
+                    beaconId = "default",
+                    name = channelName,
+                    type = when (channelType) {
+                        "broadcast" -> com.guildofsmiths.trademesh.data.ChannelType.BROADCAST
+                        "group" -> com.guildofsmiths.trademesh.data.ChannelType.GROUP
+                        "dm" -> com.guildofsmiths.trademesh.data.ChannelType.DM
+                        else -> com.guildofsmiths.trademesh.data.ChannelType.GROUP
+                    }
+                )
+
+                com.guildofsmiths.trademesh.data.BeaconRepository.addChannel("default", localChannel)
+                Log.d(TAG, "✅ Added backend channel locally: #$channelName ($channelId)")
+            }
+
+            // Join the channel for message routing
+            BoundaryEngine.joinChannel(channelId)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling channel creation", e)
+        }
+    }
+
+    /**
      * Fetch sync info from backend to clear channels that were cleared while offline.
      */
     private fun fetchSyncInfo() {
@@ -409,6 +449,103 @@ object GatewayClient {
      */
     fun setSyncClearedListener(listener: SyncClearedListener) {
         syncClearedListener = listener
+    }
+
+    /**
+     * Create a channel via backend API
+     * Note: This works via HTTP even without WebSocket connection
+     */
+    fun createChannel(name: String, type: String, memberIds: List<String>? = null, callback: (JSONObject?, Exception?) -> Unit) {
+        // HTTP API works without WebSocket connection
+        val httpUrl = backendUrl.replace("ws://", "http://").replace("wss://", "https://")
+        val jsonBody = JSONObject().apply {
+            put("name", name)
+            put("type", type)
+            if (memberIds != null) {
+                put("memberIds", JSONArray(memberIds))
+            }
+        }
+
+        val requestBody = jsonBody.toString().toRequestBody("application/json".toMediaType())
+
+        val request = Request.Builder()
+            .url("$httpUrl/api/channels")
+            .post(requestBody)
+            .addHeader("Content-Type", "application/json")
+            .addHeader("x-user-id", UserPreferences.getUserId())
+            .addHeader("x-user-name", UserPreferences.getDisplayName() ?: "Unknown")
+            .build()
+
+        client.newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
+                Log.e(TAG, "Failed to create channel: ${e.message}")
+                callback(null, e)
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                try {
+                    if (response.isSuccessful) {
+                        val body = response.body?.string()
+                        if (body != null) {
+                            val json = JSONObject(body)
+                            Log.i(TAG, "✅ Channel created: ${json.getString("name")}")
+                            callback(json, null)
+                        } else {
+                            callback(null, Exception("Empty response"))
+                        }
+                    } else {
+                        val errorBody = response.body?.string() ?: "Unknown error"
+                        Log.e(TAG, "Channel creation failed: ${response.code} - $errorBody")
+                        callback(null, Exception("HTTP ${response.code}: $errorBody"))
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error parsing channel creation response: ${e.message}")
+                    callback(null, e)
+                }
+            }
+        })
+    }
+
+    /**
+     * Fetch all channels from backend
+     * Note: This works via HTTP even without WebSocket connection
+     */
+    fun fetchChannels(callback: (JSONArray?, Exception?) -> Unit) {
+        // HTTP API works without WebSocket connection
+        val httpUrl = backendUrl.replace("ws://", "http://").replace("wss://", "https://")
+        val request = Request.Builder()
+            .url("$httpUrl/api/channels")
+            .get()
+            .build()
+
+        client.newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
+                Log.e(TAG, "Failed to fetch channels: ${e.message}")
+                callback(null, e)
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                try {
+                    if (response.isSuccessful) {
+                        val body = response.body?.string()
+                        if (body != null) {
+                            val json = JSONArray(body)
+                            Log.i(TAG, "📥 Fetched ${json.length()} channels from backend")
+                            callback(json, null)
+                        } else {
+                            callback(null, Exception("Empty response"))
+                        }
+                    } else {
+                        val errorBody = response.body?.string() ?: "Unknown error"
+                        Log.e(TAG, "Channel fetch failed: ${response.code} - $errorBody")
+                        callback(null, Exception("HTTP ${response.code}: $errorBody"))
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error parsing channel fetch response: ${e.message}")
+                    callback(null, e)
+                }
+            }
+        })
     }
     
     /**
