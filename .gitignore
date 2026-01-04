@@ -9,6 +9,10 @@ android/captures/
 android/.externalNativeBuild/
 android/.cxx/
 
+# APKs (except in releases folder)
+*.apk
+!releases/apks/*.apk
+
 # iOS
 ios/Pods/
 ios/*.xcworkspace
