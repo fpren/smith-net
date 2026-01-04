@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,6 +44,7 @@ enum class ClockOutReason(val displayName: String, val icon: String) {
 @Composable
 fun TimeTrackingScreen(
     onNavigateBack: () -> Unit,
+    onSettingsClick: () -> Unit = {},
     viewModel: TimeTrackingViewModel = viewModel()
 ) {
     val isClockedIn by viewModel.isClockedIn.collectAsState()
@@ -131,30 +133,28 @@ fun TimeTrackingScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Timer display
+            // Timer display - CONSISTENT MONOSPACE
             val hours = displaySeconds / 3600
             val minutes = (displaySeconds % 3600) / 60
             val seconds = displaySeconds % 60
 
+            // Always use same structure and font for stability
+            Text(
+                text = if (isClockedIn) {
+                    String.format("%02d:%02d:%02d", hours, minutes, seconds)
+                } else {
+                    "00:00:00"
+                },
+                style = TextStyle(
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    fontSize = 48.sp,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    color = if (isClockedIn) ConsoleTheme.text else ConsoleTheme.textDim,
+                    letterSpacing = 2.sp
+                )
+            )
+            
             if (isClockedIn) {
-                // Active timer with seconds
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        text = String.format("%02d:%02d", hours, minutes),
-                        style = ConsoleTheme.brand.copy(
-                            fontSize = 52.sp,
-                            color = ConsoleTheme.text
-                        )
-                    )
-                    Text(
-                        text = String.format(":%02d", seconds),
-                        style = ConsoleTheme.brand.copy(
-                            fontSize = 42.sp,
-                            color = ConsoleTheme.text
-                        )
-                    )
-                }
-                
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 // Entry info with job
@@ -172,14 +172,6 @@ fun TimeTrackingScreen(
                         }
                     }
                 }
-            } else {
-                Text(
-                    text = "--:--:--",
-                    style = ConsoleTheme.brand.copy(
-                        fontSize = 52.sp,
-                        color = ConsoleTheme.textDim
-                    )
-                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -296,6 +288,9 @@ fun TimeTrackingScreen(
                 }
             }
         }
+        
+        // Footer - SETTINGS + Made by Guild of Smiths
+        com.guildofsmiths.trademesh.ui.SmithNetSharedFooter(onSettingsClick = onSettingsClick)
     }
 
     // Clock IN Dialog - Select entry type and optional job

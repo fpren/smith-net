@@ -97,12 +97,14 @@ export class PlanSynthesisService {
     const allMessages: Message[] = [];
 
     // For each job, try to find a related channel and get messages
+    // NOTE: Simplified - just get messages from mock channels
     plan.jobIds.forEach(jobId => {
-      // Mock: assume each job has a channel named after it
-      const channel = messageStore.findByName(jobId);
-      if (channel) {
-        const jobMessages = messageStore.getForChannel(channel.id, 50);
+      // Try to get messages if channel exists with jobId as ID
+      try {
+        const jobMessages = messageStore.getForChannel(jobId, 50);
         allMessages.push(...jobMessages);
+      } catch {
+        // Channel not found - that's fine
       }
     });
 

@@ -47,6 +47,7 @@ import com.guildofsmiths.trademesh.data.AIMode
 import com.guildofsmiths.trademesh.data.SupabaseAuth
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
+import com.guildofsmiths.trademesh.service.BackendConfig
 import kotlinx.coroutines.launch
 import kotlin.system.exitProcess
 
@@ -57,9 +58,6 @@ import kotlin.system.exitProcess
 fun SettingsScreen(
     onBackClick: () -> Unit,
     onNameChanged: (String) -> Unit,
-    onJobBoardClick: (() -> Unit)? = null,
-    onTimeTrackingClick: (() -> Unit)? = null,
-    onArchiveClick: (() -> Unit)? = null,
     onSignOut: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -68,7 +66,8 @@ fun SettingsScreen(
     val isScanning by BoundaryEngine.isScanning.collectAsState()
     val isMeshConnected by BoundaryEngine.isMeshConnected.collectAsState()
     val isGatewayConnected by BoundaryEngine.isGatewayConnected.collectAsState()
-    var gatewayUrl by remember { mutableStateOf("ws://192.168.8.163:3000") }
+    var gatewayUrl by remember { mutableStateOf(BackendConfig.websocketUrl) }
+    var supabaseUrl by remember { mutableStateOf(BackendConfig.supabaseUrl) }
     
     Column(
         modifier = modifier
@@ -97,62 +96,6 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            // ════════════════════════════════════════════════════════════════
-            // COMPONENTS (Top priority - visible without scrolling)
-            // ════════════════════════════════════════════════════════════════
-            Text(text = "COMPONENTS", style = ConsoleTheme.captionBold)
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
-                    .clickable { onJobBoardClick?.invoke() }
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(text = "[≡]", style = ConsoleTheme.bodyBold)
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(text = "JOB BOARD", style = ConsoleTheme.body, modifier = Modifier.weight(1f))
-                Text(text = ">", style = ConsoleTheme.body)
-            }
-            
-            Spacer(modifier = Modifier.height(4.dp))
-            
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
-                    .clickable { onTimeTrackingClick?.invoke() }
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(text = "[◷]", style = ConsoleTheme.bodyBold)
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(text = "TIME CLOCK", style = ConsoleTheme.body, modifier = Modifier.weight(1f))
-                Text(text = ">", style = ConsoleTheme.body)
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
-                    .clickable { onArchiveClick?.invoke() }
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(text = "[⬚]", style = ConsoleTheme.bodyBold)
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(text = "ARCHIVE", style = ConsoleTheme.body, modifier = Modifier.weight(1f))
-                Text(text = ">", style = ConsoleTheme.body)
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-            ConsoleSeparator()
-            Spacer(modifier = Modifier.height(12.dp))
-            
             // ════════════════════════════════════════════════════════════════
             // USER
             // ════════════════════════════════════════════════════════════════
@@ -350,12 +293,72 @@ fun SettingsScreen(
                             .padding(8.dp)
                     )
                 }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Text(
+                    text = "SAVE URL",
+                    style = ConsoleTheme.action,
+                    modifier = Modifier
+                        .clickable {
+                            BackendConfig.setWebSocketUrl(gatewayUrl)
+                            BackendConfig.setBackendUrl(gatewayUrl.replace("ws://", "http://").replace("wss://", "https://"))
+                            Toast.makeText(context, "Gateway URLs saved", Toast.LENGTH_SHORT).show()
+                        }
+                        .padding(8.dp)
+                )
             }
             
             Spacer(modifier = Modifier.height(16.dp))
             ConsoleSeparator()
             Spacer(modifier = Modifier.height(12.dp))
-            
+
+            // ════════════════════════════════════════════════════════════════
+            // SUPABASE CONFIGURATION
+            // ════════════════════════════════════════════════════════════════
+            Text(text = "SUPABASE CONFIGURATION", style = ConsoleTheme.captionBold)
+            Spacer(modifier = Modifier.height(10.dp))
+
+            BasicTextField(
+                value = supabaseUrl,
+                onValueChange = { supabaseUrl = it },
+                textStyle = ConsoleTheme.bodySmall,
+                cursorBrush = SolidColor(ConsoleTheme.cursor),
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .padding(14.dp),
+                decorationBox = { innerTextField ->
+                    Box {
+                        if (supabaseUrl.isEmpty()) {
+                            Text(
+                                text = "https://your-project.supabase.co",
+                                style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder)
+                            )
+                        }
+                        innerTextField()
+                    }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = "SAVE SUPABASE URL →",
+                style = ConsoleTheme.action,
+                modifier = Modifier
+                    .clickable {
+                        BackendConfig.setSupabaseUrl(supabaseUrl)
+                        Toast.makeText(context, "Supabase URL saved", Toast.LENGTH_SHORT).show()
+                    }
+                    .padding(vertical = 8.dp)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            ConsoleSeparator()
+            Spacer(modifier = Modifier.height(12.dp))
+
             // ════════════════════════════════════════════════════════════════
             // AI ASSISTANT
             // ════════════════════════════════════════════════════════════════

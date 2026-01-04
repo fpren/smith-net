@@ -5,15 +5,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -75,240 +75,255 @@ fun ProfileScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(ConsoleTheme.background)
             .verticalScroll(rememberScrollState())
-            .padding(24.dp)
     ) {
-        // Header
+        // Header - match Settings style
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(ConsoleTheme.surface)
+                .clickable(onClick = onNavigateBack)
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                "Profile",
-                style = ConsoleTheme.title,
-                fontSize = 24.sp
-            )
-
-            Text(
-                "← Back",
-                style = ConsoleTheme.body.copy(color = ConsoleTheme.accent),
-                modifier = Modifier.clickable { onNavigateBack() }
-            )
+            Text(text = "←", style = ConsoleTheme.title)
+            Spacer(modifier = Modifier.width(14.dp))
+            Text(text = "PROFILE", style = ConsoleTheme.title)
         }
+        
+        ConsoleSeparator()
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Column(modifier = Modifier.padding(16.dp)) {
+            // ════════════════════════════════════════════════════════════════
+            // USER INFO
+            // ════════════════════════════════════════════════════════════════
+            Text(text = "ACCOUNT", style = ConsoleTheme.captionBold)
+            Spacer(modifier = Modifier.height(8.dp))
 
-        // User Info Card
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    "Account Information",
-                    style = ConsoleTheme.body.copy(fontWeight = FontWeight.Bold),
-                    fontSize = 18.sp
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Email (read-only)
-                Text("Email", style = ConsoleTheme.captionBold)
-                Text(
-                    currentUser?.email ?: "Not logged in",
-                    style = ConsoleTheme.body,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Display Name
-                Text("Display Name", style = ConsoleTheme.captionBold)
-                BasicTextField(
-                    value = displayName,
-                    onValueChange = { displayName = it },
-                    textStyle = ConsoleTheme.body.copy(color = MaterialTheme.colorScheme.onSurface),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
-                        .padding(12.dp)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Work Information Card
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    "Work Information",
-                    style = ConsoleTheme.body.copy(fontWeight = FontWeight.Bold),
-                    fontSize = 18.sp
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Occupation
-                Text("Occupation", style = ConsoleTheme.captionBold)
-                var occupationExpanded by remember { mutableStateOf(false) }
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        currentOccupation?.name?.lowercase()?.replaceFirstChar { it.uppercase() }
-                            ?: "Select occupation",
-                        style = ConsoleTheme.body.copy(color = MaterialTheme.colorScheme.onSurface),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { occupationExpanded = true }
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .padding(12.dp)
-                    )
-
-                    DropdownMenu(
-                        expanded = occupationExpanded,
-                        onDismissRequest = { occupationExpanded = false },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        occupations.forEach { (label, occupation) ->
-                            DropdownMenuItem(
-                                text = { Text(label, style = ConsoleTheme.body.copy(color = MaterialTheme.colorScheme.onSurface)) },
-                                onClick = {
-                                    selectedOccupation = occupation.name
-                                    occupationExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Experience Level
-                Text("Experience Level", style = ConsoleTheme.captionBold)
-                var experienceExpanded by remember { mutableStateOf(false) }
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        currentExperience?.name?.lowercase()?.replaceFirstChar { it.uppercase() }
-                            ?.replace("_", " ") ?: "Select experience",
-                        style = ConsoleTheme.body.copy(color = MaterialTheme.colorScheme.onSurface),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { experienceExpanded = true }
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .padding(12.dp)
-                    )
-
-                    DropdownMenu(
-                        expanded = experienceExpanded,
-                        onDismissRequest = { experienceExpanded = false },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        experiences.forEach { (label, experience) ->
-                            DropdownMenuItem(
-                                text = { Text(label, style = ConsoleTheme.body.copy(color = MaterialTheme.colorScheme.onSurface)) },
-                                onClick = {
-                                    selectedExperience = experience.name
-                                    experienceExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Business Name
-                Text("Business Name (Optional)", style = ConsoleTheme.captionBold)
-                BasicTextField(
-                    value = businessName,
-                    onValueChange = { businessName = it },
-                    textStyle = ConsoleTheme.body.copy(color = MaterialTheme.colorScheme.onSurface),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
-                        .padding(12.dp)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Address Information (read-only, link to settings)
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    "Business Address",
-                    style = ConsoleTheme.body.copy(fontWeight = FontWeight.Bold),
-                    fontSize = 18.sp
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                val address = UserPreferences.getAddress()
-                Text(
-                    "${address["street"]}\n${address["city"]}, ${address["stateProvince"]} ${address["zipPostal"]}\n${address["country"]}",
-                    style = ConsoleTheme.body
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    "Edit in Settings →",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent),
-                    modifier = Modifier.clickable { /* TODO: Navigate to settings */ }
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // Action Buttons
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Save Profile Button
-            Text(
-                "SAVE PROFILE",
-                style = ConsoleTheme.action.copy(fontSize = 16.sp),
+            // Email (read-only)
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "EMAIL:", style = ConsoleTheme.caption)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = currentUser?.email ?: "Not logged in",
+                    style = ConsoleTheme.body
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Display Name
+            BasicTextField(
+                value = displayName,
+                onValueChange = { displayName = it },
+                textStyle = ConsoleTheme.body,
+                cursorBrush = SolidColor(ConsoleTheme.cursor),
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .padding(12.dp),
+                decorationBox = { innerTextField ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "NAME:", style = ConsoleTheme.caption)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(modifier = Modifier.weight(1f)) {
+                            if (displayName.isEmpty()) {
+                                Text(
+                                    text = "enter name",
+                                    style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder)
+                                )
+                            }
+                            innerTextField()
+                        }
+                    }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            ConsoleSeparator()
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // ════════════════════════════════════════════════════════════════
+            // WORK INFO
+            // ════════════════════════════════════════════════════════════════
+            Text(text = "WORK INFORMATION", style = ConsoleTheme.captionBold)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Occupation
+            var occupationExpanded by remember { mutableStateOf(false) }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .clickable { occupationExpanded = true }
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "OCCUPATION:", style = ConsoleTheme.caption)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = currentOccupation?.name?.lowercase()?.replaceFirstChar { it.uppercase() }
+                        ?: "Select",
+                    style = ConsoleTheme.body,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(text = ">", style = ConsoleTheme.body)
+                
+                DropdownMenu(
+                    expanded = occupationExpanded,
+                    onDismissRequest = { occupationExpanded = false }
+                ) {
+                    occupations.forEach { (label, occupation) ->
+                        DropdownMenuItem(
+                            text = { Text(label, style = ConsoleTheme.body) },
+                            onClick = {
+                                selectedOccupation = occupation.name
+                                occupationExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Experience Level
+            var experienceExpanded by remember { mutableStateOf(false) }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .clickable { experienceExpanded = true }
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "EXPERIENCE:", style = ConsoleTheme.caption)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = currentExperience?.name?.lowercase()?.replaceFirstChar { it.uppercase() }
+                        ?.replace("_", " ") ?: "Select",
+                    style = ConsoleTheme.body,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(text = ">", style = ConsoleTheme.body)
+                
+                DropdownMenu(
+                    expanded = experienceExpanded,
+                    onDismissRequest = { experienceExpanded = false }
+                ) {
+                    experiences.forEach { (label, experience) ->
+                        DropdownMenuItem(
+                            text = { Text(label, style = ConsoleTheme.body) },
+                            onClick = {
+                                selectedExperience = experience.name
+                                experienceExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Business Name
+            BasicTextField(
+                value = businessName,
+                onValueChange = { businessName = it },
+                textStyle = ConsoleTheme.body,
+                cursorBrush = SolidColor(ConsoleTheme.cursor),
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .padding(12.dp),
+                decorationBox = { innerTextField ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "BUSINESS:", style = ConsoleTheme.caption)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(modifier = Modifier.weight(1f)) {
+                            if (businessName.isEmpty()) {
+                                Text(
+                                    text = "optional",
+                                    style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder)
+                                )
+                            }
+                            innerTextField()
+                        }
+                    }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            ConsoleSeparator()
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // ════════════════════════════════════════════════════════════════
+            // ADDRESS
+            // ════════════════════════════════════════════════════════════════
+            Text(text = "BUSINESS ADDRESS", style = ConsoleTheme.captionBold)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            val address = UserPreferences.getAddress()
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .padding(12.dp)
+            ) {
+                Text(
+                    text = "${address["street"]}\n${address["city"]}, ${address["stateProvince"]} ${address["zipPostal"]}\n${address["country"]}",
+                    style = ConsoleTheme.body
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            ConsoleSeparator()
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // ════════════════════════════════════════════════════════════════
+            // ACTIONS
+            // ════════════════════════════════════════════════════════════════
+            Text(text = "ACTIONS", style = ConsoleTheme.captionBold)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Save Profile Button - matches Settings style with save icon
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
                     .clickable {
-                        // Save profile data
                         UserPreferences.setUserName(displayName)
                         selectedOccupation?.let { UserPreferences.saveOccupation(it) }
                         selectedExperience?.let { UserPreferences.saveExperienceLevel(it) }
                         if (businessName.isNotBlank()) {
                             UserPreferences.saveBusinessName(businessName)
                         }
-
                         Toast.makeText(context, "Profile saved!", Toast.LENGTH_SHORT).show()
                     }
-                    .background(ConsoleTheme.accent, RoundedCornerShape(8.dp))
-                    .padding(16.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "[⬆]", style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.success))
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(text = "SAVE PROFILE", style = ConsoleTheme.body, modifier = Modifier.weight(1f))
+                Text(text = ">", style = ConsoleTheme.body.copy(color = ConsoleTheme.textMuted))
+            }
 
-            // Sign Out Button
-            Text(
-                "SIGN OUT",
-                style = ConsoleTheme.body.copy(color = ConsoleTheme.error, fontWeight = FontWeight.Bold),
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Sign Out Button - matches Settings [↪] SIGN OUT style
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
                     .clickable {
                         signOutScope.launch {
                             SupabaseAuth.signOut()
@@ -316,12 +331,16 @@ fun ProfileScreen(
                             onSignOut()
                         }
                     }
-                    .background(ConsoleTheme.surface, RoundedCornerShape(8.dp))
-                    .padding(16.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
-        }
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "[↪]", style = ConsoleTheme.bodyBold)
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(text = "SIGN OUT", style = ConsoleTheme.body, modifier = Modifier.weight(1f))
+                Text(text = ">", style = ConsoleTheme.body.copy(color = ConsoleTheme.textMuted))
+            }
 
-        Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(32.dp))
+        }
     }
 }

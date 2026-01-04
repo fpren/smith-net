@@ -7,6 +7,7 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -15,10 +16,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.imePadding
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
@@ -37,6 +40,8 @@ import kotlin.math.roundToInt
 @Composable
 fun JobBoardScreen(
     onNavigateBack: () -> Unit,
+    onSettingsClick: () -> Unit = {},
+    onNavigateToPlan: (jobId: String) -> Unit = {},
     viewModel: JobBoardViewModel = viewModel()
 ) {
     val jobs by viewModel.jobs.collectAsState()
@@ -168,9 +173,10 @@ fun JobBoardScreen(
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             items(filteredJobs.sortedByDescending { it.updatedAt }) { job ->
-                SwipeableJobRow(
+                JobRowWithActions(
                     job = job,
                     onClick = { viewModel.selectJob(job) },
+                    onShare = { /* TODO: Navigate to collaborative sharing screen */ },
                     onArchive = { viewModel.archiveJob(job.id) },
                     onDelete = { viewModel.deleteJob(job.id) }
                 )
@@ -193,6 +199,9 @@ fun JobBoardScreen(
                 }
             }
         }
+        
+        // Footer - SETTINGS + Made by Guild of Smiths
+        com.guildofsmiths.trademesh.ui.SmithNetSharedFooter(onSettingsClick = onSettingsClick)
     }
 
     // Create Job Dialog with Preview
@@ -212,7 +221,11 @@ fun JobBoardScreen(
             job = job,
             tasks = tasks,
             viewModel = viewModel,
-            onDismiss = { viewModel.selectJob(null) }
+            onDismiss = { viewModel.selectJob(null) },
+            onNavigateToPlan = { jobId -> 
+                viewModel.selectJob(null)
+                onNavigateToPlan(jobId)
+            }
         )
     }
 
@@ -231,6 +244,12 @@ fun JobBoardScreen(
 
 @Composable
 private fun JobRow(job: Job, onClick: () -> Unit) {
+    // Get task count from storage
+    val taskCount = remember(job.id) { com.guildofsmiths.trademesh.data.TaskStorage.getTaskCount(job.id) }
+    val tasksDone = remember(job.id) { 
+        com.guildofsmiths.trademesh.data.TaskStorage.loadTasks(job.id).count { it.status == TaskStatus.DONE }
+    }
+    
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -245,23 +264,40 @@ private fun JobRow(job: Job, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.weight(1f)
         ) {
-            Text(
-                text = when (job.status) {
-                    JobStatus.TODO -> "[  ]"
-                    JobStatus.IN_PROGRESS -> "[>>]"
-                    JobStatus.REVIEW -> "[??]"
-                    JobStatus.DONE -> "[OK]"
-                    else -> "[--]"
-                },
-                style = ConsoleTheme.bodyBold.copy(
-                    color = when (job.status) {
-                        JobStatus.IN_PROGRESS -> ConsoleTheme.warning
-                        JobStatus.REVIEW -> ConsoleTheme.accent
-                        JobStatus.DONE -> ConsoleTheme.success
-                        else -> ConsoleTheme.textMuted
-                    }
+            // Task counter instead of just status indicator
+            if (taskCount > 0) {
+                Text(
+                    text = "[$tasksDone/$taskCount]",
+                    style = ConsoleTheme.bodyBold.copy(
+                        color = when {
+                            tasksDone == taskCount -> ConsoleTheme.success
+                            tasksDone > 0 -> ConsoleTheme.warning
+                            else -> ConsoleTheme.textMuted
+                        }
+                    )
                 )
-            )
+            } else {
+                // No tasks - show status indicator
+                Text(
+                    text = when (job.status) {
+                        JobStatus.TODO -> "[  ]"
+                        JobStatus.IN_PROGRESS -> "[>>]"
+                        JobStatus.REVIEW -> "[??]"
+                        JobStatus.DONE -> "[OK]"
+                        JobStatus.BACKLOG -> "[..]"
+                        JobStatus.ARCHIVED -> "[--]"
+                    },
+                    style = ConsoleTheme.bodyBold.copy(
+                        color = when (job.status) {
+                            JobStatus.IN_PROGRESS -> ConsoleTheme.warning
+                            JobStatus.REVIEW -> ConsoleTheme.accent
+                            JobStatus.DONE -> ConsoleTheme.success
+                            JobStatus.BACKLOG -> ConsoleTheme.textDim
+                            else -> ConsoleTheme.textMuted
+                        }
+                    )
+                )
+            }
             
             Column(modifier = Modifier.weight(1f)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -285,13 +321,48 @@ private fun JobRow(job: Job, onClick: () -> Unit) {
             }
         }
 
-        Text(text = "VIEW >", style = ConsoleTheme.action, modifier = Modifier.clickable { onClick() })
+        Text(text = ">", style = ConsoleTheme.action, modifier = Modifier.clickable { onClick() })
     }
 }
 
 // ════════════════════════════════════════════════════════════════════
-// SWIPEABLE JOB ROW (swipe left to archive)
+// JOB ROW WITH ACTIONS (swipe + share button)
 // ════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun JobRowWithActions(
+    job: Job,
+    onClick: () -> Unit,
+    onShare: () -> Unit,
+    onArchive: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Column {
+        // Share button row (only show for jobs that can be shared)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.End
+        ) {
+            Text(
+                text = "SHARE",
+                style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent),
+                modifier = Modifier
+                    .clickable { onShare() }
+                    .padding(horizontal = 8.dp, vertical = 2.dp)
+            )
+        }
+
+        // Swipeable job row
+        SwipeableJobRow(
+            job = job,
+            onClick = onClick,
+            onArchive = onArchive,
+            onDelete = onDelete
+        )
+    }
+}
 
 @Composable
 private fun SwipeableJobRow(
@@ -366,28 +437,51 @@ private fun SwipeableJobRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Get task count from storage
+            val taskCount = remember(job.id) { com.guildofsmiths.trademesh.data.TaskStorage.getTaskCount(job.id) }
+            val tasksDone = remember(job.id) { 
+                com.guildofsmiths.trademesh.data.TaskStorage.loadTasks(job.id).count { it.status == TaskStatus.DONE }
+            }
+            
             Row(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
-                Text(
-                    text = when (job.status) {
-                        JobStatus.TODO -> "[  ]"
-                        JobStatus.IN_PROGRESS -> "[>>]"
-                        JobStatus.REVIEW -> "[??]"
-                        JobStatus.DONE -> "[OK]"
-                        else -> "[--]"
-                    },
-                    style = ConsoleTheme.bodyBold.copy(
-                        color = when (job.status) {
-                            JobStatus.IN_PROGRESS -> ConsoleTheme.warning
-                            JobStatus.REVIEW -> ConsoleTheme.accent
-                            JobStatus.DONE -> ConsoleTheme.success
-                            else -> ConsoleTheme.textMuted
-                        }
+                // Task counter instead of just status indicator
+                if (taskCount > 0) {
+                    Text(
+                        text = "[$tasksDone/$taskCount]",
+                        style = ConsoleTheme.bodyBold.copy(
+                            color = when {
+                                tasksDone == taskCount -> ConsoleTheme.success
+                                tasksDone > 0 -> ConsoleTheme.warning
+                                else -> ConsoleTheme.textMuted
+                            }
+                        )
                     )
-                )
+                } else {
+                    // No tasks - show status indicator
+                    Text(
+                        text = when (job.status) {
+                            JobStatus.TODO -> "[  ]"
+                            JobStatus.IN_PROGRESS -> "[>>]"
+                            JobStatus.REVIEW -> "[??]"
+                            JobStatus.DONE -> "[OK]"
+                            JobStatus.BACKLOG -> "[..]"
+                            JobStatus.ARCHIVED -> "[--]"
+                        },
+                        style = ConsoleTheme.bodyBold.copy(
+                            color = when (job.status) {
+                                JobStatus.IN_PROGRESS -> ConsoleTheme.warning
+                                JobStatus.REVIEW -> ConsoleTheme.accent
+                                JobStatus.DONE -> ConsoleTheme.success
+                                JobStatus.BACKLOG -> ConsoleTheme.textDim
+                                else -> ConsoleTheme.textMuted
+                            }
+                        )
+                    )
+                }
                 
                 Column(modifier = Modifier.weight(1f)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -498,7 +592,8 @@ private fun JobWorkflowDialog(
     job: Job,
     tasks: List<Task>,
     viewModel: JobBoardViewModel,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onNavigateToPlan: (jobId: String) -> Unit = {}
 ) {
     var showAddTask by remember { mutableStateOf(false) }
     var newTaskTitle by remember { mutableStateOf("") }
@@ -550,7 +645,15 @@ private fun JobWorkflowDialog(
                             Text(text = job.priority.displayName, style = ConsoleTheme.caption)
                         }
                     }
-                    Text(text = "X", style = ConsoleTheme.action, modifier = Modifier.clickable { onDismiss() })
+                    // Action links
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = "PLAN",
+                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent),
+                            modifier = Modifier.clickable { onNavigateToPlan(job.id) }
+                        )
+                        Text(text = "X", style = ConsoleTheme.action, modifier = Modifier.clickable { onDismiss() })
+                    }
                 }
             }
         },
@@ -582,14 +685,14 @@ private fun JobWorkflowDialog(
                 ConsoleSeparator()
 
                 // ═══════════════════════════════════════════════════
-                // MATERIALS & TOOLS CHECKLIST (must check off before advancing from WORKING)
+                // MATERIALS & TOOLS CHECKLIST (shared resources for the whole job)
                 // ═══════════════════════════════════════════════════
                 if (job.materials.isNotEmpty()) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "CHECKLIST", style = ConsoleTheme.captionBold)
+                        Text(text = "CHECKLIST (Shared)", style = ConsoleTheme.captionBold)
                         val checkedCount = job.materials.count { it.checked }
                         Text(
                             text = "$checkedCount/${job.materials.size}",
@@ -647,15 +750,151 @@ private fun JobWorkflowDialog(
                 // ═══════════════════════════════════════════════════
                 // TASKS (must complete before advancing from WORKING)
                 // ═══════════════════════════════════════════════════
+                
+                // State for task assignment UI
+                var showAssignDialog by remember { mutableStateOf<String?>(null) }
+                val taskFilterMode by viewModel.taskFilterMode.collectAsState()
+                val assignableMembers = remember(job) { viewModel.getAssignableMembers(job) }
+                val hasMultipleWorkers = assignableMembers.size > 1 || job.crewSize > 1
+                val currentUserId = com.guildofsmiths.trademesh.data.UserPreferences.getUserId()
+                
+                // Calculate task counts
+                val myTasksCount = tasks.count { it.assignedTo == currentUserId }
+                val myTasksDoneCount = tasks.count { it.assignedTo == currentUserId && it.status == TaskStatus.DONE }
+                val totalDoneCount = tasks.count { it.status == TaskStatus.DONE }
+                
+                // Determine which tasks to show based on filter
+                val displayTasks = when (taskFilterMode) {
+                    TaskFilterMode.ALL -> tasks
+                    TaskFilterMode.MY_TASKS -> tasks.filter { it.assignedTo == currentUserId }
+                    TaskFilterMode.UNASSIGNED -> tasks.filter { it.assignedTo == null }
+                }
+                
+                // ═══════════════════════════════════════════════════
+                // MY TASKS SUMMARY (prominent when multiple workers)
+                // ═══════════════════════════════════════════════════
+                if (hasMultipleWorkers && myTasksCount > 0) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(ConsoleTheme.accent.copy(alpha = 0.1f))
+                            .border(1.dp, ConsoleTheme.accent.copy(alpha = 0.3f))
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "★ YOUR TASKS",
+                                style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
+                            )
+                            Text(
+                                text = "$myTasksDoneCount / $myTasksCount done",
+                                style = ConsoleTheme.captionBold.copy(
+                                    color = if (myTasksDoneCount == myTasksCount) ConsoleTheme.success else ConsoleTheme.accent
+                                )
+                            )
+                        }
+                        
+                        // Quick view of my incomplete tasks
+                        val myIncompleteTasks = tasks.filter { 
+                            it.assignedTo == currentUserId && it.status != TaskStatus.DONE 
+                        }.take(3)
+                        
+                        if (myIncompleteTasks.isNotEmpty()) {
+                            myIncompleteTasks.forEach { task ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { viewModel.toggleTask(task.id) }
+                                        .padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(text = "[ ]", style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.accent))
+                                    Text(
+                                        text = task.title,
+                                        style = ConsoleTheme.body,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                            if (tasks.count { it.assignedTo == currentUserId && it.status != TaskStatus.DONE } > 3) {
+                                Text(
+                                    text = "... and ${tasks.count { it.assignedTo == currentUserId && it.status != TaskStatus.DONE } - 3} more",
+                                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                                )
+                            }
+                        } else {
+                            Text(
+                                text = "✓ All your tasks complete!",
+                                style = ConsoleTheme.body.copy(color = ConsoleTheme.success)
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+                
+                // Task header with filter tabs
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "TASKS", style = ConsoleTheme.captionBold)
+                    // Filter tabs (shown inline when multiple workers)
+                    if (hasMultipleWorkers) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            // All Tasks tab
+                            Text(
+                                text = "[ALL ${tasks.size}]",
+                                style = ConsoleTheme.caption.copy(
+                                    color = if (taskFilterMode == TaskFilterMode.ALL) ConsoleTheme.text else ConsoleTheme.textMuted
+                                ),
+                                modifier = Modifier
+                                    .clickable { viewModel.setTaskFilter(TaskFilterMode.ALL) }
+                                    .background(
+                                        if (taskFilterMode == TaskFilterMode.ALL) ConsoleTheme.surface else ConsoleTheme.background
+                                    )
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                            // My Tasks tab
+                            Text(
+                                text = "[MINE $myTasksCount]",
+                                style = ConsoleTheme.caption.copy(
+                                    color = if (taskFilterMode == TaskFilterMode.MY_TASKS) ConsoleTheme.accent else ConsoleTheme.textMuted
+                                ),
+                                modifier = Modifier
+                                    .clickable { viewModel.setTaskFilter(TaskFilterMode.MY_TASKS) }
+                                    .background(
+                                        if (taskFilterMode == TaskFilterMode.MY_TASKS) ConsoleTheme.accent.copy(alpha = 0.15f) else ConsoleTheme.background
+                                    )
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                            // Others/Unassigned
+                            val othersCount = tasks.size - myTasksCount
+                            if (othersCount > 0) {
+                                Text(
+                                    text = "[OTHER $othersCount]",
+                                    style = ConsoleTheme.caption.copy(
+                                        color = if (taskFilterMode == TaskFilterMode.UNASSIGNED) ConsoleTheme.textMuted else ConsoleTheme.textDim
+                                    ),
+                                    modifier = Modifier
+                                        .clickable { viewModel.setTaskFilter(TaskFilterMode.UNASSIGNED) }
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    } else {
+                        Text(text = "TASKS", style = ConsoleTheme.captionBold)
+                    }
+                    
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        val doneCount = tasks.count { it.status == TaskStatus.DONE }
                         Text(
-                            text = "$doneCount/${tasks.size}",
+                            text = "$totalDoneCount/${tasks.size}",
                             style = ConsoleTheme.captionBold.copy(
                                 color = if (allTasksComplete && tasks.isNotEmpty()) ConsoleTheme.success 
                                         else ConsoleTheme.textMuted
@@ -668,25 +907,297 @@ private fun JobWorkflowDialog(
                         )
                     }
                 }
+                
+                // Crew distribution summary (compact)
+                if (hasMultipleWorkers) {
+                    val summary = viewModel.getTaskAssignmentSummary(job)
+                    if (summary.size > 1) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            summary.entries.forEach { (assigneeId, count) ->
+                                val name = assignableMembers.find { it.id == assigneeId }?.name?.take(10) 
+                                    ?: if (assigneeId == "Unassigned") "?" else assigneeId.take(8)
+                                val isMe = assigneeId == currentUserId
+                                Text(
+                                    text = "${if (isMe) "★" else ""}$name:$count",
+                                    style = ConsoleTheme.caption.copy(
+                                        color = if (isMe) ConsoleTheme.accent else ConsoleTheme.textMuted
+                                    )
+                                )
+                            }
+                            
+                            // Quick actions
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text(
+                                text = "[↻]",
+                                style = ConsoleTheme.action,
+                                modifier = Modifier.clickable { viewModel.autoDistributeTasks() }
+                            )
+                        }
+                    }
+                }
 
-                tasks.forEach { task ->
-                    Row(
+                // Swipe hint for crew jobs
+                if (hasMultipleWorkers) {
+                    Text(
+                        text = "Swipe right → to claim tasks",
+                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim),
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                }
+
+                // Task list with swipe-to-claim
+                displayTasks.forEach { task ->
+                    val assigneeName = assignableMembers.find { it.id == task.assignedTo }?.name
+                    val isMyTask = task.assignedTo == currentUserId
+                    val isUnassigned = task.assignedTo == null
+                    
+                    // Swipe state for claiming
+                    var taskOffsetX by remember { mutableStateOf(0f) }
+                    val swipeThreshold = 100f
+                    
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(ConsoleTheme.surface)
-                            .clickable { viewModel.toggleTask(task.id) }
-                            .padding(10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (task.status == TaskStatus.DONE) "[X]" else "[  ]",
-                            style = ConsoleTheme.bodyBold.copy(
-                                color = if (task.status == TaskStatus.DONE) ConsoleTheme.success 
-                                        else ConsoleTheme.textMuted
+                            .then(
+                                if (hasMultipleWorkers && isUnassigned) {
+                                    Modifier.pointerInput(task.id) {
+                                        detectHorizontalDragGestures(
+                                            onDragEnd = {
+                                                if (taskOffsetX > swipeThreshold) {
+                                                    // Claim this task (also auto-assigns related materials)
+                                                    viewModel.claimTask(task.id)
+                                                }
+                                                taskOffsetX = 0f
+                                            },
+                                            onHorizontalDrag = { _, dragAmount ->
+                                                taskOffsetX = (taskOffsetX + dragAmount).coerceIn(0f, 150f)
+                                            }
+                                        )
+                                    }
+                                } else if (hasMultipleWorkers && isMyTask) {
+                                    // Swipe left to unclaim
+                                    Modifier.pointerInput(task.id) {
+                                        detectHorizontalDragGestures(
+                                            onDragEnd = {
+                                                if (taskOffsetX < -swipeThreshold) {
+                                                    viewModel.unclaimTask(task.id)
+                                                }
+                                                taskOffsetX = 0f
+                                            },
+                                            onHorizontalDrag = { _, dragAmount ->
+                                                taskOffsetX = (taskOffsetX + dragAmount).coerceIn(-150f, 0f)
+                                            }
+                                        )
+                                    }
+                                } else Modifier
                             )
-                        )
-                        Text(text = task.title, style = ConsoleTheme.body, modifier = Modifier.weight(1f))
+                    ) {
+                        // Claim indicator background (swipe right)
+                        if (taskOffsetX > 0 && isUnassigned) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(ConsoleTheme.accent.copy(alpha = 0.3f))
+                                    .padding(10.dp),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                Text(
+                                    text = "→ CLAIM + materials",
+                                    style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.accent)
+                                )
+                            }
+                        }
+                        
+                        // Unclaim indicator background (swipe left)
+                        if (taskOffsetX < 0 && isMyTask) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(ConsoleTheme.warning.copy(alpha = 0.3f))
+                                    .padding(10.dp),
+                                contentAlignment = Alignment.CenterEnd
+                            ) {
+                                Text(
+                                    text = "RELEASE ←",
+                                    style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.warning)
+                                )
+                            }
+                        }
+                        
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .offset { IntOffset(taskOffsetX.roundToInt(), 0) }
+                                .background(
+                                    when {
+                                        isMyTask -> ConsoleTheme.accent.copy(alpha = 0.08f)
+                                        isUnassigned -> ConsoleTheme.warning.copy(alpha = 0.05f)
+                                        else -> ConsoleTheme.surface
+                                    }
+                                )
+                                .padding(10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Ownership indicator
+                            if (hasMultipleWorkers) {
+                                Text(
+                                    text = when {
+                                        isMyTask -> "★"
+                                        isUnassigned -> "?"
+                                        else -> "·"
+                                    },
+                                    style = ConsoleTheme.bodyBold.copy(
+                                        color = when {
+                                            isMyTask -> ConsoleTheme.accent
+                                            isUnassigned -> ConsoleTheme.warning
+                                            else -> ConsoleTheme.textDim
+                                        }
+                                    )
+                                )
+                            }
+                            
+                            // Checkbox - click to toggle
+                            Text(
+                                text = if (task.status == TaskStatus.DONE) "[X]" else "[  ]",
+                                style = ConsoleTheme.bodyBold.copy(
+                                    color = if (task.status == TaskStatus.DONE) ConsoleTheme.success 
+                                            else ConsoleTheme.textMuted
+                                ),
+                                modifier = Modifier.clickable { viewModel.toggleTask(task.id) }
+                            )
+                            
+                            // Task title and assignee
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = task.title, 
+                                    style = ConsoleTheme.body.copy(
+                                        color = if (isMyTask) ConsoleTheme.text else ConsoleTheme.textSecondary
+                                    )
+                                )
+                                if (hasMultipleWorkers && !isMyTask) {
+                                    Text(
+                                        text = assigneeName ?: "Unassigned",
+                                        style = ConsoleTheme.caption.copy(
+                                            color = if (isUnassigned) ConsoleTheme.warning else ConsoleTheme.textMuted
+                                        )
+                                    )
+                                }
+                            }
+                            
+                            // Assign button (only if multiple workers) - for reassignment
+                            if (hasMultipleWorkers) {
+                                Text(
+                                    text = "⋮",
+                                    style = ConsoleTheme.action,
+                                    modifier = Modifier.clickable { showAssignDialog = task.id }
+                                )
+                            }
+                        }
+                    }
+                }
+                
+                // Empty state for filtered view
+                if (displayTasks.isEmpty() && tasks.isNotEmpty()) {
+                    Text(
+                        text = when (taskFilterMode) {
+                            TaskFilterMode.MY_TASKS -> "No tasks assigned to you"
+                            TaskFilterMode.UNASSIGNED -> "All tasks are assigned"
+                            else -> "No tasks"
+                        },
+                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+                
+                // Task assignment dialog
+                if (showAssignDialog != null) {
+                    val taskToAssign = tasks.find { it.id == showAssignDialog }
+                    if (taskToAssign != null) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(ConsoleTheme.background)
+                                .border(1.dp, ConsoleTheme.separator)
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "ASSIGN: ${taskToAssign.title.take(40)}",
+                                style = ConsoleTheme.captionBold
+                            )
+                            
+                            // Crew members (you first, highlighted)
+                            assignableMembers.forEach { member ->
+                                val isMe = member.id == currentUserId
+                                val isSelected = taskToAssign.assignedTo == member.id
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(
+                                            if (isSelected) ConsoleTheme.accent.copy(alpha = 0.15f) 
+                                            else ConsoleTheme.surface
+                                        )
+                                        .clickable {
+                                            viewModel.assignTask(taskToAssign.id, member.id)
+                                            showAssignDialog = null
+                                        }
+                                        .padding(10.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = if (isSelected) "[●]" else "[ ]",
+                                        style = ConsoleTheme.body.copy(
+                                            color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.textMuted
+                                        )
+                                    )
+                                    Text(
+                                        text = if (isMe) "★ ${member.name} (You)" else member.name,
+                                        style = ConsoleTheme.body.copy(
+                                            color = if (isMe) ConsoleTheme.accent else ConsoleTheme.text
+                                        )
+                                    )
+                                    if (member.role.isNotEmpty() && !isMe) {
+                                        Text(
+                                            text = "(${member.role})",
+                                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                                        )
+                                    }
+                                }
+                            }
+                            
+                            // Unassign option
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.assignTask(taskToAssign.id, null)
+                                        showAssignDialog = null
+                                    }
+                                    .padding(10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = if (taskToAssign.assignedTo == null) "[●]" else "[ ]",
+                                    style = ConsoleTheme.body.copy(color = ConsoleTheme.warning)
+                                )
+                                Text(text = "? Unassigned", style = ConsoleTheme.body.copy(color = ConsoleTheme.warning))
+                            }
+                            
+                            // Cancel
+                            Text(
+                                text = "[CLOSE]",
+                                style = ConsoleTheme.action,
+                                modifier = Modifier
+                                    .align(Alignment.End)
+                                    .clickable { showAssignDialog = null }
+                            )
+                        }
                     }
                 }
 
@@ -817,6 +1328,20 @@ private fun JobWorkflowDialog(
                 // WORKFLOW ACTIONS
                 // ═══════════════════════════════════════════════════
                 when (job.status) {
+                    JobStatus.BACKLOG -> {
+                        // Move to TODO
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(ConsoleTheme.success.copy(alpha = 0.15f))
+                                .clickable { viewModel.moveJob(job.id, JobStatus.TODO) }
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = "MOVE TO TODO >>", style = ConsoleTheme.header.copy(color = ConsoleTheme.success))
+                        }
+                    }
+                    
                     JobStatus.TODO -> {
                         // Can start working
                         Box(
@@ -877,6 +1402,8 @@ private fun JobWorkflowDialog(
                     }
                     
                     JobStatus.DONE -> {
+                        var showDocOptions by remember { mutableStateOf(false) }
+                        
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(
                                 text = "✓ Job completed",
@@ -884,16 +1411,121 @@ private fun JobWorkflowDialog(
                                 modifier = Modifier.padding(vertical = 8.dp)
                             )
                             
-                            // Generate Invoice button
+                            // Document generation options
+                            if (!showDocOptions) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(ConsoleTheme.accent.copy(alpha = 0.15f))
+                                        .clickable { showDocOptions = true }
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "[📄] GENERATE DOCUMENTS",
+                                        style = ConsoleTheme.header.copy(color = ConsoleTheme.accent)
+                                    )
+                                }
+                            } else {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(ConsoleTheme.surface)
+                                        .padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = "SELECT DOCUMENT TYPE:",
+                                        style = ConsoleTheme.captionBold
+                                    )
+                                    
+                                    // Invoice option
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(ConsoleTheme.background)
+                                            .clickable { viewModel.generateInvoice(job) }
+                                            .padding(12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column {
+                                            Text(text = "INVOICE", style = ConsoleTheme.bodyBold)
+                                            Text(
+                                                text = "Billing with labor & materials",
+                                                style = ConsoleTheme.caption
+                                            )
+                                        }
+                                        Text(text = "→", style = ConsoleTheme.action)
+                                    }
+                                    
+                                    // Report option (uses Invoice dialog for now, TODO: separate report)
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(ConsoleTheme.background)
+                                            .clickable { viewModel.generateInvoice(job) }
+                                            .padding(12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column {
+                                            Text(text = "REPORT", style = ConsoleTheme.bodyBold)
+                                            Text(
+                                                text = "Work completion summary",
+                                                style = ConsoleTheme.caption
+                                            )
+                                        }
+                                        Text(text = "→", style = ConsoleTheme.action)
+                                    }
+                                    
+                                    // Both option
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(ConsoleTheme.success.copy(alpha = 0.1f))
+                                            .border(1.dp, ConsoleTheme.success)
+                                            .clickable { viewModel.generateInvoice(job) }
+                                            .padding(12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column {
+                                            Text(
+                                                text = "INVOICE + REPORT",
+                                                style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.success)
+                                            )
+                                            Text(
+                                                text = "Generate both documents",
+                                                style = ConsoleTheme.caption
+                                            )
+                                        }
+                                        Text(
+                                            text = "→",
+                                            style = ConsoleTheme.action.copy(color = ConsoleTheme.success)
+                                        )
+                                    }
+                                    
+                                    Text(
+                                        text = "[CANCEL]",
+                                        style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                                        modifier = Modifier
+                                            .clickable { showDocOptions = false }
+                                            .padding(top = 8.dp)
+                                    )
+                                }
+                            }
+                            
+                            // Archive button - moves to archive for historical record
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(ConsoleTheme.accent.copy(alpha = 0.15f))
-                                    .clickable { viewModel.generateInvoice(job) }
+                                    .background(ConsoleTheme.warning.copy(alpha = 0.15f))
+                                    .clickable { 
+                                        viewModel.archiveJob(job.id, "Completed")
+                                        onDismiss()
+                                    }
                                     .padding(16.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(text = "[$] GENERATE INVOICE", style = ConsoleTheme.header.copy(color = ConsoleTheme.accent))
+                                Text(text = "[▤] ARCHIVE JOB", style = ConsoleTheme.header.copy(color = ConsoleTheme.warning))
                             }
                         }
                     }

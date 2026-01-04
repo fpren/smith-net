@@ -88,7 +88,14 @@ object MessageRepository {
      */
     @Synchronized
     fun addMessage(message: Message) {
-        if (seenMessageIds.contains(message.id)) {
+        val isDuplicate = seenMessageIds.contains(message.id)
+        // #region agent log
+        android.util.Log.w("DEBUG_MSG", "addMessage: msgId=${message.id.take(8)} isDuplicate=$isDuplicate content='${message.content.take(20)}' isMeshOrigin=${message.isMeshOrigin}")
+        // #endregion
+        if (isDuplicate) {
+            // #region agent log
+            android.util.Log.w("DEBUG_MSG", "DUPLICATE REJECTED: msgId=${message.id.take(8)}")
+            // #endregion
             return // Duplicate, ignore
         }
         seenMessageIds.add(message.id)

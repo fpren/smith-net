@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -38,6 +39,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -91,6 +93,10 @@ fun ConversationScreen(
     val listState = rememberLazyListState()
     var inputText by remember { mutableStateOf("") }
     
+    // Gesture navigation state - swipe right to go back
+    var pageSwipeOffset by remember { mutableStateOf(0f) }
+    val pageSwipeThreshold = 150f
+    
     // Peer selection for DM (initialize with passed-in peer if any)
     var showPeerSelector by remember { mutableStateOf(false) }
     var selectedPeer by remember { mutableStateOf(initialDmPeer) }
@@ -109,30 +115,61 @@ fun ConversationScreen(
     // Check if this is a DM channel
     val isDmChannel = channel?.id?.startsWith("dm_") == true
     
-    Column(
+    // Gesture navigation wrapper - swipe right to go back
+    Box(
         modifier = modifier
+            .fillMaxSize()
+            .offset { IntOffset(pageSwipeOffset.roundToInt(), 0) }
+            .pointerInput(onBackClick) {
+                if (onBackClick != null) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            if (pageSwipeOffset > pageSwipeThreshold) {
+                                onBackClick()
+                            }
+                            pageSwipeOffset = 0f
+                        },
+                        onDragCancel = { pageSwipeOffset = 0f },
+                        onHorizontalDrag = { _, dragAmount ->
+                            // Only allow swipe right (positive direction)
+                            if (dragAmount > 0 || pageSwipeOffset > 0) {
+                                pageSwipeOffset = (pageSwipeOffset + dragAmount).coerceIn(0f, pageSwipeThreshold * 1.5f)
+                            }
+                        }
+                    )
+                }
+            }
+    ) {
+        // Visual indicator for back gesture
+        if (pageSwipeOffset > 20f) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 8.dp)
+            ) {
+                Text(
+                    text = if (pageSwipeOffset > pageSwipeThreshold) "← release" else "←",
+                    style = ConsoleTheme.caption.copy(
+                        color = ConsoleTheme.textMuted.copy(alpha = (pageSwipeOffset / pageSwipeThreshold).coerceIn(0.3f, 1f))
+                    )
+                )
+            }
+        }
+        
+    Column(
+        modifier = Modifier
             .fillMaxSize()
             .background(ConsoleTheme.background)
     ) {
-        // Bold header - show peer name for DM, channel name otherwise
+        // Header - NO visible back button (use swipe gesture)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(ConsoleTheme.surface)
-                .then(
-                    if (onBackClick != null) Modifier.clickable(onClick = onBackClick)
-                    else Modifier
-                )
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (onBackClick != null) {
-                Text(
-                    text = "←",
-                    style = ConsoleTheme.title.copy(color = ConsoleTheme.text)
-                )
-                Spacer(modifier = Modifier.width(14.dp))
-            }
+            // NO back arrow - navigation is gesture-only
             
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -653,6 +690,7 @@ fun ConversationScreen(
             }
         }
     }
+    } // Close gesture navigation wrapper Box
 }
 
 
@@ -715,36 +753,6 @@ private fun MessageBlock(
                         style = ConsoleTheme.timestamp.copy(color = ConsoleTheme.textDim)
                     )
                 }
-                // #region agent log
-                try {
-                    val data = mapOf(
-                        "sessionId" to "debug-session",
-                        "runId" to "transport-indicators-test",
-                        "hypothesisId" to "A",
-                        "location" to "ConversationScreen.kt:707",
-                        "message" to "Transport indicator check",
-                        "data" to mapOf(
-                            "messageId" to message.id.take(8),
-                            "senderName" to message.senderName,
-                            "isMeshOrigin" to message.isMeshOrigin,
-                            "isSentByMe" to isSentByMe,
-                            "hasSubIndicator" to (message.isMeshOrigin && !isSentByMe),
-                            "hasOnlineIndicator" to (!message.isMeshOrigin && !isSentByMe)
-                        ),
-                        "timestamp" to System.currentTimeMillis()
-                    )
-                    val jsonPayload = org.json.JSONObject(data).toString()
-                    val url = java.net.URL("http://127.0.0.1:7242/ingest/0adb3485-1a4e-45bf-a3c0-30e8c05573e2")
-                    val connection = url.openConnection() as java.net.HttpURLConnection
-                    connection.requestMethod = "POST"
-                    connection.setRequestProperty("Content-Type", "application/json")
-                    connection.doOutput = true
-                    connection.outputStream.write(jsonPayload.toByteArray())
-                    connection.inputStream.close()
-                } catch (e: Exception) {
-                    // Ignore logging errors
-                }
-                // #endregion
                 if (message.isDirectMessage()) {
                     Text(
                         text = " [DM]",

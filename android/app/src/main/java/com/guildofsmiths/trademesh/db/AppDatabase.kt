@@ -9,14 +9,15 @@ import androidx.room.RoomDatabase
  * Room database for TradeMesh.
  */
 @Database(
-    entities = [MessageEntity::class, CordEntity::class],
-    version = 3,
+    entities = [MessageEntity::class, CordEntity::class, KeywordObservationEntity::class],
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun messageDao(): MessageDao
     abstract fun cordDao(): CordDao
+    abstract fun keywordObservationDao(): KeywordObservationDao
 
     companion object {
         private const val DATABASE_NAME = "trademesh_db"

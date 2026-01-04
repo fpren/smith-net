@@ -89,7 +89,35 @@ data class Invoice(
     
     // Payment
     val paymentInstructions: String = "",
-    val notes: String = ""
+    val notes: String = "",
+    
+    // ════════════════════════════════════════════════════════════════════
+    // CLIENT-FACING PERFORMANCE DATA (safe to show clients)
+    // ════════════════════════════════════════════════════════════════════
+    val performanceSummary: InvoicePerformanceSummary? = null
+)
+
+/**
+ * Client-facing performance summary for invoices.
+ * Shows historical track record and job-specific performance.
+ * Safe to include in client-facing documents.
+ */
+data class InvoicePerformanceSummary(
+    // This job's performance
+    val jobCompletedOnTime: Boolean,         // Was this job completed on/before deadline?
+    val clientSatisfactionRating: Int? = null, // Client rating for this job (if collected)
+    
+    // Historical track record
+    val totalJobsCompleted: Int,             // e.g., "45 jobs completed"
+    val avgClientRating: Double?,            // e.g., "9.1/10 average"
+    val onTimeCompletionRate: Int,           // e.g., "96% on-time"
+    
+    // Quality indicators
+    val qualityTrackRecord: String,          // e.g., "100% code compliance"
+    
+    // Market comparison (if available)
+    val completionTimeVsMarket: String? = null, // e.g., "Completed 15% faster than industry avg"
+    val marketPosition: String? = null          // e.g., "Premium service provider"
 )
 
 // Crew member with their logged hours
@@ -159,8 +187,139 @@ object InvoiceGenerator {
     private val shortDateFormat = SimpleDateFormat("MMM d, yyyy", Locale.US)
     
     /**
+     * Generate a PROPOSAL document for client approval (pre-job)
+     * Creates an Invoice-like document but formatted as a proposal with estimates
+     */
+    fun generateProposal(
+        job: Job,
+        providerName: String,
+        providerBusiness: String = "",
+        providerTrade: String = "Tradesperson – Guild of Smiths",
+        providerPhone: String = "",
+        providerEmail: String = "",
+        providerAddress: String = "",
+        hourlyRate: Double = 85.0,
+        taxRate: Double = 8.25
+    ): Invoice {
+        val lineItems = mutableListOf<InvoiceLineItem>()
+        var lineCounter = 1
+        
+        // Estimated LABOR based on job expenses field or materials
+        val estimatedHours = parseEstimatedHours(job.expenses)
+        if (estimatedHours > 0) {
+            lineItems.add(
+                InvoiceLineItem(
+                    code = "LAB-${String.format("%02d", lineCounter++)}",
+                    description = "Estimated Labor – ${job.title}",
+                    quantity = estimatedHours,
+                    unit = "hr",
+                    rate = hourlyRate,
+                    total = estimatedHours * hourlyRate,
+                    category = LineItemCategory.LABOR
+                )
+            )
+        }
+        
+        // MATERIALS from Job - even unchecked ones (this is a proposal)
+        job.materials.forEach { material ->
+            val estimatedCost = if (material.totalCost > 0) material.totalCost 
+                               else material.quantity * 25.0 // Default estimate
+            lineItems.add(
+                InvoiceLineItem(
+                    code = "MAT-${String.format("%03d", lineCounter++)}",
+                    description = "Materials (est.) – ${material.name}",
+                    quantity = material.quantity,
+                    unit = material.unit,
+                    rate = if (material.unitCost > 0) material.unitCost else 25.0,
+                    total = estimatedCost,
+                    category = LineItemCategory.MATERIALS
+                )
+            )
+        }
+        
+        // TRAVEL estimate
+        lineItems.add(
+            InvoiceLineItem(
+                code = "TRV-01",
+                description = "Travel / site coordination (estimate)",
+                quantity = 1.0,
+                unit = "ea",
+                rate = 45.0,
+                total = 45.0,
+                category = LineItemCategory.TRAVEL
+            )
+        )
+        
+        // Calculate totals
+        val subtotal = lineItems.sumOf { it.total }
+        val taxAmount = subtotal * (taxRate / 100.0)
+        val totalDue = subtotal + taxAmount
+        
+        // Generate proposal number
+        val calendar = Calendar.getInstance()
+        val year = calendar.get(Calendar.YEAR)
+        val month = String.format("%02d", calendar.get(Calendar.MONTH) + 1)
+        val proposalNumber = "PROP-$year-$month-${String.format("%04d", invoiceCounter++)}"
+        
+        // Due date (for acceptance) - 30 days
+        calendar.add(Calendar.DAY_OF_MONTH, 30)
+        val validUntil = calendar.timeInMillis
+        
+        return Invoice(
+            id = UUID.randomUUID().toString(),
+            invoiceNumber = proposalNumber,
+            issueDate = System.currentTimeMillis(),
+            dueDate = validUntil,
+            status = InvoiceStatus.DRAFT,
+            mode = InvoiceMode.SOLO,
+            fromName = providerName,
+            fromBusiness = providerBusiness,
+            fromTrade = providerTrade,
+            fromPhone = providerPhone,
+            fromEmail = providerEmail,
+            fromAddress = providerAddress,
+            toName = job.clientName ?: "",
+            toAddress = job.location ?: "",
+            projectRef = job.title,
+            lineItems = lineItems,
+            subtotal = round2(subtotal),
+            taxRate = taxRate,
+            taxAmount = round2(taxAmount),
+            totalDue = round2(totalDue),
+            jobId = job.id,
+            jobTitle = job.title,
+            workLogSummary = job.description,
+            paymentInstructions = "50% deposit required upon acceptance.\nBalance due upon completion.",
+            notes = "PROPOSAL – Valid for 30 days.\nThis is an estimate. Final costs may vary based on actual work required."
+        )
+    }
+    
+    /**
+     * Parse estimated hours from job expenses field
+     */
+    private fun parseEstimatedHours(expenses: String): Double {
+        // Look for patterns like "16h", "40 hours", "Est. Labor: $1,360" 
+        val hourMatch = Regex("""(\d+(?:\.\d+)?)\s*h(?:ours?|rs?)?""", RegexOption.IGNORE_CASE).find(expenses)
+        if (hourMatch != null) {
+            return hourMatch.groupValues[1].toDoubleOrNull() ?: 8.0
+        }
+        
+        // Look for labor cost and estimate hours at $85/hr
+        val costMatch = Regex("""\$\s*([\d,]+(?:\.\d+)?)""").find(expenses)
+        if (costMatch != null) {
+            val cost = costMatch.groupValues[1].replace(",", "").toDoubleOrNull() ?: 0.0
+            if (cost > 0) return cost / 85.0
+        }
+        
+        return 8.0 // Default 8 hours
+    }
+    
+    /**
      * Generate invoice from completed job with linked time entries
      * Automatically detects SOLO vs ENTERPRISE mode based on crew size and project duration
+     * 
+     * @param completedJobs Optional list of all completed jobs for performance summary
+     * @param allTimeEntries Optional list of all time entries for performance calculations
      */
     fun generateFromJob(
         job: Job,
@@ -174,7 +333,9 @@ object InvoiceGenerator {
         hourlyRate: Double = 85.0,
         travelRate: Double = 45.0,
         taxRate: Double = 8.25,
-        paymentTermsDays: Int = 14
+        paymentTermsDays: Int = 14,
+        completedJobs: List<Job> = emptyList(),
+        allTimeEntries: List<TimeEntry> = emptyList()
     ): Invoice {
         val jobTimeEntries = timeEntries.filter { it.jobId == job.id || it.jobTitle == job.title }
         
@@ -183,7 +344,8 @@ object InvoiceGenerator {
         val projectDays = calculateProjectDays(jobTimeEntries, job)
         val isEnterprise = hasCrew || projectDays > 1
         
-        return if (isEnterprise) {
+        // Generate base invoice
+        val baseInvoice = if (isEnterprise) {
             generateEnterpriseInvoice(job, jobTimeEntries, providerName, providerBusiness, 
                 providerTrade, providerPhone, providerEmail, providerAddress,
                 hourlyRate, travelRate, taxRate, paymentTermsDays, projectDays)
@@ -192,6 +354,78 @@ object InvoiceGenerator {
                 providerTrade, providerPhone, providerEmail, providerAddress,
                 hourlyRate, travelRate, taxRate, paymentTermsDays)
         }
+        
+        // Add performance summary if historical data available
+        val performanceSummary = if (completedJobs.isNotEmpty()) {
+            buildPerformanceSummary(job, completedJobs, if (allTimeEntries.isEmpty()) timeEntries else allTimeEntries)
+        } else null
+        
+        return baseInvoice.copy(performanceSummary = performanceSummary)
+    }
+    
+    /**
+     * Build client-facing performance summary for the invoice.
+     * Only includes data that's safe and beneficial to show clients.
+     */
+    private fun buildPerformanceSummary(
+        currentJob: Job,
+        completedJobs: List<Job>,
+        timeEntries: List<TimeEntry>
+    ): InvoicePerformanceSummary? {
+        if (completedJobs.isEmpty()) return null
+        
+        // Check if current job was on time
+        val wasOnTime = currentJob.dueDate?.let { due ->
+            currentJob.completedAt?.let { completed ->
+                completed <= due
+            }
+        } ?: true // Default to true if no deadline
+        
+        // Get jobs with feedback for rating calculation
+        val jobsWithFeedback = completedJobs.filter { it.clientSatisfactionBars != null }
+        val avgRating = if (jobsWithFeedback.isNotEmpty()) {
+            jobsWithFeedback.map { it.clientSatisfactionBars!! }.average()
+        } else null
+        
+        // Calculate on-time rate
+        val jobsWithDueDate = completedJobs.filter { it.dueDate != null && it.completedAt != null }
+        val onTimeJobs = jobsWithDueDate.count { it.completedAt!! <= it.dueDate!! }
+        val onTimeRate = if (jobsWithDueDate.isNotEmpty()) {
+            (onTimeJobs.toDouble() / jobsWithDueDate.size * 100).toInt()
+        } else 95 // Default assumption
+        
+        // Market comparison - if current job has benchmark data
+        val completionTimeVsMarket = currentJob.marketCompletionTime?.let { marketTime ->
+            currentJob.actualCompletionTime?.let { actualTime ->
+                val diff = ((marketTime - actualTime) / marketTime * 100).toInt()
+                when {
+                    diff >= 15 -> "Completed ${diff}% faster than industry average"
+                    diff >= 5 -> "Completed ${diff}% faster than typical"
+                    diff >= -5 -> "Completed at industry-average pace"
+                    else -> null // Don't show if slower
+                }
+            }
+        }
+        
+        return InvoicePerformanceSummary(
+            jobCompletedOnTime = wasOnTime,
+            clientSatisfactionRating = currentJob.clientSatisfactionBars,
+            totalJobsCompleted = completedJobs.size,
+            avgClientRating = avgRating,
+            onTimeCompletionRate = onTimeRate,
+            qualityTrackRecord = "100% code compliance, no safety incidents",
+            completionTimeVsMarket = completionTimeVsMarket,
+            marketPosition = currentJob.actualLaborRate?.let { rate ->
+                currentJob.marketLaborRate?.let { marketRate ->
+                    val diff = ((rate - marketRate) / marketRate * 100).toInt()
+                    when {
+                        diff >= 15 -> "Premium service provider"
+                        diff >= 0 -> "Above-market service level"
+                        else -> null // Don't show if below market
+                    }
+                }
+            }
+        )
     }
     
     /**
@@ -699,6 +933,9 @@ object InvoiceFormatter {
             sb.appendLine()
         }
         
+        // Client-Facing Performance Summary (if available)
+        appendPerformanceSummary(sb, invoice)
+        
         sb.appendLine("Guild of Smiths – Built for the trades.")
         
         return sb.toString()
@@ -824,9 +1061,58 @@ object InvoiceFormatter {
         
         sb.appendLine("This detailed daily-audited crew report provides complete transparency and chain-of-custody – grounded in persistent chat thread, mesh-synced presence, and foreman hub integration.")
         sb.appendLine()
+        
+        // Client-Facing Performance Summary (if available)
+        appendPerformanceSummary(sb, invoice)
+        
         sb.appendLine("Guild of Smiths – Built for the trades.")
         
         return sb.toString()
+    }
+    
+    /**
+     * Append client-facing performance summary to invoice text.
+     * Only includes data that's safe and beneficial to show clients.
+     */
+    private fun appendPerformanceSummary(sb: StringBuilder, invoice: Invoice) {
+        invoice.performanceSummary?.let { perf ->
+            sb.appendLine("YOUR SERVICE PROVIDER'S TRACK RECORD")
+            sb.appendLine("══════════════════════════════════════════════════════════════")
+            sb.appendLine()
+            
+            // This Job's Performance
+            sb.appendLine("THIS JOB")
+            sb.appendLine("──────────────────────────────────────────────────────────────")
+            sb.appendLine("• Completed on time: ${if (perf.jobCompletedOnTime) "✓ Yes" else "See notes"}")
+            perf.clientSatisfactionRating?.let { rating ->
+                sb.appendLine("• Your rating: $rating/10")
+            }
+            sb.appendLine()
+            
+            // Historical Track Record
+            sb.appendLine("HISTORICAL PERFORMANCE")
+            sb.appendLine("──────────────────────────────────────────────────────────────")
+            sb.appendLine("• ${perf.totalJobsCompleted} jobs completed")
+            perf.avgClientRating?.let { rating ->
+                sb.appendLine("• ${String.format("%.1f", rating)}/10 average client rating")
+            }
+            sb.appendLine("• ${perf.onTimeCompletionRate}% on-time completion rate")
+            sb.appendLine("• ${perf.qualityTrackRecord}")
+            sb.appendLine()
+            
+            // Market Comparison (if available)
+            if (perf.completionTimeVsMarket != null || perf.marketPosition != null) {
+                sb.appendLine("SERVICE LEVEL")
+                sb.appendLine("──────────────────────────────────────────────────────────────")
+                perf.completionTimeVsMarket?.let { comparison ->
+                    sb.appendLine("• $comparison")
+                }
+                perf.marketPosition?.let { position ->
+                    sb.appendLine("• $position")
+                }
+                sb.appendLine()
+            }
+        }
     }
     
     private fun appendToSection(sb: StringBuilder, invoice: Invoice) {

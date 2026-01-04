@@ -31,8 +31,27 @@ object JobRepository {
     }
     
     fun getActiveJobTitles(): List<String> {
+        // Include all non-archived/completed statuses
+        val activeStatuses = listOf("TODO", "IN_PROGRESS", "REVIEW", "WORKING", "BACKLOG", "PENDING")
         return _activeJobs.value
-            .filter { it.status in listOf("TODO", "IN_PROGRESS", "REVIEW") }
+            .filter { it.status in activeStatuses }
             .map { it.title }
+    }
+
+    /**
+     * Create a job from PLAN execution item
+     * Used by PLAN transfer to Job Board
+     */
+    fun createJobFromExecutionItem(item: com.guildofsmiths.trademesh.ui.ExecutionItem): String {
+        val jobId = java.util.UUID.randomUUID().toString()
+
+        val job = SimpleJob(
+            id = jobId,
+            title = item.title,
+            status = "TODO" // Jobs arrive ACTIVE and PRE-FILLED
+        )
+
+        addJob(job)
+        return jobId
     }
 }

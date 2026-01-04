@@ -48,37 +48,6 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
     ) { messages, beaconId, channelId ->
         val filtered = messages.filter { it.beaconId == beaconId && it.channelId == channelId }
             .sortedBy { it.timestamp }
-        // #region agent log
-        try {
-            val data = mapOf(
-                "sessionId" to "debug-session",
-                "runId" to "message-receipt-test",
-                "hypothesisId" to "D",
-                "location" to "ConversationViewModel.kt:44",
-                "message" to "Messages flow updated",
-                "data" to mapOf(
-                    "beaconId" to beaconId,
-                    "channelId" to channelId,
-                    "totalMessages" to messages.size,
-                    "filteredMessages" to filtered.size,
-                    "latestMessageId" to (filtered.lastOrNull()?.id?.take(8) ?: "none"),
-                    "latestContent" to (filtered.lastOrNull()?.content?.take(20) ?: "none"),
-                    "latestOrigin" to (filtered.lastOrNull()?.isMeshOrigin ?: false)
-                ),
-                "timestamp" to System.currentTimeMillis()
-            )
-            val jsonPayload = org.json.JSONObject(data).toString()
-            val url = java.net.URL("http://127.0.0.1:7242/ingest/0adb3485-1a4e-45bf-a3c0-30e8c05573e2")
-            val connection = url.openConnection() as java.net.HttpURLConnection
-            connection.requestMethod = "POST"
-            connection.setRequestProperty("Content-Type", "application/json")
-            connection.doOutput = true
-            connection.outputStream.write(jsonPayload.toByteArray())
-            connection.inputStream.close()
-        } catch (e: Exception) {
-            // Ignore logging errors
-        }
-        // #endregion
         android.util.Log.d("ConversationVM", "Messages updated: ${filtered.size} messages for beacon=$beaconId channel=$channelId (total in repo: ${messages.size})")
         filtered
     }.stateIn(

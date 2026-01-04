@@ -21,6 +21,9 @@ object UserPreferences {
     private const val KEY_AI_MODE = "ai_mode" // "standard" or "hybrid"
     private const val KEY_TRADE_ROLE = "trade_role"
     private const val KEY_DEVICE_ID = "device_id"
+    private const val KEY_BACKEND_URL = "backend_url"
+    private const val KEY_WEBSOCKET_URL = "websocket_url"
+    private const val KEY_SUPABASE_URL = "supabase_url"
 
     // Onboarding-related keys
     private const val KEY_LANGUAGE = "language"
@@ -366,6 +369,46 @@ object UserPreferences {
         val workContextComplete = occupationComplete && experienceComplete
 
         return addressComplete && workContextComplete
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // BACKEND CONFIGURATION
+    // ════════════════════════════════════════════════════════════════════
+
+    /**
+     * Get configured backend API URL
+     */
+    fun getBackendUrl(): String? = prefs?.getString(KEY_BACKEND_URL, null)
+
+    /**
+     * Set backend API URL
+     */
+    fun setBackendUrl(url: String) {
+        prefs?.edit()?.putString(KEY_BACKEND_URL, url)?.apply()
+    }
+
+    /**
+     * Get configured WebSocket URL
+     */
+    fun getWebSocketUrl(): String? = prefs?.getString(KEY_WEBSOCKET_URL, null)
+
+    /**
+     * Set WebSocket URL
+     */
+    fun setWebSocketUrl(url: String) {
+        prefs?.edit()?.putString(KEY_WEBSOCKET_URL, url)?.apply()
+    }
+
+    /**
+     * Get configured Supabase URL
+     */
+    fun getSupabaseUrl(): String? = prefs?.getString(KEY_SUPABASE_URL, null)
+
+    /**
+     * Set Supabase URL
+     */
+    fun setSupabaseUrl(url: String) {
+        prefs?.edit()?.putString(KEY_SUPABASE_URL, url)?.apply()
     }
 
     /**

@@ -54,6 +54,9 @@ import com.guildofsmiths.trademesh.ui.SettingsScreen
 import com.guildofsmiths.trademesh.ui.WelcomeScreen
 import com.guildofsmiths.trademesh.ui.jobboard.JobBoardScreen
 import com.guildofsmiths.trademesh.ui.timetracking.TimeTrackingScreen
+import com.guildofsmiths.trademesh.ui.PlanScreen
+import com.guildofsmiths.trademesh.ui.DashboardScreen
+import com.guildofsmiths.trademesh.ui.SmithNetDashboard
 import com.guildofsmiths.trademesh.ui.theme.TradeMeshTheme
 
 /**
@@ -210,8 +213,9 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val navController = rememberNavController()
                     
-                    // Determine start destination - auth first, then onboarding
-                    // Priority: Not logged in → Auth, Logged in but no onboarding → Onboarding, Complete → Main app
+                    // CANONICAL FLOW:
+                    // APP LAUNCH → LOGIN → AUTH SUCCESS → ONBOARDING → DASHBOARD (hub with Plan tab)
+                    // Priority: Not logged in → Auth, Logged in but no onboarding → Onboarding, Complete → Dashboard
                     val startDestination = when {
                         !SupabaseAuth.isLoggedIn() -> {
                             // User not authenticated - show auth screen
@@ -222,8 +226,8 @@ class MainActivity : ComponentActivity() {
                             NavRoutes.ONBOARDING
                         }
                         else -> {
-                            // User authenticated and completed onboarding - go to main app
-                            NavRoutes.BEACON_LIST
+                            // User authenticated and completed onboarding - go to Dashboard
+                            NavRoutes.DASHBOARD
                         }
                     }
                     
@@ -245,8 +249,8 @@ class MainActivity : ComponentActivity() {
                                     // DO NOT set onboarding complete here - that's system configuration
                                     // Check if system is already configured, then navigate appropriately
                                     if (UserPreferences.isOnboardingDataComplete()) {
-                                        // System already configured - go to main app (Planner Container)
-                                        navController.navigate(NavRoutes.BEACON_LIST) {
+                                        // System already configured - go to Dashboard
+                                        navController.navigate(NavRoutes.DASHBOARD) {
                                             popUpTo(NavRoutes.AUTH) { inclusive = true }
                                         }
                                     } else {
@@ -272,7 +276,8 @@ class MainActivity : ComponentActivity() {
                                     UserPreferences.setUserName(userName)
                                     UserPreferences.setOnboardingComplete()
                                     viewModel.setUserName(userName)
-                                    navController.navigate(NavRoutes.BEACON_LIST) {
+                                    // Go to Dashboard
+                                    navController.navigate(NavRoutes.DASHBOARD) {
                                         popUpTo(NavRoutes.WELCOME) { inclusive = true }
                                     }
                                 }
@@ -289,10 +294,44 @@ class MainActivity : ComponentActivity() {
                                     // Initialize Planner Container (main operational state)
                                     initializePlannerContainer()
 
-                                    // Navigate to main app (Planner Container)
-                                    navController.navigate(NavRoutes.BEACON_LIST) {
+                                    // Navigate to Dashboard
+                                    navController.navigate(NavRoutes.DASHBOARD) {
                                         popUpTo(NavRoutes.ONBOARDING) { inclusive = true }
                                     }
+                                }
+                            )
+                        }
+
+                        // ════════════════════════════════════════════════════════════════
+                        // DASHBOARD - Central Operational Hub (Tabbed Interface)
+                        // ════════════════════════════════════════════════════════════════
+                        composable(NavRoutes.DASHBOARD) {
+                            // Initialize communication when dashboard loads
+                            if (UserPreferences.isOnboardingDataComplete()) {
+                                initializeCommunication()
+                            }
+
+                            SmithNetDashboard(
+                                onProfileClick = {
+                                    navController.navigate(NavRoutes.PROFILE)
+                                },
+                                onSettingsClick = {
+                                    navController.navigate(NavRoutes.SETTINGS)
+                                },
+                                onJobBoardClick = {
+                                    navController.navigate(NavRoutes.JOB_BOARD)
+                                },
+                                onTimeTrackingClick = {
+                                    navController.navigate(NavRoutes.TIME_TRACKING)
+                                },
+                                onMessagesClick = {
+                                    navController.navigate(NavRoutes.BEACON_LIST)
+                                },
+                                onArchiveClick = {
+                                    navController.navigate(NavRoutes.ARCHIVE)
+                                },
+                                onPlanClick = {
+                                    navController.navigate(NavRoutes.PLAN)
                                 }
                             )
                         }
@@ -316,6 +355,10 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onProfileClick = {
                                     navController.navigate(NavRoutes.PROFILE)
+                                },
+                                onBackGesture = {
+                                    // Swipe right to go back to Dashboard
+                                    navController.popBackStack()
                                 },
                                 onCreateBeaconClick = {
                                     navController.navigate(NavRoutes.CREATE_BEACON)
@@ -345,15 +388,6 @@ class MainActivity : ComponentActivity() {
                                 onNameChanged = { newName ->
                                     viewModel.setUserName(newName)
                                 },
-                                onJobBoardClick = {
-                                    navController.navigate(NavRoutes.JOB_BOARD)
-                                },
-                                onTimeTrackingClick = {
-                                    navController.navigate(NavRoutes.TIME_TRACKING)
-                                },
-                                onArchiveClick = {
-                                    navController.navigate(NavRoutes.ARCHIVE)
-                                },
                                 onSignOut = {
                                     // Navigate to auth screen and clear backstack
                                     navController.navigate(NavRoutes.AUTH) {
@@ -368,15 +402,25 @@ class MainActivity : ComponentActivity() {
                             JobBoardScreen(
                                 onNavigateBack = {
                                     navController.popBackStack()
+                                },
+                                onSettingsClick = {
+                                    navController.navigate(NavRoutes.SETTINGS)
+                                },
+                                onNavigateToPlan = { jobId ->
+                                    // Navigate to Plan with the job context
+                                    navController.navigate(NavRoutes.planWithJob(jobId))
                                 }
                             )
                         }
-                        
+
                         // C-12: Time Tracking
                         composable(NavRoutes.TIME_TRACKING) {
                             TimeTrackingScreen(
                                 onNavigateBack = {
                                     navController.popBackStack()
+                                },
+                                onSettingsClick = {
+                                    navController.navigate(NavRoutes.SETTINGS)
                                 }
                             )
                         }
@@ -578,6 +622,34 @@ class MainActivity : ComponentActivity() {
                                     launchFilePicker()
                                 },
                                 initialDmPeer = initialDmPeer
+                            )
+                        }
+
+                        // P-01: PLAN - SmithNet Canonical Implementation
+                        // PLAN opens as first screen after auth, X exits to Dashboard
+                        // Also handles plan?jobId={jobId} for loading from Job Board
+                        composable(
+                            route = "${NavRoutes.PLAN}?jobId={jobId}",
+                            arguments = listOf(
+                                navArgument("jobId") { 
+                                    type = NavType.StringType
+                                    nullable = true
+                                    defaultValue = null
+                                }
+                            )
+                        ) { backStackEntry ->
+                            val jobId = backStackEntry.arguments?.getString("jobId")
+                            PlanScreen(
+                                onNavigateBack = {
+                                    // X pressed - go to Dashboard (not back)
+                                    // If backstack is empty (first time), navigate to Dashboard
+                                    if (!navController.popBackStack()) {
+                                        navController.navigate(NavRoutes.DASHBOARD) {
+                                            popUpTo(NavRoutes.PLAN) { inclusive = true }
+                                        }
+                                    }
+                                },
+                                initialJobId = jobId
                             )
                         }
                     }

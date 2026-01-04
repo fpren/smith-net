@@ -6,10 +6,14 @@ import com.guildofsmiths.trademesh.ai.AIRouter
 import com.guildofsmiths.trademesh.ai.BatteryGate
 import com.guildofsmiths.trademesh.ai.LlamaInference
 import com.guildofsmiths.trademesh.ai.ResponseCache
+import com.guildofsmiths.trademesh.planner.KeywordObserver
 import com.guildofsmiths.trademesh.data.BeaconRepository
 import com.guildofsmiths.trademesh.data.IdentityResolver
+import com.guildofsmiths.trademesh.data.JobStorage
+import com.guildofsmiths.trademesh.data.TaskStorage
 import com.guildofsmiths.trademesh.data.MessageRepository
 import com.guildofsmiths.trademesh.data.SupabaseAuth
+import com.guildofsmiths.trademesh.data.TimeStorage
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
 import com.guildofsmiths.trademesh.service.AuthService
@@ -47,6 +51,11 @@ class TradeMeshApplication : Application() {
         // Initialize user preferences
         UserPreferences.init(this)
         
+        // Initialize Job, Task, and Time persistent storage
+        JobStorage.init(this)
+        TaskStorage.init(this)
+        TimeStorage.init(this)
+        
         // Initialize beacon repository (loads saved channels)
         BeaconRepository.init(this)
 
@@ -67,6 +76,9 @@ class TradeMeshApplication : Application() {
         ResponseCache.initialize(this)
         AIRouter.initialize(this)
         LlamaInference.initialize()
+        
+        // Initialize Planner components (keyword observation for TEST ⧉)
+        KeywordObserver.initialize(this)
         
         Log.i(TAG, "════════════════════════════════════════")
         Log.i(TAG, "🔨 GUILD OF SMITHS")

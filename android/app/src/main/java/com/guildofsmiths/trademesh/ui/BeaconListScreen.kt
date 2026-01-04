@@ -3,6 +3,7 @@ package com.guildofsmiths.trademesh.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -22,6 +24,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -60,6 +64,7 @@ fun BeaconListScreen(
     onPeersClick: (() -> Unit)? = null,
     onProfileClick: (() -> Unit)? = null,
     onCreateBeaconClick: (() -> Unit)? = null,
+    onBackGesture: (() -> Unit)? = null, // Gesture-based back navigation
     modifier: Modifier = Modifier
 ) {
     val beacons by BeaconRepository.beacons.collectAsState()
@@ -70,6 +75,10 @@ fun BeaconListScreen(
     
     var isRefreshing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    
+    // Gesture navigation state - swipe right to go back
+    var swipeOffset by remember { mutableFloatStateOf(0f) }
+    val swipeThreshold = 150f // Pixels to trigger back navigation
     
     // Refresh function - discovers peers and channels
     fun onRefresh() {
@@ -115,8 +124,49 @@ fun BeaconListScreen(
         }
     }
     
+    // Gesture navigation wrapper - swipe right to go back
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .offset { IntOffset(swipeOffset.roundToInt(), 0) }
+            .pointerInput(onBackGesture) {
+                if (onBackGesture != null) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            if (swipeOffset > swipeThreshold) {
+                                onBackGesture()
+                            }
+                            swipeOffset = 0f
+                        },
+                        onDragCancel = { swipeOffset = 0f },
+                        onHorizontalDrag = { _, dragAmount ->
+                            // Only allow swipe right (positive direction)
+                            if (dragAmount > 0 || swipeOffset > 0) {
+                                swipeOffset = (swipeOffset + dragAmount).coerceIn(0f, swipeThreshold * 1.5f)
+                            }
+                        }
+                    )
+                }
+            }
+    ) {
+        // Visual indicator for back gesture
+        if (swipeOffset > 20f) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 8.dp)
+            ) {
+                Text(
+                    text = if (swipeOffset > swipeThreshold) "← release" else "←",
+                    style = ConsoleTheme.caption.copy(
+                        color = ConsoleTheme.textMuted.copy(alpha = (swipeOffset / swipeThreshold).coerceIn(0.3f, 1f))
+                    )
+                )
+            }
+        }
+        
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize(),
         containerColor = ConsoleTheme.background,
         floatingActionButton = {
             if (onCreateBeaconClick != null) {
@@ -198,6 +248,9 @@ fun BeaconListScreen(
                         )
                     }
                     
+                    // NOTE: PLAN link removed - Messenger is communication-only
+                    // Navigation to Planner is via Dashboard tab bar
+
                     if (onSettingsClick != null) {
                         Text(
                             text = "SETTINGS",
@@ -307,6 +360,7 @@ fun BeaconListScreen(
             }
         }
     }
+    } // Close gesture navigation wrapper Box
 }
 
 @Composable

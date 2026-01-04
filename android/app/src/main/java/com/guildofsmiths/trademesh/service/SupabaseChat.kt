@@ -257,36 +257,6 @@ object SupabaseChat {
                     }
                     .onEach { change ->
                         Log.i(TAG, "📨 POSTGRES INSERT EVENT RECEIVED!")
-                // #region agent log
-                try {
-                    val record = change.record as? Map<String, Any?> ?: return@onEach
-                    val data = mapOf(
-                        "sessionId" to "debug-session",
-                        "runId" to "message-receipt-test",
-                        "hypothesisId" to "D",
-                        "location" to "SupabaseChat.kt:214",
-                        "message" to "Real-time message received",
-                        "data" to mapOf(
-                            "messageId" to (record["id"] as? String ?: "unknown").take(8),
-                            "senderId" to (record["sender_id"] as? String ?: "unknown"),
-                            "channelId" to (record["channel_id"] as? String ?: "unknown"),
-                            "content" to ((record["content"] as? String ?: "").take(20)),
-                            "timestamp" to System.currentTimeMillis()
-                        ),
-                        "timestamp" to System.currentTimeMillis()
-                    )
-                    val jsonPayload = org.json.JSONObject(data).toString()
-                    val url = java.net.URL("http://127.0.0.1:7242/ingest/0adb3485-1a4e-45bf-a3c0-30e8c05573e2")
-                    val connection = url.openConnection() as java.net.HttpURLConnection
-                    connection.requestMethod = "POST"
-                    connection.setRequestProperty("Content-Type", "application/json")
-                    connection.doOutput = true
-                    connection.outputStream.write(jsonPayload.toByteArray())
-                    connection.inputStream.close()
-                } catch (e: Exception) {
-                    // Ignore logging errors
-                }
-                // #endregion
                         handleNewMessage(change.record)
                     }
                     .launchIn(scope)
@@ -375,6 +345,9 @@ object SupabaseChat {
      * If offline, queues for later sync
      */
     fun sendMessage(message: Message, media: MediaAttachment? = null) {
+        // #region agent log
+        Log.w("DEBUG_MSG", "SUPABASE sendMessage: msgId=${message.id.take(8)} channelId=${message.channelId} beaconId=${message.beaconId} content='${message.content.take(20)}' isConnected=${_isConnected.value}")
+        // #endregion
         Log.i(TAG, "📤 sendMessage called: ${message.content.take(30)}")
         Log.d(TAG, "   isConnected: ${_isConnected.value}")
         
@@ -571,9 +544,21 @@ object SupabaseChat {
         try {
             val senderId = record["sender_id"] as? String ?: return
             val myUserId = UserPreferences.getUserId()
+            val msgId = record["id"] as? String ?: "unknown"
+            val content = (record["content"] as? String ?: "").take(20)
+            
+            val channelId = record["channel_id"] as? String ?: "unknown"
+            // #region agent log
+            Log.w("DEBUG_MSG", "REALTIME RECEIVED: msgId=${msgId.take(8)} channelId=$channelId senderId=${senderId.take(8)} myUserId=${myUserId.take(8)} isOwnMsg=${senderId == myUserId} content='$content'")
+            // #endregion
             
             // Skip our own messages (we already have them locally)
-            if (senderId == myUserId) return
+            if (senderId == myUserId) {
+                // #region agent log
+                Log.w("DEBUG_MSG", "SKIPPING own message: msgId=${msgId.take(8)}")
+                // #endregion
+                return
+            }
             
             // Parse media attachment if present
             val mediaType = record["media_type"] as? String

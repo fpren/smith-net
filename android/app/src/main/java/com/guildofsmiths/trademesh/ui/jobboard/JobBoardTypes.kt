@@ -46,7 +46,42 @@ data class Job(
     val relatedMessageIds: List<String> = emptyList(),
     val relatedChannelId: String? = null,
     // Future: AI-generated summary of chat history
-    val chatSummary: String? = null
+    val chatSummary: String? = null,
+    
+    // ════════════════════════════════════════════════════════════════════
+    // CLIENT FEEDBACK - Bar-based ratings (1-10 scale)
+    // ════════════════════════════════════════════════════════════════════
+    val clientSatisfactionBars: Int? = null,     // 1-10 bars (██████████)
+    val clientFeedbackText: String? = null,      // Optional client comments
+    val feedbackRecordedAt: Long? = null,        // When feedback was collected
+    
+    // ════════════════════════════════════════════════════════════════════
+    // INTERNAL PERFORMANCE METRICS - Bar-based scores (1-10 scale)
+    // These are for internal use only, NOT shown to clients
+    // ════════════════════════════════════════════════════════════════════
+    val profitabilityScore: Int? = null,         // 1-10 bars, +/- margin %
+    val operationalScore: Int? = null,           // 1-10 bars, workflow efficiency
+    val timeManagementScore: Int? = null,        // 1-10 bars, actual vs estimated
+    val qualityScore: Int? = null,               // 1-10 bars, issues/defects
+    
+    // ════════════════════════════════════════════════════════════════════
+    // BENCHMARK DATA - Industry/market comparisons
+    // ════════════════════════════════════════════════════════════════════
+    val marketLaborRate: Double? = null,         // Local avg labor rate ($/hr)
+    val marketCompletionTime: Double? = null,    // Industry avg hours for job type
+    val marketProfitMargin: Double? = null,      // Industry avg profit margin %
+    
+    // ════════════════════════════════════════════════════════════════════
+    // ACTUAL PERFORMANCE DATA - Calculated from job completion
+    // ════════════════════════════════════════════════════════════════════
+    val actualLaborRate: Double? = null,         // Your actual $/hr charged
+    val actualCompletionTime: Double? = null,    // Actual hours taken
+    val actualProfitMargin: Double? = null,      // Actual profit margin %
+    
+    // ════════════════════════════════════════════════════════════════════
+    // DOCUMENT REGENERATION - Store execution items for archive
+    // ════════════════════════════════════════════════════════════════════
+    val executionItemsJson: String? = null       // Serialized execution items for doc regeneration
 )
 
 data class CrewMember(
@@ -67,7 +102,11 @@ data class Material(
     val unitCost: Double = 0.0,
     val totalCost: Double = 0.0,
     val vendor: String = "",
-    val receiptPhoto: String? = null
+    val receiptPhoto: String? = null,
+    // Assignment - who is responsible for this material
+    val assignedTo: String? = null,
+    // Link to related task (for auto-assignment)
+    val relatedTaskId: String? = null
 )
 
 // Work log entry
@@ -118,6 +157,28 @@ enum class TaskStatus(val displayName: String) {
     DONE("Done"),
     BLOCKED("Blocked")
 }
+
+// ════════════════════════════════════════════════════════════════════
+// TASK ASSIGNMENT
+// ════════════════════════════════════════════════════════════════════
+
+/**
+ * Filter mode for viewing tasks
+ */
+enum class TaskFilterMode(val displayName: String) {
+    ALL("All Tasks"),
+    MY_TASKS("My Tasks"),
+    UNASSIGNED("Unassigned")
+}
+
+/**
+ * Represents a member who can be assigned tasks
+ */
+data class AssignableMember(
+    val id: String,
+    val name: String,
+    val role: String = ""
+)
 
 data class ChecklistItem(
     val id: String,

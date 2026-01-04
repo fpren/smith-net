@@ -13,8 +13,11 @@ const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+const hasSupabaseCredentials = SUPABASE_URL && SUPABASE_ANON_KEY;
+
+if (!hasSupabaseCredentials) {
   console.warn('[Supabase] Missing SUPABASE_URL or SUPABASE_ANON_KEY - using fallback mode');
+  console.warn('[Supabase] Some features will be disabled. Set environment variables to enable.');
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -25,31 +28,27 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
  * Public client - uses anon key, respects RLS
  * Use for user-facing operations
  */
-export const supabase: SupabaseClient = createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY,
-  {
-    auth: {
-      autoRefreshToken: true,
-      persistSession: false,
-    },
-  }
-);
+export const supabase: SupabaseClient | null = hasSupabaseCredentials
+  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: false,
+      },
+    })
+  : null;
 
 /**
  * Admin client - uses service role key, bypasses RLS
  * Use only for server-side admin operations
  */
-export const supabaseAdmin: SupabaseClient = createClient(
-  SUPABASE_URL,
-  SUPABASE_SERVICE_ROLE_KEY,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  }
-);
+export const supabaseAdmin: SupabaseClient | null = hasSupabaseCredentials && SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    })
+  : null;
 
 // ════════════════════════════════════════════════════════════════════
 // DATABASE TYPES (auto-generate with `supabase gen types typescript`)
@@ -268,6 +267,11 @@ export async function uploadFile(
   file: Buffer | Blob,
   contentType: string
 ): Promise<string | null> {
+  if (!supabaseAdmin) {
+    console.warn('[Supabase] Upload skipped - no admin client configured');
+    return null;
+  }
+
   const { data, error } = await supabaseAdmin.storage
     .from(bucket)
     .upload(path, file, { contentType, upsert: true });
@@ -289,6 +293,11 @@ export async function uploadFile(
  * Delete file from Supabase Storage
  */
 export async function deleteFile(bucket: string, path: string): Promise<boolean> {
+  if (!supabaseAdmin) {
+    console.warn('[Supabase] Delete skipped - no admin client configured');
+    return false;
+  }
+
   const { error } = await supabaseAdmin.storage
     .from(bucket)
     .remove([path]);

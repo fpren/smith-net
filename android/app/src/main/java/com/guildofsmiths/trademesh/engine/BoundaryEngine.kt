@@ -73,7 +73,11 @@ object BoundaryEngine {
     /** Queued media messages waiting for IP connectivity */
     private val _queuedMedia = MutableStateFlow<List<Message>>(emptyList())
     val queuedMedia: StateFlow<List<Message>> = _queuedMedia
-    
+
+    /** Queued text messages waiting for online connectivity */
+    private val _queuedMessages = MutableStateFlow<List<Message>>(emptyList())
+    val queuedMessages: StateFlow<List<Message>> = _queuedMessages
+
     /** Gateway mode enabled */
     private val _isGatewayConnected = MutableStateFlow(false)
     val isGatewayConnected: StateFlow<Boolean> = _isGatewayConnected
@@ -132,8 +136,8 @@ object BoundaryEngine {
             }
         })
         
-        // Initialize ChatManager with backend URL for online messaging (local network fallback)
-        ChatManager.setBackendUrl("http://192.168.8.163:3000")
+        // Initialize ChatManager with backend URL for online messaging (configurable)
+        // ChatManager now uses BackendConfig automatically
         
         // Auto-connect to online chat (for receiving messages)
         ChatManager.connect()
@@ -207,8 +211,10 @@ object BoundaryEngine {
         // Save settings for auto-reconnect
         UserPreferences.setGatewayUrl(backendUrl)
         UserPreferences.setGatewayEnabled(true)
-        
-        GatewayClient.setBackendUrl(backendUrl)
+
+        // Update backend configuration
+        BackendConfig.setBackendUrl(backendUrl.replace("ws://", "http://").replace("wss://", "https://"))
+        BackendConfig.setWebSocketUrl(backendUrl)
         GatewayClient.connect()
         _isGatewayConnected.value = true
         Log.i(TAG, "════════════════════════════════════════")
@@ -395,36 +401,8 @@ object BoundaryEngine {
      */
     fun routeMessage(context: Context, message: Message) {
         // #region agent log
-        try {
-            val data = mapOf(
-                "sessionId" to "debug-session",
-                "runId" to "transport-indicators-test",
-                "hypothesisId" to "A",
-                "location" to "BoundaryEngine.kt:387",
-                "message" to "Message routing initiated",
-                "data" to mapOf(
-                    "messageId" to message.id.take(8),
-                    "content" to message.content.take(20),
-                    "senderName" to message.senderName,
-                    "isMeshOrigin" to message.isMeshOrigin,
-                    "hasMedia" to message.hasMedia(),
-                    "useMesh" to shouldUseMesh(context)
-                ),
-                "timestamp" to System.currentTimeMillis()
-            )
-            val jsonPayload = org.json.JSONObject(data).toString()
-            val url = java.net.URL("http://127.0.0.1:7242/ingest/0adb3485-1a4e-45bf-a3c0-30e8c05573e2")
-            val connection = url.openConnection() as java.net.HttpURLConnection
-            connection.requestMethod = "POST"
-            connection.setRequestProperty("Content-Type", "application/json")
-            connection.doOutput = true
-            connection.outputStream.write(jsonPayload.toByteArray())
-            connection.inputStream.close()
-        } catch (e: Exception) {
-            // Ignore logging errors
-        }
+        Log.w("DEBUG_MSG", "routeMessage: msgId=${message.id.take(8)} content='${message.content.take(20)}' isMeshOrigin=${message.isMeshOrigin}")
         // #endregion
-
         // Always add to local repository first for immediate UI feedback
         MessageRepository.addMessage(message)
 
@@ -437,15 +415,28 @@ object BoundaryEngine {
             return
         }
         
-        // When online: send via BOTH paths for maximum reach
-        // - Supabase: reaches dashboard and remote users globally
-        // - Mesh: reaches local peers quickly (even if their internet is spotty)
+        // ════════════════════════════════════════════════════════════════
+        // TRANSPORT PRIORITY RULE (Core Law):
+        // - Online/Internet = PRIMARY (single path)
+        // - Offline/No service = SECONDARY (mesh fallback)
+        // - BLE Mesh is fallback, NOT a parallel chat surface
+        // - No duplicate send paths allowed
+        // ════════════════════════════════════════════════════════════════
         if (!shouldUseMesh(context)) {
-            Log.d(TAG, "📤 ONLINE: Sending via Supabase + Mesh")
-            routeViaChat(message)  // Supabase for global reach
-            routeViaMesh(message)  // Mesh for local peers
+            // ONLINE: Route via Supabase ONLY
+            // BLE stays in presence/emergency mode only
+            // #region agent log
+            Log.w("DEBUG_MSG", "ONLINE PATH: Sending via Supabase ONLY msgId=${message.id.take(8)}")
+            // #endregion
+            Log.d(TAG, "📤 ONLINE: Sending via Supabase (internet primary)")
+            routeViaChat(message)
+            // NOTE: No mesh broadcast when online - prevents duplicate delivery
         } else {
-            Log.d(TAG, "📤 OFFLINE: Sending via Mesh only")
+            // OFFLINE: Route via Mesh ONLY (fallback)
+            // #region agent log
+            Log.w("DEBUG_MSG", "OFFLINE PATH: Sending via Mesh only (fallback) msgId=${message.id.take(8)}")
+            // #endregion
+            Log.d(TAG, "📤 OFFLINE: Sending via Mesh (fallback)")
             routeViaMesh(message)
         }
     }
@@ -484,6 +475,14 @@ object BoundaryEngine {
         _queuedMedia.value = _queuedMedia.value + queued
         Log.d(TAG, "Media queued. Total queued: ${_queuedMedia.value.size}")
     }
+
+    /**
+     * Queue a text message for later delivery when online connectivity restores.
+     */
+    private fun queueMessageForOfflineDelivery(message: Message) {
+        _queuedMessages.value = _queuedMessages.value + message
+        Log.d(TAG, "Message queued for offline delivery. Total queued: ${_queuedMessages.value.size}")
+    }
     
     /**
      * Route message via BLE mesh path.
@@ -501,14 +500,28 @@ object BoundaryEngine {
     
     /**
      * Route message via IP chat path.
-     * Uses Supabase Realtime for global connectivity.
+     * Uses smart routing: Supabase primary, ChatManager fallback.
      */
     private fun routeViaChat(message: Message) {
         Log.d(TAG, "Routing via chat: ${message.id.take(8)}...")
-        // Use Supabase for global chat (works anywhere with internet)
-        com.guildofsmiths.trademesh.service.SupabaseChat.sendMessage(message)
-        // Also send via local ChatManager for backward compatibility
-        ChatManager.sendMessage(message)
+
+        // PRIMARY: Try Supabase first (global, reliable)
+        if (SupabaseChat.isConnected()) {
+            SupabaseChat.sendMessage(message)
+            Log.d(TAG, "📤 Sent via Supabase (primary)")
+            return
+        }
+
+        // FALLBACK: Use local ChatManager if Supabase unavailable
+        if (ChatManager.isConnected()) {
+            ChatManager.sendMessage(message)
+            Log.d(TAG, "📤 Sent via ChatManager (fallback)")
+            return
+        }
+
+        // OFFLINE: Queue for later delivery
+        Log.w(TAG, "⚠️ No online connection available - queuing message")
+        queueMessageForOfflineDelivery(message)
     }
     
     // Track recently injected message IDs to avoid re-forwarding our own broadcasts
@@ -579,7 +592,7 @@ object BoundaryEngine {
         if (wasOffline && isOnlineNow) {
             Log.i(TAG, "Connectivity restored - initiating sync")
             syncMeshMessagesToChat()
-            syncQueuedMedia(context)
+            syncQueuedContent(context)
         }
         
         lastConnectivityState = shouldUseMesh(context)
@@ -621,6 +634,38 @@ object BoundaryEngine {
     }
     
     /**
+     * Sync queued messages and media when IP connectivity restores.
+     */
+    private fun syncQueuedContent(context: Context) {
+        // Sync queued text messages
+        syncQueuedMessages()
+
+        // Sync queued media messages
+        syncQueuedMedia(context)
+    }
+
+    /**
+     * Sync queued text messages when online connectivity restores.
+     */
+    private fun syncQueuedMessages() {
+        val queued = _queuedMessages.value
+        if (queued.isEmpty()) {
+            Log.d(TAG, "No queued messages to sync")
+            return
+        }
+
+        Log.i(TAG, "Syncing ${queued.size} queued text messages")
+
+        for (message in queued.sortedBy { it.timestamp }) {
+            routeViaChat(message)
+        }
+
+        // Clear queue
+        _queuedMessages.value = emptyList()
+        Log.i(TAG, "Message sync completed")
+    }
+
+    /**
      * Sync queued media messages when IP restores.
      */
     private fun syncQueuedMedia(context: Context) {
@@ -629,9 +674,9 @@ object BoundaryEngine {
             Log.d(TAG, "No queued media to sync")
             return
         }
-        
+
         Log.i(TAG, "Syncing ${queued.size} queued media messages")
-        
+
         for (message in queued.sortedBy { it.timestamp }) {
             // Upload media and send via chat
             val uploaded = message.copy(
@@ -639,7 +684,7 @@ object BoundaryEngine {
             )
             routeViaChat(uploaded)
         }
-        
+
         // Clear queue
         _queuedMedia.value = emptyList()
         Log.i(TAG, "Media sync completed")
@@ -652,38 +697,6 @@ object BoundaryEngine {
     fun updateConnectivityState(context: Context) {
         val currentState = shouldUseMesh(context)
         val isOnlineNow = !currentState
-
-        // #region agent log
-        try {
-            val data = mapOf(
-                "sessionId" to "debug-session",
-                "runId" to "connectivity-monitoring-test",
-                "hypothesisId" to "C",
-                "location" to "BoundaryEngine.kt:595",
-                "message" to "Connectivity state update",
-                "data" to mapOf(
-                    "currentMeshState" to currentState,
-                    "isOnlineNow" to isOnlineNow,
-                    "lastConnectivityState" to lastConnectivityState,
-                    "isStateChange" to (lastConnectivityState != null && lastConnectivityState != currentState),
-                    "transitionType" to if (lastConnectivityState != null && lastConnectivityState != currentState) {
-                        if (!currentState) "offline->online" else "online->offline"
-                    } else "no-change"
-                ),
-                "timestamp" to System.currentTimeMillis()
-            )
-            val jsonPayload = org.json.JSONObject(data).toString()
-            val url = java.net.URL("http://127.0.0.1:7242/ingest/0adb3485-1a4e-45bf-a3c0-30e8c05573e2")
-            val connection = url.openConnection() as java.net.HttpURLConnection
-            connection.requestMethod = "POST"
-            connection.setRequestProperty("Content-Type", "application/json")
-            connection.doOutput = true
-            connection.outputStream.write(jsonPayload.toByteArray())
-            connection.inputStream.close()
-        } catch (e: Exception) {
-            // Ignore logging errors
-        }
-        // #endregion
 
         Log.d(TAG, "Connectivity update: mesh=$currentState, online=$isOnlineNow")
 
@@ -846,7 +859,7 @@ object BoundaryEngine {
         if (UserPreferences.isGatewayEnabled()) {
             val url = UserPreferences.getGatewayUrl()
             Log.i(TAG, "🌐 Auto-connecting gateway: $url")
-            GatewayClient.setBackendUrl(url)
+            BackendConfig.setWebSocketUrl(url)
             GatewayClient.connect()
         }
         

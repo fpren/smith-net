@@ -225,6 +225,7 @@ export type PlanPhase =
   | 'summary_ready'   // Summary created and confirmed
   | 'output_pending'  // Ready for output selection
   | 'output_generated' // Reports/invoices created
+  | 'finalized'       // Locked and cannot be modified
   | 'archived';       // Final immutable state
 
 export interface Proposal {
@@ -478,4 +479,31 @@ export interface ReportOutput {
   export(report: RenderedReport, destination: string): Promise<void>;
   download(report: RenderedReport): Promise<void>;
   share(report: RenderedReport, recipients: string[]): Promise<void>;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// TIME ENTRY
+// ════════════════════════════════════════════════════════════════════
+
+export interface TimeEntry {
+  id: string;
+  userId: string;
+  userName: string;
+  clockInTime: number;
+  clockOutTime?: number;
+  durationMinutes: number;
+  jobId?: string;
+  entryType: 'regular' | 'overtime' | 'travel' | 'break';
+  source: 'manual' | 'geofence' | 'mesh';
+  createdAt: number;
+  immutableHash: string;
+  notes: string[];
+  status: 'pending' | 'approved' | 'rejected' | 'pending_review';
+  clockOutContext?: {
+    type: 'worker_note' | 'ai_summary';
+    content: string;
+    generatedAt: number;
+    generatedBy: string;
+    isImmutable: boolean;
+  };
 }

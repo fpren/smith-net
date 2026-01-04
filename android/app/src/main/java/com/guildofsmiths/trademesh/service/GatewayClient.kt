@@ -25,7 +25,7 @@ object GatewayClient {
     private const val TAG = "GatewayClient"
     
     // Backend URL - configurable
-    private var backendUrl = "ws://192.168.8.163:3000" // Default to local network
+    private val backendUrl: String get() = BackendConfig.websocketUrl
     
     private var webSocket: WebSocket? = null
     private var isConnected = false

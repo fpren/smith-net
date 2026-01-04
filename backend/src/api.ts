@@ -17,6 +17,9 @@ import { reportAssembler } from './reportAssembler';
 import { reportRenderer } from './reportRenderer';
 import { reportOutput } from './reportOutput';
 import { autoPlanCreator } from './autoPlanCreator';
+import { claudeResolve, localFallbackResolve, EnhancedJobData } from './resolver/claudeResearch';
+// Legacy import kept for reference - now using Claude AI instead of browser scraping
+// import { playwrightResolve } from './resolver/playwrightSearch';
 import { 
   CreateChannelRequest, 
   InjectMessageRequest, 
@@ -29,6 +32,7 @@ import {
   Plan,
   Proposal,
   PlanSummary,
+  PlanSnapshot,
   Report,
   Invoice,
   CreateEngagementRequest,
@@ -544,6 +548,237 @@ apiRouter.post('/gateway/inject', (req: Request, res: Response) => {
 });
 
 // ════════════════════════════════════════════════════════════════════
+// PLAN RESOLVER — TEST ⧉ Compile Path (Playwright-based)
+// ════════════════════════════════════════════════════════════════════
+
+/**
+ * RESOLVE PLAN TEXT WITH PLAYWRIGHT (TEST ⧉ only)
+ * 
+ * USED ONLY BY: TEST ⧉ compile path in Android app
+ * NEVER USED BY: Regular COMPILE button
+ * 
+ * BEHAVIOR:
+ * - One short-lived browser session per request
+ * - Max 5 seconds execution
+ * - Any error returns null (no exceptions)
+ * 
+ * OUTPUT FORMAT:
+ * {
+ *   scope: string,
+ *   tasks: string[],
+ *   assumptions: string[],
+ *   notes: string[],
+ *   detectedKeywords: string[]
+ * }
+ * 
+ * EXTRACTS ONLY: inspection, safety, phases
+ * DISCARDS: pricing, ads, opinions
+ */
+apiRouter.post('/plan/resolve', async (req: Request, res: Response) => {
+  const { input } = req.body;
+
+  if (!input || typeof input !== 'string') {
+    return res.json({ success: false, result: null });
+  }
+
+  console.log(`[API] /plan/resolve called with ${input.length} chars`);
+  const startTime = Date.now();
+
+  // Call Claude AI resolver - returns full job data or null
+  // Falls back to local knowledge base if Claude is unavailable
+  let result = await claudeResolve(input);
+  
+  // If Claude fails, use local fallback
+  if (result === null) {
+    console.log(`[API] Claude resolver failed, using local fallback`);
+    result = await localFallbackResolve(input);
+  }
+
+  const elapsed = Date.now() - startTime;
+  console.log(`[API] /plan/resolve completed in ${elapsed}ms, success: ${result !== null}`);
+
+  if (result === null) {
+    // Any error returns null - client falls back to local compile
+    return res.json({ success: false, result: null });
+  }
+
+  // Convert to GOSPLAN canvas text for injection
+  const canvasText = formatAsGosplanCanvasText(result);
+
+  // #region agent log
+  const fs = require('fs');
+  const logPath = 'c:\\Users\\sonic\\CascadeProjects\\ble-mesh-multiplatform\\.cursor\\debug.log';
+  try {
+    const entry = JSON.stringify({ 
+      location: 'api.ts:/plan/resolve', 
+      message: 'Sending response to client', 
+      data: { 
+        success: true, 
+        materialsCount: result.materials?.length || 0,
+        tasksCount: result.tasks?.length || 0,
+        canvasTextLength: canvasText?.length || 0,
+        jobTitle: result.jobTitle?.substring(0, 50)
+      }, 
+      timestamp: Date.now(), 
+      hypothesisId: 'BACKEND' 
+    }) + '\n';
+    fs.appendFileSync(logPath, entry);
+  } catch (e) {}
+  // #endregion
+  
+  res.json({
+    success: true,
+    result,          // Full EnhancedJobData object
+    canvasText,      // GOSPLAN formatted text for canvas
+    jobData: result  // Explicit job data for transfer
+  });
+});
+
+/**
+ * Format enhanced job data as GOSPLAN canvas-ready text
+ * 
+ * This generates the full GOSPLAN template format that can be:
+ * 1. Displayed in the canvas for review
+ * 2. Compiled by the PlannerCompiler
+ * 3. Transferred to Job Board with all data
+ */
+function formatAsGosplanCanvasText(job: EnhancedJobData): string {
+  const lines: string[] = [];
+  const now = new Date().toISOString().split('T')[0];
+  
+  // ══════════════════════════════════════════════════════════════
+  // HEADER
+  // ══════════════════════════════════════════════════════════════
+  lines.push('# PLAN');
+  lines.push('');
+  lines.push('## JobHeader');
+  lines.push(`Job Title:      ${job.jobTitle}`);
+  lines.push(`Client:         ${job.clientName || '[Client Name]'}`);
+  lines.push(`Location:       ${job.location || '[Location]'}`);
+  lines.push(`Job Type:       ${job.jobType}`);
+  lines.push(`Primary Trade:  ${job.primaryTrade}`);
+  lines.push(`Urgency:        ${job.urgency.charAt(0).toUpperCase() + job.urgency.slice(1)}`);
+  lines.push(`Created:        ${now}`);
+  lines.push(`Crew Size:      ${job.crewSize} workers`);
+  lines.push(`Est. Duration:  ${job.estimatedDays} days`);
+  lines.push('');
+  
+  // ══════════════════════════════════════════════════════════════
+  // SCOPE
+  // ══════════════════════════════════════════════════════════════
+  lines.push('## Scope');
+  lines.push(job.scope);
+  lines.push('');
+  job.scopeDetails.forEach(detail => {
+    lines.push(`- ${detail}`);
+  });
+  lines.push('');
+  
+  // ══════════════════════════════════════════════════════════════
+  // ASSUMPTIONS
+  // ══════════════════════════════════════════════════════════════
+  if (job.assumptions.length > 0) {
+    lines.push('## Assumptions');
+    job.assumptions.forEach(a => lines.push(`- ${a}`));
+    lines.push('');
+  }
+  
+  // ══════════════════════════════════════════════════════════════
+  // TASKS (Execution Checklist)
+  // ══════════════════════════════════════════════════════════════
+  lines.push('## Tasks');
+  job.tasks.forEach((task, i) => {
+    lines.push(`${i + 1}. ${task}`);
+  });
+  lines.push('');
+  
+  // ══════════════════════════════════════════════════════════════
+  // MATERIALS
+  // ══════════════════════════════════════════════════════════════
+  lines.push('## Materials');
+  job.materials.forEach(mat => {
+    const qty = mat.quantity ? `${mat.quantity} ${mat.unit || 'ea'}` : '';
+    const cost = mat.estimatedCost ? `@ $${mat.estimatedCost.toFixed(2)}` : '';
+    lines.push(`- ${qty ? qty + ' ' : ''}${mat.name} ${cost}`.trim());
+  });
+  lines.push('');
+  
+  // ══════════════════════════════════════════════════════════════
+  // LABOR
+  // ══════════════════════════════════════════════════════════════
+  lines.push('## Labor');
+  job.labor.forEach(lab => {
+    lines.push(`- ${lab.hours}h ${lab.role} @ $${lab.rate}/hr = $${(lab.hours * lab.rate).toFixed(2)}`);
+  });
+  lines.push('');
+  
+  // ══════════════════════════════════════════════════════════════
+  // FINANCIAL SNAPSHOT
+  // ══════════════════════════════════════════════════════════════
+  lines.push('## Financial');
+  lines.push(`Est. Labor:     $${job.estimatedLaborCost.toFixed(2)}`);
+  lines.push(`Est. Materials: $${job.estimatedMaterialCost.toFixed(2)}`);
+  lines.push(`Est. Total:     $${job.estimatedTotal.toFixed(2)}`);
+  lines.push(`Deposit Req:    ${job.depositRequired}`);
+  lines.push(`Warranty:       ${job.warranty}`);
+  lines.push('');
+  
+  // ══════════════════════════════════════════════════════════════
+  // PHASES / TIMELINE
+  // ══════════════════════════════════════════════════════════════
+  lines.push('## Phases');
+  job.phases.forEach(phase => {
+    lines.push(`${phase.order}. [${phase.name}] ${phase.description}`);
+  });
+  lines.push('');
+  
+  // ══════════════════════════════════════════════════════════════
+  // SAFETY & CODE
+  // ══════════════════════════════════════════════════════════════
+  if (job.safetyRequirements.length > 0 || job.codeRequirements.length > 0) {
+    lines.push('## Safety');
+    job.safetyRequirements.forEach(s => lines.push(`- ${s}`));
+    if (job.permitRequired) {
+      lines.push('- PERMIT REQUIRED before work begins');
+    }
+    if (job.inspectionRequired) {
+      lines.push('- INSPECTION REQUIRED at completion');
+    }
+    lines.push('');
+    
+    lines.push('## Code');
+    job.codeRequirements.forEach(c => lines.push(`- ${c}`));
+    lines.push('');
+  }
+  
+  // ══════════════════════════════════════════════════════════════
+  // EXCLUSIONS
+  // ══════════════════════════════════════════════════════════════
+  if (job.exclusions.length > 0) {
+    lines.push('## Exclusions');
+    job.exclusions.forEach(e => lines.push(`- ${e}`));
+    lines.push('');
+  }
+  
+  // ══════════════════════════════════════════════════════════════
+  // NOTES
+  // ══════════════════════════════════════════════════════════════
+  lines.push('## Notes');
+  job.notes.forEach(n => lines.push(`- ${n}`));
+  lines.push(`- Detected keywords: ${job.detectedKeywords.slice(0, 5).join(', ')}`);
+  lines.push(`- Research sources: ${job.researchSources.join(', ')}`);
+  lines.push('');
+  
+  // ══════════════════════════════════════════════════════════════
+  // SUMMARY LINE
+  // ══════════════════════════════════════════════════════════════
+  lines.push('## Summary');
+  lines.push(`${job.jobType} job${job.location ? ' in ' + job.location : ''}. ${job.tasks.length} tasks, ${job.materials.length} materials. Est. ${job.estimatedDays} days, $${job.estimatedTotal.toFixed(2)} total.`);
+  
+  return lines.join('\n');
+}
+
+// ════════════════════════════════════════════════════════════════════
 // PLAN MANAGEMENT SYSTEM
 // ════════════════════════════════════════════════════════════════════
 
@@ -695,7 +930,8 @@ apiRouter.post('/plans/:id/synthesize', async (req: Request, res: Response) => {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       jobIds: ['job1', 'job2'],
-      timeEntryIds: ['time1', 'time2', 'time3']
+      timeEntryIds: ['time1', 'time2', 'time3'],
+      outputs: []
     };
 
     let summary: PlanSummary;
@@ -789,6 +1025,7 @@ apiRouter.post('/plans/:id/generate-output', async (req: Request, res: Response)
 
     // Generate the requested outputs
     const outputs = await outputGeneratorService.generateOutputs(mockPlan, mockSummary, {
+      planId: id,
       outputType,
       reportOptions,
       invoiceOptions
@@ -1037,7 +1274,11 @@ apiRouter.get('/system/flow-status', (req: Request, res: Response) => {
 
     } else if (Array.isArray(jobIds) && jobIds.length > 0) {
       // Small project flow: Jobs exist without engagement
-      const eligible = autoPlanCreator.validateSmallProjectEligibility(jobIds, timeEntryIds as string[] || []);
+      const jobIdsArray = (jobIds as (string | any)[]).filter((id): id is string => typeof id === 'string');
+      const timeEntryIdsArray = Array.isArray(timeEntryIds) 
+        ? (timeEntryIds as (string | any)[]).filter((id): id is string => typeof id === 'string')
+        : [];
+      const eligible = autoPlanCreator.validateSmallProjectEligibility(jobIdsArray, timeEntryIdsArray);
       if (eligible) {
         flowType = 'small_project';
         currentPhase = 'jobs_manual_entry';
@@ -1064,7 +1305,7 @@ apiRouter.get('/system/flow-status', (req: Request, res: Response) => {
 
       } else {
         systemLawViolations.push('PROJECT_TOO_LARGE_FOR_SMALL_FLOW');
-        flowType = 'standard_required';
+        flowType = 'unknown';
         nextAllowedActions = ['create_engagement', 'use_standard_flow'];
       }
     }
@@ -1628,15 +1869,31 @@ apiRouter.post('/reports/assemble', async (req: Request, res: Response) => {
 
   try {
     // TODO: Fetch actual archived plan snapshot
-    const mockSnapshot = {
+    const mockSnapshot: PlanSnapshot = {
+      id: `snapshot-${planId}`,
       planId,
+      snapshotType: 'output',
       data: {
         id: planId,
+        engagementId: 'mock-engagement',
+        name: 'Mock Plan',
+        phase: 'archived',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        jobIds: ['job1'],
+        timeEntryIds: ['time1'],
+        outputs: [],
         summary: {
+          id: 'summary1',
+          planId,
+          title: 'Project Summary',
           executiveSummary: 'Project completed successfully',
           workPerformed: ['Task 1', 'Task 2'],
           totalHours: 16,
-          totalCost: 800
+          totalCost: 800,
+          createdBy: 'system',
+          createdAt: Date.now(),
+          status: 'confirmed'
         }
       },
       jobs: [
@@ -1762,15 +2019,31 @@ apiRouter.post('/reports/generate', async (req: Request, res: Response) => {
 
   try {
     // Step 1: Get plan snapshot
-    const mockSnapshot = {
+    const mockSnapshot: PlanSnapshot = {
+      id: `snapshot-${planId}`,
       planId,
+      snapshotType: 'output',
       data: {
         id: planId,
+        engagementId: 'mock-engagement',
+        name: 'Mock Plan',
+        phase: 'archived',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        jobIds: ['job1'],
+        timeEntryIds: ['time1'],
+        outputs: [],
         summary: {
+          id: 'summary1',
+          planId,
+          title: 'Project Summary',
           executiveSummary: 'Project completed successfully',
           workPerformed: ['Task 1', 'Task 2'],
           totalHours: 16,
-          totalCost: 800
+          totalCost: 800,
+          createdBy: 'system',
+          createdAt: Date.now(),
+          status: 'confirmed'
         }
       },
       jobs: [{ id: 'job1', title: 'Job 1', description: 'Work on job 1', status: 'done' }],

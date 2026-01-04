@@ -32,7 +32,7 @@ object ConsoleTheme {
     
     // Brand
     const val APP_NAME = "smith net"
-    const val APP_VERSION = "0.1"
+    const val APP_VERSION = "v0.5"
     const val BUILD_HASH = "a3f2c1"
     const val STUDIO = "guild of smiths"
     
@@ -66,6 +66,7 @@ object ConsoleTheme {
     val success = Color(0xFF28A745)
     val warning = Color(0xFFE67700)
     val error = Color(0xFFCC3333)     // Muted red for delete actions
+    val info = Color(0xFF17A2B8)      // Info blue for labor items
     
     val separator = Color(0xFFD8D8DC)
     val separatorFaint = Color(0xFFE8E8EA)

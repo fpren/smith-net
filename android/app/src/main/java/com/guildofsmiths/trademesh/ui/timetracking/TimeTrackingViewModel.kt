@@ -3,7 +3,9 @@ package com.guildofsmiths.trademesh.ui.timetracking
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.guildofsmiths.trademesh.data.JobRepository
+import com.guildofsmiths.trademesh.data.JobStorage
 import com.guildofsmiths.trademesh.data.TimeEntryRepository
+import com.guildofsmiths.trademesh.data.TimeStorage
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.service.AuthService
 import kotlinx.coroutines.delay
@@ -65,17 +67,107 @@ class TimeTrackingViewModel : ViewModel() {
     private val customJobs = mutableSetOf<String>()
 
     init {
+        // Load persisted state first
+        loadFromStorage()
+        
         loadStatus()
         loadEntries()
         loadDailySummary()
         loadAvailableJobs()
     }
     
+    /**
+     * Load entries and state from persistent storage
+     */
+    private fun loadFromStorage() {
+        // Load custom jobs
+        customJobs.addAll(TimeStorage.loadCustomJobs())
+        
+        // Load time entries
+        val storedEntries = TimeStorage.loadEntries()
+        if (storedEntries.isNotEmpty()) {
+            localEntries.clear()
+            localEntries.addAll(storedEntries)
+            _entries.value = localEntries.toList()
+            
+            // Sync to repository for invoice generation
+            storedEntries.forEach { entry ->
+                TimeEntryRepository.addEntry(entry)
+            }
+        }
+        
+        // Check for active entry
+        val activeEntryId = TimeStorage.getActiveEntryId()
+        if (activeEntryId != null) {
+            val activeEntry = localEntries.find { it.id == activeEntryId && it.clockOutTime == null }
+            if (activeEntry != null) {
+                _activeEntry.value = activeEntry
+                _isClockedIn.value = true
+            } else {
+                // Entry was completed or not found - clear active ID
+                TimeStorage.saveActiveEntryId(null)
+            }
+        }
+    }
+    
+    /**
+     * Persist current state to storage (atomic saves)
+     */
+    private fun persistToStorage() {
+        val entriesSaved = TimeStorage.saveEntries(localEntries.toList())
+        val activeIdSaved = TimeStorage.saveActiveEntryId(_activeEntry.value?.id)
+        val jobsSaved = TimeStorage.saveCustomJobs(customJobs)
+        
+        if (entriesSaved && activeIdSaved && jobsSaved) {
+            android.util.Log.d("TimeTracking", "✓ Persisted ${localEntries.size} entries to storage")
+        } else {
+            android.util.Log.e("TimeTracking", "✗ Persist failed: entries=$entriesSaved, activeId=$activeIdSaved, jobs=$jobsSaved")
+        }
+    }
+    
     private fun loadAvailableJobs() {
-        // Get active jobs from Job Board + custom jobs
-        val jobBoardJobs = JobRepository.getActiveJobTitles()
-        val allJobs = (jobBoardJobs + customJobs).distinct()
+        // #region agent log
+        android.util.Log.d("DEBUG_JOBS", "loadAvailableJobs() CALLED")
+        // #endregion
+        
+        // Get jobs from multiple sources:
+        // 1. JobRepository (in-memory, populated when JobBoard is opened)
+        // 2. JobStorage (persistent storage - always available)
+        // 3. Custom jobs entered by user
+        
+        val repoJobs = JobRepository.getActiveJobTitles()
+        // #region agent log
+        android.util.Log.d("DEBUG_JOBS", "H1: repoJobs from JobRepository: $repoJobs")
+        // #endregion
+        
+        // Also load directly from persistent storage (in case JobBoard hasn't been opened yet)
+        val storedJobs = JobStorage.loadJobs()
+        // #region agent log
+        android.util.Log.d("DEBUG_JOBS", "H2: storedJobs count=${storedJobs.size}")
+        storedJobs.forEach { job ->
+            android.util.Log.d("DEBUG_JOBS", "H2: Job: id=${job.id.take(8)}, title='${job.title}', status=${job.status.name}")
+        }
+        // #endregion
+        
+        // Include all non-archived/completed job statuses
+        val activeStatuses = listOf("TODO", "IN_PROGRESS", "REVIEW", "WORKING", "BACKLOG", "PENDING")
+        val activeStoredJobTitles = storedJobs
+            .filter { it.status.name in activeStatuses }
+            .map { it.title }
+        // #region agent log
+        android.util.Log.d("DEBUG_JOBS", "H3: activeStoredJobTitles after filter: $activeStoredJobTitles")
+        // #endregion
+        
+        // #region agent log
+        android.util.Log.d("DEBUG_JOBS", "H4: customJobs: $customJobs")
+        // #endregion
+        
+        val allJobs = (repoJobs + activeStoredJobTitles + customJobs).distinct()
         _availableJobs.value = allJobs
+        
+        // #region agent log
+        android.util.Log.d("DEBUG_JOBS", "H5: FINAL availableJobs: $allJobs (count=${allJobs.size})")
+        // #endregion
     }
     
     fun refreshAvailableJobs() {
@@ -153,6 +245,9 @@ class TimeTrackingViewModel : ViewModel() {
         // Update entries list
         _entries.value = localEntries.toList()
         
+        // Persist to storage
+        persistToStorage()
+        
         // Try to sync to backend
         syncClockInToBackend(entry)
     }
@@ -206,6 +301,9 @@ class TimeTrackingViewModel : ViewModel() {
         
         // Sync completed entry to shared repository for invoice generator
         TimeEntryRepository.addEntry(completedEntry)
+        
+        // Persist to storage
+        persistToStorage()
         
         // Try to sync to backend
         syncClockOutToBackend(completedEntry)
@@ -282,6 +380,12 @@ class TimeTrackingViewModel : ViewModel() {
         // Update entries list and summary
         _entries.value = localEntries.toList()
         updateDailySummary()
+        
+        // Remove from repository
+        TimeEntryRepository.removeEntry(entryId)
+        
+        // Persist to storage
+        persistToStorage()
         
         // Try to sync deletion to backend
         syncDeleteToBackend(entryId)

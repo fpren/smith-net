@@ -146,39 +146,6 @@ class MeshService : Service() {
                     android.bluetooth.BluetoothAdapter.EXTRA_STATE,
                     android.bluetooth.BluetoothAdapter.ERROR
                 )
-                // #region agent log
-                try {
-                    val data = mapOf(
-                        "sessionId" to "debug-session",
-                        "runId" to "bluetooth-detection-test",
-                        "hypothesisId" to "B",
-                        "location" to "MeshService.kt:144",
-                        "message" to "Bluetooth state change detected",
-                        "data" to mapOf(
-                            "newState" to state,
-                            "stateName" to when (state) {
-                                android.bluetooth.BluetoothAdapter.STATE_OFF -> "OFF"
-                                android.bluetooth.BluetoothAdapter.STATE_TURNING_OFF -> "TURNING_OFF"
-                                android.bluetooth.BluetoothAdapter.STATE_ON -> "ON"
-                                android.bluetooth.BluetoothAdapter.STATE_TURNING_ON -> "TURNING_ON"
-                                else -> "UNKNOWN"
-                            },
-                            "willStopService" to (state == android.bluetooth.BluetoothAdapter.STATE_OFF || state == android.bluetooth.BluetoothAdapter.STATE_TURNING_OFF)
-                        ),
-                        "timestamp" to System.currentTimeMillis()
-                    )
-                    val jsonPayload = org.json.JSONObject(data).toString()
-                    val url = java.net.URL("http://127.0.0.1:7242/ingest/0adb3485-1a4e-45bf-a3c0-30e8c05573e2")
-                    val connection = url.openConnection() as java.net.HttpURLConnection
-                    connection.requestMethod = "POST"
-                    connection.setRequestProperty("Content-Type", "application/json")
-                    connection.doOutput = true
-                    connection.outputStream.write(jsonPayload.toByteArray())
-                    connection.inputStream.close()
-                } catch (e: Exception) {
-                    // Ignore logging errors
-                }
-                // #endregion
 
                 when (state) {
                     android.bluetooth.BluetoothAdapter.STATE_OFF,
