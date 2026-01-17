@@ -74,7 +74,7 @@ object NotificationHelper {
      */
     fun setAppForeground(foreground: Boolean) {
         isAppInForeground = foreground
-        Log.d(TAG, "App foreground: $foreground")
+        Log.i(TAG, "🔔 App foreground state changed: $foreground")
     }
     
     /**
@@ -82,8 +82,9 @@ object NotificationHelper {
      * Only shows if app is in background.
      */
     fun showMessageNotification(context: Context, message: Message) {
+        Log.i(TAG, "🔔 showMessageNotification called - isAppInForeground=$isAppInForeground, sender=${message.senderName}")
         if (isAppInForeground) {
-            Log.d(TAG, "App in foreground, skipping notification")
+            Log.i(TAG, "🔔 App in foreground, skipping notification for: ${message.content.take(30)}")
             return
         }
         

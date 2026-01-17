@@ -53,17 +53,7 @@ object ChatManager {
     fun setMessageListener(listener: OnMessageListener) {
         messageListener = listener
     }
-    
-    /**
-     * Set the backend URL
-     */
-    fun setBackendUrl(url: String) {
-        // Handle both http and ws URLs
-        httpUrl = url.replace("ws://", "http://").replace("wss://", "https://")
-        wsUrl = url.replace("http://", "ws://").replace("https://", "wss://")
-        Log.d(TAG, "Backend URL set to: HTTP=$httpUrl, WS=$wsUrl")
-    }
-    
+
     /**
      * Connect to backend via WebSocket for receiving messages.
      */

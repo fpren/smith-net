@@ -18,9 +18,11 @@ import com.guildofsmiths.trademesh.data.MessageRepository
 import com.guildofsmiths.trademesh.data.Peer
 import com.guildofsmiths.trademesh.data.PeerRepository
 import com.guildofsmiths.trademesh.data.UserPreferences
+import com.guildofsmiths.trademesh.service.BackendConfig
 import com.guildofsmiths.trademesh.service.ChatManager
 import com.guildofsmiths.trademesh.service.GatewayClient
 import com.guildofsmiths.trademesh.service.MeshService
+import com.guildofsmiths.trademesh.service.SupabaseChat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -500,22 +502,29 @@ object BoundaryEngine {
     
     /**
      * Route message via IP chat path.
-     * Uses smart routing: Supabase primary, ChatManager fallback.
+     * Uses smart routing: Telegram Bridge primary, Supabase fallback, ChatManager tertiary.
      */
     private fun routeViaChat(message: Message) {
         Log.d(TAG, "Routing via chat: ${message.id.take(8)}...")
 
-        // PRIMARY: Try Supabase first (global, reliable)
-        if (SupabaseChat.isConnected()) {
-            SupabaseChat.sendMessage(message)
-            Log.d(TAG, "📤 Sent via Supabase (primary)")
+        // PRIMARY: Try Telegram Bridge first (most reliable for cross-device)
+        if (com.guildofsmiths.trademesh.service.TelegramBridge.isConnected.value) {
+            com.guildofsmiths.trademesh.service.TelegramBridge.sendMessage(message)
+            Log.d(TAG, "📤 Sent via Telegram Bridge (primary)")
             return
         }
 
-        // FALLBACK: Use local ChatManager if Supabase unavailable
+        // SECONDARY: Try Supabase (global, cloud-based)
+        if (SupabaseChat.isConnected.value) {
+            SupabaseChat.sendMessage(message)
+            Log.d(TAG, "📤 Sent via Supabase (secondary)")
+            return
+        }
+
+        // TERTIARY: Use local ChatManager if others unavailable
         if (ChatManager.isConnected()) {
             ChatManager.sendMessage(message)
-            Log.d(TAG, "📤 Sent via ChatManager (fallback)")
+            Log.d(TAG, "📤 Sent via ChatManager (tertiary)")
             return
         }
 

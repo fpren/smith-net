@@ -9,8 +9,8 @@ import com.guildofsmiths.trademesh.data.UserPreferences
 object BackendConfig {
 
     // Default fallback URLs (for development)
-    private const val DEFAULT_BACKEND_URL = "http://192.168.8.163:3000"
-    private const val DEFAULT_WEBSOCKET_URL = "ws://192.168.8.163:3000"
+    private const val DEFAULT_BACKEND_URL = "http://192.168.8.169:3000"
+    private const val DEFAULT_WEBSOCKET_URL = "ws://192.168.8.169:3000"
     private const val DEFAULT_SUPABASE_URL = "https://your-project.supabase.co"
 
     // Get configured backend HTTP URL

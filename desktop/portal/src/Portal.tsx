@@ -5,6 +5,7 @@ import { wsClient } from './websocket';
 import * as api from './api';
 import { supabaseChat } from './supabaseClient';
 import { supabaseAuth } from './supabaseAuth';
+import { telegramBridge } from './telegramBridge';
 
 /**
  * Smith Net Portal - Main chat interface
@@ -29,6 +30,7 @@ export default function Portal() {
   const [isUploading, setIsUploading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [bridgeConnected, setBridgeConnected] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -211,13 +213,31 @@ export default function Portal() {
       // Also connect WebSocket for legacy backend support
       wsClient.connect(id, name).catch(e => console.log('[Portal] WS connect issue:', e));
 
+      // Connect to Telegram Bridge (for cross-device sync)
+      // Always configure with correct values (in case localStorage is stale)
+      telegramBridge.configure('http://192.168.8.169:8080', 'rHGvP0GADcaUHwHqutuA9Kv1kYdRDzJSpof5gpLGYHM', '8018493389');
+      telegramBridge.connect(id, name).catch(e => console.log('[Portal] Telegram Bridge connect issue:', e));
+
       // Load channels from Supabase (already filtered for privacy)
-      const visibleChannels = await supabaseChat.getChannels();
-      console.log('[Portal] Visible channels:', visibleChannels.length, '(filtered for privacy)');
+      console.log('[Portal] Loading channels from Supabase...');
+      let visibleChannels = await supabaseChat.getChannels();
+      console.log('[Portal] Visible channels:', visibleChannels.length, visibleChannels.map(c => c.name));
+
+      // Ensure "general" channel exists for bridge sync
+      let general = visibleChannels.find((c: Channel) => c.name === 'general');
+      if (!general) {
+        console.log('[Portal] Creating general channel for bridge sync...');
+        try {
+          general = await supabaseChat.createChannel('general', 'broadcast');
+          visibleChannels = [...visibleChannels, general];
+        } catch (e) {
+          console.log('[Portal] Could not create general channel:', e);
+        }
+      }
+
       setChannels(visibleChannels);
 
-      // Auto-select general channel if exists
-      const general = visibleChannels.find((c: Channel) => c.name === 'general');
+      // Auto-select general channel for bridge sync
       if (general) {
         setActiveChannel(general);
       }
@@ -277,6 +297,29 @@ export default function Portal() {
           return [...prev, msg];
         });
       }
+    });
+
+    // Telegram Bridge handler (cross-device sync)
+    // Bridge messages are shown in current active channel since they represent
+    // cross-device sync (phone ↔ desktop) for the same conversation
+    telegramBridge.onMessage((msg) => {
+      console.log('[Portal] Telegram Bridge message:', msg.senderName, msg.content);
+
+      // Show bridge messages in the active channel (cross-device sync)
+      // The bridge acts as a unified channel between all devices
+      if (activeChannel) {
+        setMessages(prev => {
+          if (prev.some(m => m.id === msg.id)) return prev;
+          // Override channelId to match active channel for display
+          return [...prev, { ...msg, channelId: activeChannel.id, origin: 'gateway' as const }];
+        });
+      }
+    });
+
+    // Bridge connection status
+    telegramBridge.onConnectionChange((connected) => {
+      console.log('[Portal] Telegram Bridge connection:', connected ? 'connected' : 'disconnected');
+      setBridgeConnected(connected);
     });
 
     wsClient.onChannelCreated((ch) => {
@@ -349,16 +392,30 @@ export default function Portal() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Send message (via Supabase Realtime)
+  // Send message (via Supabase Realtime + Telegram Bridge for cross-device)
   const handleSend = async () => {
     const msg = messageInputRef.current?.value || inputValue;
     if (!msg.trim() || !activeChannel) return;
+
+    const messageId = crypto.randomUUID();
+    const timestamp = Date.now();
 
     try {
       // Send via Supabase (stores and broadcasts to all subscribers)
       await supabaseChat.sendMessage(activeChannel.id, msg);
       if (messageInputRef.current) messageInputRef.current.value = '';
       setInputValue('');
+
+      // Also send via Telegram Bridge for cross-device sync (phone ↔ desktop)
+      telegramBridge.sendMessage({
+        id: messageId,
+        channelId: activeChannel.id,
+        senderId: userId,
+        senderName: userName,
+        content: msg,
+        timestamp,
+        origin: 'online'
+      }).catch(e => console.log('[Portal] Bridge send issue:', e));
 
       // Refresh messages
       const updated = await supabaseChat.getChannelMessages(activeChannel.id);
@@ -906,6 +963,21 @@ export default function Portal() {
           )}
         </div>
 
+        {/* Bridge Status */}
+        <div style={{
+          padding: '8px 16px',
+          borderTop: '1px solid #1a1a1a',
+          fontSize: '11px'
+        }}>
+          <div style={{ marginBottom: '6px', color: '#666' }}>TELEGRAM BRIDGE</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ ...styles.dot, background: bridgeConnected ? '#4ade80' : '#666' }} />
+            <span style={{ color: bridgeConnected ? '#4ade80' : '#666' }}>
+              {bridgeConnected ? 'Connected' : 'Disconnected'}
+            </span>
+          </div>
+        </div>
+
         {/* Gateway Status */}
         <div style={styles.statusPanel}>
           <div style={{ marginBottom: '6px', color: '#666' }}>GATEWAY RELAYS</div>
@@ -968,10 +1040,12 @@ export default function Portal() {
                 {/* Connection status indicator */}
                 <span style={{
                   fontSize: '10px',
-                  color: gateway?.relayConnected ? '#4ade80' : '#666',
+                  color: bridgeConnected ? '#4ade80' : '#666',
                   alignSelf: 'center'
                 }}>
-                  {gateway?.relayConnected ? '● ONLINE+MESH' : '● ONLINE'}
+                  {bridgeConnected && gateway?.relayConnected ? '● BRIDGE+MESH' :
+                   bridgeConnected ? '● BRIDGE' :
+                   gateway?.relayConnected ? '● MESH' : '● ONLINE'}
                 </span>
                 {/* Clear chat button */}
                 <button

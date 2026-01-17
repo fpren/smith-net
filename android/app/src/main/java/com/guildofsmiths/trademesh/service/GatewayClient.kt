@@ -78,15 +78,7 @@ object GatewayClient {
             connectionStateListener?.onConnectionStateChanged(connected)
         }
     }
-    
-    /**
-     * Set the backend URL
-     */
-    fun setBackendUrl(url: String) {
-        backendUrl = url
-        Log.d(TAG, "Backend URL set to: $url")
-    }
-    
+
     /**
      * Set listener for online messages
      */

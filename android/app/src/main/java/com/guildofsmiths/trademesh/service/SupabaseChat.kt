@@ -78,7 +78,6 @@ object SupabaseChat {
         val channel_id: String,
         val sender_id: String,
         val sender_name: String,
-        val device_id: String? = null,  // PHYSICAL device identifier for identity resolution
         val content: String,
         val timestamp: Long = System.currentTimeMillis(),
         val is_mesh_origin: Boolean = false,
@@ -356,7 +355,6 @@ object SupabaseChat {
             channel_id = message.channelId,
             sender_id = message.senderId,
             sender_name = message.senderName,
-            device_id = message.deviceId ?: UserPreferences.getDeviceId(), // Include physical device ID
             content = message.content,
             timestamp = message.timestamp,
             is_mesh_origin = message.isMeshOrigin,
@@ -538,35 +536,85 @@ object SupabaseChat {
     }
     
     /**
+     * Helper to extract String from record value (handles both String and JsonElement types)
+     */
+    private fun getStringFromRecord(record: Map<String, Any?>, key: String): String? {
+        val value = record[key] ?: return null
+        return when (value) {
+            is String -> value
+            is kotlinx.serialization.json.JsonPrimitive -> value.content
+            else -> value.toString().removeSurrounding("\"")
+        }
+    }
+
+    /**
+     * Helper to extract Long from record value
+     */
+    private fun getLongFromRecord(record: Map<String, Any?>, key: String): Long? {
+        val value = record[key] ?: return null
+        return when (value) {
+            is Number -> value.toLong()
+            is kotlinx.serialization.json.JsonPrimitive -> value.content.toLongOrNull()
+            is String -> value.toLongOrNull()
+            else -> value.toString().toLongOrNull()
+        }
+    }
+
+    /**
+     * Helper to extract Boolean from record value
+     */
+    private fun getBooleanFromRecord(record: Map<String, Any?>, key: String): Boolean? {
+        val value = record[key] ?: return null
+        return when (value) {
+            is Boolean -> value
+            is kotlinx.serialization.json.JsonPrimitive -> value.content.toBooleanStrictOrNull()
+            is String -> value.toBooleanStrictOrNull()
+            else -> value.toString().toBooleanStrictOrNull()
+        }
+    }
+
+    /**
      * Handle incoming message from Supabase Realtime
      */
     private fun handleNewMessage(record: Map<String, Any?>) {
+        Log.i(TAG, "📨 handleNewMessage called with record keys: ${record.keys}")
         try {
-            val senderId = record["sender_id"] as? String ?: return
+            // Extract values using helpers that handle JsonElement types
+            val senderId = getStringFromRecord(record, "sender_id")
+            if (senderId == null) {
+                Log.w(TAG, "❌ sender_id is null, returning early")
+                return
+            }
             val myUserId = UserPreferences.getUserId()
-            val msgId = record["id"] as? String ?: "unknown"
-            val content = (record["content"] as? String ?: "").take(20)
-            
-            val channelId = record["channel_id"] as? String ?: "unknown"
+            val msgId = getStringFromRecord(record, "id") ?: "unknown"
+            val content = (getStringFromRecord(record, "content") ?: "").take(20)
+
+            val channelId = getStringFromRecord(record, "channel_id") ?: "unknown"
             // #region agent log
             Log.w("DEBUG_MSG", "REALTIME RECEIVED: msgId=${msgId.take(8)} channelId=$channelId senderId=${senderId.take(8)} myUserId=${myUserId.take(8)} isOwnMsg=${senderId == myUserId} content='$content'")
             // #endregion
             
-            // Skip our own messages (we already have them locally)
+            // Skip our own messages ONLY if we already have them locally
+            // This handles multi-device: same user on different devices should still see each other's messages
             if (senderId == myUserId) {
-                // #region agent log
-                Log.w("DEBUG_MSG", "SKIPPING own message: msgId=${msgId.take(8)}")
-                // #endregion
-                return
+                val existsLocally = MessageRepository.allMessages.value.any { it.id == msgId }
+                if (existsLocally) {
+                    // #region agent log
+                    Log.w("DEBUG_MSG", "SKIPPING own message (already local): msgId=${msgId.take(8)}")
+                    // #endregion
+                    return
+                }
+                // Message from same user but different device - continue to add it
+                Log.d("DEBUG_MSG", "KEEPING own message from another device: msgId=${msgId.take(8)}")
             }
             
-            // Parse media attachment if present
-            val mediaType = record["media_type"] as? String
-            val mediaUrl = record["media_url"] as? String
-            val mediaFilename = record["media_filename"] as? String
-            val mediaSize = (record["media_size"] as? Number)?.toLong() ?: 0L
-            val mediaDuration = (record["media_duration"] as? Number)?.toLong() ?: 0L
-            
+            // Parse media attachment if present (using helpers for JsonElement compatibility)
+            val mediaType = getStringFromRecord(record, "media_type")
+            val mediaUrl = getStringFromRecord(record, "media_url")
+            val mediaFilename = getStringFromRecord(record, "media_filename")
+            val mediaSize = getLongFromRecord(record, "media_size") ?: 0L
+            val mediaDuration = getLongFromRecord(record, "media_duration") ?: 0L
+
             val media: com.guildofsmiths.trademesh.data.MediaAttachment? = if (mediaType != null && mediaUrl != null) {
                 val type = when (mediaType) {
                     "image" -> com.guildofsmiths.trademesh.data.MediaType.IMAGE
@@ -583,7 +631,7 @@ object SupabaseChat {
                     duration = mediaDuration
                 )
             } else null
-            
+
             val msgMediaType = when (mediaType) {
                 "image" -> com.guildofsmiths.trademesh.data.MediaType.IMAGE
                 "voice" -> com.guildofsmiths.trademesh.data.MediaType.VOICE
@@ -591,17 +639,17 @@ object SupabaseChat {
                 "file" -> com.guildofsmiths.trademesh.data.MediaType.FILE
                 else -> com.guildofsmiths.trademesh.data.MediaType.TEXT
             }
-            
+
             val message = Message(
-                id = record["id"] as? String ?: UUID.randomUUID().toString(),
+                id = getStringFromRecord(record, "id") ?: UUID.randomUUID().toString(),
                 beaconId = "default",  // Ensure beaconId matches for filtering
-                channelId = record["channel_id"] as? String ?: "general",
+                channelId = getStringFromRecord(record, "channel_id") ?: "general",
                 senderId = senderId,  // Will be resolved by IdentityResolver
-                senderName = record["sender_name"] as? String ?: "Unknown",
-                deviceId = record["device_id"] as? String,  // Online messages may include device_id
-                content = record["content"] as? String ?: "",
-                timestamp = (record["timestamp"] as? Number)?.toLong() ?: System.currentTimeMillis(),
-                isMeshOrigin = record["is_mesh_origin"] as? Boolean ?: false,
+                senderName = getStringFromRecord(record, "sender_name") ?: "Unknown",
+                deviceId = getStringFromRecord(record, "device_id"),  // Online messages may include device_id
+                content = getStringFromRecord(record, "content") ?: "",
+                timestamp = getLongFromRecord(record, "timestamp") ?: System.currentTimeMillis(),
+                isMeshOrigin = getBooleanFromRecord(record, "is_mesh_origin") ?: false,
                 mediaType = msgMediaType,
                 media = media
             )

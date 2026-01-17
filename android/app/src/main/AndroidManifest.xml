@@ -26,6 +26,7 @@
     <!-- Foreground service permission for mesh service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Media permissions for voice/image/file features (IP chat only) -->
@@ -99,6 +100,13 @@
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
+
+        <!-- Realtime Service - Foreground service for message notifications -->
+        <service
+            android:name=".service.RealtimeService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
         
         <!-- File Provider for camera captures -->
         <provider
