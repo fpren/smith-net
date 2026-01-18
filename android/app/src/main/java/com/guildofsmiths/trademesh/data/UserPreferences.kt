@@ -25,6 +25,11 @@ object UserPreferences {
     private const val KEY_WEBSOCKET_URL = "websocket_url"
     private const val KEY_SUPABASE_URL = "supabase_url"
 
+    // Notification preferences
+    private const val KEY_NOTIFY_DIRECT_MESSAGES = "notify_direct_messages"
+    private const val KEY_NOTIFY_GROUP_MESSAGES = "notify_group_messages"
+    private const val KEY_NOTIFY_MENTIONS = "notify_mentions"
+
     // Onboarding-related keys
     private const val KEY_LANGUAGE = "language"
     private const val KEY_AI_ENABLED = "ai_enabled"
@@ -409,6 +414,55 @@ object UserPreferences {
      */
     fun setSupabaseUrl(url: String) {
         prefs?.edit()?.putString(KEY_SUPABASE_URL, url)?.apply()
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // NOTIFICATION PREFERENCES
+    // ════════════════════════════════════════════════════════════════════
+
+    /**
+     * Check if notifications for direct messages are enabled.
+     * Default: true
+     */
+    fun isNotifyDirectMessagesEnabled(): Boolean {
+        return prefs?.getBoolean(KEY_NOTIFY_DIRECT_MESSAGES, true) ?: true
+    }
+
+    /**
+     * Set notification preference for direct messages.
+     */
+    fun setNotifyDirectMessagesEnabled(enabled: Boolean) {
+        prefs?.edit()?.putBoolean(KEY_NOTIFY_DIRECT_MESSAGES, enabled)?.apply()
+    }
+
+    /**
+     * Check if notifications for group messages are enabled.
+     * Default: true
+     */
+    fun isNotifyGroupMessagesEnabled(): Boolean {
+        return prefs?.getBoolean(KEY_NOTIFY_GROUP_MESSAGES, true) ?: true
+    }
+
+    /**
+     * Set notification preference for group messages.
+     */
+    fun setNotifyGroupMessagesEnabled(enabled: Boolean) {
+        prefs?.edit()?.putBoolean(KEY_NOTIFY_GROUP_MESSAGES, enabled)?.apply()
+    }
+
+    /**
+     * Check if notifications for mentions are enabled.
+     * Default: true
+     */
+    fun isNotifyMentionsEnabled(): Boolean {
+        return prefs?.getBoolean(KEY_NOTIFY_MENTIONS, true) ?: true
+    }
+
+    /**
+     * Set notification preference for mentions.
+     */
+    fun setNotifyMentionsEnabled(enabled: Boolean) {
+        prefs?.edit()?.putBoolean(KEY_NOTIFY_MENTIONS, enabled)?.apply()
     }
 
     /**

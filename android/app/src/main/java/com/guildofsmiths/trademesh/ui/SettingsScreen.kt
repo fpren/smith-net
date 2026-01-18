@@ -48,6 +48,8 @@ import com.guildofsmiths.trademesh.data.SupabaseAuth
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
 import com.guildofsmiths.trademesh.service.BackendConfig
+import com.guildofsmiths.trademesh.service.CommsRouter
+import com.guildofsmiths.trademesh.service.TelegramBridge
 import kotlinx.coroutines.launch
 import kotlin.system.exitProcess
 
@@ -61,6 +63,7 @@ fun SettingsScreen(
     onSignOut: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var userName by remember { mutableStateOf(UserPreferences.getUserName()) }
     var hasChanges by remember { mutableStateOf(false) }
     val isScanning by BoundaryEngine.isScanning.collectAsState()
@@ -354,6 +357,24 @@ fun SettingsScreen(
                     }
                     .padding(vertical = 8.dp)
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            ConsoleSeparator()
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // ════════════════════════════════════════════════════════════════
+            // NOTIFICATIONS
+            // ════════════════════════════════════════════════════════════════
+            NotificationSettingsSection()
+
+            Spacer(modifier = Modifier.height(16.dp))
+            ConsoleSeparator()
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // ════════════════════════════════════════════════════════════════
+            // TELEGRAM BRIDGE
+            // ════════════════════════════════════════════════════════════════
+            TelegramBridgeSettingsSection()
 
             Spacer(modifier = Modifier.height(16.dp))
             ConsoleSeparator()
@@ -1202,6 +1223,412 @@ private fun ModelPickerDialog(
                 style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
             )
         }
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// TELEGRAM BRIDGE SETTINGS SECTION
+// ════════════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun TelegramBridgeSettingsSection() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    // Bridge state
+    val connectionState by TelegramBridge.connectionState.collectAsState()
+    val isConnected by TelegramBridge.isConnected.collectAsState()
+    val lastError by TelegramBridge.lastError.collectAsState()
+    val activePath by CommsRouter.activePath.collectAsState()
+
+    // Config state
+    var bridgeUrl by remember { mutableStateOf("") }
+    var bridgeToken by remember { mutableStateOf("") }
+    var chatId by remember { mutableStateOf("") }
+    var showConfig by remember { mutableStateOf(false) }
+
+    // Load saved config
+    LaunchedEffect(Unit) {
+        val prefs = context.getSharedPreferences("telegram_bridge", Context.MODE_PRIVATE)
+        bridgeUrl = prefs.getString("bridge_url", "") ?: ""
+        bridgeToken = prefs.getString("bridge_token", "") ?: ""
+        chatId = prefs.getString("chat_id", "") ?: ""
+    }
+
+    Column {
+        Text(text = "TELEGRAM BRIDGE", style = ConsoleTheme.captionBold)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Connection status
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(ConsoleTheme.surface)
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Status indicator
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .clip(CircleShape)
+                    .background(
+                        when {
+                            isConnected -> ConsoleTheme.success
+                            connectionState == TelegramBridge.ConnectionState.CONNECTING -> ConsoleTheme.warning
+                            connectionState == TelegramBridge.ConnectionState.RECONNECTING -> ConsoleTheme.warning
+                            else -> ConsoleTheme.error
+                        }
+                    )
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = when (connectionState) {
+                        TelegramBridge.ConnectionState.CONNECTED -> "Connected"
+                        TelegramBridge.ConnectionState.CONNECTING -> "Connecting..."
+                        TelegramBridge.ConnectionState.RECONNECTING -> "Reconnecting..."
+                        TelegramBridge.ConnectionState.ERROR -> "Error"
+                        TelegramBridge.ConnectionState.DISCONNECTED -> "Disconnected"
+                    },
+                    style = ConsoleTheme.body
+                )
+                if (lastError != null) {
+                    Text(
+                        text = lastError ?: "",
+                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.error)
+                    )
+                }
+            }
+
+            // Connect/Disconnect button
+            Text(
+                text = if (isConnected) "[DISCONNECT]" else "[CONNECT]",
+                style = ConsoleTheme.action,
+                modifier = Modifier.clickable {
+                    if (isConnected) {
+                        TelegramBridge.disconnect()
+                    } else if (TelegramBridge.isConfigured()) {
+                        TelegramBridge.connect()
+                    } else {
+                        Toast.makeText(context, "Configure bridge first", Toast.LENGTH_SHORT).show()
+                        showConfig = true
+                    }
+                }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Active routing path
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(ConsoleTheme.surface)
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = "[⥮]", style = ConsoleTheme.bodyBold)
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(text = "Active Path:", style = ConsoleTheme.body)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = when (activePath) {
+                    CommsRouter.TransportPath.TELEGRAM -> "TELEGRAM"
+                    CommsRouter.TransportPath.SUPABASE -> "SUPABASE"
+                    CommsRouter.TransportPath.BLE_MESH -> "BLE MESH"
+                    CommsRouter.TransportPath.OFFLINE -> "OFFLINE (queued)"
+                },
+                style = ConsoleTheme.bodyBold.copy(
+                    color = when (activePath) {
+                        CommsRouter.TransportPath.TELEGRAM -> ConsoleTheme.success
+                        CommsRouter.TransportPath.SUPABASE -> ConsoleTheme.accent
+                        CommsRouter.TransportPath.BLE_MESH -> ConsoleTheme.warning
+                        CommsRouter.TransportPath.OFFLINE -> ConsoleTheme.error
+                    }
+                )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Configure button
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(ConsoleTheme.surface)
+                .clickable { showConfig = !showConfig }
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = "[⚙]", style = ConsoleTheme.bodyBold)
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(text = "Configure Bridge", style = ConsoleTheme.body, modifier = Modifier.weight(1f))
+            Text(text = if (showConfig) "▼" else ">", style = ConsoleTheme.body)
+        }
+
+        // Config fields (expandable)
+        if (showConfig) {
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Bridge URL
+            Text(text = "Bridge URL:", style = ConsoleTheme.caption)
+            BasicTextField(
+                value = bridgeUrl,
+                onValueChange = { bridgeUrl = it },
+                textStyle = ConsoleTheme.bodySmall,
+                cursorBrush = SolidColor(ConsoleTheme.cursor),
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .padding(10.dp),
+                decorationBox = { innerTextField ->
+                    Box {
+                        if (bridgeUrl.isEmpty()) {
+                            Text(
+                                text = "http://192.168.1.100:8080",
+                                style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder)
+                            )
+                        }
+                        innerTextField()
+                    }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Auth Token
+            Text(text = "Auth Token:", style = ConsoleTheme.caption)
+            BasicTextField(
+                value = bridgeToken,
+                onValueChange = { bridgeToken = it },
+                textStyle = ConsoleTheme.bodySmall,
+                cursorBrush = SolidColor(ConsoleTheme.cursor),
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .padding(10.dp),
+                decorationBox = { innerTextField ->
+                    Box {
+                        if (bridgeToken.isEmpty()) {
+                            Text(
+                                text = "your-bridge-token",
+                                style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder)
+                            )
+                        }
+                        innerTextField()
+                    }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Chat ID
+            Text(text = "Telegram Chat ID:", style = ConsoleTheme.caption)
+            BasicTextField(
+                value = chatId,
+                onValueChange = { chatId = it },
+                textStyle = ConsoleTheme.bodySmall,
+                cursorBrush = SolidColor(ConsoleTheme.cursor),
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .padding(10.dp),
+                decorationBox = { innerTextField ->
+                    Box {
+                        if (chatId.isEmpty()) {
+                            Text(
+                                text = "-1001234567890",
+                                style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder)
+                            )
+                        }
+                        innerTextField()
+                    }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Save button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "SAVE CONFIG →",
+                    style = ConsoleTheme.action,
+                    modifier = Modifier
+                        .clickable {
+                            if (bridgeUrl.isNotBlank() && bridgeToken.isNotBlank() && chatId.isNotBlank()) {
+                                TelegramBridge.saveConfiguration(
+                                    context,
+                                    TelegramBridge.BridgeConfig(
+                                        url = bridgeUrl,
+                                        token = bridgeToken,
+                                        chatId = chatId
+                                    )
+                                )
+                                Toast.makeText(context, "Bridge config saved", Toast.LENGTH_SHORT).show()
+                                showConfig = false
+                            } else {
+                                Toast.makeText(context, "Fill in all fields", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                        .padding(8.dp)
+                )
+
+                Text(
+                    text = "TEST CONNECTION",
+                    style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                    modifier = Modifier
+                        .clickable {
+                            scope.launch {
+                                val result = TelegramBridge.testConnection()
+                                result.fold(
+                                    onSuccess = {
+                                        Toast.makeText(context, "✓ Bridge healthy", Toast.LENGTH_SHORT).show()
+                                    },
+                                    onFailure = { e ->
+                                        Toast.makeText(context, "✗ ${e.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                )
+                            }
+                        }
+                        .padding(8.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Help text
+            Text(
+                text = "Run the bridge server on your Pi or desktop:",
+                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+            )
+            Text(
+                text = "cd telegram-bridge && python server.py",
+                style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent)
+            )
+        }
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// NOTIFICATION SETTINGS SECTION
+// ════════════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun NotificationSettingsSection() {
+    var notifyDirectMessages by remember { mutableStateOf(UserPreferences.isNotifyDirectMessagesEnabled()) }
+    var notifyGroupMessages by remember { mutableStateOf(UserPreferences.isNotifyGroupMessagesEnabled()) }
+    var notifyMentions by remember { mutableStateOf(UserPreferences.isNotifyMentionsEnabled()) }
+
+    Column {
+        Text(text = "NOTIFICATIONS", style = ConsoleTheme.captionBold)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Direct Messages Toggle
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(ConsoleTheme.surface)
+                .clickable {
+                    notifyDirectMessages = !notifyDirectMessages
+                    UserPreferences.setNotifyDirectMessagesEnabled(notifyDirectMessages)
+                }
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = "[✉]", style = ConsoleTheme.bodyBold)
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = "Direct Messages", style = ConsoleTheme.body)
+                Text(
+                    text = "Notify when you receive a DM",
+                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+                )
+            }
+            Text(
+                text = if (notifyDirectMessages) "[ON]" else "[OFF]",
+                style = ConsoleTheme.bodyBold.copy(
+                    color = if (notifyDirectMessages) ConsoleTheme.success else ConsoleTheme.textDim
+                )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Group Messages Toggle
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(ConsoleTheme.surface)
+                .clickable {
+                    notifyGroupMessages = !notifyGroupMessages
+                    UserPreferences.setNotifyGroupMessagesEnabled(notifyGroupMessages)
+                }
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = "[◫]", style = ConsoleTheme.bodyBold)
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = "Group Messages", style = ConsoleTheme.body)
+                Text(
+                    text = "Notify for channel/group messages",
+                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+                )
+            }
+            Text(
+                text = if (notifyGroupMessages) "[ON]" else "[OFF]",
+                style = ConsoleTheme.bodyBold.copy(
+                    color = if (notifyGroupMessages) ConsoleTheme.success else ConsoleTheme.textDim
+                )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Mentions Toggle
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(ConsoleTheme.surface)
+                .clickable {
+                    notifyMentions = !notifyMentions
+                    UserPreferences.setNotifyMentionsEnabled(notifyMentions)
+                }
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = "[@]", style = ConsoleTheme.bodyBold)
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = "Mentions", style = ConsoleTheme.body)
+                Text(
+                    text = "Notify when you're @mentioned",
+                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+                )
+            }
+            Text(
+                text = if (notifyMentions) "[ON]" else "[OFF]",
+                style = ConsoleTheme.bodyBold.copy(
+                    color = if (notifyMentions) ConsoleTheme.success else ConsoleTheme.textDim
+                )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Info text
+        Text(
+            text = "When all options are off, you won't receive message notifications.",
+            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+        )
     }
 }
 

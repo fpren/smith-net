@@ -101,7 +101,7 @@ class RealtimeService : Service() {
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_LOW  // Low importance = no sound, minimal presence
+                NotificationManager.IMPORTANCE_MIN  // Minimal - hidden from status bar
             ).apply {
                 description = "Keeps message connection active"
                 setShowBadge(false)
@@ -127,11 +127,12 @@ class RealtimeService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Smith Net")
-            .setContentText("Connected - receiving messages")
+            .setContentTitle("smith net")
+            .setContentText("connected")
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setPriority(NotificationCompat.PRIORITY_MIN)  // Minimal priority
+            .setVisibility(NotificationCompat.VISIBILITY_SECRET)  // Hide on lock screen
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setContentIntent(pendingIntent)
             .build()

@@ -221,16 +221,18 @@ class MeshService : Service() {
         val channel = NotificationChannel(
             CHANNEL_ID,
             "Mesh Service",
-            NotificationManager.IMPORTANCE_LOW
+            NotificationManager.IMPORTANCE_MIN  // Minimal - hidden from status bar
         ).apply {
             description = "BLE mesh communication service"
             setShowBadge(false)
+            enableVibration(false)
+            setSound(null, null)
         }
-        
+
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager.createNotificationChannel(channel)
     }
-    
+
     private fun createNotification(): Notification {
         val pendingIntent = packageManager.getLaunchIntentForPackage(packageName)?.let {
             PendingIntent.getActivity(
@@ -238,13 +240,15 @@ class MeshService : Service() {
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
         }
-        
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("smith net active")
-            .setContentText("mesh running")
+            .setContentTitle("smith net")
+            .setContentText("running")
             .setSmallIcon(R.drawable.ic_mesh_notification)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_MIN)  // Minimal priority
+            .setVisibility(NotificationCompat.VISIBILITY_SECRET)  // Hide on lock screen
             .build()
     }
     

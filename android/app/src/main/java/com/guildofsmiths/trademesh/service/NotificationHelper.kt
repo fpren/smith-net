@@ -13,6 +13,7 @@ import com.guildofsmiths.trademesh.MainActivity
 import com.guildofsmiths.trademesh.R
 import com.guildofsmiths.trademesh.data.Message
 import com.guildofsmiths.trademesh.data.MediaType
+import com.guildofsmiths.trademesh.data.UserPreferences
 
 /**
  * NotificationHelper: Shows local notifications for incoming messages
@@ -76,10 +77,52 @@ object NotificationHelper {
         isAppInForeground = foreground
         Log.i(TAG, "🔔 App foreground state changed: $foreground")
     }
-    
+
+    /**
+     * Check if a message should trigger a notification based on user preferences.
+     * Returns true if notification should be shown.
+     */
+    private fun shouldShowNotification(message: Message): Boolean {
+        val currentUserId = UserPreferences.getUserId()
+        val currentUserName = UserPreferences.getUserName()
+
+        // Check if this is a direct message to the user
+        val isDirectMessage = message.recipientId != null && message.recipientId == currentUserId
+
+        // Check if user is mentioned in the message (@username or @displayName)
+        val isMentioned = currentUserName.isNotBlank() &&
+            (message.content.contains("@$currentUserName", ignoreCase = true) ||
+             message.content.contains("@${currentUserId}", ignoreCase = true))
+
+        // Check if this is a group message (not a DM)
+        val isGroupMessage = message.recipientId == null
+
+        // If user is mentioned and mentions are enabled, always show
+        if (isMentioned && UserPreferences.isNotifyMentionsEnabled()) {
+            Log.d(TAG, "🔔 Notification allowed: user mentioned")
+            return true
+        }
+
+        // If it's a direct message to the user and direct messages are enabled, show
+        if (isDirectMessage && UserPreferences.isNotifyDirectMessagesEnabled()) {
+            Log.d(TAG, "🔔 Notification allowed: direct message")
+            return true
+        }
+
+        // If it's a group message and group messages are enabled, show
+        if (isGroupMessage && UserPreferences.isNotifyGroupMessagesEnabled()) {
+            Log.d(TAG, "🔔 Notification allowed: group message")
+            return true
+        }
+
+        // No preference matched, don't show notification
+        Log.d(TAG, "🔔 Notification blocked: no matching preference (isDM=$isDirectMessage, isGroup=$isGroupMessage, isMentioned=$isMentioned)")
+        return false
+    }
+
     /**
      * Show notification for incoming message.
-     * Only shows if app is in background.
+     * Only shows if app is in background and passes notification filters.
      */
     fun showMessageNotification(context: Context, message: Message) {
         Log.i(TAG, "🔔 showMessageNotification called - isAppInForeground=$isAppInForeground, sender=${message.senderName}")
@@ -87,9 +130,15 @@ object NotificationHelper {
             Log.i(TAG, "🔔 App in foreground, skipping notification for: ${message.content.take(30)}")
             return
         }
-        
+
         // Don't notify for own messages or system messages
         if (message.senderName == "You" || message.senderName == "System") {
+            return
+        }
+
+        // Check notification preferences
+        if (!shouldShowNotification(message)) {
+            Log.i(TAG, "🔔 Notification filtered by user preferences for: ${message.content.take(30)}")
             return
         }
         
