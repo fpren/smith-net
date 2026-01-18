@@ -399,7 +399,8 @@ class MeshService : Service() {
             // Check if this is an ACK packet
             if (channelHashValue == ACK_CHANNEL_HASH) {
                 // Return a message object so ACK can be processed
-                val id = "${senderId}_${timestamp}_ack"
+                // Use deterministic UUID from composite key for deduplication + valid UUID format
+                val id = UUID.nameUUIDFromBytes("${senderId}_${timestamp}_ack".toByteArray()).toString()
                 val ackMsg = Message(
                     id = id,
                     beaconId = "default",
@@ -423,8 +424,8 @@ class MeshService : Service() {
             }
             Log.d(TAG, "   ✅ Resolved to channel: #$channelId")
 
-            // Generate a deterministic ID from payload for deduplication
-            val id = "${senderId}_${timestamp}_${channelHashValue}"
+            // Generate a deterministic UUID from payload for deduplication + valid UUID format
+            val id = UUID.nameUUIDFromBytes("${senderId}_${timestamp}_${channelHashValue}".toByteArray()).toString()
 
             // Look up peer's display name if we've seen them before
             val knownPeer = PeerRepository.getPeer(senderId)

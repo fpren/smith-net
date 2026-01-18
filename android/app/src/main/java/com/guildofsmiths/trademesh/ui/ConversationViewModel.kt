@@ -561,20 +561,24 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
             recipientName = recipientName
         )
         
-        // Route via BoundaryEngine (handles online/offline logic)
-        BoundaryEngine.routeMessage(getApplication(), message)
-        
-        // If online, also upload the media file
-        if (BoundaryEngine.isOnline.value) {
+        // If online with media, upload first then send message with media URL
+        // If offline, route via mesh immediately (media is queued for later upload)
+        if (BoundaryEngine.isOnline.value && media.localPath != null) {
+            // Online: Upload media first, then send message with media URL
             viewModelScope.launch {
                 MediaUploadManager.uploadAndSendMedia(message) { success ->
                     if (success) {
                         android.util.Log.i("ConversationVM", "✅ Media uploaded and sent")
                     } else {
-                        android.util.Log.w("ConversationVM", "⚠️ Media upload failed, queued for later")
+                        android.util.Log.w("ConversationVM", "⚠️ Media upload failed, sending placeholder")
+                        // If upload fails, send the placeholder message
+                        BoundaryEngine.routeMessage(getApplication(), message)
                     }
                 }
             }
+        } else {
+            // Offline: Route via mesh immediately (media queued for later)
+            BoundaryEngine.routeMessage(getApplication(), message)
         }
     }
 }

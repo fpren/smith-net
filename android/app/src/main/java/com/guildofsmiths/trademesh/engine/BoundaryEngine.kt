@@ -28,6 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import kotlinx.coroutines.flow.MutableStateFlow
+import java.util.UUID
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -458,7 +459,7 @@ object BoundaryEngine {
             
             // Send text placeholder via mesh so peers know something is coming
             val placeholder = message.copy(
-                id = "${message.id}_placeholder",
+                id = UUID.nameUUIDFromBytes("${message.id}_placeholder".toByteArray()).toString(),
                 content = message.getMeshPlaceholder(),
                 mediaType = MediaType.TEXT,
                 media = null

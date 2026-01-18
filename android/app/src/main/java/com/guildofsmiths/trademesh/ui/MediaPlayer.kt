@@ -658,20 +658,15 @@ private fun ImageThumbnail(
     var showPopup by remember { mutableStateOf(false) }
     
     val isRemote = media?.localPath == null && media?.remotePath != null
-    
+
     // Pixel art in chat: [▣] image
     Row(
         modifier = modifier
-            .clickable { 
+            .clickable {
                 Log.d(TAG, "🖼 Image clicked! isRemote=$isRemote localPath=${media?.localPath} remotePath=${media?.remotePath}")
-                if (isRemote) {
-                    // For remote images, open directly in browser
-                    Log.d(TAG, "🖼 Opening remote image: ${media?.remotePath}")
-                    openMedia(context, media)
-                } else {
-                    Log.d(TAG, "🖼 Opening local image popup")
-                    showPopup = true 
-                }
+                // Show popup for both local and remote images
+                Log.d(TAG, "🖼 Opening image popup")
+                showPopup = true
             }
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -693,31 +688,61 @@ private fun ImageThumbnail(
         }
     }
     
-    // Load image when popup opens (only for local files)
+    // Load image when popup opens (for both local and remote)
     LaunchedEffect(showPopup) {
-        if (showPopup && imageBitmap == null && !isRemote) {
-            media?.localPath?.let { path ->
+        if (showPopup && imageBitmap == null) {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                 try {
-                    val file = File(path)
-                    if (file.exists()) {
-                        // Load scaled version for popup
-                        val options = android.graphics.BitmapFactory.Options().apply {
-                            inJustDecodeBounds = true
+                    when {
+                        !isRemote && media?.localPath != null -> {
+                            // Load local file with EXIF orientation
+                            val file = File(media.localPath!!)
+                            if (file.exists()) {
+                                val options = android.graphics.BitmapFactory.Options().apply {
+                                    inJustDecodeBounds = true
+                                }
+                                android.graphics.BitmapFactory.decodeFile(media.localPath, options)
+
+                                val targetSize = 600
+                                var sampleSize = 1
+                                while (options.outWidth / sampleSize > targetSize ||
+                                       options.outHeight / sampleSize > targetSize) {
+                                    sampleSize *= 2
+                                }
+
+                                options.inJustDecodeBounds = false
+                                options.inSampleSize = sampleSize
+                                var bitmap = android.graphics.BitmapFactory.decodeFile(media.localPath, options)
+
+                                // Apply EXIF orientation
+                                bitmap = applyExifOrientation(bitmap, media.localPath!!)
+                                imageBitmap = bitmap
+                            } else {
+                                Log.w(TAG, "Image file does not exist: ${media.localPath}")
+                            }
                         }
-                        android.graphics.BitmapFactory.decodeFile(path, options)
-                        
-                        val targetSize = 600
-                        var sampleSize = 1
-                        while (options.outWidth / sampleSize > targetSize ||
-                               options.outHeight / sampleSize > targetSize) {
-                            sampleSize *= 2
+                        isRemote && media?.remotePath != null -> {
+                            // Load remote URL with EXIF orientation
+                            Log.d(TAG, "🖼 Loading remote image: ${media.remotePath}")
+                            val url = java.net.URL(media.remotePath)
+                            val connection = url.openConnection() as java.net.HttpURLConnection
+                            connection.doInput = true
+                            connection.connect()
+
+                            // Read bytes to check EXIF and decode
+                            val bytes = connection.inputStream.readBytes()
+                            connection.disconnect()
+
+                            var bitmap = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+
+                            // Apply EXIF orientation from bytes
+                            bitmap = applyExifOrientationFromBytes(bitmap, bytes)
+                            imageBitmap = bitmap
+                            Log.d(TAG, "🖼 Remote image loaded successfully")
                         }
-                        
-                        options.inJustDecodeBounds = false
-                        options.inSampleSize = sampleSize
-                        imageBitmap = android.graphics.BitmapFactory.decodeFile(path, options)
-                    } else {
-                        Log.w(TAG, "Image file does not exist: $path")
+                        else -> {
+                            Log.w(TAG, "No valid image path available")
+                        }
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to load image", e)
@@ -725,9 +750,9 @@ private fun ImageThumbnail(
             }
         }
     }
-    
-    // Popup modal (only for local files)
-    if (showPopup && !isRemote) {
+
+    // Popup modal for both local and remote images
+    if (showPopup) {
         ImagePopupViewer(
             media = media,
             bitmap = imageBitmap,
@@ -981,5 +1006,75 @@ private fun formatFileSize(bytes: Long): String {
         bytes < 1024 -> "${bytes}B"
         bytes < 1024 * 1024 -> "${bytes / 1024}KB"
         else -> "${bytes / (1024 * 1024)}MB"
+    }
+}
+
+/**
+ * Apply EXIF orientation to bitmap from local file path.
+ */
+private fun applyExifOrientation(bitmap: android.graphics.Bitmap?, filePath: String): android.graphics.Bitmap? {
+    if (bitmap == null) return null
+
+    return try {
+        val exif = androidx.exifinterface.media.ExifInterface(filePath)
+        val orientation = exif.getAttributeInt(
+            androidx.exifinterface.media.ExifInterface.TAG_ORIENTATION,
+            androidx.exifinterface.media.ExifInterface.ORIENTATION_NORMAL
+        )
+        rotateBitmapByExifOrientation(bitmap, orientation)
+    } catch (e: Exception) {
+        Log.e(TAG, "Failed to read EXIF orientation", e)
+        bitmap
+    }
+}
+
+/**
+ * Apply EXIF orientation to bitmap from byte array.
+ */
+private fun applyExifOrientationFromBytes(bitmap: android.graphics.Bitmap?, bytes: ByteArray): android.graphics.Bitmap? {
+    if (bitmap == null) return null
+
+    return try {
+        val inputStream = java.io.ByteArrayInputStream(bytes)
+        val exif = androidx.exifinterface.media.ExifInterface(inputStream)
+        val orientation = exif.getAttributeInt(
+            androidx.exifinterface.media.ExifInterface.TAG_ORIENTATION,
+            androidx.exifinterface.media.ExifInterface.ORIENTATION_NORMAL
+        )
+        rotateBitmapByExifOrientation(bitmap, orientation)
+    } catch (e: Exception) {
+        Log.e(TAG, "Failed to read EXIF orientation from bytes", e)
+        bitmap
+    }
+}
+
+/**
+ * Rotate bitmap based on EXIF orientation value.
+ */
+private fun rotateBitmapByExifOrientation(bitmap: android.graphics.Bitmap, orientation: Int): android.graphics.Bitmap {
+    val matrix = android.graphics.Matrix()
+
+    when (orientation) {
+        androidx.exifinterface.media.ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
+        androidx.exifinterface.media.ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
+        androidx.exifinterface.media.ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
+        androidx.exifinterface.media.ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.postScale(-1f, 1f)
+        androidx.exifinterface.media.ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.postScale(1f, -1f)
+        androidx.exifinterface.media.ExifInterface.ORIENTATION_TRANSPOSE -> {
+            matrix.postRotate(90f)
+            matrix.postScale(-1f, 1f)
+        }
+        androidx.exifinterface.media.ExifInterface.ORIENTATION_TRANSVERSE -> {
+            matrix.postRotate(-90f)
+            matrix.postScale(-1f, 1f)
+        }
+        else -> return bitmap // No rotation needed
+    }
+
+    return try {
+        android.graphics.Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+    } catch (e: Exception) {
+        Log.e(TAG, "Failed to rotate bitmap", e)
+        bitmap
     }
 }
