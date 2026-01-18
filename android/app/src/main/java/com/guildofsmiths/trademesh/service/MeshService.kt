@@ -78,8 +78,12 @@ class MeshService : Service() {
         private const val SENDER_ID_BYTES = 4      // Shortened sender ID
         private const val CHANNEL_HASH_BYTES = 2   // 2-byte channel hash for routing
         private const val TIMESTAMP_BYTES = 4      // Use 4-byte timestamp (seconds, not ms)
-        private const val MAX_CONTENT_BYTES = 10   // Message content (~10 chars due to BLE limits)
-        private const val MAX_PAYLOAD_BYTES = SENDER_ID_BYTES + CHANNEL_HASH_BYTES + TIMESTAMP_BYTES + MAX_CONTENT_BYTES // 20
+        private const val HOP_COUNT_BYTES = 1      // Hop counter for TTL (prevents infinite relay loops)
+        private const val MAX_CONTENT_BYTES = 9    // Message content (~9 chars due to BLE limits)
+        private const val MAX_PAYLOAD_BYTES = SENDER_ID_BYTES + CHANNEL_HASH_BYTES + TIMESTAMP_BYTES + HOP_COUNT_BYTES + MAX_CONTENT_BYTES // 20
+
+        /** Default TTL (time-to-live) - max number of relay hops */
+        private const val DEFAULT_TTL: Byte = 5
         
         /** Special channel hash for invites */
         private const val INVITE_CHANNEL_HASH: Short = 0x7FFF.toShort()
@@ -286,18 +290,21 @@ class MeshService : Service() {
     
     /**
      * Serialize a Message to beacon bytes.
-     * Format: [senderId: 4][channelHash: 2][timestamp: 4][content: up to 10]
+     * Format: [senderId: 4][channelHash: 2][timestamp: 4][hopCount: 1][content: up to 9]
      * Total max: 20 bytes (fits in BLE service data)
+     *
+     * @param message The message to serialize
+     * @param hopCount TTL hop counter (default 5, decremented on each relay)
      */
-    private fun serializeToBeacon(message: Message): ByteArray {
+    private fun serializeToBeacon(message: Message, hopCount: Byte = DEFAULT_TTL): ByteArray {
         val buffer = ByteBuffer.allocate(MAX_PAYLOAD_BYTES)
-        
+
         // SenderId: 4 bytes fixed (truncate or pad with zeros)
         val senderBytes = message.senderId.toByteArray(Charsets.UTF_8)
         for (i in 0 until SENDER_ID_BYTES) {
             buffer.put(if (i < senderBytes.size) senderBytes[i] else 0)
         }
-        
+
         // Channel hash: 2 bytes - use special hashes for special channels
         val hash = when (message.channelId) {
             "__INVITE__" -> INVITE_CHANNEL_HASH
@@ -305,53 +312,64 @@ class MeshService : Service() {
             "_ack" -> ACK_CHANNEL_HASH
             else -> channelHash(message.channelId)
         }
-        Log.d(TAG, "📤 Serializing: channel=${message.channelId}, hash=$hash, content='${message.content}'")
+        Log.d(TAG, "📤 Serializing: channel=${message.channelId}, hash=$hash, content='${message.content}', hops=$hopCount")
         buffer.putShort(hash)
-        
+
         // Timestamp: 4 bytes (seconds since epoch, not milliseconds)
         val timestampSeconds = (message.timestamp / 1000).toInt()
         buffer.putInt(timestampSeconds)
-        
-        // Content: up to 10 bytes (truncate if needed)
+
+        // Hop count: 1 byte (TTL for relay limiting)
+        buffer.put(hopCount)
+
+        // Content: up to 9 bytes (truncate if needed)
         val contentBytes = message.content.toByteArray(Charsets.UTF_8)
         val contentLen = minOf(contentBytes.size, MAX_CONTENT_BYTES)
         buffer.put(contentBytes, 0, contentLen)
-        
+
         // Return only the bytes we wrote
-        val totalLen = SENDER_ID_BYTES + CHANNEL_HASH_BYTES + TIMESTAMP_BYTES + contentLen
+        val totalLen = SENDER_ID_BYTES + CHANNEL_HASH_BYTES + TIMESTAMP_BYTES + HOP_COUNT_BYTES + contentLen
         val result = ByteArray(totalLen)
         buffer.rewind()
         buffer.get(result)
-        
+
         return result
     }
     
     /**
+     * Parsed beacon result containing message and hop count.
+     */
+    private data class ParsedBeacon(val message: Message, val hopCount: Byte)
+
+    /**
      * Deserialize beacon bytes to a Message.
      * Returns null if parsing fails or message is for a channel we haven't joined.
      */
-    private fun deserializeFromBeacon(data: ByteArray): Message? {
-        val minLen = SENDER_ID_BYTES + CHANNEL_HASH_BYTES + TIMESTAMP_BYTES
+    private fun deserializeFromBeacon(data: ByteArray): ParsedBeacon? {
+        val minLen = SENDER_ID_BYTES + CHANNEL_HASH_BYTES + TIMESTAMP_BYTES + HOP_COUNT_BYTES
         if (data.size < minLen) {
             Log.w(TAG, "   ⚠️ Payload too short: ${data.size} bytes (need at least $minLen)")
             return null
         }
-        
+
         return try {
             val buffer = ByteBuffer.wrap(data)
-            
+
             // SenderId: 4 bytes, trim trailing zeros
             val senderBytes = ByteArray(SENDER_ID_BYTES)
             buffer.get(senderBytes)
             val senderId = String(senderBytes, Charsets.UTF_8).trimEnd('\u0000')
-            
+
             // Channel hash: 2 bytes
             val channelHashValue = buffer.getShort()
-            
+
             // Timestamp: 4 bytes (seconds since epoch)
             val timestampSeconds = buffer.getInt()
             val timestamp = timestampSeconds.toLong() * 1000
-            
+
+            // Hop count: 1 byte
+            val hopCount = buffer.get()
+
             // Content: remaining bytes
             val contentLen = data.size - minLen
             val content = if (contentLen > 0) {
@@ -362,27 +380,27 @@ class MeshService : Service() {
                 ""
             }
             
-            Log.d(TAG, "   📦 Parsed: sender=$senderId, channelHash=$channelHashValue, content='$content'")
-            
+            Log.d(TAG, "   📦 Parsed: sender=$senderId, channelHash=$channelHashValue, hops=$hopCount, content='$content'")
+
             // Check if this is a channel invite (special hash)
             if (channelHashValue == INVITE_CHANNEL_HASH) {
                 Log.i(TAG, "📨 Received channel invite: #$content from $senderId")
                 BoundaryEngine.onChannelInviteReceived(content.hashCode(), content, senderId)
                 return null // Don't display invite as a regular message
             }
-            
+
             // Check if this is a channel deletion (tombstone)
             if (channelHashValue == DELETE_CHANNEL_HASH) {
                 Log.i(TAG, "🗑️ Received channel deletion: #$content from $senderId")
                 BoundaryEngine.onChannelDeletionReceived(content, senderId)
                 return null // Don't display deletion as a regular message
             }
-            
+
             // Check if this is an ACK packet
             if (channelHashValue == ACK_CHANNEL_HASH) {
                 // Return a message object so ACK can be processed
                 val id = "${senderId}_${timestamp}_ack"
-                return Message(
+                val ackMsg = Message(
                     id = id,
                     beaconId = "default",
                     channelId = "_ack",
@@ -392,8 +410,9 @@ class MeshService : Service() {
                     content = content,
                     isMeshOrigin = true
                 )
+                return ParsedBeacon(ackMsg, hopCount)
             }
-            
+
             // Resolve channel by hash - only show if we're a member
             val hashForLookup = channelHashValue.toInt() and 0xFFFF // Ensure unsigned
             Log.d(TAG, "   🔍 Looking up channel hash: $hashForLookup (raw: $channelHashValue)")
@@ -403,15 +422,15 @@ class MeshService : Service() {
                 return null
             }
             Log.d(TAG, "   ✅ Resolved to channel: #$channelId")
-            
+
             // Generate a deterministic ID from payload for deduplication
             val id = "${senderId}_${timestamp}_${channelHashValue}"
-            
+
             // Look up peer's display name if we've seen them before
             val knownPeer = PeerRepository.getPeer(senderId)
             val displayName = knownPeer?.userName ?: senderId
-            
-            Message(
+
+            val message = Message(
                 id = id,
                 beaconId = "default",
                 channelId = channelId,
@@ -421,6 +440,7 @@ class MeshService : Service() {
                 content = content,
                 isMeshOrigin = true
             )
+            ParsedBeacon(message, hopCount)
         } catch (e: Exception) {
             Log.e(TAG, "   ❌ Parse error: ${e.message}")
             null
@@ -750,12 +770,14 @@ class MeshService : Service() {
         }
         
         // Parse message
-        val message = deserializeFromBeacon(serviceData)
-        if (message == null) {
+        val parsed = deserializeFromBeacon(serviceData)
+        if (parsed == null) {
             Log.d(TAG, "   ℹ️ Message filtered (invite or unjoined channel)")
             return
         }
-        
+        val message = parsed.message
+        val hopCount = parsed.hopCount
+
         // Check if this is an ACK packet
         if (MeshAckManager.isAckPacket(message.content)) {
             val originalMessageId = MeshAckManager.extractAckMessageId(message.content)
@@ -779,7 +801,23 @@ class MeshService : Service() {
         if (MeshAckManager.requiresAck(message.channelId, message.content)) {
             sendAck(message.id, message.senderId)
         }
-        
+
+        // ═══════════════════════════════════════════════════════════════
+        // MESH RELAY: Re-broadcast message to extend range
+        // This is the core of mesh networking - every device is a relay
+        // ═══════════════════════════════════════════════════════════════
+        val myUserId = com.guildofsmiths.trademesh.data.UserPreferences.getUserId()
+        if (message.senderId != myUserId && hopCount > 0) {
+            val newHopCount = (hopCount - 1).toByte()
+            // Delay relay slightly to avoid collision with original sender
+            handler.postDelayed({
+                Log.i(TAG, "🔄 MESH RELAY: Re-broadcasting message from ${message.senderId} (hops remaining: $newHopCount)")
+                relayMessage(message, newHopCount)
+            }, 500 + (Math.random() * 500).toLong()) // 500-1000ms random delay
+        } else if (hopCount <= 0) {
+            Log.d(TAG, "🔄 MESH RELAY: TTL expired (hops=0) - not relaying")
+        }
+
         // Route to BoundaryEngine with RSSI for peer tracking
         BoundaryEngine.onMeshMessageReceived(this, message, rssi)
     }
@@ -797,7 +835,83 @@ class MeshService : Service() {
             null
         }
     }
-    
+
+    /**
+     * Relay a message to extend mesh range.
+     * Re-serializes the message with decremented hop count.
+     * Deduplication is handled by recentPayloadHashes in handleScanResult.
+     *
+     * @param message The message to relay
+     * @param hopCount The decremented hop count (TTL)
+     */
+    private fun relayMessage(message: Message, hopCount: Byte) {
+        if (!checkBlePermissions()) {
+            Log.w(TAG, "🔄 Relay skipped - no BLE permissions")
+            return
+        }
+
+        val advertiser = bleAdvertiser
+        if (advertiser == null) {
+            Log.w(TAG, "🔄 Relay skipped - no BLE advertiser")
+            return
+        }
+
+        // Don't interrupt active advertising - queue for later
+        if (isAdvertising) {
+            Log.d(TAG, "🔄 Relay queued - currently advertising")
+            handler.postDelayed({ relayMessage(message, hopCount) }, ADVERTISE_DURATION_MS + 100)
+            return
+        }
+
+        // Re-serialize with decremented hop count
+        val payload = serializeToBeacon(message, hopCount)
+
+        val advertiseSettings = AdvertiseSettings.Builder()
+            .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
+            .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH) // Max power for relay
+            .setConnectable(false)
+            .setTimeout(0)
+            .build()
+
+        val advertiseData = AdvertiseData.Builder()
+            .setIncludeDeviceName(false)
+            .setIncludeTxPowerLevel(false)
+            .addServiceUuid(MESH_SERVICE_PARCEL_UUID)
+            .addServiceData(MESH_SERVICE_PARCEL_UUID, payload)
+            .build()
+
+        try {
+            advertiser.startAdvertising(advertiseSettings, advertiseData, relayCallback)
+            Log.i(TAG, "🔄 MESH RELAY STARTED (${payload.size} bytes)")
+        } catch (e: Exception) {
+            Log.e(TAG, "🔄 Relay error: ${e.message}")
+        }
+    }
+
+    /** Callback for relay advertising */
+    private val relayCallback = object : AdvertiseCallback() {
+        override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
+            isAdvertising = true
+            Log.i(TAG, "🔄 RELAY ADVERTISING")
+            // Relay for shorter duration than original broadcast
+            handler.postDelayed({
+                try {
+                    bleAdvertiser?.stopAdvertising(this)
+                    isAdvertising = false
+                    Log.i(TAG, "🔄 RELAY COMPLETE")
+                    processOutboundQueue()
+                } catch (e: Exception) {
+                    Log.e(TAG, "🔄 Relay stop error: ${e.message}")
+                }
+            }, 5000) // 5 seconds relay duration
+        }
+
+        override fun onStartFailure(errorCode: Int) {
+            Log.e(TAG, "🔄 Relay failed: $errorCode")
+            isAdvertising = false
+        }
+    }
+
     // ══════════════════════════════════════════════════════════════════
     // ADVERTISING
     // ══════════════════════════════════════════════════════════════════
