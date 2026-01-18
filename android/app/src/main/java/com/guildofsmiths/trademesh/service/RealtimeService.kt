@@ -129,7 +129,7 @@ class RealtimeService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("smith net")
             .setContentText("connected")
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_mesh_notification)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_MIN)  // Minimal priority
             .setVisibility(NotificationCompat.VISIBILITY_SECRET)  // Hide on lock screen

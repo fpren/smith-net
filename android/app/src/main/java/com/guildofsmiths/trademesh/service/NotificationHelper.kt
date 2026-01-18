@@ -169,7 +169,7 @@ object NotificationHelper {
             val channelId = if (message.isMeshOrigin) CHANNEL_ID_MESH else CHANNEL_ID_MESSAGES
             
             val notification = NotificationCompat.Builder(context, channelId)
-                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setSmallIcon(R.drawable.ic_mesh_notification)
                 .setContentTitle(title)
                 .setContentText(content)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -206,7 +206,7 @@ object NotificationHelper {
         
         try {
             val summary = NotificationCompat.Builder(context, CHANNEL_ID_MESSAGES)
-                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setSmallIcon(R.drawable.ic_mesh_notification)
                 .setContentTitle("Smith Net")
                 .setContentText("$messageCount new messages")
                 .setGroup("smith_net_messages")
