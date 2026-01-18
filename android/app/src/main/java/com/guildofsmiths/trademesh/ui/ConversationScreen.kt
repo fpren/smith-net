@@ -1,6 +1,11 @@
 package com.guildofsmiths.trademesh.ui
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
@@ -56,6 +61,7 @@ import com.guildofsmiths.trademesh.data.Message
 import com.guildofsmiths.trademesh.data.Peer
 import com.guildofsmiths.trademesh.data.PeerRepository
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
+import com.guildofsmiths.trademesh.service.SupabaseChat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -105,7 +111,12 @@ fun ConversationScreen(
     
     // Online status for media
     val isOnline by BoundaryEngine.isOnline.collectAsState()
-    
+
+    // Typing indicators
+    val typingUsersMap by SupabaseChat.typingUsers.collectAsState()
+    val channelId = channel?.id ?: "general"
+    val typingUsers = typingUsersMap[channelId] ?: emptyList()
+
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.size - 1)
@@ -161,7 +172,7 @@ fun ConversationScreen(
             .fillMaxSize()
             .background(ConsoleTheme.background)
     ) {
-        // Header - NO visible back button (use swipe gesture)
+        // Header with back button
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -169,8 +180,17 @@ fun ConversationScreen(
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // NO back arrow - navigation is gesture-only
-            
+            // Back arrow button
+            if (onBackClick != null) {
+                Text(
+                    text = "←",
+                    style = ConsoleTheme.title,
+                    modifier = Modifier
+                        .clickable { onBackClick() }
+                        .padding(end = 16.dp)
+                )
+            }
+
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     // For DM channels, show "DM · peername", otherwise show channel name
@@ -290,7 +310,30 @@ fun ConversationScreen(
             
             ConsoleSeparator()
         }
-        
+
+        // Typing indicator
+        if (typingUsers.isNotEmpty()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Animated typing dots
+                TypingDots()
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = when {
+                        typingUsers.size == 1 -> "${typingUsers[0].user_name} is typing..."
+                        typingUsers.size == 2 -> "${typingUsers[0].user_name} and ${typingUsers[1].user_name} are typing..."
+                        else -> "${typingUsers.size} people are typing..."
+                    },
+                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                )
+            }
+        }
+
         // Messages
         LazyColumn(
             state = listState,
@@ -614,7 +657,15 @@ fun ConversationScreen(
                 
                 BasicTextField(
                     value = inputText,
-                    onValueChange = { inputText = it },
+                    onValueChange = { newText ->
+                        inputText = newText
+                        // Send typing indicator when user types
+                        if (newText.isNotEmpty()) {
+                            SupabaseChat.sendTypingIndicator(channelId)
+                        } else {
+                            SupabaseChat.sendStopTyping(channelId)
+                        }
+                    },
                     modifier = Modifier.weight(1f),
                     textStyle = ConsoleTheme.body,
                     cursorBrush = SolidColor(ConsoleTheme.cursor),
@@ -623,6 +674,7 @@ fun ConversationScreen(
                         if (inputText.isNotBlank()) {
                             onSendMessage(inputText.trim(), effectivePeer)
                             inputText = ""
+                            SupabaseChat.sendStopTyping(channelId)
                             if (!isDmChannel) selectedPeer = null  // Only clear if not in DM channel
                         }
                     }),
@@ -655,6 +707,7 @@ fun ConversationScreen(
                             .clickable {
                                 onSendMessage(inputText.trim(), effectivePeer)
                                 inputText = ""
+                                SupabaseChat.sendStopTyping(channelId)
                                 if (!isDmChannel) selectedPeer = null  // Only clear if not in DM channel
                             }
                             .padding(4.dp)
@@ -1192,6 +1245,76 @@ private fun AudioLevelBars(
         ),
         modifier = modifier
     )
+}
+
+/**
+ * Animated typing dots indicator - three dots that pulse in sequence.
+ */
+@Composable
+private fun TypingDots(modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "typing")
+
+    // Animate each dot with staggered timing
+    val dot1Alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "dot1"
+    )
+
+    val dot2Alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, delayMillis = 200),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "dot2"
+    )
+
+    val dot3Alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, delayMillis = 400),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "dot3"
+    )
+
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .background(
+                    ConsoleTheme.textMuted.copy(alpha = dot1Alpha),
+                    shape = androidx.compose.foundation.shape.CircleShape
+                )
+        )
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .background(
+                    ConsoleTheme.textMuted.copy(alpha = dot2Alpha),
+                    shape = androidx.compose.foundation.shape.CircleShape
+                )
+        )
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .background(
+                    ConsoleTheme.textMuted.copy(alpha = dot3Alpha),
+                    shape = androidx.compose.foundation.shape.CircleShape
+                )
+        )
+    }
 }
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
