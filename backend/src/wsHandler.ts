@@ -10,6 +10,7 @@ import { channelRegistry } from './channelRegistry';
 import { messageStore } from './messageStore';
 import { presenceManager } from './presenceManager';
 import { gatewayManager } from './gatewayManager';
+import { createMessage, publish, subscribe } from './messageBus';
 
 interface AuthenticatedClient {
   ws: WebSocket;
@@ -18,6 +19,7 @@ interface AuthenticatedClient {
   subscribedChannels: Set<string>;
   isRelay: boolean;
   relayId?: string;
+  channelUnsubs: Map<string, () => void>;
 }
 
 class WSHandler {
@@ -105,6 +107,7 @@ class WSHandler {
       subscribedChannels: new Set(),
       isRelay: isRelay || false,
       relayId,
+      channelUnsubs: new Map(),
     };
 
     this.clients.set(ws, client);
@@ -116,6 +119,17 @@ class WSHandler {
     const channelIds = channelRegistry.subscribeUserToChannels(userId);
     for (const channelId of channelIds) {
       client.subscribedChannels.add(channelId);
+
+      // Subscribe to MessageBus so messages published on this channel
+      // are delivered to this WS client in real-time
+      if (!client.channelUnsubs.has(channelId)) {
+        const unsub = subscribe(channelId, (unifiedMsg) => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'message', data: unifiedMsg }));
+          }
+        });
+        client.channelUnsubs.set(channelId, unsub);
+      }
     }
 
     // Get full channel info for response
@@ -152,7 +166,7 @@ class WSHandler {
 
     const { channelId, content, recipientId, recipientName } = payload;
 
-    // Store message
+    // Store message in legacy messageStore for backward compatibility
     const message = messageStore.add(
       channelId,
       client.userId,
@@ -170,8 +184,10 @@ class WSHandler {
       timestamp: Date.now(),
     });
 
-    // Broadcast to channel subscribers
-    this.broadcastToChannel(channelId, message);
+    // Route through MessageBus (handles dedup, subscriber delivery, and Supabase persistence)
+    // Use the same ID as the messageStore entry so both stores refer to the same message
+    const unifiedMsg = createMessage(channelId, client.userId, client.userName, content, 'ip', message.id);
+    publish(unifiedMsg);
 
     // Inject into mesh via any connected relay
     if (gatewayManager.hasConnectedRelay()) {
@@ -239,8 +255,8 @@ class WSHandler {
     // Forward to gateway manager
     gatewayManager.onMeshMessage(client.relayId, { ...message, channelId: resolvedChannelId });
 
-    // Store message with resolved channel ID
-    messageStore.add(
+    // Store message in legacy messageStore for backward compatibility
+    const storedMsg = messageStore.add(
       resolvedChannelId,
       message.senderId,
       message.senderName,
@@ -249,8 +265,20 @@ class WSHandler {
       message.recipientId,
       message.recipientName
     );
-    
-    console.log(`[Gateway] Stored mesh message: "${message.content}" from ${message.senderName}`);
+
+    // Route through MessageBus (handles dedup, subscriber delivery, and Supabase persistence)
+    // Use 'ble' transport since mesh messages originate from BLE-connected Android devices
+    const unifiedMsg = createMessage(
+      resolvedChannelId,
+      message.senderId,
+      message.senderName,
+      message.content,
+      'ble',
+      storedMsg.id
+    );
+    publish(unifiedMsg);
+
+    console.log(`[Gateway] Stored and published mesh message: "${message.content}" from ${message.senderName}`);
   }
 
   /**
@@ -260,7 +288,13 @@ class WSHandler {
     const client = this.clients.get(ws);
     if (client) {
       presenceManager.setOffline(client.userId);
-      
+
+      // Unsubscribe from all MessageBus channel subscriptions
+      for (const unsub of client.channelUnsubs.values()) {
+        unsub();
+      }
+      client.channelUnsubs.clear();
+
       if (client.isRelay && client.relayId) {
         gatewayManager.unregister(client.relayId);
       }
@@ -358,7 +392,17 @@ class WSHandler {
       if (!client.subscribedChannels.has(channelId)) {
         client.subscribedChannels.add(channelId);
         subscribed++;
-        
+
+        // Subscribe to MessageBus for this newly added channel
+        if (!client.channelUnsubs.has(channelId)) {
+          const unsub = subscribe(channelId, (unifiedMsg) => {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: 'message', data: unifiedMsg }));
+            }
+          });
+          client.channelUnsubs.set(channelId, unsub);
+        }
+
         // Notify client of new subscription
         this.send(ws, {
           type: 'channel_subscribed',
