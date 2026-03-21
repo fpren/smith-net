@@ -7,6 +7,7 @@ import com.guildofsmiths.trademesh.ai.BatteryGate
 import com.guildofsmiths.trademesh.ai.LlamaInference
 import com.guildofsmiths.trademesh.ai.ResponseCache
 import com.guildofsmiths.trademesh.data.BeaconRepository
+import com.guildofsmiths.trademesh.data.IntentRepository
 import com.guildofsmiths.trademesh.data.IdentityResolver
 import com.guildofsmiths.trademesh.data.MessageRepository
 import com.guildofsmiths.trademesh.data.SupabaseAuth
@@ -61,7 +62,13 @@ class TradeMeshApplication : Application() {
         
         // Initialize channel membership (auto-join default channels)
         BoundaryEngine.initializeChannelMembership()
-        
+
+        // Initialize Intent repository (Phase 2 — scope declaration + versioning)
+        IntentRepository.init(getSharedPreferences("intent_prefs", MODE_PRIVATE))
+
+        // Initialize unified Message Bus (Phase 1 — dedup, vector clocks, reconciliation)
+        BoundaryEngine.initMessageBus(this, "http://192.168.8.163:3000")
+
         // Initialize AI components
         BatteryGate.initialize(this)
         ResponseCache.initialize(this)
