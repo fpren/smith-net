@@ -1,4 +1,4 @@
-# CORE SYSTEM LAW — AUTHORITATIVE REFERENCE (v3)
+# CORE SYSTEM LAW — AUTHORITATIVE REFERENCE (v4)
 ==========================================
 
 ## PURPOSE
@@ -18,18 +18,16 @@ This is **system law**. It cannot be appealed. It cannot be overridden.
 ### STANDARD FLOW
 ```
 APP OPENS
-→ PLAN (front page)
-→ PROPOSAL CREATED
-→ PROPOSAL CONFIRMED
-→ JOBS GENERATED
+→ INTENT CREATED (scope + proposal)
+→ INTENT CONFIRMED
+→ JOBS GENERATED FROM INTENT
 → JOBS EXECUTED
 → TIME RUNS DURING WORK
 → JOBS COMPLETE
-→ RETURN TO PLAN
-→ SUMMARY CREATED
-→ SUMMARY CONFIRMED
-→ REPORT + INVOICE GENERATED
-→ ARCHIVE STORES FINAL TRUTH
+→ SYNTHESIZER ASSEMBLES FACTS (Intent + Jobs + Time → Summary Artifact)
+→ LEDGER SEALS ARTIFACT (cryptographic commitment)
+→ ARCHIVE STORES SEALED TRUTH
+→ REPORTS / INVOICES GENERATED FROM LEDGER
 ```
 
 This flow **cannot be reordered**. Breaking the order breaks system integrity.
@@ -37,66 +35,84 @@ This flow **cannot be reordered**. Breaking the order breaks system integrity.
 ### SMALL PROJECT FLOW (APPROVED ALTERNATE)
 ```
 APP OPENS
-→ JOBS (manual job entry)
-→ JOB EXECUTED
+→ JOBS (manual entry)
+→ JOBS EXECUTED
 → TIME RUNS DURING WORK
-→ JOB COMPLETE
-→ PLAN (auto-created)
-→ SUMMARY CREATED
-→ SUMMARY CONFIRMED
-→ REPORT and/or INVOICE GENERATED
-→ ARCHIVE STORES FINAL TRUTH
+→ JOBS COMPLETE
+→ SYNTHESIZER ASSEMBLES FACTS
+→ INTENT AUTO-GENERATED (retroactive, from Synthesizer's fact assembly)
+→ INTENT CONFIRMED
+→ LEDGER SEALS ARTIFACT
+→ ARCHIVE STORES SEALED TRUTH
+→ REPORTS / INVOICES GENERATED FROM LEDGER
 ```
 
-**Key Rule:** PLAN is not skipped. PLAN is deferred. PLAN is auto-instantiated at finalization using collected facts.
+**Key Rule:** Intent is not skipped. Intent is deferred. Intent is auto-generated retroactively by the Synthesizer from collected facts, then confirmed by a human before sealing.
 
 ---
 
 ## SECTION 2 — CORE CONTAINERS AND THEIR MEANING
 
-### PLAN
-**Responsibility:** Command center and synthesis layer
-- Creates proposals, confirms intent, assembles facts, locks truth
-- Evolves: Draft → Proposal → Confirmed → Finalized → Locked Snapshot
-- **Never captures raw work, never edits jobs, never edits time**
-- Once locked, **cannot be edited** - corrections require new Plan version
+### INTENT
+**Responsibility:** Scope declaration and agreement
+- Declares what is to be done and by whom
+- States: Draft → Proposed → Confirmed → Superseded
+- **Never assembles facts, generates summaries, locks truth, or produces reports**
+- **Never references Time entries** — Intent is about what, never how long
+- Once confirmed, **cannot be edited** — change orders create new Intent versions
+
+### SYNTHESIZER
+**Responsibility:** Fact assembly
+- Stateless processor — runs, produces output, done
+- Input: Intent version + closed Jobs + closed Time entries + clock-out notes + approved chat
+- Output: Summary Artifact (immutable, with serial number)
+- **Does NOT seal, commit, or archive**
+- **Does NOT modify any input record**
+
+### LEDGER
+**Responsibility:** Truth-sealing
+- Append-only, no deletions, no edits
+- Each entry: Artifact serial + SHA-256 hash + blockchain commitment + timestamp + actor UUID
+- Corrections: new entry referencing prior (amendment chain)
+- **Reports and Invoices read exclusively from Ledger**
+- Sealed entries are permanent — they cannot be reversed
 
 ### JOBS
 **Responsibility:** Work scope and execution state
 - Defines WHAT is being done
-- May be generated from proposal OR manually entered
-- Once completed, **immutable** - corrections require new jobs
+- May be generated from Intent OR manually entered
+- Once completed, **immutable** — corrections require new jobs
 
 ### TIME
 **Responsibility:** Labor facts
 - Defines WHEN and HOW LONG work occurred
 - Records clock-in/out, breaks, adjustment records
-- **Append-only** - closed entries never edited
+- **Append-only** — closed entries never edited
 - Attached clock-out notes are **contextual only**
 
 ### ARCHIVE
-**Responsibility:** Canonical ledger
-- Stores **finalized truth and nothing else**
-- Contains closed jobs, time, chat, plans, reports, invoices
+**Responsibility:** Canonical store of sealed truth
+- Stores **Ledger-sealed artifacts and nothing else**
+- Contains closed jobs, time, chat, sealed artifacts, reports, invoices
 - **Immutable, append-only, no deletion**
 - Read-only forever
 
 ### REPORT / INVOICE OUTPUT
-**Responsibility:** Publications from locked snapshots
-- Render locked Plan snapshots into documents
+**Responsibility:** Publications from Ledger entries
+- Render Ledger-sealed artifacts into documents
 - **Do not calculate, do not fix errors, do not change data**
-- Errors require new Plan version and new outputs
+- Errors require Ledger amendment and new outputs
 
 ### SETTINGS
 **Responsibility:** System configuration
 - Identity, permissions, BLE mesh toggle, AI config, archive viewing
-- **Never participates in payroll, planning, or reporting logic**
+- **Never participates in payroll, synthesis, or reporting logic**
 
 ### CONNECTIVITY (BLE / ONLINE)
 **Responsibility:** Infrastructure transport
 - BLE Mesh: peer discovery, local relay, offline operation
 - Online/Gateway: cloud sync, backup, report delivery
-- **Never owns data, never changes data** - only moves data
+- **Never owns data, never changes data** — only moves data
 
 ---
 
@@ -105,14 +121,14 @@ APP OPENS
 ### CLOCK-OUT NOTES AND AI SUMMARIZATION
 - At clock-out: worker may write note OR request AI clarity
 - Notes attach to time entries as **context only**
-- May be summarized by Plan, optionally included in reports
+- May be consumed by Synthesizer, optionally included in artifacts
 - **Do not modify labor facts**
 
 ### CHAT (BLE + ONLINE) AS CONTEXTUAL EVIDENCE
 - Messages archived immutably regardless of transport
-- **Never changes jobs, time, or plan state**
-- Plan may read chat during finalization for contextual summaries
-- **Never auto-included** - requires human confirmation
+- **Never changes jobs, time, or intent state**
+- Synthesizer may read approved chat during fact assembly for contextual summaries
+- **Never auto-included** — requires human confirmation before Synthesizer consumes it
 
 ### AI ASSISTANT (REAL-TIME COORDINATION)
 **AI May Assist:**
@@ -125,7 +141,9 @@ APP OPENS
 - Approve breaks
 - Start/stop time
 - Edit jobs
-- Finalize plans
+- Confirm intent
+- Trigger synthesis
+- Seal the Ledger
 - Generate invoices independently
 
 ### BREAK REQUESTS AND APPROVAL FLOW
@@ -138,48 +156,65 @@ Worker requests break
 
 ---
 
-## SECTION 4 — PLAN AUTHORITY VALIDATION SYSTEM
+## SECTION 4 — VALIDATION AUTHORITIES
 
-The **Plan Authority** enforces system law through binary validation:
+### INTENT AUTHORITY
+Enforces rules for Intent creation, confirmation, and versioning:
+- Intent creation: scope must be non-empty, actor UUID required
+- Intent confirmation: **human action only** — AI cannot confirm
+- Version chain: each new version references prior version serial
+- **VALIDATED — INTENT READY** or **REJECTED — INTENT AUTHORITY VIOLATION [rule]**
 
-### PRECONDITIONS (ALL MUST BE TRUE)
-1. All referenced Jobs exist and are closed
-2. All referenced Time entries exist and are closed
-3. No referenced Job or Time entry is mutable
-4. All clock-out notes are captured and immutable
-5. Any chat or AI context is read-only
-6. Every referenced record has canonical serial
-7. Every serial has cryptographic hash
-8. Every hash written to blockchain ledger
-9. Ledger transactions verifiable
+### SYNTHESIS AUTHORITY
+Enforces rules for Synthesizer inputs and artifact output:
+- All referenced Jobs must exist and be closed (immutable)
+- All referenced Time entries must exist and be closed (immutable)
+- All clock-out notes captured and immutable
+- Any chat context must be read-only and human-approved
+- Every referenced record has canonical serial
+- Every serial has cryptographic hash
+- Artifact serial generated on successful output
+- **VALIDATED — ARTIFACT READY FOR SEALING** or **REJECTED — SYNTHESIS AUTHORITY VIOLATION [rule]**
 
-### PLAN CONTENT REQUIREMENTS
-- Clear intent statement
-- Explicit scope (Job IDs + Time IDs)
-- Summary derived from facts only
-- Actor attribution by UUID only
-- Canonical serial generation
-- SHA-256 cryptographic commitment
-
-### VALIDATION RESPONSE
-**VALIDATED — READY FOR FINALIZATION** or **REJECTED — SYSTEM LAW VIOLATION [rule]**
+### LEDGER AUTHORITY
+Enforces rules for sealing and amendment:
+- Sealing: Artifact serial + SHA-256 hash required, blockchain commitment written
+- Ledger transaction must be verifiable
+- Amendments: new entry must reference prior entry serial (amendment chain must be valid)
+- No deletions, no edits to existing entries — ever
+- **SEALED** or **REJECTED — LEDGER AUTHORITY VIOLATION [rule]**
 
 ---
 
 ## SECTION 5 — API ENDPOINTS BY SYSTEM LAW
 
-### PLAN AUTHORITY (VALIDATION)
+### INTENT AUTHORITY (VALIDATION + LIFECYCLE)
 ```
-POST /plan-authority/validate-creation     — Validate plan creation
-POST /plan-authority/validate-finalization — Validate finalization
-POST /plan-authority/validate-output       — Validate output auth
+POST /intent-authority/validate-creation
+POST /intents
+POST /intents/:intentId/versions/:versionId/propose
+POST /intents/:intentId/versions/:versionId/confirm
+POST /intents/:intentId/versions
+```
+
+### SYNTHESIS AUTHORITY (VALIDATION + EXECUTION)
+```
+POST /synthesis-authority/validate-inputs
+POST /synthesize
+GET  /artifacts/:id
+```
+
+### LEDGER (SEALING + AMENDMENT)
+```
+POST /ledger/seal
+POST /ledger/amend
+GET  /ledger/:id
 ```
 
 ### SMALL PROJECT FLOW
 ```
-POST /small-project/validate-eligibility   — Check small project eligibility
-POST /small-project/create-auto-plan      — Auto-create Plan from facts
-POST /small-project/transition-phase      — Move through phases
+POST /small-project/synthesize-and-generate-intent
+POST /small-project/confirm-and-seal
 ```
 
 ### SYSTEM LAW ENFORCEMENT
@@ -197,7 +232,7 @@ GET  /settings/connectivity               — Get connectivity status
 
 ### REPORT GENERATION PIPELINE
 ```
-POST /reports/assemble                    — Assemble from snapshot
+POST /reports/assemble                    — Assemble from Ledger entry
 POST /reports/render                      — Render to format
 POST /reports/download                    — Prepare download
 POST /reports/share                       — Share with recipients
@@ -209,67 +244,69 @@ POST /reports/generate                    — Full pipeline
 ## SECTION 6 — CORE FEATURES VS ADD-ON FEATURES
 
 ### CORE FEATURES (CANNOT BE REMOVED OR MERGED)
-- ✅ Plan (explicit or implicit)
-- ✅ Jobs (scope execution)
-- ✅ Time (labor ledger)
-- ✅ Archive (immutable history)
-- ✅ Report / Invoice Output (publication)
-- ✅ Settings (system configuration)
-- ✅ Connectivity (BLE / Online transport)
+- Intent (scope declaration, explicit or retroactive)
+- Synthesizer (fact assembly, stateless)
+- Ledger (truth-sealing, append-only)
+- Jobs (scope execution)
+- Time (labor ledger)
+- Archive (immutable history)
+- Report / Invoice Output (publication from Ledger)
+- Settings (system configuration)
+- Connectivity (BLE / Online transport)
 
 ### APPROVED CONTEXTUAL ADD-ONS
-- ✅ Clock-out notes
-- ✅ AI-assisted summaries
-- ✅ Chat-derived context
-- ✅ Break coordination
-- ✅ Foreman dashboards
+- Clock-out notes
+- AI-assisted summaries
+- Chat-derived context
+- Break coordination
+- Foreman dashboards
 
 ### OPTIONAL ADD-ONS
-- ⭕ Payroll rules
-- ⭕ Notifications
-- ⭕ Analytics
-- ⭕ External accounting integrations
-- ⭕ Advanced exports
+- Payroll rules
+- Notifications
+- Analytics
+- External accounting integrations
+- Advanced exports
 
 ---
 
 ## SECTION 7 — FINAL SYSTEM LAW
 
-**Plan may be explicit or implicit.**  
-**Plan may be early or deferred.**  
-**Plan is never optional.**
-
-**Jobs execute work.**  
-**Time records labor.**  
-**Chat provides context.**  
-**Plan explains results.**  
-**Reports publish proof.**  
+**Intent declares scope.**
+**Synthesizer assembles facts.**
+**Ledger seals truth.**
+**Jobs execute work.**
+**Time records labor.**
+**Chat provides context.**
+**Reports publish proof.**
 **Archive remembers forever.**
 
-**AI assists.**  
-**Humans decide.**  
+**AI assists.**
+**Humans decide.**
 **Facts do not change.**
 
 ---
 
 ## IMPLEMENTATION STATUS
 
-### ✅ COMPLETED
-- Plan Authority validation system
+### COMPLETED
+- Intent Authority validation system
+- Synthesis Authority with stateless fact assembly
+- Ledger sealing with SHA-256 and blockchain commitment
 - Serial generation and cryptographic commitment
 - Standard and small project flows
-- Report generation pipeline
+- Report generation pipeline (reads from Ledger only)
 - Archive system with immutability
 - Settings configuration (non-executive)
 - System law enforcement endpoints
 
-### 🔄 ARCHITECTURAL COMPONENTS
-- Report Assembler (deterministic mapping)
-- Report Renderer (PDF/HTML/XLSX)
+### ARCHITECTURAL COMPONENTS
+- Synthesizer (deterministic fact assembly)
+- Report Renderer (PDF/HTML/XLSX from Ledger entries)
 - Report Output (export/download/share)
-- Auto Plan Creator (small project flow)
+- Auto Intent Generator (small project flow, retroactive)
 
-### 📋 REMAINING INTEGRATION TASKS
+### REMAINING INTEGRATION TASKS
 - Connect to actual jobboard component
 - Connect to actual time tracking component
 - Implement real database persistence
@@ -283,11 +320,12 @@ POST /reports/generate                    — Full pipeline
 ## VIOLATION CONSEQUENCES
 
 Any attempt to:
-- Skip Plan creation
+- Skip or bypass Intent creation
 - Edit immutable records
 - Break flow order
-- Allow AI to make decisions
-- Change archived data
+- Allow AI to confirm Intent, trigger Synthesis, or seal the Ledger
+- Change archived or Ledger-sealed data
+- Generate reports from any source other than the Ledger
 
 Will result in **immediate rejection** with violation identifier.
 
