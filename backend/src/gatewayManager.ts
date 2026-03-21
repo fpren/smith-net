@@ -77,8 +77,7 @@ class GatewayManager {
     }
 
     try {
-      const unifiedMsg = createMessage(message.channelId, message.senderId, message.senderName, message.content, 'gateway');
-      publish(unifiedMsg);
+      // MessageBus publish happens in the caller (wsHandler.handleChatMessage) — no duplicate publish here
 
       connected.ws.send(JSON.stringify({
         type: 'inject_message',

@@ -266,19 +266,9 @@ class WSHandler {
       message.recipientName
     );
 
-    // Route through MessageBus (handles dedup, subscriber delivery, and Supabase persistence)
-    // Use 'ble' transport since mesh messages originate from BLE-connected Android devices
-    const unifiedMsg = createMessage(
-      resolvedChannelId,
-      message.senderId,
-      message.senderName,
-      message.content,
-      'ble',
-      storedMsg.id
-    );
-    publish(unifiedMsg);
+    // MessageBus publish happens in gatewayManager.onMeshMessage() — no duplicate publish here
 
-    console.log(`[Gateway] Stored and published mesh message: "${message.content}" from ${message.senderName}`);
+    console.log(`[Gateway] Stored mesh message: "${message.content}" from ${message.senderName}`);
   }
 
   /**

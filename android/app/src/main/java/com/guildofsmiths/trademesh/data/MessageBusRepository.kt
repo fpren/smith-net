@@ -14,8 +14,16 @@ class MessageBusRepository(context: Context) {
     private val dao = AppDatabase.getInstance(context).unifiedMessageDao()
     private val scope = CoroutineScope(Dispatchers.IO)
     private val seenIds = LinkedHashSet<String>(1000)
-    private val deviceId = UUID.randomUUID().toString().take(12)
-    private var localClock = VectorClock()
+    private val prefs = context.getSharedPreferences("message_bus", Context.MODE_PRIVATE)
+    private val deviceId: String = prefs.getString("device_id", null) ?: run {
+        val id = UUID.randomUUID().toString().take(12)
+        prefs.edit().putString("device_id", id).apply()
+        id
+    }
+    private var localClock: VectorClock = run {
+        val json = prefs.getString("local_clock", null)
+        if (json != null) VectorClock.fromJson(json) else VectorClock()
+    }
 
     private val listeners = mutableListOf<(UnifiedMessage) -> Unit>()
 
@@ -43,6 +51,7 @@ class MessageBusRepository(context: Context) {
         mediaUrl: String? = null
     ): UnifiedMessage {
         localClock = localClock.increment(deviceId)
+        persistClock()
 
         val message = UnifiedMessage(
             id = UUID.randomUUID().toString(),
@@ -71,6 +80,7 @@ class MessageBusRepository(context: Context) {
 
         // Merge incoming clock
         localClock = localClock.merge(message.vectorClock)
+        persistClock()
 
         // Persist locally
         scope.launch {
@@ -104,9 +114,14 @@ class MessageBusRepository(context: Context) {
                 UnifiedMessageEntity.from(msg.copy(syncedToRemote = true))
             }
         dao.insertAll(entities)
+        if (entities.isNotEmpty()) persistClock()
     }
 
     fun getLocalClock(): VectorClock = localClock
+
+    private fun persistClock() {
+        prefs.edit().putString("local_clock", localClock.toJson()).apply()
+    }
 
     suspend fun clearChannel(channelId: String) {
         dao.clearChannel(channelId)
