@@ -182,6 +182,7 @@ export interface Engagement {
   intent: string; // What the engagement is about
 }
 
+/** @deprecated Use Intent instead */
 export interface Plan {
   id: string;
   engagementId: string;
@@ -216,6 +217,7 @@ export interface Plan {
   immutableHash?: string;
 }
 
+/** @deprecated Use IntentStatus instead */
 export type PlanPhase =
   | 'draft'           // Initial creation
   | 'proposal_pending' // Standard flow - proposal created but not confirmed
@@ -227,6 +229,7 @@ export type PlanPhase =
   | 'output_generated' // Reports/invoices created
   | 'archived';       // Final immutable state
 
+/** @deprecated Use IntentVersion instead */
 export interface Proposal {
   id: string;
   planId: string;
@@ -242,6 +245,7 @@ export interface Proposal {
   status: 'draft' | 'submitted' | 'approved' | 'rejected';
 }
 
+/** @deprecated Use SummaryArtifact instead */
 export interface PlanSummary {
   id: string;
   planId: string;
@@ -259,6 +263,7 @@ export interface PlanSummary {
   status: 'draft' | 'confirmed';
 }
 
+/** @deprecated Use LedgerEntry instead */
 export interface PlanOutput {
   id: string;
   planId: string;
@@ -389,6 +394,7 @@ export interface GenerateOutputRequest {
 // PLAN AUTHORITY — VALIDATION & SERIALIZATION
 // ════════════════════════════════════════════════════════════════════
 
+/** @deprecated Use LedgerEntry.sha256Hash instead */
 export interface PlanSerial {
   id: string;                    // Canonical UUID
   recordType: 'PLAN';           // Always 'PLAN'
@@ -425,6 +431,7 @@ export interface LedgerTransaction {
   verified: boolean;            // Verification status
 }
 
+/** @deprecated Use IntentAuthorityResult/SynthesisAuthorityResult/LedgerAuthorityResult instead */
 export interface PlanValidationResult {
   valid: boolean;
   planSerial?: PlanSerial;
