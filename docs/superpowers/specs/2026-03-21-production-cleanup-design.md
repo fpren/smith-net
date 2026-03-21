@@ -16,7 +16,7 @@ Phase 1 (Messaging Unification) and Phase 2 (Core Flow Redesign) code is impleme
 
 Add to `onCreate()` initialization sequence:
 
-1. `IntentRepository.init(sharedPrefs)` — initialize with SharedPreferences for serial counter persistence
+1. `IntentRepository.init(getSharedPreferences("intent_prefs", MODE_PRIVATE))` — initialize with named SharedPreferences for serial counter persistence
 2. `BoundaryEngine.initMessageBus(this, "http://192.168.8.163:3000")` — use the same backend URL already hardcoded in `registerMeshService()`
 
 No backend URL configuration refactoring — matches existing pattern used by ChatManager and GatewayClient.
@@ -29,14 +29,14 @@ Replace the 6 mock lines in `backend/src/synthesizer.ts` with Supabase queries:
 
 - **workPerformed**: Query `jobs` table by job IDs → extract `title`, `description`, `status`
 - **laborRecorded**: Query `time_entries` table by time entry IDs → extract `user_id`, `duration_minutes`, `job_id`
-- **materialsUsed**: Query `materials` table by job IDs → extract `name`, `quantity`, `unit_cost`
+- **materialsUsed**: Query `materials` table where `materials.job_id` is in the provided job IDs → extract `name`, `quantity`, `unit_cost`
 - **contextualNotes**: Query `message_bus_messages` by approved chat message IDs → extract `content`, `sender_name`
 - **totalHours**: Sum actual `duration_minutes` from time entries, convert to hours
-- **totalCost**: Sum `(quantity * unit_cost)` from materials + `(totalHours * hourly_rate)` for labor
+- **totalCost**: Sum `(quantity * unit_cost)` from materials for material cost. For labor cost, use a flat $55/hr default rate (matching the existing hardcoded rate in `outputGenerator.ts`). Labor + materials = totalCost.
 
 ### Serial Counter Fix
 
-Add to Supabase migration:
+Create a new migration file `supabase/migrations/004_artifact_serial_sequence.sql`:
 ```sql
 CREATE SEQUENCE IF NOT EXISTS artifact_serial_seq START 1;
 ```
@@ -68,6 +68,8 @@ Remove unused imports for `planAuthority`, `planSynthesis`, `autoPlanCreator` an
 - `android/.../data/PlanRepository.kt`
 - `android/.../ui/plan/PlanTypes.kt`
 - `android/.../ui/plan/PlanComponents.kt`
+
+Note: `PlanScreen.kt` was already modified in Phase 2 Task 10 to show Intents (title changed to "[◫] INTENT", content shows IntentRepository data). It stays — it is the Intent screen now, just hasn't been renamed. No navigation changes needed since the route name "plan" is an internal path, not user-facing.
 
 ### Types Cleanup
 Mark existing Plan types in `backend/src/types.ts` with `@deprecated` JSDoc comments. Do not remove yet — minimizes cascade.
