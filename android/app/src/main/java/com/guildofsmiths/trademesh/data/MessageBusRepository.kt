@@ -1,0 +1,114 @@
+package com.guildofsmiths.trademesh.data
+
+import android.content.Context
+import com.guildofsmiths.trademesh.db.AppDatabase
+import com.guildofsmiths.trademesh.db.UnifiedMessageEntity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import java.util.UUID
+
+class MessageBusRepository(context: Context) {
+    private val dao = AppDatabase.getInstance(context).unifiedMessageDao()
+    private val scope = CoroutineScope(Dispatchers.IO)
+    private val seenIds = LinkedHashSet<String>(1000)
+    private val deviceId = UUID.randomUUID().toString().take(12)
+    private var localClock = VectorClock()
+
+    private val listeners = mutableListOf<(UnifiedMessage) -> Unit>()
+
+    fun addListener(listener: (UnifiedMessage) -> Unit) {
+        listeners.add(listener)
+    }
+
+    fun removeListener(listener: (UnifiedMessage) -> Unit) {
+        listeners.remove(listener)
+    }
+
+    fun getChannelMessages(channelId: String): Flow<List<UnifiedMessage>> {
+        return dao.getChannelMessages(channelId).map { entities ->
+            entities.map { it.toUnifiedMessage() }
+        }
+    }
+
+    fun createAndPublish(
+        channelId: String,
+        senderId: String,
+        senderName: String,
+        content: String,
+        transportType: TransportType,
+        mediaType: String = "TEXT",
+        mediaUrl: String? = null
+    ): UnifiedMessage {
+        localClock = localClock.increment(deviceId)
+
+        val message = UnifiedMessage(
+            id = UUID.randomUUID().toString(),
+            channelId = channelId,
+            senderId = senderId,
+            senderName = senderName,
+            content = content,
+            transportType = transportType,
+            vectorClock = localClock,
+            mediaType = mediaType,
+            mediaUrl = mediaUrl
+        )
+
+        publish(message)
+        return message
+    }
+
+    fun publish(message: UnifiedMessage) {
+        if (seenIds.contains(message.id)) return
+        seenIds.add(message.id)
+        if (seenIds.size > 5000) {
+            val iter = seenIds.iterator()
+            iter.next()
+            iter.remove()
+        }
+
+        // Merge incoming clock
+        localClock = localClock.merge(message.vectorClock)
+
+        // Persist locally
+        scope.launch {
+            dao.insert(UnifiedMessageEntity.from(message))
+        }
+
+        // Notify listeners
+        for (listener in listeners) {
+            listener(message)
+        }
+    }
+
+    suspend fun getUnsyncedMessages(): List<UnifiedMessage> {
+        return dao.getUnsyncedMessages().map { it.toUnifiedMessage() }
+    }
+
+    suspend fun markSynced(ids: List<String>) {
+        dao.markSynced(ids)
+    }
+
+    suspend fun getMessageIds(channelId: String): List<String> {
+        return dao.getMessageIds(channelId)
+    }
+
+    suspend fun insertRemoteMessages(messages: List<UnifiedMessage>) {
+        val entities = messages
+            .filter { !seenIds.contains(it.id) }
+            .map { msg ->
+                seenIds.add(msg.id)
+                localClock = localClock.merge(msg.vectorClock)
+                UnifiedMessageEntity.from(msg.copy(syncedToRemote = true))
+            }
+        dao.insertAll(entities)
+    }
+
+    fun getLocalClock(): VectorClock = localClock
+
+    suspend fun clearChannel(channelId: String) {
+        dao.clearChannel(channelId)
+    }
+}
