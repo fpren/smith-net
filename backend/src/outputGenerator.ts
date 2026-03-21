@@ -184,8 +184,8 @@ export class OutputGeneratorService {
     if (options?.lineItems) {
       // Use custom line items provided
       return options.lineItems.map(item => ({
-        id: uuidv4(),
-        ...item
+        ...item,
+        id: item.id || uuidv4(),
       }));
     }
 

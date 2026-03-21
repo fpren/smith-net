@@ -312,6 +312,29 @@ export interface InvoiceLineItem {
   timeEntryIds?: string[];
 }
 
+export interface TimeEntry {
+  id: string;
+  userId: string;
+  userName: string;
+  clockInTime: number;
+  clockOutTime?: number;
+  durationMinutes: number;
+  jobId: string;
+  entryType: 'regular' | 'overtime' | 'break';
+  source: 'manual' | 'geofence' | 'auto';
+  createdAt: number;
+  immutableHash?: string;
+  notes: string[];
+  status: 'active' | 'approved' | 'rejected';
+  clockOutContext?: {
+    type: 'worker_note' | 'ai_summary';
+    content: string;
+    generatedAt: number;
+    generatedBy: string;
+    isImmutable: boolean;
+  };
+}
+
 export interface PlanSnapshot {
   id: string;
   planId: string;

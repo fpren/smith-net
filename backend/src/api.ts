@@ -26,7 +26,8 @@ import {
   UpdateChannelAccessPayload,
   UpdateChannelVisibilityPayload,
   Engagement,
-  CreateEngagementRequest
+  CreateEngagementRequest,
+  PlanSnapshot
 } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -745,8 +746,10 @@ apiRouter.post('/reports/assemble', async (req: Request, res: Response) => {
 
   try {
     // TODO: Fetch actual archived plan snapshot
-    const mockSnapshot = {
+    const mockSnapshot: PlanSnapshot = {
+      id: uuidv4(),
       planId,
+      snapshotType: 'output',
       data: {
         id: planId,
         summary: {
@@ -755,7 +758,7 @@ apiRouter.post('/reports/assemble', async (req: Request, res: Response) => {
           totalHours: 16,
           totalCost: 800
         }
-      },
+      } as any,
       jobs: [
         { id: 'job1', title: 'Job 1', description: 'Work on job 1', status: 'done' }
       ],
@@ -879,8 +882,10 @@ apiRouter.post('/reports/generate', async (req: Request, res: Response) => {
 
   try {
     // Step 1: Get plan snapshot
-    const mockSnapshot = {
+    const mockSnapshot: PlanSnapshot = {
+      id: uuidv4(),
       planId,
+      snapshotType: 'output',
       data: {
         id: planId,
         summary: {
@@ -889,7 +894,7 @@ apiRouter.post('/reports/generate', async (req: Request, res: Response) => {
           totalHours: 16,
           totalCost: 800
         }
-      },
+      } as any,
       jobs: [{ id: 'job1', title: 'Job 1', description: 'Work on job 1', status: 'done' }],
       timeEntries: [{
         id: 'time1',

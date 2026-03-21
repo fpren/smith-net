@@ -197,8 +197,8 @@ This is not a check. For actual payment, see attached check or direct deposit co
 
     // Sum all time entries in pay period
     for (const entry of timeEntries) {
-      if (entry.clockOut && entry.duration) {
-        totalMinutes += entry.duration;
+      if (entry.clockOutTime && entry.durationMinutes) {
+        totalMinutes += entry.durationMinutes;
       }
     }
 

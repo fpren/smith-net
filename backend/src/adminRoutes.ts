@@ -1,6 +1,6 @@
 import express from 'express';
 import { supabaseAdmin } from './supabase.js';
-import { authenticateToken, requireRole } from './auth.js';
+import { authenticateToken, requireRole, UserRole } from './auth.js';
 
 const router = express.Router();
 
@@ -9,7 +9,7 @@ const router = express.Router();
 // ════════════════════════════════════════════════════════════════════════════
 
 // DELETE /api/admin/cleanup - Complete database cleanup (admin only)
-router.delete('/cleanup', authenticateToken, requireRole(['admin']), async (req, res) => {
+router.delete('/cleanup', authenticateToken, requireRole(UserRole.ADMIN), async (req, res) => {
   try {
     console.log('[Admin] Starting complete database cleanup...');
 
@@ -151,7 +151,7 @@ router.delete('/cleanup', authenticateToken, requireRole(['admin']), async (req,
 });
 
 // GET /api/admin/status - Get database status
-router.get('/status', authenticateToken, requireRole(['admin']), async (req, res) => {
+router.get('/status', authenticateToken, requireRole(UserRole.ADMIN), async (req, res) => {
   try {
     const tables = [
       'profiles', 'organizations', 'channels', 'channel_members', 'messages',
