@@ -63,9 +63,9 @@ Additionally, BLE mesh and IP chat operate as two separate messaging systems rat
 
 **Single message identity:** Every message gets a UUID at creation time, regardless of transport. Deduplication is trivial — same UUID = same message.
 
-**Vector clocks for ordering:** Instead of timestamps (which drift across devices), each device maintains a vector clock. This gives causal ordering — "message B was definitely a reply to message A" — without relying on synchronized time.
+**Vector clocks for ordering:** Instead of timestamps (which drift across devices), each device maintains a vector clock — one counter per device UUID. This gives causal ordering — "message B was definitely a reply to message A" — without relying on synchronized time.
 
-**Transport-agnostic storage:** Messages are stored once in Supabase. Transport metadata (BLE vs IP) is recorded but does not affect the message's identity or ordering.
+**Transport-agnostic storage:** Messages are stored locally first (Room database on Android for offline resilience), then synced to Supabase when online. Transport metadata (BLE vs IP) is recorded but does not affect the message's identity or ordering.
 
 **Reconciliation on reconnect:** When a device transitions from mesh-only to online (or vice versa):
 1. Compare local message set vs remote by UUID
@@ -176,7 +176,7 @@ Intent is auto-generated before Ledger seals, preserving the rule that Intent is
 **Responsibility:** Truth-sealing — takes Summary Artifacts and makes them canonical.
 
 - Append-only, no deletions, no edits
-- Each entry: Summary Artifact serial + SHA-256 hash + blockchain commitment + timestamp + actor UUID
+- Each entry: Summary Artifact serial + SHA-256 hash + blockchain commitment (append-only ledger — specific blockchain/service TBD based on infrastructure decisions) + timestamp + actor UUID
 - Corrections: new Ledger entry referencing the prior entry it supersedes (chain of amendments)
 - Reports and Invoices read exclusively from Ledger entries
 - **Does NOT** assemble facts or validate scope — it only seals what Synthesizer produced
@@ -241,7 +241,7 @@ POST /ledger-authority/validate-amendment
 # Small Project Flow
 POST /small-project/validate-eligibility
 POST /small-project/synthesize-and-generate-intent
-POST /small-project/confirm-and-seal
+POST /small-project/confirm-and-seal          # Orchestration endpoint: calls Intent Authority then Ledger Authority sequentially, not atomic
 
 # System Law Enforcement (unchanged pattern)
 GET  /system/flow-status
@@ -325,7 +325,7 @@ POST /system/validate-action
 3. Refactor Android message layer to use Message Bus
 4. Verify: send via BLE, receive via IP, no dupes, correct order
 
-**Phase 2 (Core Flow):**
+**Phase 2 (Core Flow):** Depends on Phase 1 — Synthesizer consumes chat context via Message Bus, so unified messaging must be operational first.
 1. Build Intent service + authority
 2. Build Synthesizer + authority
 3. Build Ledger + authority
