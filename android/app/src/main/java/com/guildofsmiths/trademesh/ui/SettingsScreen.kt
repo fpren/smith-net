@@ -98,11 +98,11 @@ fun SettingsScreen(
                 .padding(16.dp)
         ) {
             // ════════════════════════════════════════════════════════════════
-            // COMPONENTS (Top priority - visible without scrolling)
+            // COMPONENTS
             // ════════════════════════════════════════════════════════════════
             Text(text = "COMPONENTS", style = ConsoleTheme.captionBold)
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -111,14 +111,14 @@ fun SettingsScreen(
                     .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "[≡]", style = ConsoleTheme.bodyBold)
+                Text(text = "[◧]", style = ConsoleTheme.bodyBold)
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(text = "JOB BOARD", style = ConsoleTheme.body, modifier = Modifier.weight(1f))
                 Text(text = ">", style = ConsoleTheme.body)
             }
-            
+
             Spacer(modifier = Modifier.height(4.dp))
-            
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -129,7 +129,7 @@ fun SettingsScreen(
             ) {
                 Text(text = "[◷]", style = ConsoleTheme.bodyBold)
                 Spacer(modifier = Modifier.width(10.dp))
-                Text(text = "TIME CLOCK", style = ConsoleTheme.body, modifier = Modifier.weight(1f))
+                Text(text = "TIME TRACKING", style = ConsoleTheme.body, modifier = Modifier.weight(1f))
                 Text(text = ">", style = ConsoleTheme.body)
             }
 

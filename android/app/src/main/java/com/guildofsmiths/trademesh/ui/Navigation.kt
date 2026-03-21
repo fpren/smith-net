@@ -7,6 +7,7 @@ object NavRoutes {
     const val AUTH = "auth"  // C-01: Authentication screen
     const val ONBOARDING = "onboarding"  // Post-registration guided setup
     const val WELCOME = "welcome"
+    const val PLAN = "plan"  // PLAN Component - Primary landing page (SYSTEM_LAW)
     const val BEACON_LIST = "beacons"
     const val CHANNEL_LIST = "channels/{beaconId}"
     const val CONVERSATION = "conversation/{beaconId}/{channelId}"

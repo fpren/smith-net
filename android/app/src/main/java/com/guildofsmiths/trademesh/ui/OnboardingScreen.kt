@@ -930,18 +930,6 @@ private fun LanguageScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // AI Assistant Icon
-        Text(
-            text = "[AI] ASSISTANT",
-            style = ConsoleTheme.brand.copy(
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            ),
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
         Text(
             "Language",
             style = ConsoleTheme.title,

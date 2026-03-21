@@ -1,0 +1,221 @@
+package com.guildofsmiths.trademesh.ui.components
+
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import com.guildofsmiths.trademesh.ui.ConsoleTheme
+
+/**
+ * BOTTOM TOOLBAR - Popup Navigation
+ *
+ * Slides up from bottom-left corner to provide quick access to Plan, Job, and Time screens.
+ * Uses bracket notation icons matching ConsoleTheme design language.
+ */
+
+@Composable
+fun BottomToolbar(
+    isExpanded: Boolean,
+    onToggle: () -> Unit,
+    onNavigateToPlan: () -> Unit,
+    onNavigateToJob: () -> Unit,
+    onNavigateToTime: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(bottom = 16.dp, start = 16.dp),
+        contentAlignment = Alignment.BottomStart
+    ) {
+        // Expanded toolbar (slides up from bottom)
+        AnimatedVisibility(
+            visible = isExpanded,
+            enter = slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = tween(durationMillis = 300)
+            ) + fadeIn(animationSpec = tween(durationMillis = 300)),
+            exit = slideOutVertically(
+                targetOffsetY = { it },
+                animationSpec = tween(durationMillis = 300)
+            ) + fadeOut(animationSpec = tween(durationMillis = 300))
+        ) {
+            ExpandedToolbar(
+                onNavigateToPlan = {
+                    onNavigateToPlan()
+                    onToggle()  // Collapse after navigation
+                },
+                onNavigateToJob = {
+                    onNavigateToJob()
+                    onToggle()
+                },
+                onNavigateToTime = {
+                    onNavigateToTime()
+                    onToggle()
+                },
+                onCollapse = onToggle
+            )
+        }
+
+        // Trigger button (always visible when collapsed)
+        if (!isExpanded) {
+            TriggerButton(onClick = onToggle)
+        }
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// EXPANDED TOOLBAR
+// ════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun ExpandedToolbar(
+    onNavigateToPlan: () -> Unit,
+    onNavigateToJob: () -> Unit,
+    onNavigateToTime: () -> Unit,
+    onCollapse: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .width(160.dp)
+            .shadow(
+                elevation = 8.dp,
+                shape = RoundedCornerShape(8.dp)
+            )
+            .background(
+                color = ConsoleTheme.surface,
+                shape = RoundedCornerShape(8.dp)
+            )
+            .padding(vertical = 4.dp)
+    ) {
+        // Plan option
+        ToolbarItem(
+            icon = "[◫]",
+            label = "PLAN",
+            onClick = onNavigateToPlan
+        )
+
+        // Separator
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(ConsoleTheme.text.copy(alpha = 0.1f))
+                .padding(horizontal = 8.dp)
+        )
+
+        // Job option
+        ToolbarItem(
+            icon = "[◧]",
+            label = "JOB",
+            onClick = onNavigateToJob
+        )
+
+        // Separator
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(ConsoleTheme.text.copy(alpha = 0.1f))
+                .padding(horizontal = 8.dp)
+        )
+
+        // Time option
+        ToolbarItem(
+            icon = "[◷]",
+            label = "TIME",
+            onClick = onNavigateToTime
+        )
+
+        // Separator
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(ConsoleTheme.text.copy(alpha = 0.1f))
+                .padding(horizontal = 8.dp)
+        )
+
+        // Collapse button
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onCollapse)
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "[▼]",
+                style = ConsoleTheme.action.copy(
+                    color = ConsoleTheme.text.copy(alpha = 0.6f)
+                )
+            )
+        }
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// TOOLBAR ITEM
+// ════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun ToolbarItem(
+    icon: String,
+    label: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = icon,
+            style = ConsoleTheme.body,
+            color = ConsoleTheme.accent
+        )
+        Text(
+            text = label,
+            style = ConsoleTheme.bodyBold
+        )
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// TRIGGER BUTTON
+// ════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun TriggerButton(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .shadow(
+                elevation = 6.dp,
+                shape = RoundedCornerShape(8.dp)
+            )
+            .background(
+                color = ConsoleTheme.accent,
+                shape = RoundedCornerShape(8.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        Text(
+            text = "[▲ ⊞]",
+            style = ConsoleTheme.bodyBold,
+            color = Color.White
+        )
+    }
+}

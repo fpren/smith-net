@@ -3,6 +3,7 @@ package com.guildofsmiths.trademesh.ui.theme
 import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -10,6 +11,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.FontFamily
 import androidx.core.view.WindowCompat
 
 // Console-style dark color scheme
@@ -56,25 +58,45 @@ private val LightColorScheme = lightColorScheme(
     outlineVariant = Color(0xFFEFF2F5)
 )
 
+// Monospace typography for the entire app
+private val MonospaceTypography = Typography(
+    displayLarge = Typography().displayLarge.copy(fontFamily = FontFamily.Monospace),
+    displayMedium = Typography().displayMedium.copy(fontFamily = FontFamily.Monospace),
+    displaySmall = Typography().displaySmall.copy(fontFamily = FontFamily.Monospace),
+    headlineLarge = Typography().headlineLarge.copy(fontFamily = FontFamily.Monospace),
+    headlineMedium = Typography().headlineMedium.copy(fontFamily = FontFamily.Monospace),
+    headlineSmall = Typography().headlineSmall.copy(fontFamily = FontFamily.Monospace),
+    titleLarge = Typography().titleLarge.copy(fontFamily = FontFamily.Monospace),
+    titleMedium = Typography().titleMedium.copy(fontFamily = FontFamily.Monospace),
+    titleSmall = Typography().titleSmall.copy(fontFamily = FontFamily.Monospace),
+    bodyLarge = Typography().bodyLarge.copy(fontFamily = FontFamily.Monospace),
+    bodyMedium = Typography().bodyMedium.copy(fontFamily = FontFamily.Monospace),
+    bodySmall = Typography().bodySmall.copy(fontFamily = FontFamily.Monospace),
+    labelLarge = Typography().labelLarge.copy(fontFamily = FontFamily.Monospace),
+    labelMedium = Typography().labelMedium.copy(fontFamily = FontFamily.Monospace),
+    labelSmall = Typography().labelSmall.copy(fontFamily = FontFamily.Monospace)
+)
+
 @Composable
 fun TradeMeshTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    // Force dark theme for console aesthetic
-    val colorScheme = DarkColorScheme
-    
+    // Use light theme - matching original design
+    val colorScheme = LightColorScheme
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
             window.statusBarColor = colorScheme.background.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true
         }
     }
-    
+
     MaterialTheme(
         colorScheme = colorScheme,
+        typography = MonospaceTypography,
         content = content
     )
 }

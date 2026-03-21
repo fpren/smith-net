@@ -39,11 +39,8 @@ object ConsoleTheme {
     // ═══════════════════════════════════════════════════════════════
     // FONTS
     // ═══════════════════════════════════════════════════════════════
-    
-    val mono = FontFamily(
-        Font(DeviceFontFamilyName("Courier New")),
-        Font(DeviceFontFamilyName("monospace"))
-    )
+
+    val mono = FontFamily.Monospace
     
     // ═══════════════════════════════════════════════════════════════
     // COLORS — High contrast, minimal palette

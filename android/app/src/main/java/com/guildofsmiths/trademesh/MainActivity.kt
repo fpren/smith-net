@@ -15,7 +15,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
@@ -42,6 +44,7 @@ import com.guildofsmiths.trademesh.ui.AuthScreen
 import com.guildofsmiths.trademesh.ui.BeaconListScreen
 import com.guildofsmiths.trademesh.ui.ChannelListScreen
 import com.guildofsmiths.trademesh.ui.ChannelsScreen
+import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.ConversationScreen
 import com.guildofsmiths.trademesh.ui.ConversationViewModel
 import com.guildofsmiths.trademesh.ui.CreateBeaconScreen
@@ -191,7 +194,7 @@ class MainActivity : ComponentActivity() {
 
         // Initialize Supabase Auth
         SupabaseAuth.init(this)
-        
+
         // Handle deep link if app was launched from auth callback
         handleAuthDeepLink(intent)
         
@@ -209,9 +212,9 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
-                    
+
                     // Determine start destination - auth first, then onboarding
-                    // Priority: Not logged in → Auth, Logged in but no onboarding → Onboarding, Complete → Main app
+                    // Priority: Not logged in → Auth, Logged in but no onboarding → Onboarding, Complete → Plan (SYSTEM_LAW)
                     val startDestination = when {
                         !SupabaseAuth.isLoggedIn() -> {
                             // User not authenticated - show auth screen
@@ -222,11 +225,11 @@ class MainActivity : ComponentActivity() {
                             NavRoutes.ONBOARDING
                         }
                         else -> {
-                            // User authenticated and completed onboarding - go to main app
-                            NavRoutes.BEACON_LIST
+                            // User authenticated and completed onboarding - go to PLAN (front page per SYSTEM_LAW)
+                            NavRoutes.PLAN
                         }
                     }
-                    
+
                     NavHost(
                         navController = navController,
                         startDestination = startDestination
@@ -289,15 +292,41 @@ class MainActivity : ComponentActivity() {
                                     // Initialize Planner Container (main operational state)
                                     initializePlannerContainer()
 
-                                    // Navigate to main app (Planner Container)
-                                    navController.navigate(NavRoutes.BEACON_LIST) {
+                                    // Navigate to PLAN (front page per SYSTEM_LAW)
+                                    navController.navigate(NavRoutes.PLAN) {
                                         popUpTo(NavRoutes.ONBOARDING) { inclusive = true }
                                     }
                                 }
                             )
                         }
-                        
-                        // Beacon list screen (Planner Container - Operational Core)
+
+                        // Plan screen (Planner Container - Primary Landing Page per SYSTEM_LAW)
+                        composable(NavRoutes.PLAN) {
+                            // Ensure communication initialized
+                            if (UserPreferences.isOnboardingDataComplete()) {
+                                initializeCommunication()
+                            }
+
+                            com.guildofsmiths.trademesh.ui.plan.PlanScreen(
+                                onNavigateToMessages = {
+                                    navController.navigate(NavRoutes.BEACON_LIST)
+                                },
+                                onNavigateToSettings = {
+                                    navController.navigate(NavRoutes.SETTINGS)
+                                },
+                                onNavigateToProfile = {
+                                    navController.navigate(NavRoutes.PROFILE)
+                                },
+                                onNavigateToJob = {
+                                    navController.navigate(NavRoutes.JOB_BOARD)
+                                },
+                                onNavigateToTime = {
+                                    navController.navigate(NavRoutes.TIME_TRACKING)
+                                }
+                            )
+                        }
+
+                        // Beacon list screen (Messages/Chat Hub)
                         composable(NavRoutes.BEACON_LIST) {
                             // Planner Container loads - ensure communication is initialized
                             if (UserPreferences.isOnboardingDataComplete()) {
