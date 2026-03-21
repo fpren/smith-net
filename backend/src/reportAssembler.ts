@@ -12,11 +12,83 @@ import {
   StructuredReportModel,
   ReportSection,
   ReportMetadata,
-  PlanSnapshot
+  PlanSnapshot,
+  SummaryArtifact,
+  LedgerEntry
 } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
 export class ReportAssembler implements IReportAssembler {
+
+  assembleFromLedgerEntry(ledgerEntry: LedgerEntry, artifact: SummaryArtifact): StructuredReportModel {
+    const sections: ReportSection[] = [];
+
+    sections.push({
+      id: uuidv4(),
+      title: 'Executive Summary',
+      type: 'narrative',
+      content: {
+        text: artifact.scopeStatement,
+        keyMetrics: {
+          totalHours: artifact.totalHours,
+          totalJobs: artifact.jobIds.length,
+          totalTimeEntries: artifact.timeEntryIds.length,
+          totalCost: artifact.totalCost,
+        }
+      }
+    });
+
+    sections.push({
+      id: uuidv4(),
+      title: 'Work Performed',
+      type: 'table',
+      content: {
+        items: artifact.workPerformed.map((w, i) => ({ index: i + 1, description: w }))
+      }
+    });
+
+    sections.push({
+      id: uuidv4(),
+      title: 'Labor Summary',
+      type: 'summary',
+      content: {
+        items: artifact.laborRecorded,
+        totalHours: artifact.totalHours
+      }
+    });
+
+    if (artifact.totalCost > 0) {
+      sections.push({
+        id: uuidv4(),
+        title: 'Financial Summary',
+        type: 'totals',
+        content: {
+          totalCost: artifact.totalCost,
+          totalHours: artifact.totalHours,
+          effectiveRate: artifact.totalHours > 0 ? artifact.totalCost / artifact.totalHours : 0
+        }
+      });
+    }
+
+    return {
+      id: uuidv4(),
+      planId: ledgerEntry.id,
+      sections,
+      metadata: {
+        generatedAt: new Date().toISOString(),
+        generatedBy: 'system',
+        planSerial: artifact.serial,
+        ledgerTx: {
+          id: ledgerEntry.id,
+          hash: ledgerEntry.sha256Hash,
+          timestamp: ledgerEntry.sealedAt,
+          blockHeight: 0,
+          transactionId: ledgerEntry.id,
+          verified: true,
+        }
+      }
+    } as any;
+  }
 
   /**
    * ASSEMBLE FROM PLAN SNAPSHOT

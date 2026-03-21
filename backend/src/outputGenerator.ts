@@ -3,10 +3,44 @@
  * Creates reports and invoices from plan data
  */
 
-import { Plan, PlanSummary, Report, Invoice, InvoiceLineItem, GenerateOutputRequest, TimeEntry } from './types';
+import { Plan, PlanSummary, Report, Invoice, InvoiceLineItem, GenerateOutputRequest, TimeEntry, SummaryArtifact, LedgerEntry } from './types';
 import { v4 as uuidv4 } from 'uuid';
+import { getArtifact } from './synthesizer';
+import { getLedgerEntry } from './ledger';
+import { reportAssembler } from './reportAssembler';
 
 export class OutputGeneratorService {
+
+  async generateFromLedger(
+    ledgerEntryId: string,
+    options: { outputType: 'report_only' | 'invoice_only' | 'report_and_invoice' }
+  ): Promise<{ report?: any; invoice?: any; error?: string }> {
+    const ledgerEntry = await getLedgerEntry(ledgerEntryId);
+    if (!ledgerEntry) return { error: 'Ledger entry not found' };
+
+    const artifact = await getArtifact(ledgerEntry.artifactId);
+    if (!artifact) return { error: 'Summary artifact not found' };
+
+    const result: any = {};
+
+    if (options.outputType !== 'invoice_only') {
+      result.report = reportAssembler.assembleFromLedgerEntry(ledgerEntry, artifact);
+    }
+
+    if (options.outputType !== 'report_only') {
+      result.invoice = {
+        id: uuidv4(),
+        ledgerEntryId: ledgerEntry.id,
+        artifactSerial: artifact.serial,
+        totalHours: artifact.totalHours,
+        totalCost: artifact.totalCost,
+        jobIds: artifact.jobIds,
+        createdAt: Date.now(),
+      };
+    }
+
+    return result;
+  }
 
   /**
    * Generate outputs based on the request
