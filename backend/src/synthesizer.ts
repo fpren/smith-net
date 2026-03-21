@@ -3,14 +3,24 @@ import { IntentVersion, SummaryArtifact } from './types';
 import { validateSynthesisInputs, validateArtifact } from './synthesisAuthority';
 import { supabase } from './supabase';
 
-let artifactSequence = 0;
+async function generateSerial(): Promise<string> {
+  const { data, error } = await supabase
+    .from('summary_artifacts')
+    .select('serial')
+    .order('created_at', { ascending: false })
+    .limit(1);
 
-function generateSerial(): string {
-  artifactSequence++;
+  let seq = 1;
+  if (!error && data && data.length > 0) {
+    const lastSerial = data[0].serial;
+    const lastNum = parseInt(lastSerial.split('-').pop() || '0', 10);
+    seq = lastNum + 1;
+  }
+
   const date = new Date();
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
-  return `ART-${y}-${m}-${String(artifactSequence).padStart(4, '0')}`;
+  return `ART-${y}-${m}-${String(seq).padStart(4, '0')}`;
 }
 
 export async function synthesize(
@@ -22,17 +32,63 @@ export async function synthesize(
   const inputValidation = validateSynthesisInputs(intentVersion, jobIds, timeEntryIds);
   if (!inputValidation.valid) return { error: inputValidation.message };
 
-  // Assemble facts (mock — real implementation queries Jobs/Time/Messages tables)
-  const workPerformed = jobIds.map((id, i) => `Job ${i + 1} (${id.substring(0, 8)}): completed`);
-  const laborRecorded = timeEntryIds.map((id, i) => `Time entry ${i + 1} (${id.substring(0, 8)}): recorded`);
-  const materialsUsed: string[] = [];
+  // Query real job data
+  const { data: jobRows } = await supabase
+    .from('jobs')
+    .select('id, title, description, status')
+    .in('id', jobIds);
+
+  const workPerformed = (jobRows || []).map(j =>
+    `${j.title || 'Untitled job'}: ${j.status || 'completed'}${j.description ? ' — ' + j.description : ''}`
+  );
+
+  // Query real time entry data
+  const { data: timeRows } = await supabase
+    .from('time_entries')
+    .select('id, user_id, duration_minutes, job_id')
+    .in('id', timeEntryIds);
+
+  const totalMinutes = (timeRows || []).reduce((sum, t) => sum + (t.duration_minutes || 0), 0);
+  const totalHours = Math.round((totalMinutes / 60) * 100) / 100;
+
+  const laborRecorded = (timeRows || []).map(t =>
+    `${t.user_id?.substring(0, 8) || 'unknown'}: ${t.duration_minutes || 0} min on job ${t.job_id?.substring(0, 8) || 'unlinked'}`
+  );
+
+  // Query materials by job IDs
+  const { data: materialRows } = await supabase
+    .from('materials')
+    .select('name, quantity, unit_cost, job_id')
+    .in('job_id', jobIds);
+
+  const materialsUsed = (materialRows || []).map(m =>
+    `${m.name}: ${m.quantity} × $${m.unit_cost || 0}`
+  );
+
+  const materialCost = (materialRows || []).reduce((sum, m) =>
+    sum + ((m.quantity || 0) * (m.unit_cost || 0)), 0
+  );
+
+  // Query approved chat messages
   const contextualNotes: string[] = [];
-  const totalHours = timeEntryIds.length * 2;
-  const totalCost = totalHours * 55;
+  if (approvedChatMessageIds.length > 0) {
+    const { data: chatRows } = await supabase
+      .from('message_bus_messages')
+      .select('content, sender_name')
+      .in('id', approvedChatMessageIds);
+
+    for (const msg of chatRows || []) {
+      contextualNotes.push(`${msg.sender_name}: ${msg.content}`);
+    }
+  }
+
+  // Calculate total cost: labor ($55/hr default) + materials
+  const laborCost = totalHours * 55;
+  const totalCost = Math.round((laborCost + materialCost) * 100) / 100;
 
   const artifact: SummaryArtifact = {
     id: uuidv4(),
-    serial: generateSerial(),
+    serial: await generateSerial(),
     intentVersionId: intentVersion.id,
     scopeStatement: intentVersion.scopeStatement,
     workPerformed, laborRecorded, materialsUsed, contextualNotes,
