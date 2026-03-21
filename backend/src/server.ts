@@ -23,6 +23,7 @@ import { channelRegistry } from './channelRegistry';
 import { mediaRouter, IMAGES_DIR, VOICE_DIR, FILES_DIR, cleanupOldMedia } from './mediaHandler';
 import { auditLog, AuditAction } from './auditLog';
 import { llm } from './llmInterface';
+import { reconcile, acceptClientMessages } from './reconciliationEngine';
 
 const PORT = process.env.PORT || 3000;
 
@@ -54,6 +55,29 @@ app.use('/api/media', mediaRouter);
 app.use('/media/images', express.static(IMAGES_DIR));
 app.use('/media/voice', express.static(VOICE_DIR));
 app.use('/media/files', express.static(FILES_DIR));
+
+// Reconciliation endpoints (Phase 1 Messaging Unification)
+app.post('/api/reconcile', async (req, res) => {
+  try {
+    const { channelId, localMessageIds, localClock } = req.body;
+    const result = await reconcile({ channelId, localMessageIds, localClock });
+    res.json(result);
+  } catch (err) {
+    console.error('[Reconcile] Error:', err);
+    res.status(500).json({ error: 'Reconciliation failed' });
+  }
+});
+
+app.post('/api/reconcile/push', async (req, res) => {
+  try {
+    const { messages } = req.body;
+    await acceptClientMessages(messages);
+    res.json({ accepted: messages.length });
+  } catch (err) {
+    console.error('[Reconcile] Push error:', err);
+    res.status(500).json({ error: 'Push failed' });
+  }
+});
 
 // Root endpoint
 app.get('/', (_req, res) => {
