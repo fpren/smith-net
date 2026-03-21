@@ -479,3 +479,26 @@ export interface ReportOutput {
   download(report: RenderedReport): Promise<void>;
   share(report: RenderedReport, recipients: string[]): Promise<void>;
 }
+
+// === Message Bus Types (Phase 1) ===
+
+export type TransportType = 'ble' | 'ip' | 'supabase' | 'gateway';
+
+export interface VectorClockState {
+  [deviceId: string]: number;
+}
+
+export interface UnifiedMessage {
+  id: string;                    // UUID, generated at creation
+  channelId: string;             // Channel UUID
+  senderId: string;              // User UUID
+  senderName: string;
+  content: string;
+  timestamp: number;             // Unix ms, for display only (not ordering)
+  vectorClock: VectorClockState; // Causal ordering
+  transportType: TransportType;  // Which transport carried this message
+  mediaType?: 'TEXT' | 'IMAGE' | 'VOICE' | 'VIDEO' | 'FILE';
+  mediaUrl?: string;
+  aiGenerated?: boolean;
+  aiModel?: string;
+}
