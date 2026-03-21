@@ -18,9 +18,14 @@ import com.guildofsmiths.trademesh.data.MessageRepository
 import com.guildofsmiths.trademesh.data.Peer
 import com.guildofsmiths.trademesh.data.PeerRepository
 import com.guildofsmiths.trademesh.data.UserPreferences
+import com.guildofsmiths.trademesh.data.MessageBusRepository
+import com.guildofsmiths.trademesh.data.TransportType
+import com.guildofsmiths.trademesh.data.UnifiedMessage
+import com.guildofsmiths.trademesh.data.VectorClock
 import com.guildofsmiths.trademesh.service.ChatManager
 import com.guildofsmiths.trademesh.service.GatewayClient
 import com.guildofsmiths.trademesh.service.MeshService
+import com.guildofsmiths.trademesh.service.ReconciliationEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -73,10 +78,29 @@ object BoundaryEngine {
     /** Queued media messages waiting for IP connectivity */
     private val _queuedMedia = MutableStateFlow<List<Message>>(emptyList())
     val queuedMedia: StateFlow<List<Message>> = _queuedMedia
-    
+
     /** Gateway mode enabled */
     private val _isGatewayConnected = MutableStateFlow(false)
     val isGatewayConnected: StateFlow<Boolean> = _isGatewayConnected
+
+    /** MessageBus for unified message persistence and dedup */
+    private var messageBusRepo: MessageBusRepository? = null
+
+    /** ReconciliationEngine for bidirectional sync on connectivity change */
+    private var reconciliationEngine: ReconciliationEngine? = null
+
+    /** Coroutine scope for MessageBus operations */
+    private val messageBusScope = CoroutineScope(Dispatchers.IO)
+
+    /**
+     * Initialize MessageBus and ReconciliationEngine.
+     * Call after app context is available (e.g., in MainActivity or Application).
+     */
+    fun initMessageBus(context: Context, backendUrl: String) {
+        messageBusRepo = MessageBusRepository(context)
+        reconciliationEngine = ReconciliationEngine(messageBusRepo!!, backendUrl)
+        Log.i(TAG, "MessageBus initialized with backend: $backendUrl")
+    }
     
     /**
      * Register the mesh service for message routing.
@@ -93,6 +117,18 @@ object BoundaryEngine {
                 // Store online message locally
                 MessageRepository.addMessage(message)
                 Log.d(TAG, "📨 Online message stored: ${message.content.take(20)}")
+
+                // Publish to MessageBus for unified persistence (GATEWAY transport)
+                messageBusRepo?.publish(UnifiedMessage(
+                    id = message.id,
+                    channelId = message.channelId,
+                    senderId = message.senderId,
+                    senderName = message.senderName,
+                    content = message.content,
+                    timestamp = message.timestamp,
+                    transportType = TransportType.GATEWAY,
+                    vectorClock = VectorClock()
+                ))
             }
         })
         
@@ -430,7 +466,19 @@ object BoundaryEngine {
 
         // For legal/financial records, also append to cord for provable correctness
         createCordEntryIfNeeded(context, message)
-        
+
+        // Publish to MessageBus for unified persistence, dedup, and vector clock ordering
+        val hasInternet = !shouldUseMesh(context)
+        messageBusRepo?.createAndPublish(
+            channelId = message.channelId,
+            senderId = message.senderId,
+            senderName = message.senderName,
+            content = message.content,
+            transportType = if (hasInternet) TransportType.IP else TransportType.BLE,
+            mediaType = message.mediaType.name,
+            mediaUrl = message.media?.remotePath
+        )
+
         // Media messages require IP - queue if offline
         if (message.hasMedia()) {
             routeMediaMessage(context, message)
@@ -557,6 +605,18 @@ object BoundaryEngine {
         // Add to repository - deduplication handled there
         MessageRepository.addMessage(resolvedMessage)
 
+        // Publish to MessageBus for unified persistence (BLE transport)
+        messageBusRepo?.publish(UnifiedMessage(
+            id = resolvedMessage.id,
+            channelId = resolvedMessage.channelId,
+            senderId = resolvedMessage.senderId,
+            senderName = resolvedMessage.senderName,
+            content = resolvedMessage.content,
+            timestamp = resolvedMessage.timestamp,
+            transportType = TransportType.BLE,
+            vectorClock = VectorClock()
+        ))
+
         // Forward to gateway if connected (bridge mesh → online)
         forwardToGateway(resolvedMessage)
     }
@@ -575,13 +635,29 @@ object BoundaryEngine {
     fun onConnectivityRestored(context: Context) {
         val wasOffline = lastConnectivityState == true
         val isOnlineNow = !shouldUseMesh(context)
-        
+
         if (wasOffline && isOnlineNow) {
             Log.i(TAG, "Connectivity restored - initiating sync")
             syncMeshMessagesToChat()
             syncQueuedMedia(context)
+
+            // Trigger MessageBus reconciliation for all active channels
+            reconciliationEngine?.let { engine ->
+                val activeChannelIds = channelMembership.values.toList()
+                Log.i(TAG, "Reconciling ${activeChannelIds.size} channels via MessageBus")
+                messageBusScope.launch {
+                    for (channelId in activeChannelIds) {
+                        try {
+                            engine.reconcileChannel(channelId)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Reconciliation failed for channel $channelId", e)
+                        }
+                    }
+                    Log.i(TAG, "MessageBus reconciliation completed")
+                }
+            }
         }
-        
+
         lastConnectivityState = shouldUseMesh(context)
         _isOnline.value = isOnlineNow
     }
