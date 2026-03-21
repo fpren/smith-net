@@ -5,6 +5,7 @@
 
 import { WebSocket } from 'ws';
 import { GatewayRelay, Message } from './types';
+import { createMessage, publish } from './messageBus';
 
 interface ConnectedRelay {
   relay: GatewayRelay;
@@ -76,6 +77,9 @@ class GatewayManager {
     }
 
     try {
+      const unifiedMsg = createMessage(message.channelId, message.senderId, message.senderName, message.content, 'gateway');
+      publish(unifiedMsg);
+
       connected.ws.send(JSON.stringify({
         type: 'inject_message',
         payload: message,
@@ -113,7 +117,10 @@ class GatewayManager {
     }
 
     console.log(`[GatewayManager] Mesh message from ${relayId}: ${message.id.substring(0, 8)}`);
-    
+
+    const unifiedMsg = createMessage(message.channelId, message.senderId, message.senderName, message.content, 'ble', message.id);
+    publish(unifiedMsg);
+
     // Notify listeners
     for (const listener of this.messageListeners) {
       listener(message, relayId);
