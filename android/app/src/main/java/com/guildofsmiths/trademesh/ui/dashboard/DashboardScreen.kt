@@ -24,6 +24,7 @@ fun DashboardScreen(
     onClockIn: () -> Unit,
     onMessages: () -> Unit,
     onSettings: () -> Unit,
+    onProfile: () -> Unit,
     onArchive: () -> Unit,
     viewModel: DashboardViewModel = viewModel()
 ) {
@@ -45,7 +46,14 @@ fun DashboardScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = viewModel.getBusinessName(), style = ConsoleTheme.title)
+            Column {
+                Text(text = viewModel.getBusinessName(), style = ConsoleTheme.title)
+                Text(
+                    text = com.guildofsmiths.trademesh.data.UserPreferences.getUserName(),
+                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent),
+                    modifier = Modifier.clickable { onProfile() }.padding(vertical = 2.dp)
+                )
+            }
             Row {
                 Text(
                     text = "[Msg]",

@@ -328,6 +328,9 @@ class MainActivity : ComponentActivity() {
                                 onSettings = {
                                     navController.navigate(NavRoutes.SETTINGS)
                                 },
+                                onProfile = {
+                                    navController.navigate(NavRoutes.PROFILE)
+                                },
                                 onArchive = {
                                     navController.navigate(NavRoutes.ARCHIVE)
                                 }
