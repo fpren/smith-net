@@ -25,7 +25,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.guildofsmiths.trademesh.data.TradeDefaults
 import com.guildofsmiths.trademesh.data.UserPreferences
+import com.guildofsmiths.trademesh.data.WageService
+import com.guildofsmiths.trademesh.data.WageSuggestion
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -316,6 +319,21 @@ private fun AboutYouScreen(
     onDataChange: (OnboardingData) -> Unit,
     onContinue: () -> Unit
 ) {
+    var wageSuggestion by remember { mutableStateOf<WageSuggestion?>(null) }
+
+    LaunchedEffect(data.zipPostal) {
+        if (data.zipPostal.length == 5) {
+            val socCode = TradeDefaults.getSocCode(UserPreferences.getOccupation()) ?: "47-2111"
+            val suggestion = WageService.getWageSuggestion(data.zipPostal, socCode)
+            wageSuggestion = suggestion
+            if (suggestion != null && data.hourlyRate.isBlank()) {
+                onDataChange(data.copy(hourlyRate = suggestion.medianRate.toInt().toString()))
+            }
+        } else {
+            wageSuggestion = null
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -429,6 +447,14 @@ private fun AboutYouScreen(
             keyboardType = KeyboardType.Decimal,
             imeAction = ImeAction.Next
         )
+        wageSuggestion?.let { suggestion ->
+            Spacer(modifier = Modifier.height(6.dp))
+            androidx.compose.material3.Text(
+                text = "${suggestion.metroName.split(",").first().trim()} area: typically \$${suggestion.lowRate.toInt()}–\$${suggestion.highRate.toInt()}/hr",
+                style = ConsoleTheme.caption,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 

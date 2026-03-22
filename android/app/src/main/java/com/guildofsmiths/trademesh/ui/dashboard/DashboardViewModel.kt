@@ -36,6 +36,8 @@ class DashboardViewModel : ViewModel() {
                     alerts.add(DashboardAlert(job.id, "${job.clientName ?: job.title} — proposal awaiting response", AlertType.APPROVAL))
                 job.stage == JobStage.INVOICE ->
                     alerts.add(DashboardAlert(job.id, "${job.clientName ?: job.title} — invoice unpaid", AlertType.UNPAID_INVOICE))
+                job.stage == JobStage.APPROVED && (System.currentTimeMillis() - job.updatedAt) < 86400000 ->
+                    alerts.add(DashboardAlert(job.id, "${job.clientName ?: job.title} — client approved!", AlertType.CLIENT_RESPONSE))
             }
         }
         return alerts
