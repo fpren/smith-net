@@ -140,8 +140,8 @@ class JobBoardViewModel : ViewModel() {
     }
 
     fun createJob(
-        title: String, 
-        description: String = "", 
+        title: String,
+        description: String = "",
         priority: Priority = Priority.MEDIUM,
         toolsNeeded: String = "",
         expenses: String = "",
@@ -149,11 +149,17 @@ class JobBoardViewModel : ViewModel() {
         crew: List<CrewMember> = emptyList(),
         materials: List<Material> = emptyList(),
         estimatedStartDate: Long? = null,
-        estimatedEndDate: Long? = null
+        estimatedEndDate: Long? = null,
+        clientName: String? = null,
+        clientPhone: String = "",
+        clientAddress: String = "",
+        hourlyRate: Double = 0.0,
+        equipmentList: List<String> = emptyList(),
+        stage: JobStage = JobStage.LEAD
     ) {
         val userId = UserPreferences.getUserId()
         val now = System.currentTimeMillis()
-        
+
         val newJob = Job(
             id = UUID.randomUUID().toString(),
             title = title,
@@ -169,7 +175,13 @@ class JobBoardViewModel : ViewModel() {
             crew = crew,
             materials = materials,
             estimatedStartDate = estimatedStartDate,
-            estimatedEndDate = estimatedEndDate
+            estimatedEndDate = estimatedEndDate,
+            clientName = clientName,
+            clientPhone = clientPhone,
+            clientAddress = clientAddress,
+            hourlyRate = hourlyRate,
+            equipmentList = equipmentList,
+            stage = stage
         )
 
         // Add to local list immediately
@@ -326,6 +338,19 @@ class JobBoardViewModel : ViewModel() {
             override fun onFailure(call: Call, e: IOException) {}
             override fun onResponse(call: Call, response: Response) {}
         })
+    }
+
+    fun moveJobStage(jobId: String, newStage: JobStage) {
+        _jobs.value = _jobs.value.map { job ->
+            if (job.id == jobId) job.copy(stage = newStage, updatedAt = System.currentTimeMillis())
+            else job
+        }
+        _selectedJob.value?.let { selected ->
+            if (selected.id == jobId) {
+                _selectedJob.value = selected.copy(stage = newStage)
+            }
+        }
+        syncToRepository()
     }
 
     fun selectJob(job: Job?) {
