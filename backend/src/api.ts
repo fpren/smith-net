@@ -4,6 +4,9 @@
  */
 
 import { Router, Request, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
+import { proposalService } from './proposals';
 import { channelRegistry } from './channelRegistry';
 import { messageStore } from './messageStore';
 import { presenceManager } from './presenceManager';
@@ -30,6 +33,8 @@ import {
   PlanSnapshot
 } from './types';
 import { v4 as uuidv4 } from 'uuid';
+import { invoiceLinkService } from './invoiceLinks';
+import { wageDataService } from './wageData';
 
 export const apiRouter = Router();
 
@@ -1129,5 +1134,50 @@ apiRouter.post('/small-project/confirm-and-seal', async (req: Request, res: Resp
     res.status(201).json({ intentVersion: confirmed, artifact, ledgerEntry });
   } catch (err) {
     res.status(500).json({ error: 'Confirm and seal failed' });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════
+// INVOICE LINKS
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * Create a shareable invoice link
+ */
+apiRouter.post('/invoice-links', async (req: Request, res: Response) => {
+  try {
+    const result = await invoiceLinkService.createInvoiceLink(req.body);
+    if (!result) {
+      return res.status(500).json({ error: 'Failed to create invoice link' });
+    }
+    res.status(201).json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create invoice link' });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════
+// WAGES
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * Get BLS wage data by zip code and SOC code
+ * GET /api/wages?zip=78701&soc=47-2111
+ */
+apiRouter.get('/wages', async (req: Request, res: Response) => {
+  const { zip, soc } = req.query as { zip?: string; soc?: string };
+
+  if (!zip || !soc) {
+    return res.status(400).json({ error: 'zip and soc query parameters are required' });
+  }
+
+  try {
+    const result = await wageDataService.getWageByZipAndTrade(zip, soc);
+    if (!result) {
+      return res.status(404).json({ error: 'No wage data found for this zip/trade combination' });
+    }
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to retrieve wage data' });
   }
 });
