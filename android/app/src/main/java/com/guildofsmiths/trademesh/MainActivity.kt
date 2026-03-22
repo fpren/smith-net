@@ -277,7 +277,7 @@ class MainActivity : ComponentActivity() {
                                     UserPreferences.setUserName(userName)
                                     UserPreferences.setOnboardingComplete()
                                     viewModel.setUserName(userName)
-                                    navController.navigate(NavRoutes.BEACON_LIST) {
+                                    navController.navigate(NavRoutes.DASHBOARD) {
                                         popUpTo(NavRoutes.WELCOME) { inclusive = true }
                                     }
                                 }
