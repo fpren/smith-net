@@ -33,7 +33,10 @@ object UserPreferences {
     private const val KEY_OCCUPATION = "occupation"
     private const val KEY_EXPERIENCE_LEVEL = "experience_level"
     private const val KEY_BUSINESS_NAME = "business_name"
-    
+    private const val KEY_HOURLY_RATE = "hourly_rate"
+    private const val KEY_LICENSE_NUMBER = "license_number"
+    private const val KEY_PAYMENT_INFO = "payment_info"
+
     private var prefs: SharedPreferences? = null
     
     // Cached values
@@ -193,6 +196,30 @@ object UserPreferences {
         }
     }
     
+    fun getHourlyRate(): Double {
+        return prefs?.getString(KEY_HOURLY_RATE, "0.0")?.toDoubleOrNull() ?: 0.0
+    }
+
+    fun setHourlyRate(rate: Double) {
+        prefs?.edit()?.putString(KEY_HOURLY_RATE, rate.toString())?.apply()
+    }
+
+    fun getLicenseNumber(): String {
+        return prefs?.getString(KEY_LICENSE_NUMBER, "") ?: ""
+    }
+
+    fun setLicenseNumber(license: String) {
+        prefs?.edit()?.putString(KEY_LICENSE_NUMBER, license.trim())?.apply()
+    }
+
+    fun getPaymentInfo(): String {
+        return prefs?.getString(KEY_PAYMENT_INFO, "") ?: ""
+    }
+
+    fun setPaymentInfo(info: String) {
+        prefs?.edit()?.putString(KEY_PAYMENT_INFO, info.trim())?.apply()
+    }
+
     /**
      * Get all preferences as a map for agent context.
      */
