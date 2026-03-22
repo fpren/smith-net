@@ -17,7 +17,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
@@ -30,6 +30,7 @@ import androidx.core.content.ContextCompat
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.guildofsmiths.trademesh.data.Peer
@@ -58,6 +59,7 @@ import com.guildofsmiths.trademesh.ui.WelcomeScreen
 import com.guildofsmiths.trademesh.ui.jobboard.JobBoardScreen
 import com.guildofsmiths.trademesh.ui.timetracking.TimeTrackingScreen
 import com.guildofsmiths.trademesh.ui.theme.TradeMeshTheme
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 /**
  * Main activity for TradeMesh Phase 0.
@@ -214,7 +216,7 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
 
                     // Determine start destination - auth first, then onboarding
-                    // Priority: Not logged in → Auth, Logged in but no onboarding → Onboarding, Complete → Plan (SYSTEM_LAW)
+                    // Priority: Not logged in → Auth, Logged in but no onboarding → Onboarding, Complete → Dashboard
                     val startDestination = when {
                         !SupabaseAuth.isLoggedIn() -> {
                             // User not authenticated - show auth screen
@@ -225,8 +227,8 @@ class MainActivity : ComponentActivity() {
                             NavRoutes.ONBOARDING
                         }
                         else -> {
-                            // User authenticated and completed onboarding - go to PLAN (front page per SYSTEM_LAW)
-                            NavRoutes.PLAN
+                            // User authenticated and completed onboarding - go to Dashboard
+                            NavRoutes.DASHBOARD
                         }
                     }
 
@@ -248,8 +250,8 @@ class MainActivity : ComponentActivity() {
                                     // DO NOT set onboarding complete here - that's system configuration
                                     // Check if system is already configured, then navigate appropriately
                                     if (UserPreferences.isOnboardingDataComplete()) {
-                                        // System already configured - go to main app (Planner Container)
-                                        navController.navigate(NavRoutes.BEACON_LIST) {
+                                        // System already configured - go to Dashboard
+                                        navController.navigate(NavRoutes.DASHBOARD) {
                                             popUpTo(NavRoutes.AUTH) { inclusive = true }
                                         }
                                     } else {
@@ -292,36 +294,94 @@ class MainActivity : ComponentActivity() {
                                     // Initialize Planner Container (main operational state)
                                     initializePlannerContainer()
 
-                                    // Navigate to PLAN (front page per SYSTEM_LAW)
-                                    navController.navigate(NavRoutes.PLAN) {
+                                    // Navigate to Dashboard (main hub)
+                                    navController.navigate(NavRoutes.DASHBOARD) {
                                         popUpTo(NavRoutes.ONBOARDING) { inclusive = true }
                                     }
                                 }
                             )
                         }
 
-                        // Plan screen (Planner Container - Primary Landing Page per SYSTEM_LAW)
-                        composable(NavRoutes.PLAN) {
-                            // Ensure communication initialized
+                        // Dashboard screen (main hub)
+                        composable(NavRoutes.DASHBOARD) {
                             if (UserPreferences.isOnboardingDataComplete()) {
                                 initializeCommunication()
                             }
 
-                            com.guildofsmiths.trademesh.ui.plan.PlanScreen(
-                                onNavigateToMessages = {
+                            val jobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel()
+                            val jobs by jobViewModel.jobs.collectAsState()
+
+                            com.guildofsmiths.trademesh.ui.dashboard.DashboardScreen(
+                                jobs = jobs,
+                                onJobClick = { jobId ->
+                                    navController.navigate(NavRoutes.jobPipeline(jobId))
+                                },
+                                onNewJob = {
+                                    navController.navigate(NavRoutes.NEW_JOB)
+                                },
+                                onClockIn = {
+                                    navController.navigate(NavRoutes.TIME_TRACKING)
+                                },
+                                onMessages = {
                                     navController.navigate(NavRoutes.BEACON_LIST)
                                 },
-                                onNavigateToSettings = {
+                                onSettings = {
                                     navController.navigate(NavRoutes.SETTINGS)
                                 },
-                                onNavigateToProfile = {
-                                    navController.navigate(NavRoutes.PROFILE)
-                                },
-                                onNavigateToJob = {
-                                    navController.navigate(NavRoutes.JOB_BOARD)
-                                },
-                                onNavigateToTime = {
-                                    navController.navigate(NavRoutes.TIME_TRACKING)
+                                onArchive = {
+                                    navController.navigate(NavRoutes.ARCHIVE)
+                                }
+                            )
+                        }
+
+                        // Job Pipeline detail screen
+                        composable(
+                            route = NavRoutes.JOB_PIPELINE,
+                            arguments = listOf(navArgument("jobId") { type = NavType.StringType })
+                        ) { backStackEntry ->
+                            val jobId = backStackEntry.arguments?.getString("jobId") ?: return@composable
+                            val jobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel()
+                            val jobs by jobViewModel.jobs.collectAsState()
+                            val job = jobs.find { it.id == jobId }
+
+                            if (job != null) {
+                                com.guildofsmiths.trademesh.ui.jobpipeline.JobPipelineScreen(
+                                    job = job,
+                                    onBack = { navController.popBackStack() },
+                                    onStageAction = { j, newStage ->
+                                        jobViewModel.moveJobStage(j.id, newStage)
+                                    },
+                                    onToggleMaterial = { index ->
+                                        jobViewModel.toggleMaterial(jobId, index)
+                                    },
+                                    onClockIn = {
+                                        navController.navigate(NavRoutes.TIME_TRACKING)
+                                    },
+                                    onShareProposal = { /* TODO: Wire in Task 11 */ },
+                                    onShareInvoice = { /* TODO: Wire in Task 12 */ }
+                                )
+                            }
+                        }
+
+                        // New Job guided flow
+                        composable(NavRoutes.NEW_JOB) {
+                            val jobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel()
+
+                            com.guildofsmiths.trademesh.ui.newjob.NewJobFlow(
+                                onBack = { navController.popBackStack() },
+                                onJobCreated = { newJob ->
+                                    jobViewModel.createJob(
+                                        title = newJob.clientName.ifBlank { "New Job" },
+                                        description = newJob.description,
+                                        materials = newJob.materials,
+                                        crewSize = newJob.crewSize,
+                                        clientName = newJob.clientName,
+                                        clientPhone = newJob.clientPhone,
+                                        clientAddress = newJob.clientAddress,
+                                        hourlyRate = com.guildofsmiths.trademesh.data.UserPreferences.getHourlyRate(),
+                                        equipmentList = newJob.equipmentList
+                                    )
+                                    navController.popBackStack()
                                 }
                             )
                         }
@@ -614,7 +674,7 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-    
+
     override fun onResume() {
         super.onResume()
         NotificationHelper.setAppForeground(true)
