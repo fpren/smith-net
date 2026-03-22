@@ -16,7 +16,7 @@ import { WebSocketServer } from 'ws';
 import http from 'http';
 import path from 'path';
 import fs from 'fs';
-import { apiRouter } from './api';
+import { apiRouter, proposalPublicRouter } from './api';
 import { authRouter } from './authRoutes';
 import adminRouter from './adminRoutes';
 import { wsHandler } from './wsHandler';
@@ -49,6 +49,9 @@ app.use('/api/admin', adminRouter);
 
 // Mount API
 app.use('/api', apiRouter);
+
+// Mount public proposal pages (client-facing, no auth)
+app.use('/p', proposalPublicRouter);
 
 // Mount Media API
 app.use('/api/media', mediaRouter);

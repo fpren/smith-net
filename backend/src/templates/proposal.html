@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Proposal — {{CONTRACTOR_NAME}}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      color: #1a1a1a;
+      line-height: 1.5;
+      padding: 16px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+      max-width: 680px;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    .header {
+      background: #1a1a1a;
+      color: #fff;
+      padding: 24px 28px;
+    }
+
+    .header h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .header .subtitle {
+      font-size: 0.85rem;
+      color: #aaa;
+      margin-top: 4px;
+    }
+
+    .status-badge {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .status-pending  { background: #f0ad00; color: #fff; }
+    .status-approved { background: #22c55e; color: #fff; }
+    .status-declined { background: #ef4444; color: #fff; }
+    .status-expired  { background: #888; color: #fff; }
+
+    .body { padding: 24px 28px; }
+
+    .parties {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .party { flex: 1 1 200px; }
+
+    .party-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #888;
+      margin-bottom: 6px;
+    }
+
+    .party p { font-size: 0.92rem; margin-bottom: 2px; }
+    .party .name { font-weight: 600; font-size: 1rem; }
+
+    hr { border: none; border-top: 1px solid #e8e8e8; margin: 20px 0; }
+
+    h2 {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #888;
+      margin-bottom: 10px;
+    }
+
+    .scope-text {
+      font-size: 0.95rem;
+      color: #333;
+      white-space: pre-wrap;
+    }
+
+    .task-list { list-style: none; }
+
+    .task-list li {
+      padding: 6px 0;
+      font-size: 0.92rem;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .task-list li::before {
+      content: "✓";
+      color: #22c55e;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .materials-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+
+    .materials-table th {
+      text-align: left;
+      padding: 6px 8px;
+      background: #f8f8f8;
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #666;
+    }
+
+    .materials-table td {
+      padding: 8px 8px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .materials-table td:last-child,
+    .materials-table th:last-child { text-align: right; }
+
+    .cost-summary {
+      background: #f8f8f8;
+      border-radius: 6px;
+      padding: 16px 20px;
+      margin-top: 20px;
+    }
+
+    .cost-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.92rem;
+      padding: 4px 0;
+    }
+
+    .cost-row.total {
+      border-top: 2px solid #1a1a1a;
+      margin-top: 8px;
+      padding-top: 10px;
+      font-weight: 700;
+      font-size: 1.05rem;
+    }
+
+    .disclaimer {
+      margin-top: 16px;
+      padding: 10px 14px;
+      background: #fffbe6;
+      border: 1px solid #f0d060;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      color: #7a6200;
+    }
+
+    .respond-section {
+      margin-top: 28px;
+      background: #f0f7ff;
+      border: 1px solid #c0d8f0;
+      border-radius: 8px;
+      padding: 20px;
+    }
+
+    .respond-section h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: #1a1a1a;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 5px;
+    }
+
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 0.92rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus { border-color: #1a1a1a; }
+
+    .form-group textarea { resize: vertical; min-height: 72px; }
+
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      flex: 1 1 140px;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-approve {
+      background: #22c55e;
+      color: #fff;
+    }
+
+    .btn-decline {
+      background: #fff;
+      color: #ef4444;
+      border: 2px solid #ef4444;
+    }
+
+    .result-banner {
+      display: none;
+      margin-top: 14px;
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .result-ok  { background: #dcfce7; color: #166534; display: block; }
+    .result-err { background: #fee2e2; color: #991b1b; display: block; }
+
+    .already-responded {
+      margin-top: 16px;
+      padding: 14px 18px;
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      color: #166534;
+      font-weight: 600;
+    }
+
+    .expired-notice {
+      margin-top: 16px;
+      padding: 14px 18px;
+      background: #f9fafb;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      color: #6b7280;
+    }
+
+    @media (max-width: 480px) {
+      .body { padding: 18px 16px; }
+      .header { padding: 20px 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <h1>Project Proposal</h1>
+      <div class="subtitle">Prepared by {{CONTRACTOR_NAME}}</div>
+      <span class="status-badge status-{{STATUS}}">{{STATUS_LABEL}}</span>
+    </div>
+
+    <div class="body">
+      <!-- Parties -->
+      <div class="parties">
+        <div class="party">
+          <div class="party-label">Contractor</div>
+          <p class="name">{{CONTRACTOR_NAME}}</p>
+          <p>{{CONTRACTOR_PHONE}}</p>
+          <p>License: {{CONTRACTOR_LICENSE}}</p>
+        </div>
+        <div class="party">
+          <div class="party-label">Prepared For</div>
+          <p class="name">{{CLIENT_NAME}}</p>
+          <p>{{CLIENT_ADDRESS}}</p>
+        </div>
+      </div>
+
+      <hr>
+
+      <!-- Scope -->
+      <h2>Scope of Work</h2>
+      <p class="scope-text">{{SCOPE}}</p>
+
+      <!-- Tasks -->
+      {{#HAS_TASKS}}
+      <hr>
+      <h2>Tasks</h2>
+      <ul class="task-list">
+        {{TASKS_HTML}}
+      </ul>
+      {{/HAS_TASKS}}
+
+      <!-- Materials -->
+      {{#HAS_MATERIALS}}
+      <hr>
+      <h2>Materials</h2>
+      <table class="materials-table">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Qty</th>
+            <th>Unit</th>
+            <th>Unit Cost</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{MATERIALS_HTML}}
+        </tbody>
+      </table>
+      {{/HAS_MATERIALS}}
+
+      <!-- Equipment -->
+      {{#HAS_EQUIPMENT}}
+      <hr>
+      <h2>Equipment</h2>
+      <ul class="task-list">
+        {{EQUIPMENT_HTML}}
+      </ul>
+      {{/HAS_EQUIPMENT}}
+
+      <!-- Cost Summary -->
+      <hr>
+      <h2>Cost Summary</h2>
+      <div class="cost-summary">
+        <div class="cost-row">
+          <span>Labor ({{LABOR_HOURS}} hrs @ ${{LABOR_RATE}}/hr)</span>
+          <span>${{LABOR_COST}}</span>
+        </div>
+        <div class="cost-row">
+          <span>Materials</span>
+          <span>${{MATERIALS_COST}}</span>
+        </div>
+        <div class="cost-row total">
+          <span>Estimated Total</span>
+          <span>${{TOTAL_COST}}</span>
+        </div>
+      </div>
+
+      <div class="disclaimer">
+        ESTIMATE — Prices may vary based on actual conditions, material availability, and any changes to scope requested by the client.
+      </div>
+
+      <!-- Response section -->
+      {{#SHOW_RESPOND}}
+      <div class="respond-section">
+        <h3>Respond to This Proposal</h3>
+        <div class="form-group">
+          <label for="client-name">Your Name (must match exactly to confirm identity)</label>
+          <input type="text" id="client-name" placeholder="{{CLIENT_NAME}}" autocomplete="name">
+        </div>
+        <div class="form-group">
+          <label for="client-notes">Notes or Questions (optional)</label>
+          <textarea id="client-notes" placeholder="Any comments, questions, or requests for changes..."></textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-approve" onclick="submitResponse('approve')">APPROVE</button>
+          <button class="btn btn-decline" onclick="submitResponse('decline')">REQUEST CHANGES</button>
+        </div>
+        <div id="result-banner" class="result-banner"></div>
+      </div>
+      {{/SHOW_RESPOND}}
+
+      {{#SHOW_APPROVED}}
+      <div class="already-responded">
+        You approved this proposal. The contractor has been notified.
+      </div>
+      {{/SHOW_APPROVED}}
+
+      {{#SHOW_DECLINED}}
+      <div class="already-responded" style="background:#fff7ed; border-color:#fb923c; color:#9a3412;">
+        You requested changes to this proposal. The contractor has been notified.
+      </div>
+      {{/SHOW_DECLINED}}
+
+      {{#SHOW_EXPIRED}}
+      <div class="expired-notice">
+        This proposal has expired. Please contact the contractor to request a new one.
+      </div>
+      {{/SHOW_EXPIRED}}
+
+    </div><!-- /.body -->
+  </div><!-- /.card -->
+
+  <script>
+    async function submitResponse(action) {
+      const nameInput = document.getElementById('client-name');
+      const notesInput = document.getElementById('client-notes');
+      const banner = document.getElementById('result-banner');
+
+      const clientName = nameInput.value.trim();
+      if (!clientName) {
+        showBanner('Please enter your name to confirm your identity.', false);
+        nameInput.focus();
+        return;
+      }
+
+      const buttons = document.querySelectorAll('.btn');
+      buttons.forEach(b => b.disabled = true);
+      banner.className = 'result-banner';
+      banner.textContent = '';
+
+      try {
+        const res = await fetch(window.location.pathname + '/respond', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action,
+            clientName,
+            notes: notesInput.value.trim() || undefined
+          })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          const msg = action === 'approve'
+            ? 'Proposal approved. The contractor has been notified.'
+            : 'Your request for changes has been sent to the contractor.';
+          showBanner(msg, true);
+          document.querySelector('.respond-section').style.display = 'none';
+        } else {
+          showBanner(data.error || 'Something went wrong. Please try again.', false);
+          buttons.forEach(b => b.disabled = false);
+        }
+      } catch (err) {
+        showBanner('Network error. Please check your connection and try again.', false);
+        buttons.forEach(b => b.disabled = false);
+      }
+    }
+
+    function showBanner(msg, ok) {
+      const banner = document.getElementById('result-banner');
+      banner.className = 'result-banner ' + (ok ? 'result-ok' : 'result-err');
+      banner.textContent = msg;
+    }
+  </script>
+</body>
+</html>
