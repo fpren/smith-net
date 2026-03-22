@@ -434,15 +434,6 @@ class MainActivity : ComponentActivity() {
                                 onNameChanged = { newName ->
                                     viewModel.setUserName(newName)
                                 },
-                                onJobBoardClick = {
-                                    navController.navigate(NavRoutes.JOB_BOARD)
-                                },
-                                onTimeTrackingClick = {
-                                    navController.navigate(NavRoutes.TIME_TRACKING)
-                                },
-                                onArchiveClick = {
-                                    navController.navigate(NavRoutes.ARCHIVE)
-                                },
                                 onSignOut = {
                                     // Navigate to auth screen and clear backstack
                                     navController.navigate(NavRoutes.AUTH) {

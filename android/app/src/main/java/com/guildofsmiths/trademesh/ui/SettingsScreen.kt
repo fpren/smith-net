@@ -57,9 +57,6 @@ import kotlin.system.exitProcess
 fun SettingsScreen(
     onBackClick: () -> Unit,
     onNameChanged: (String) -> Unit,
-    onJobBoardClick: (() -> Unit)? = null,
-    onTimeTrackingClick: (() -> Unit)? = null,
-    onArchiveClick: (() -> Unit)? = null,
     onSignOut: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -97,61 +94,6 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            // ════════════════════════════════════════════════════════════════
-            // COMPONENTS
-            // ════════════════════════════════════════════════════════════════
-            Text(text = "COMPONENTS", style = ConsoleTheme.captionBold)
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
-                    .clickable { onJobBoardClick?.invoke() }
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(text = "[◧]", style = ConsoleTheme.bodyBold)
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(text = "JOB BOARD", style = ConsoleTheme.body, modifier = Modifier.weight(1f))
-                Text(text = ">", style = ConsoleTheme.body)
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
-                    .clickable { onTimeTrackingClick?.invoke() }
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(text = "[◷]", style = ConsoleTheme.bodyBold)
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(text = "TIME TRACKING", style = ConsoleTheme.body, modifier = Modifier.weight(1f))
-                Text(text = ">", style = ConsoleTheme.body)
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
-                    .clickable { onArchiveClick?.invoke() }
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(text = "[⬚]", style = ConsoleTheme.bodyBold)
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(text = "ARCHIVE", style = ConsoleTheme.body, modifier = Modifier.weight(1f))
-                Text(text = ">", style = ConsoleTheme.body)
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-            ConsoleSeparator()
-            Spacer(modifier = Modifier.height(12.dp))
             
             // ════════════════════════════════════════════════════════════════
             // USER
