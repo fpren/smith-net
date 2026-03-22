@@ -46,7 +46,16 @@ data class Job(
     val relatedMessageIds: List<String> = emptyList(),
     val relatedChannelId: String? = null,
     // Future: AI-generated summary of chat history
-    val chatSummary: String? = null
+    val chatSummary: String? = null,
+    // Solo contractor lifecycle fields
+    val clientPhone: String = "",
+    val clientAddress: String = "",
+    val proposalId: String? = null,
+    val invoiceId: String? = null,
+    val hourlyRate: Double = 0.0,
+    val photos: List<String> = emptyList(),
+    val stage: JobStage = JobStage.LEAD,
+    val equipmentList: List<String> = emptyList()
 )
 
 data class CrewMember(
@@ -84,6 +93,25 @@ enum class JobStatus(val displayName: String, val icon: String) {
     REVIEW("Review", "█"),
     DONE("Done", "✓"),
     ARCHIVED("Archived", "▫")
+}
+
+enum class JobStage(val displayName: String, val icon: String) {
+    LEAD("Lead", "○"),
+    PROPOSAL("Proposal", "◫"),
+    APPROVED("Approved", "✓"),
+    IN_PROGRESS("In Progress", "▓"),
+    REVIEW("Review", "█"),
+    INVOICE("Invoice", "$"),
+    CLOSED("Closed", "◆")
+}
+
+fun JobStatus.toStage(): JobStage = when (this) {
+    JobStatus.BACKLOG -> JobStage.LEAD
+    JobStatus.TODO -> JobStage.LEAD
+    JobStatus.IN_PROGRESS -> JobStage.IN_PROGRESS
+    JobStatus.REVIEW -> JobStage.REVIEW
+    JobStatus.DONE -> JobStage.CLOSED
+    JobStatus.ARCHIVED -> JobStage.CLOSED // Note: also set isArchived=true when migrating ARCHIVED jobs
 }
 
 enum class Priority(val displayName: String, val icon: String) {
