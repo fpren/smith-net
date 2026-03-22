@@ -4,29 +4,44 @@ package com.guildofsmiths.trademesh.ui
  * Navigation routes for the app.
  */
 object NavRoutes {
-    const val AUTH = "auth"  // C-01: Authentication screen
-    const val ONBOARDING = "onboarding"  // Post-registration guided setup
+    // AUTH FLOW
+    const val AUTH = "auth"
+    const val ONBOARDING = "onboarding"
     const val WELCOME = "welcome"
-    const val PLAN = "plan"  // PLAN Component - Primary landing page (SYSTEM_LAW)
+
+    // MAIN
+    const val DASHBOARD = "dashboard"
+    @Deprecated("Removed in Task 9") const val PLAN = "plan"
+    @Deprecated("Removed in Task 9") const val PLAN_MODE = "plan_mode"
+    @Deprecated("Removed in Task 9") const val INTENT = "intent"
+    @Deprecated("Removed in Task 9") const val SOLO_DASHBOARD = "solo_dashboard"
+
+    // JOB PIPELINE
+    const val JOB_PIPELINE = "job_pipeline/{jobId}"
+    const val NEW_JOB = "new_job"
+
+    // EXISTING
+    const val JOB_BOARD = "job_board"
+    const val TIME_TRACKING = "time_clock"
+    const val ARCHIVE = "archive"
+    const val SETTINGS = "settings"
+    const val PROFILE = "profile"
+
+    // MESSAGING
     const val BEACON_LIST = "beacons"
     const val CHANNEL_LIST = "channels/{beaconId}"
     const val CONVERSATION = "conversation/{beaconId}/{channelId}"
     const val CONVERSATION_DM = "conversation/{beaconId}/{channelId}?dmPeerId={dmPeerId}&dmPeerName={dmPeerName}"
-    const val SETTINGS = "settings"
-    const val PROFILE = "profile"
-    const val PEERS = "peers"
-    const val DASHBOARD_CHANNELS = "dashboard_channels"  // Discover & join dashboard channels
+    const val DASHBOARD_CHANNELS = "dashboard_channels"
     const val CREATE_CHANNEL = "create_channel/{beaconId}"
     const val CREATE_BEACON = "create_beacon"
-    
-    // Separate components (C-11, C-12, C-13)
-    const val JOB_BOARD = "job_board"     // C-11: Job Board / Task View
-    const val TIME_TRACKING = "time_clock" // C-12: Time Tracking Core
-    const val ARCHIVE = "archive"          // C-13: Archive / History View
-    
+    const val PEERS = "peers"
+
+    // HELPERS
+    fun jobPipeline(jobId: String) = "job_pipeline/$jobId"
     fun channelList(beaconId: String) = "channels/$beaconId"
     fun conversation(beaconId: String, channelId: String) = "conversation/$beaconId/$channelId"
-    fun conversationDM(beaconId: String, channelId: String, peerId: String, peerName: String) = 
+    fun conversationDM(beaconId: String, channelId: String, peerId: String, peerName: String) =
         "conversation/$beaconId/$channelId?dmPeerId=$peerId&dmPeerName=$peerName"
     fun createChannel(beaconId: String) = "create_channel/$beaconId"
 }
