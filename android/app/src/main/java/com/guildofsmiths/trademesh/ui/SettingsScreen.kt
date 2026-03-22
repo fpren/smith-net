@@ -57,6 +57,7 @@ import kotlin.system.exitProcess
 fun SettingsScreen(
     onBackClick: () -> Unit,
     onNameChanged: (String) -> Unit,
+    onProfileClick: (() -> Unit)? = null,
     onSignOut: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -96,69 +97,27 @@ fun SettingsScreen(
         ) {
             
             // ════════════════════════════════════════════════════════════════
-            // USER
+            // PROFILE
             // ════════════════════════════════════════════════════════════════
-            Text(text = "USER", style = ConsoleTheme.captionBold)
-            Spacer(modifier = Modifier.height(6.dp))
-            
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(ConsoleTheme.surface)
+                    .clickable { onProfileClick?.invoke() }
                     .padding(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "ID:", style = ConsoleTheme.caption)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = UserPreferences.getUserId().take(16) + "...",
-                    style = ConsoleTheme.bodySmall
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(4.dp))
-            
-            BasicTextField(
-                value = userName,
-                onValueChange = {
-                    userName = it.take(20)
-                    hasChanges = true
-                },
-                textStyle = ConsoleTheme.body,
-                cursorBrush = SolidColor(ConsoleTheme.cursor),
-                singleLine = true,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
-                    .padding(12.dp),
-                decorationBox = { innerTextField ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "NAME:", style = ConsoleTheme.caption)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Box(modifier = Modifier.weight(1f)) {
-                            if (userName.isEmpty()) {
-                                Text(
-                                    text = "enter name",
-                                    style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder)
-                                )
-                            }
-                            innerTextField()
-                        }
-                        if (hasChanges && userName.trim().length >= 2) {
-                            Text(
-                                text = "[SAVE]",
-                                style = ConsoleTheme.action,
-                                modifier = Modifier.clickable {
-                                    UserPreferences.setUserName(userName.trim())
-                                    onNameChanged(userName.trim())
-                                    hasChanges = false
-                                }
-                            )
-                        }
-                    }
+                Column {
+                    Text(text = userName.ifBlank { "Set up profile" }, style = ConsoleTheme.bodyBold)
+                    Text(
+                        text = "Name, trade, rates, billing",
+                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                    )
                 }
-            )
-            
+                Text(text = ">", style = ConsoleTheme.body, color = ConsoleTheme.textMuted)
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
             ConsoleSeparator()
             Spacer(modifier = Modifier.height(12.dp))
@@ -173,8 +132,9 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(12.dp))
             
             // ════════════════════════════════════════════════════════════════
-            // MESH CONNECTION
+            // MESH CONNECTION (hidden for solo — foreman/crew feature)
             // ════════════════════════════════════════════════════════════════
+            if (false) { // TODO: Show when foreman/dispatcher mode is enabled
             Text(text = "MESH CONNECTION", style = ConsoleTheme.captionBold)
             Spacer(modifier = Modifier.height(10.dp))
             
@@ -297,7 +257,8 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(16.dp))
             ConsoleSeparator()
             Spacer(modifier = Modifier.height(12.dp))
-            
+            } // end foreman-only mesh/gateway section
+
             // ════════════════════════════════════════════════════════════════
             // AI ASSISTANT
             // ════════════════════════════════════════════════════════════════

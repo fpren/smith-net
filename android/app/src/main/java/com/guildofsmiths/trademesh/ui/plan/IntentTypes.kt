@@ -23,6 +23,11 @@ data class IntentVersionData(
     val scopeStatement: String,
     val intendedJobIds: List<String> = emptyList(),
     val parties: List<String> = emptyList(),
+    // Proposal fields
+    val taskDescriptions: List<String> = emptyList(),
+    val equipmentNeeded: List<String> = emptyList(),
+    val suppliesNeeded: List<String> = emptyList(),
+    val crewSize: Int = 1,
     val confirmedAt: Long? = null,
     val confirmedBy: String? = null,
     val supersededBy: String? = null,

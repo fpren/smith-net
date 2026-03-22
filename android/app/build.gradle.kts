@@ -16,7 +16,7 @@ android {
         applicationId = "com.guildofsmiths.trademesh"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
+        versionCode = 6
         versionName = "0.2.0-ai-alpha"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

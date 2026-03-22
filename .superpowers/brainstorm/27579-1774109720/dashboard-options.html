@@ -1,0 +1,125 @@
+<h2>Solo Contractor Dashboard — Which layout?</h2>
+<p class="subtitle">This is the first thing the contractor sees every morning. What matters most?</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Today-First Dashboard</h3>
+      <div class="mockup">
+        <div class="mockup-header">SMITH NET — Good morning, Marcus</div>
+        <div class="mockup-body" style="font-family: monospace; font-size: 13px; line-height: 1.6; padding: 16px; background: #f8f8f8;">
+          <div style="margin-bottom: 16px;">
+            <strong>TODAY — Fri Mar 21</strong><br>
+            <div style="background: white; padding: 10px; margin: 6px 0; border-left: 3px solid #2563eb;">
+              ▓ Panel upgrade — Johnson residence<br>
+              <span style="color: #666;">9:00 AM · 742 Oak St · 3 tasks remaining</span>
+            </div>
+            <div style="background: white; padding: 10px; margin: 6px 0; border-left: 3px solid #f59e0b;">
+              ▒ Estimate — Garcia kitchen remodel<br>
+              <span style="color: #666;">2:00 PM · 188 Pine Ave · Site visit</span>
+            </div>
+          </div>
+          <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+            <div style="flex:1; background: white; padding: 10px; text-align: center;">
+              <div style="font-size: 20px; font-weight: bold;">3</div>
+              <div style="color: #666; font-size: 11px;">Active Jobs</div>
+            </div>
+            <div style="flex:1; background: white; padding: 10px; text-align: center;">
+              <div style="font-size: 20px; font-weight: bold;">$2,400</div>
+              <div style="color: #666; font-size: 11px;">Outstanding</div>
+            </div>
+            <div style="flex:1; background: white; padding: 10px; text-align: center;">
+              <div style="font-size: 20px; font-weight: bold;">1</div>
+              <div style="color: #666; font-size: 11px;">Pending Approval</div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <div style="background: #2563eb; color: white; padding: 8px 16px; font-size: 12px;">[+ NEW JOB]</div>
+            <div style="background: white; padding: 8px 16px; font-size: 12px; border: 1px solid #ddd;">[CLOCK IN]</div>
+            <div style="background: white; padding: 8px 16px; font-size: 12px; border: 1px solid #ddd;">[MESSAGES]</div>
+          </div>
+        </div>
+      </div>
+      <p>Shows today's schedule, key stats, and quick actions. Contractor sees what's happening <em>right now</em>.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Pipeline Dashboard</h3>
+      <div class="mockup">
+        <div class="mockup-header">SMITH NET — Pipeline</div>
+        <div class="mockup-body" style="font-family: monospace; font-size: 13px; line-height: 1.6; padding: 16px; background: #f8f8f8;">
+          <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+            <div style="flex:1; text-align: center; padding: 6px; background: #dbeafe; font-size: 11px; font-weight: bold;">LEADS (2)</div>
+            <div style="flex:1; text-align: center; padding: 6px; background: #fef3c7; font-size: 11px; font-weight: bold;">PROPOSALS (1)</div>
+            <div style="flex:1; text-align: center; padding: 6px; background: #d1fae5; font-size: 11px; font-weight: bold;">ACTIVE (3)</div>
+            <div style="flex:1; text-align: center; padding: 6px; background: #e5e7eb; font-size: 11px; font-weight: bold;">INVOICE (1)</div>
+          </div>
+          <div style="background: white; padding: 10px; margin: 6px 0;">
+            ▓ Panel upgrade — Johnson<br>
+            <span style="color: #666;">Active · Day 2 of 3 · $4,200</span>
+          </div>
+          <div style="background: white; padding: 10px; margin: 6px 0;">
+            ⊞ Kitchen remodel — Garcia<br>
+            <span style="color: #666;">Proposal sent · Awaiting approval · $8,500</span>
+          </div>
+          <div style="background: white; padding: 10px; margin: 6px 0;">
+            ◫ New lead — Thompson<br>
+            <span style="color: #666;">Bathroom reno · Site visit needed</span>
+          </div>
+          <div style="display: flex; gap: 8px; margin-top: 12px;">
+            <div style="background: #2563eb; color: white; padding: 8px 16px; font-size: 12px;">[+ NEW JOB]</div>
+            <div style="background: white; padding: 8px 16px; font-size: 12px; border: 1px solid #ddd;">[CLOCK IN]</div>
+          </div>
+        </div>
+      </div>
+      <p>Shows the full pipeline: Leads → Proposals → Active → Invoice. Contractor sees where every job stands in the lifecycle.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Action Hub Dashboard</h3>
+      <div class="mockup">
+        <div class="mockup-header">SMITH NET</div>
+        <div class="mockup-body" style="font-family: monospace; font-size: 13px; line-height: 1.6; padding: 16px; background: #f8f8f8;">
+          <div style="margin-bottom: 16px;">
+            <strong>NEEDS ATTENTION</strong><br>
+            <div style="background: white; padding: 10px; margin: 6px 0; border-left: 3px solid #ef4444;">
+              ! Garcia proposal — approved, needs scheduling
+            </div>
+            <div style="background: white; padding: 10px; margin: 6px 0; border-left: 3px solid #f59e0b;">
+              ! Johnson job — invoice ready to send
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px;">
+            <div style="background: white; padding: 16px; text-align: center; border: 1px solid #ddd;">
+              <div style="font-size: 18px;">◫</div>
+              <div style="font-size: 12px; margin-top: 4px;">New Job</div>
+            </div>
+            <div style="background: white; padding: 16px; text-align: center; border: 1px solid #ddd;">
+              <div style="font-size: 18px;">◷</div>
+              <div style="font-size: 12px; margin-top: 4px;">Clock In</div>
+            </div>
+            <div style="background: white; padding: 16px; text-align: center; border: 1px solid #ddd;">
+              <div style="font-size: 18px;">◧</div>
+              <div style="font-size: 12px; margin-top: 4px;">Jobs</div>
+            </div>
+            <div style="background: white; padding: 16px; text-align: center; border: 1px solid #ddd;">
+              <div style="font-size: 18px;">✉</div>
+              <div style="font-size: 12px; margin-top: 4px;">Messages</div>
+            </div>
+          </div>
+          <div style="background: white; padding: 10px;">
+            <span style="color: #666; font-size: 11px;">3 active · $2,400 outstanding · 1 pending approval</span>
+          </div>
+        </div>
+      </div>
+      <p>Alerts first (what needs attention), then big action buttons. Less information density, more "what do I do next?"</p>
+    </div>
+  </div>
+</div>

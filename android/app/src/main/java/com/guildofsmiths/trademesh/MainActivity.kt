@@ -434,6 +434,9 @@ class MainActivity : ComponentActivity() {
                                 onNameChanged = { newName ->
                                     viewModel.setUserName(newName)
                                 },
+                                onProfileClick = {
+                                    navController.navigate(NavRoutes.PROFILE)
+                                },
                                 onSignOut = {
                                     // Navigate to auth screen and clear backstack
                                     navController.navigate(NavRoutes.AUTH) {

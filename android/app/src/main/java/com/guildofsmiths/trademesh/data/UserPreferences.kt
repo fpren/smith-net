@@ -321,6 +321,16 @@ object UserPreferences {
      */
     fun saveOccupation(occupation: String) {
         prefs?.edit()?.putString(KEY_OCCUPATION, occupation)?.apply()
+        // Auto-sync TradeRole from Occupation so the app's knowledge base stays aligned
+        val role = when (occupation.uppercase()) {
+            "ELECTRICIAN" -> TradeRole.ELECTRICIAN
+            "HVAC" -> TradeRole.HVAC_TECHNICIAN
+            "PLUMBER" -> TradeRole.PLUMBER
+            "CARPENTER" -> TradeRole.CARPENTER
+            "GENERAL_LABOR", "GENERAL_CONTRACTOR" -> TradeRole.GENERAL_LABORER
+            else -> null
+        }
+        if (role != null) setTradeRole(role)
     }
 
     /**

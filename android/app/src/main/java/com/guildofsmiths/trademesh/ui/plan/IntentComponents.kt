@@ -17,72 +17,128 @@ import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.IntentRepository
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
 
-/**
- * INTENT COMPONENTS - Dialogs and Workflow UI
- *
- * Contains Create Dialog and Detail Dialog for Intent lifecycle states.
- * Follows the same AlertDialog + ConsoleTheme pattern as PlanComponents.kt.
- */
-
 // ════════════════════════════════════════════════════════════════════
-// CREATE INTENT DIALOG
+// CREATE INTENT DIALOG — Proposal Template
 // ════════════════════════════════════════════════════════════════════
 
 @Composable
 fun CreateIntentDialog(
     onDismiss: () -> Unit,
-    onCreate: (scopeStatement: String, clientName: String?) -> Unit
+    onCreate: (
+        scopeStatement: String,
+        clientName: String?,
+        taskDescriptions: List<String>,
+        equipmentNeeded: List<String>,
+        suppliesNeeded: List<String>,
+        crewSize: Int
+    ) -> Unit
 ) {
     var scopeStatement by remember { mutableStateOf("") }
     var clientName by remember { mutableStateOf("") }
+    var crewSizeText by remember { mutableStateOf("1") }
+
+    // Dynamic list fields
+    var taskLines by remember { mutableStateOf(listOf("")) }
+    var equipmentLines by remember { mutableStateOf(listOf("")) }
+    var supplyLines by remember { mutableStateOf(listOf("")) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = ConsoleTheme.surface,
         title = {
-            Text(
-                text = "[+] NEW INTENT",
-                style = ConsoleTheme.header
-            )
+            Column {
+                Text(text = "NEW PROPOSAL", style = ConsoleTheme.header)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Define scope, tasks, equipment, and crew",
+                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                )
+            }
         },
         text = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(max = 500.dp)
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Scope Statement (required)
-                Text("Scope Statement *", style = ConsoleTheme.captionBold)
-                TextField(
-                    value = scopeStatement,
-                    onValueChange = { scopeStatement = it },
-                    placeholder = { Text("What will be done?", style = ConsoleTheme.caption) },
-                    modifier = Modifier.fillMaxWidth(),
-                    textStyle = ConsoleTheme.body,
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        focusedIndicatorColor = ConsoleTheme.accent,
-                        unfocusedIndicatorColor = ConsoleTheme.text.copy(alpha = 0.2f)
+                // ── SCOPE ──
+                ProposalSection(label = "SCOPE OF WORK *") {
+                    ProposalTextField(
+                        value = scopeStatement,
+                        onValueChange = { scopeStatement = it },
+                        placeholder = "Describe the work to be performed..."
                     )
-                )
+                }
 
-                // Client name (optional)
-                Text("Client", style = ConsoleTheme.captionBold)
-                TextField(
-                    value = clientName,
-                    onValueChange = { clientName = it },
-                    placeholder = { Text("Client name", style = ConsoleTheme.caption) },
-                    modifier = Modifier.fillMaxWidth(),
-                    textStyle = ConsoleTheme.body,
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        focusedIndicatorColor = ConsoleTheme.accent,
-                        unfocusedIndicatorColor = ConsoleTheme.text.copy(alpha = 0.2f)
+                // ── CLIENT ──
+                ProposalSection(label = "CLIENT") {
+                    ProposalTextField(
+                        value = clientName,
+                        onValueChange = { clientName = it },
+                        placeholder = "Client or property name"
                     )
-                )
+                }
+
+                // ── TASKS ──
+                ProposalSection(label = "TASKS REQUIRED") {
+                    DynamicListField(
+                        lines = taskLines,
+                        onLinesChange = { taskLines = it },
+                        placeholder = "Task description"
+                    )
+                }
+
+                // ── EQUIPMENT ──
+                ProposalSection(label = "EQUIPMENT NEEDED") {
+                    DynamicListField(
+                        lines = equipmentLines,
+                        onLinesChange = { equipmentLines = it },
+                        placeholder = "Equipment item"
+                    )
+                }
+
+                // ── SUPPLIES / MATERIALS ──
+                ProposalSection(label = "SUPPLIES & MATERIALS") {
+                    DynamicListField(
+                        lines = supplyLines,
+                        onLinesChange = { supplyLines = it },
+                        placeholder = "Material or supply"
+                    )
+                }
+
+                // ── CREW SIZE ──
+                ProposalSection(label = "CREW SIZE") {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val crewNum = crewSizeText.toIntOrNull() ?: 1
+                        Text(
+                            text = "[-]",
+                            style = ConsoleTheme.action,
+                            modifier = Modifier
+                                .clickable {
+                                    if (crewNum > 1) crewSizeText = (crewNum - 1).toString()
+                                }
+                                .padding(8.dp)
+                        )
+                        Text(
+                            text = "$crewNum person${if (crewNum != 1) "s" else ""}",
+                            style = ConsoleTheme.bodyBold
+                        )
+                        Text(
+                            text = "[+]",
+                            style = ConsoleTheme.action,
+                            modifier = Modifier
+                                .clickable {
+                                    crewSizeText = (crewNum + 1).toString()
+                                }
+                                .padding(8.dp)
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
@@ -94,7 +150,11 @@ fun CreateIntentDialog(
                     .clickable(enabled = scopeStatement.isNotBlank()) {
                         onCreate(
                             scopeStatement.trim(),
-                            clientName.trim().ifBlank { null }
+                            clientName.trim().ifBlank { null },
+                            taskLines.filter { it.isNotBlank() },
+                            equipmentLines.filter { it.isNotBlank() },
+                            supplyLines.filter { it.isNotBlank() },
+                            crewSizeText.toIntOrNull() ?: 1
                         )
                     }
                     .padding(8.dp)
@@ -113,6 +173,101 @@ fun CreateIntentDialog(
 }
 
 // ════════════════════════════════════════════════════════════════════
+// PROPOSAL FORM HELPERS
+// ════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun ProposalSection(label: String, content: @Composable () -> Unit) {
+    Column {
+        Text(text = label, style = ConsoleTheme.captionBold)
+        Spacer(modifier = Modifier.height(4.dp))
+        content()
+    }
+}
+
+@Composable
+private fun ProposalTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String
+) {
+    TextField(
+        value = value,
+        onValueChange = onValueChange,
+        placeholder = { Text(placeholder, style = ConsoleTheme.caption) },
+        modifier = Modifier.fillMaxWidth(),
+        textStyle = ConsoleTheme.body,
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = Color.White,
+            unfocusedContainerColor = Color.White,
+            focusedIndicatorColor = ConsoleTheme.accent,
+            unfocusedIndicatorColor = ConsoleTheme.text.copy(alpha = 0.2f)
+        )
+    )
+}
+
+@Composable
+private fun DynamicListField(
+    lines: List<String>,
+    onLinesChange: (List<String>) -> Unit,
+    placeholder: String
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        lines.forEachIndexed { index, line ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${index + 1}.",
+                    style = ConsoleTheme.caption,
+                    modifier = Modifier.width(24.dp)
+                )
+                TextField(
+                    value = line,
+                    onValueChange = { newValue ->
+                        val updated = lines.toMutableList()
+                        updated[index] = newValue
+                        onLinesChange(updated)
+                    },
+                    placeholder = { Text(placeholder, style = ConsoleTheme.caption) },
+                    modifier = Modifier.weight(1f),
+                    textStyle = ConsoleTheme.bodySmall,
+                    singleLine = true,
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
+                        focusedIndicatorColor = ConsoleTheme.accent,
+                        unfocusedIndicatorColor = ConsoleTheme.text.copy(alpha = 0.1f)
+                    )
+                )
+                if (lines.size > 1) {
+                    Text(
+                        text = "[x]",
+                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                        modifier = Modifier
+                            .clickable {
+                                val updated = lines.toMutableList()
+                                updated.removeAt(index)
+                                onLinesChange(updated)
+                            }
+                            .padding(4.dp)
+                    )
+                }
+            }
+        }
+
+        Text(
+            text = "[+] Add",
+            style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent),
+            modifier = Modifier
+                .clickable { onLinesChange(lines + "") }
+                .padding(vertical = 4.dp)
+        )
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════
 // INTENT DETAIL DIALOG
 // ════════════════════════════════════════════════════════════════════
 
@@ -120,7 +275,8 @@ fun CreateIntentDialog(
 fun IntentDetailDialog(
     intent: IntentData,
     version: IntentVersionData,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onCreateJob: (IntentVersionData) -> Unit = {}
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -146,13 +302,13 @@ fun IntentDetailDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(max = 500.dp)
                     .verticalScroll(rememberScrollState())
             ) {
-                // Render workflow-specific UI based on status
                 when (version.status) {
                     IntentStatus.DRAFT -> DraftIntentUI(intent, version, onDismiss)
                     IntentStatus.PROPOSED -> ProposedIntentUI(intent, version, onDismiss)
-                    IntentStatus.CONFIRMED -> ConfirmedIntentUI(intent, version, onDismiss)
+                    IntentStatus.CONFIRMED -> ConfirmedIntentUI(intent, version, onDismiss, onCreateJob)
                     IntentStatus.SUPERSEDED -> SupersededIntentUI(intent, version, onDismiss)
                 }
             }
@@ -171,6 +327,63 @@ fun IntentDetailDialog(
 }
 
 // ════════════════════════════════════════════════════════════════════
+// PROPOSAL DETAIL VIEW (shared across statuses)
+// ════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun ProposalDetails(version: IntentVersionData) {
+    IntentDetailSection(label = "Version", value = "v${version.versionNumber}")
+    IntentDetailSection(label = "Scope", value = version.scopeStatement)
+
+    if (version.parties.isNotEmpty()) {
+        IntentDetailSection(label = "Client", value = version.parties.joinToString(", "))
+    }
+
+    if (version.taskDescriptions.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = "TASKS (${version.taskDescriptions.size})", style = ConsoleTheme.captionBold)
+        version.taskDescriptions.forEachIndexed { i, task ->
+            Text(
+                text = "  ${i + 1}. $task",
+                style = ConsoleTheme.bodySmall,
+                modifier = Modifier.padding(vertical = 2.dp)
+            )
+        }
+    }
+
+    if (version.equipmentNeeded.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = "EQUIPMENT (${version.equipmentNeeded.size})", style = ConsoleTheme.captionBold)
+        version.equipmentNeeded.forEach { item ->
+            Text(
+                text = "  - $item",
+                style = ConsoleTheme.bodySmall,
+                modifier = Modifier.padding(vertical = 2.dp)
+            )
+        }
+    }
+
+    if (version.suppliesNeeded.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = "SUPPLIES & MATERIALS (${version.suppliesNeeded.size})", style = ConsoleTheme.captionBold)
+        version.suppliesNeeded.forEach { item ->
+            Text(
+                text = "  - $item",
+                style = ConsoleTheme.bodySmall,
+                modifier = Modifier.padding(vertical = 2.dp)
+            )
+        }
+    }
+
+    Spacer(modifier = Modifier.height(4.dp))
+    IntentDetailSection(label = "Crew Size", value = "${version.crewSize} person${if (version.crewSize != 1) "s" else ""}")
+
+    if (version.intendedJobIds.isNotEmpty()) {
+        IntentDetailSection(label = "Linked Jobs", value = "${version.intendedJobIds.size}")
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════
 // DRAFT INTENT UI
 // ════════════════════════════════════════════════════════════════════
 
@@ -180,24 +393,16 @@ private fun DraftIntentUI(
     version: IntentVersionData,
     onDismiss: () -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        IntentDetailSection(label = "Version", value = "v${version.versionNumber}")
-        IntentDetailSection(label = "Scope", value = version.scopeStatement)
-        IntentDetailSection(label = "Jobs", value = "${version.intendedJobIds.size} linked")
-        if (version.parties.isNotEmpty()) {
-            IntentDetailSection(label = "Parties", value = version.parties.joinToString(", "))
-        }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        ProposalDetails(version)
 
         Spacer(modifier = Modifier.height(8.dp))
-
         Text(
             text = "Ready to propose this intent?",
             style = ConsoleTheme.body,
             color = ConsoleTheme.text.copy(alpha = 0.7f)
         )
-
         Spacer(modifier = Modifier.height(4.dp))
-
         Text(
             text = "[>] PROPOSE",
             style = if (version.canPropose()) ConsoleTheme.action
@@ -222,27 +427,23 @@ private fun ProposedIntentUI(
     version: IntentVersionData,
     onDismiss: () -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
-            text = "PROPOSED INTENT",
+            text = "PROPOSED — AWAITING CONFIRMATION",
             style = ConsoleTheme.captionBold,
             color = ConsoleTheme.accent
         )
+        Spacer(modifier = Modifier.height(4.dp))
 
-        IntentDetailSection(label = "Version", value = "v${version.versionNumber}")
-        IntentDetailSection(label = "Scope", value = version.scopeStatement)
-        IntentDetailSection(label = "Jobs", value = "${version.intendedJobIds.size} linked")
+        ProposalDetails(version)
 
         Spacer(modifier = Modifier.height(8.dp))
-
         Text(
             text = "All parties agree to this scope?",
             style = ConsoleTheme.body,
             color = ConsoleTheme.text.copy(alpha = 0.7f)
         )
-
         Spacer(modifier = Modifier.height(4.dp))
-
         Text(
             text = "[v] CONFIRM",
             style = if (version.canConfirm()) ConsoleTheme.action
@@ -265,54 +466,32 @@ private fun ProposedIntentUI(
 private fun ConfirmedIntentUI(
     intent: IntentData,
     version: IntentVersionData,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onCreateJob: (IntentVersionData) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
-            text = "CONFIRMED - Ready for job execution",
+            text = "CONFIRMED — Ready for job execution",
             style = ConsoleTheme.captionBold,
             color = ConsoleTheme.accent
         )
+        Spacer(modifier = Modifier.height(4.dp))
 
-        IntentDetailSection(label = "Version", value = "v${version.versionNumber}")
-        IntentDetailSection(label = "Scope", value = version.scopeStatement)
-        IntentDetailSection(label = "Jobs", value = "${version.intendedJobIds.size} linked")
+        ProposalDetails(version)
+
         if (version.confirmedBy != null) {
             IntentDetailSection(label = "Confirmed by", value = version.confirmedBy)
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Linked jobs
-        if (version.intendedJobIds.isNotEmpty()) {
-            Text(
-                text = "LINKED JOBS (${version.intendedJobIds.size})",
-                style = ConsoleTheme.captionBold,
-                color = ConsoleTheme.accent
-            )
-            version.intendedJobIds.forEach { jobId ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.White)
-                        .padding(8.dp)
-                ) {
-                    Text(
-                        text = "  Job ID: $jobId",
-                        style = ConsoleTheme.caption
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = "[+ JOB] CREATE JOB",
+            text = "[+ JOB] CREATE JOB FROM PROPOSAL",
             style = ConsoleTheme.action,
             modifier = Modifier
                 .clickable {
-                    // TODO: Navigate to Job Board to create job linked to this intent
+                    onCreateJob(version)
+                    onDismiss()
                 }
                 .padding(vertical = 8.dp)
         )
@@ -329,16 +508,14 @@ private fun SupersededIntentUI(
     version: IntentVersionData,
     onDismiss: () -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
-            text = "SUPERSEDED - See newer version",
+            text = "SUPERSEDED — See newer version",
             style = ConsoleTheme.captionBold,
             color = ConsoleTheme.textMuted
         )
-
-        IntentDetailSection(label = "Version", value = "v${version.versionNumber}")
-        IntentDetailSection(label = "Scope", value = version.scopeStatement)
-
+        Spacer(modifier = Modifier.height(4.dp))
+        ProposalDetails(version)
         if (version.supersededBy != null) {
             IntentDetailSection(label = "Superseded by", value = version.supersededBy.take(16) + "...")
         }
@@ -351,7 +528,7 @@ private fun SupersededIntentUI(
 
 @Composable
 private fun IntentDetailSection(label: String, value: String) {
-    Column {
+    Column(modifier = Modifier.padding(vertical = 2.dp)) {
         Text(
             text = label,
             style = ConsoleTheme.captionBold,

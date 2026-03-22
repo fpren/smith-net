@@ -46,8 +46,18 @@ fun JobBoardScreen(
     val tasks by viewModel.tasks.collectAsState()
     val generatedInvoice by viewModel.generatedInvoice.collectAsState()
 
+    // Check for pending intent from proposal
+    val pendingIntent by com.guildofsmiths.trademesh.data.IntentRepository.pendingIntentForJob.collectAsState()
+
     var showCreateDialog by remember { mutableStateOf(false) }
     var filterStatus by remember { mutableStateOf<JobStatus?>(null) }
+
+    // Auto-open create dialog when arriving from a confirmed proposal
+    LaunchedEffect(pendingIntent) {
+        if (pendingIntent != null) {
+            showCreateDialog = true
+        }
+    }
 
     // Stats for active jobs only
     val stats = remember(jobs) {
@@ -197,12 +207,21 @@ fun JobBoardScreen(
 
     // Create Job Dialog with Preview
     if (showCreateDialog) {
+        val intent = pendingIntent
         CreateJobDialogWithPreview(
-            onDismiss = { showCreateDialog = false },
+            onDismiss = {
+                showCreateDialog = false
+                com.guildofsmiths.trademesh.data.IntentRepository.clearPendingIntentForJob()
+            },
             onCreate = { title, desc, priority, expenses, crewSize, crew, materials, startDate, endDate ->
                 viewModel.createJob(title, desc, priority, "", expenses, crewSize, crew, materials, startDate, endDate)
                 showCreateDialog = false
-            }
+                com.guildofsmiths.trademesh.data.IntentRepository.clearPendingIntentForJob()
+            },
+            initialTitle = intent?.scopeStatement ?: "",
+            initialDescription = buildIntentDescription(intent),
+            initialCrewSize = intent?.crewSize ?: 1,
+            initialMaterials = intent?.suppliesNeeded?.map { Material(name = it) } ?: emptyList()
         )
     }
 
@@ -1098,19 +1117,23 @@ private enum class JobDialogStep {
 @Composable
 private fun CreateJobDialogWithPreview(
     onDismiss: () -> Unit,
-    onCreate: (String, String, Priority, String, Int, List<CrewMember>, List<Material>, Long?, Long?) -> Unit
+    onCreate: (String, String, Priority, String, Int, List<CrewMember>, List<Material>, Long?, Long?) -> Unit,
+    initialTitle: String = "",
+    initialDescription: String = "",
+    initialCrewSize: Int = 1,
+    initialMaterials: List<Material> = emptyList()
 ) {
     var currentStep by remember { mutableStateOf(JobDialogStep.EDIT) }
-    
-    var title by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
+
+    var title by remember { mutableStateOf(initialTitle) }
+    var description by remember { mutableStateOf(initialDescription) }
     var priority by remember { mutableStateOf(Priority.MEDIUM) }
     var expenses by remember { mutableStateOf("") }
-    var crewSize by remember { mutableStateOf("1") }
+    var crewSize by remember { mutableStateOf(initialCrewSize.toString()) }
     var crewMembers by remember { mutableStateOf(listOf<CrewMember>()) }
     var newMemberName by remember { mutableStateOf("") }
     var newMemberOccupation by remember { mutableStateOf("") }
-    var materials by remember { mutableStateOf(listOf<Material>()) }
+    var materials by remember { mutableStateOf(initialMaterials) }
     var newMaterialName by remember { mutableStateOf("") }
     
     // Date fields
@@ -1471,4 +1494,19 @@ private fun formatTimestamp(timestamp: Long): String {
 private fun formatShortDate(timestamp: Long): String {
     val sdf = SimpleDateFormat("MM/dd/yy", Locale.getDefault())
     return sdf.format(Date(timestamp))
+}
+
+private fun buildIntentDescription(intent: com.guildofsmiths.trademesh.ui.plan.IntentVersionData?): String {
+    if (intent == null) return ""
+    val parts = mutableListOf<String>()
+    if (intent.taskDescriptions.isNotEmpty()) {
+        parts.add("Tasks:\n" + intent.taskDescriptions.joinToString("\n") { "- $it" })
+    }
+    if (intent.equipmentNeeded.isNotEmpty()) {
+        parts.add("Equipment:\n" + intent.equipmentNeeded.joinToString("\n") { "- $it" })
+    }
+    if (intent.parties.isNotEmpty()) {
+        parts.add("Client: ${intent.parties.joinToString(", ")}")
+    }
+    return parts.joinToString("\n\n")
 }
