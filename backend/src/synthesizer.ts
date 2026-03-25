@@ -4,6 +4,7 @@ import { validateSynthesisInputs, validateArtifact } from './synthesisAuthority'
 import { supabase } from './supabase';
 
 async function generateSerial(): Promise<string> {
+  if (!supabase) throw new Error('[Synthesizer] Supabase client is not initialized');
   const { data, error } = await supabase
     .from('summary_artifacts')
     .select('serial')
@@ -29,11 +30,13 @@ export async function synthesize(
   timeEntryIds: string[],
   approvedChatMessageIds: string[] = []
 ): Promise<SummaryArtifact | { error: string }> {
+  if (!supabase) throw new Error('[Synthesizer] Supabase client is not initialized');
+  const _supabase = supabase; // capture local const — TS loses narrowing of module-level var after awaits
   const inputValidation = validateSynthesisInputs(intentVersion, jobIds, timeEntryIds);
   if (!inputValidation.valid) return { error: inputValidation.message };
 
   // Query real job data
-  const { data: jobRows } = await supabase
+  const { data: jobRows } = await _supabase
     .from('jobs')
     .select('id, title, description, status')
     .in('id', jobIds);
@@ -43,7 +46,7 @@ export async function synthesize(
   );
 
   // Query real time entry data
-  const { data: timeRows } = await supabase
+  const { data: timeRows } = await _supabase
     .from('time_entries')
     .select('id, user_id, duration_minutes, job_id')
     .in('id', timeEntryIds);
@@ -56,7 +59,7 @@ export async function synthesize(
   );
 
   // Query materials by job IDs
-  const { data: materialRows } = await supabase
+  const { data: materialRows } = await _supabase
     .from('materials')
     .select('name, quantity, unit_cost, job_id')
     .in('job_id', jobIds);
@@ -72,7 +75,7 @@ export async function synthesize(
   // Query approved chat messages
   const contextualNotes: string[] = [];
   if (approvedChatMessageIds.length > 0) {
-    const { data: chatRows } = await supabase
+    const { data: chatRows } = await _supabase
       .from('message_bus_messages')
       .select('content, sender_name')
       .in('id', approvedChatMessageIds);
@@ -100,7 +103,7 @@ export async function synthesize(
   const outputValidation = validateArtifact(artifact);
   if (!outputValidation.valid) return { error: outputValidation.message };
 
-  const { error } = await supabase.from('summary_artifacts').insert({
+  const { error } = await _supabase.from('summary_artifacts').insert({
     id: artifact.id, serial: artifact.serial, intent_version_id: artifact.intentVersionId,
     scope_statement: artifact.scopeStatement, work_performed: artifact.workPerformed,
     labor_recorded: artifact.laborRecorded, materials_used: artifact.materialsUsed,
@@ -115,6 +118,7 @@ export async function synthesize(
 }
 
 export async function getArtifact(artifactId: string): Promise<SummaryArtifact | null> {
+  if (!supabase) throw new Error('[Synthesizer] Supabase client is not initialized');
   const { data, error } = await supabase
     .from('summary_artifacts').select('*').eq('id', artifactId).single();
   if (error || !data) return null;
@@ -122,6 +126,7 @@ export async function getArtifact(artifactId: string): Promise<SummaryArtifact |
 }
 
 export async function getArtifactBySerial(serial: string): Promise<SummaryArtifact | null> {
+  if (!supabase) throw new Error('[Synthesizer] Supabase client is not initialized');
   const { data, error } = await supabase
     .from('summary_artifacts').select('*').eq('serial', serial).single();
   if (error || !data) return null;
