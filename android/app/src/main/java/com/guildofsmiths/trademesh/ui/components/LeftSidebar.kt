@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.data.RoleContext
+import com.guildofsmiths.trademesh.data.Permission
 
 /**
  * LEFT SIDEBAR - Collapsible Navigation
@@ -49,20 +51,22 @@ fun LeftSidebar(
                 .padding(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            // Job Board Item
-            SidebarButton(
-                icon = "[◧]",
-                label = "JOB",
-                isExpanded = expandedItem == SidebarItem.JOB,
-                onClick = {
-                    if (expandedItem == SidebarItem.JOB) {
-                        onNavigateToJob()
-                        expandedItem = null
-                    } else {
-                        expandedItem = SidebarItem.JOB
+            // Job Board Item — hidden for TEAM_MEMBER who only gets assigned tasks
+            if (RoleContext.can(Permission.MANAGE_JOBS)) {
+                SidebarButton(
+                    icon = "[◧]",
+                    label = "JOB",
+                    isExpanded = expandedItem == SidebarItem.JOB,
+                    onClick = {
+                        if (expandedItem == SidebarItem.JOB) {
+                            onNavigateToJob()
+                            expandedItem = null
+                        } else {
+                            expandedItem = SidebarItem.JOB
+                        }
                     }
-                }
-            )
+                )
+            }
 
             // Time Tracking Item
             SidebarButton(

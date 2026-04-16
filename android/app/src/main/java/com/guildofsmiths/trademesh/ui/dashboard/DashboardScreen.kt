@@ -15,6 +15,8 @@ import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.ConsoleSeparator
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.JobStage
+import com.guildofsmiths.trademesh.data.RoleContext
+import com.guildofsmiths.trademesh.data.Permission
 
 @Composable
 fun DashboardScreen(
@@ -148,14 +150,17 @@ fun DashboardScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = "[+ NEW JOB]",
-                style = ConsoleTheme.action,
-                modifier = Modifier
-                    .clickable { onNewJob() }
-                    .background(ConsoleTheme.surface)
-                    .padding(12.dp)
-            )
+            // New Job — hidden for TEAM_MEMBER who only gets assigned tasks
+            if (RoleContext.can(Permission.MANAGE_JOBS)) {
+                Text(
+                    text = "[+ NEW JOB]",
+                    style = ConsoleTheme.action,
+                    modifier = Modifier
+                        .clickable { onNewJob() }
+                        .background(ConsoleTheme.surface)
+                        .padding(12.dp)
+                )
+            }
             Text(
                 text = "[CLOCK IN]",
                 style = ConsoleTheme.action,
@@ -177,9 +182,12 @@ fun DashboardScreen(
                 Text(text = "${viewModel.getActiveJobCount()}", style = ConsoleTheme.bodyBold)
                 Text(text = "Active", style = ConsoleTheme.caption)
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = "$${String.format("%.0f", viewModel.getOutstandingTotal())}", style = ConsoleTheme.bodyBold)
-                Text(text = "Outstanding", style = ConsoleTheme.caption)
+            // Outstanding financials — visible to solo users and foreman+ only
+            if (RoleContext.can(Permission.VIEW_FINANCIALS) || RoleContext.isSolo()) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text = "$${String.format("%.0f", viewModel.getOutstandingTotal())}", style = ConsoleTheme.bodyBold)
+                    Text(text = "Outstanding", style = ConsoleTheme.caption)
+                }
             }
         }
 

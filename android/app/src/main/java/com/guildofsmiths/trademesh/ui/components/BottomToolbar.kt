@@ -14,6 +14,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.data.RoleContext
+import com.guildofsmiths.trademesh.data.Permission
 
 /**
  * BOTTOM TOOLBAR - Popup Navigation
@@ -113,21 +115,23 @@ private fun ExpandedToolbar(
                 .padding(horizontal = 8.dp)
         )
 
-        // Job option
-        ToolbarItem(
-            icon = "[◧]",
-            label = "JOB",
-            onClick = onNavigateToJob
-        )
+        // Job option — hidden for TEAM_MEMBER who only gets assigned tasks
+        if (RoleContext.can(Permission.MANAGE_JOBS)) {
+            ToolbarItem(
+                icon = "[◧]",
+                label = "JOB",
+                onClick = onNavigateToJob
+            )
 
-        // Separator
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(ConsoleTheme.text.copy(alpha = 0.1f))
-                .padding(horizontal = 8.dp)
-        )
+            // Separator
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(ConsoleTheme.text.copy(alpha = 0.1f))
+                    .padding(horizontal = 8.dp)
+            )
+        }
 
         // Time option
         ToolbarItem(

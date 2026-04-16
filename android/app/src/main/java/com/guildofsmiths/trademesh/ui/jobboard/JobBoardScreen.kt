@@ -25,6 +25,8 @@ import com.guildofsmiths.trademesh.ui.ConsoleHeader
 import com.guildofsmiths.trademesh.ui.ConsoleSeparator
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.invoice.InvoicePreviewDialog
+import com.guildofsmiths.trademesh.data.RoleContext
+import com.guildofsmiths.trademesh.data.Permission
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.roundToInt
@@ -903,16 +905,18 @@ private fun JobWorkflowDialog(
                                 modifier = Modifier.padding(vertical = 8.dp)
                             )
                             
-                            // Generate Invoice button
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(ConsoleTheme.accent.copy(alpha = 0.15f))
-                                    .clickable { viewModel.generateInvoice(job) }
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(text = "[$] GENERATE INVOICE", style = ConsoleTheme.header.copy(color = ConsoleTheme.accent))
+                            // Generate Invoice button — visible to solo users and foreman+
+                            if (RoleContext.can(Permission.VIEW_FINANCIALS) || RoleContext.isSolo()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(ConsoleTheme.accent.copy(alpha = 0.15f))
+                                        .clickable { viewModel.generateInvoice(job) }
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(text = "[$] GENERATE INVOICE", style = ConsoleTheme.header.copy(color = ConsoleTheme.accent))
+                                }
                             }
                         }
                     }
