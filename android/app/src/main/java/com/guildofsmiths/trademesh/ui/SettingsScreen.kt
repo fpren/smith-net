@@ -44,6 +44,8 @@ import com.guildofsmiths.trademesh.ai.LlamaInference
 import com.guildofsmiths.trademesh.ai.ModelDownloader
 import com.guildofsmiths.trademesh.ai.ModelState
 import com.guildofsmiths.trademesh.data.AIMode
+import com.guildofsmiths.trademesh.data.Permission
+import com.guildofsmiths.trademesh.data.RoleContext
 import com.guildofsmiths.trademesh.data.SupabaseAuth
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
@@ -66,7 +68,7 @@ fun SettingsScreen(
     val isScanning by BoundaryEngine.isScanning.collectAsState()
     val isMeshConnected by BoundaryEngine.isMeshConnected.collectAsState()
     val isGatewayConnected by BoundaryEngine.isGatewayConnected.collectAsState()
-    var gatewayUrl by remember { mutableStateOf("ws://192.168.8.163:3000") }
+    var gatewayUrl by remember { mutableStateOf("ws://192.168.8.169:3000") }
     
     Column(
         modifier = modifier
@@ -134,7 +136,7 @@ fun SettingsScreen(
             // ════════════════════════════════════════════════════════════════
             // MESH CONNECTION (hidden for solo — foreman/crew feature)
             // ════════════════════════════════════════════════════════════════
-            if (false) { // TODO: Show when foreman/dispatcher mode is enabled
+            if (RoleContext.can(Permission.GATEWAY_RELAY)) {
             Text(text = "MESH CONNECTION", style = ConsoleTheme.captionBold)
             Spacer(modifier = Modifier.height(10.dp))
             
