@@ -83,7 +83,12 @@ object AuthService {
     fun getUserRole(): String? {
         return prefs?.getString(KEY_USER_ROLE, null)
     }
-    
+
+    fun updateUserRole(role: String) {
+        prefs?.edit()?.putString(KEY_USER_ROLE, role)?.apply()
+        RoleContext.setRoleFromString(role)
+    }
+
     // ════════════════════════════════════════════════════════════════════
     // REGISTER
     // ════════════════════════════════════════════════════════════════════
