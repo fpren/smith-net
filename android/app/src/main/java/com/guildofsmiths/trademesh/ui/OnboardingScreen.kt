@@ -25,10 +25,17 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.ui.text.font.FontWeight
+import com.guildofsmiths.trademesh.data.RoleContext
 import com.guildofsmiths.trademesh.data.TradeDefaults
 import com.guildofsmiths.trademesh.data.UserPreferences
+import com.guildofsmiths.trademesh.data.UserRole
 import com.guildofsmiths.trademesh.data.WageService
 import com.guildofsmiths.trademesh.data.WageSuggestion
+import com.guildofsmiths.trademesh.service.AuthService
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -38,9 +45,10 @@ import kotlinx.coroutines.launch
  */
 
 enum class OnboardingScreen {
-    TRADE,      // Your Trade + Experience
-    ABOUT_YOU,  // Name, Business, Address, Rate
-    DONE        // Welcome, go to dashboard
+    TRADE,       // Your Trade + Experience
+    ABOUT_YOU,   // Name, Business, Address, Rate
+    CREW_CHECK,  // Solo vs Foreman detection
+    DONE         // Welcome, go to dashboard
 }
 
 enum class Occupation {
@@ -147,6 +155,22 @@ fun OnboardingScreen(
                     onDataChange = { onboardingData = it },
                     onContinue = {
                         saveOnboardingData(context, onboardingData, userPreferences)
+                        scope.launch {
+                            delay(160)
+                            currentScreen = OnboardingScreen.CREW_CHECK
+                        }
+                    }
+                )
+                OnboardingScreen.CREW_CHECK -> CrewCheckContent(
+                    onSolo = {
+                        AuthService.updateUserRole("solo")
+                        scope.launch {
+                            delay(160)
+                            currentScreen = OnboardingScreen.DONE
+                        }
+                    },
+                    onForeman = {
+                        AuthService.updateUserRole("foreman")
                         scope.launch {
                             delay(160)
                             currentScreen = OnboardingScreen.DONE
@@ -476,7 +500,80 @@ private fun AboutYouScreen(
     }
 }
 
-// ─── Screen 3: DONE ──────────────────────────────────────────────────────────
+// ─── Screen 3: CREW CHECK ────────────────────────────────────────────────────
+
+@Composable
+fun CrewCheckContent(
+    onSolo: () -> Unit,
+    onForeman: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text(
+            text = "How do you work?",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF2A2520),
+        )
+        Text(
+            text = "This shapes your SmithNet experience. You can change this later in Settings.",
+            fontSize = 13.sp,
+            color = Color(0xFF8C8478),
+        )
+
+        Surface(
+            onClick = onSolo,
+            shape = RoundedCornerShape(10.dp),
+            color = Color(0xFFFAFAF8),
+            border = BorderStroke(0.5.dp, Color(0x12000000)),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "I work solo",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF2A2520),
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Jobs, time tracking, invoicing — just for me.",
+                    fontSize = 12.sp,
+                    color = Color(0xFF8C8478),
+                )
+            }
+        }
+
+        Surface(
+            onClick = onForeman,
+            shape = RoundedCornerShape(10.dp),
+            color = Color(0xFFFAFAF8),
+            border = BorderStroke(0.5.dp, Color(0x12000000)),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "I manage a crew",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF2A2520),
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Crew tracking, dispatch, team invoicing, mesh relay.",
+                    fontSize = 12.sp,
+                    color = Color(0xFF8C8478),
+                )
+            }
+        }
+    }
+}
+
+// ─── Screen 4: DONE ──────────────────────────────────────────────────────────
 
 @Composable
 private fun DoneScreen(onComplete: () -> Unit) {
