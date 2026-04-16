@@ -1,0 +1,133 @@
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<h2 style="font-family:'Syne',sans-serif;">Font & Density Audit</h2>
+<p class="subtitle">Compare the current implementation against the Altara spec. Click what feels wrong.</p>
+
+<div class="section">
+  <div class="label">Current Implementation — Rendered Live</div>
+  <div style="margin-top:10px;background:#F4F2EE;border-radius:10px;padding:20px;border:.5px solid rgba(0,0,0,.07);">
+
+    <!-- Header -->
+    <div style="background:#3A352E;border-radius:8px;padding:10px 16px;display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+      <div style="width:26px;height:26px;border-radius:6px;background:#9A6F2E;display:flex;align-items:center;justify-content:center;font-size:9px;font-family:'IBM Plex Mono',monospace;font-weight:700;color:#F4F2EE;">GS</div>
+      <span style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#E8E4DE;letter-spacing:-.02em;">SmithNet</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:#8C8478;text-transform:uppercase;letter-spacing:.07em;">Guild of Smiths</span>
+      <div style="flex:1;"></div>
+      <span style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;color:#9A6F2E;font-weight:600;border-bottom:1.5px solid #9A6F2E;padding-bottom:2px;">Dashboard</span>
+      <span style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;color:#8C8478;padding-bottom:2px;">Jobs</span>
+      <span style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;color:#8C8478;padding-bottom:2px;">Crew</span>
+    </div>
+
+    <!-- Job Card -->
+    <div style="background:#FAFAF8;border-radius:8px;border:.5px solid rgba(0,0,0,.07);padding:12px 14px;box-shadow:0 1px 3px rgba(0,0,0,.04),0 4px 12px rgba(0,0,0,.03);margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <div>
+          <div style="font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:#2A2520;">200A Panel Upgrade</div>
+          <div style="font-family:'IBM Plex Sans',sans-serif;font-size:10px;color:#8C8478;">Marcus Owens</div>
+        </div>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;background:rgba(154,111,46,.08);color:#9A6F2E;padding:2px 8px;border-radius:3px;border:.5px solid rgba(154,111,46,.12);">Active</span>
+      </div>
+      <div style="height:3px;background:#F0EDE8;border-radius:2px;overflow:hidden;margin-bottom:6px;">
+        <div style="width:50%;height:100%;background:linear-gradient(90deg,#9A6F2E,#B8892E);border-radius:2px;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;gap:3px;">
+          <div style="width:15px;height:15px;border-radius:4px;background:#0891b2;display:flex;align-items:center;justify-content:center;font-size:6px;font-family:'IBM Plex Mono',monospace;font-weight:600;color:rgba(255,255,255,.9);">JP</div>
+          <div style="width:15px;height:15px;border-radius:4px;background:#7c3aed;display:flex;align-items:center;justify-content:center;font-size:6px;font-family:'IBM Plex Mono',monospace;font-weight:600;color:rgba(255,255,255,.9);">CV</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="display:flex;align-items:center;gap:3px;">
+            <div style="width:4px;height:4px;border-radius:50%;background:#9A6F2E;"></div>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#9A6F2E;font-weight:600;">Run kitchen circuits</span>
+          </div>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8C8478;">50%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI Row -->
+    <div style="display:flex;gap:6px;margin-bottom:8px;">
+      <div style="flex:1;background:#FAFAF8;border-radius:8px;border:.5px solid rgba(0,0,0,.07);overflow:hidden;">
+        <div style="height:3px;background:#3A352E;"></div>
+        <div style="padding:10px 12px;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:#8C8478;margin-bottom:4px;">Active Jobs</div>
+          <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#2A2520;">3</div>
+        </div>
+      </div>
+      <div style="flex:1;background:#FAFAF8;border-radius:8px;border:.5px solid rgba(0,0,0,.07);overflow:hidden;">
+        <div style="height:3px;background:#3A352E;"></div>
+        <div style="padding:10px 12px;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:#8C8478;margin-bottom:4px;">Outstanding</div>
+          <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#2A2520;">$852</div>
+        </div>
+      </div>
+      <div style="flex:1;background:#FAFAF8;border-radius:8px;border:.5px solid rgba(0,0,0,.07);overflow:hidden;">
+        <div style="height:3px;background:#3A352E;"></div>
+        <div style="padding:10px 12px;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:#8C8478;margin-bottom:4px;">Crew On Job</div>
+          <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#2A2520;">4</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div style="background:#3A352E;border-radius:6px;padding:6px 14px;display:flex;align-items:center;gap:12px;">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;font-weight:700;color:#9A6F2E;letter-spacing:.1em;">SMITHNET</span>
+      <div style="width:1px;height:9px;background:rgba(255,255,255,.08);"></div>
+      <span style="font-family:'IBM Plex Sans',sans-serif;font-size:9px;color:#8C8478;">James Park</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8C8478;">4 on job</span>
+      <div style="flex:1;"></div>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;color:#9A6F2E;">$852 outstanding</span>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:20px;">
+  <h3>What feels off? Click all that apply.</h3>
+  <p class="subtitle">This helps me know exactly what to adjust.</p>
+</div>
+
+<div class="options" data-multiselect>
+  <div class="option" data-choice="weight" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Font weights feel wrong</h3>
+      <p>Headings too thin or too heavy. Numbers don't have enough presence. Labels feel weak.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="sizes" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Font sizes need work</h3>
+      <p>Things are too big or too small. The hierarchy isn't clear. Body text should be tighter.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="spacing" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Spacing is too loose</h3>
+      <p>Needs more terminal density. Padding is generous where it should be tight. Gaps between elements.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="warmth" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>Colors still feel too tech/cool</h3>
+      <p>The warm palette is there but the overall feeling is still "modern app" not "financial terminal." Needs more warmth in the details.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="borders" onclick="toggleSelect(this)">
+    <div class="letter">E</div>
+    <div class="content">
+      <h3>Borders/shadows need refinement</h3>
+      <p>Cards don't feel crisp enough. The .5px borders aren't reading right. Shadows feel flat or too heavy.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="overall" onclick="toggleSelect(this)">
+    <div class="letter">F</div>
+    <div class="content">
+      <h3>It looks right but doesn't FEEL Altara</h3>
+      <p>Hard to pinpoint. The tokens are correct but the overall composition doesn't have that Bloomberg/fintech gravity yet. Something about the information density or visual rhythm.</p>
+    </div>
+  </div>
+</div>

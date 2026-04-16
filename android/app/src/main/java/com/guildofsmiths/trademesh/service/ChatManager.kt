@@ -25,8 +25,8 @@ object ChatManager {
     private const val TAG = "ChatManager"
     
     // Backend URLs
-    private var httpUrl = "http://192.168.8.163:3000"
-    private var wsUrl = "ws://192.168.8.163:3000"
+    private var httpUrl = "http://192.168.8.169:3000"
+    private var wsUrl = "ws://192.168.8.169:3000"
     
     private val httpClient = OkHttpClient()
     private val wsClient = OkHttpClient.Builder()

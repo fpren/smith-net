@@ -1,6 +1,6 @@
 import express from 'express';
-import { supabaseAdmin } from './supabase.js';
-import { authenticateToken, requireRole, UserRole } from './auth.js';
+import { supabaseAdmin } from './supabase';
+import { authenticateToken, requireRole, UserRole } from './auth';
 
 const router = express.Router();
 

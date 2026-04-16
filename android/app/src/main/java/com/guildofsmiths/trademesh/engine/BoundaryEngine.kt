@@ -169,7 +169,7 @@ object BoundaryEngine {
         })
         
         // Initialize ChatManager with backend URL for online messaging (local network fallback)
-        ChatManager.setBackendUrl("http://192.168.8.163:3000")
+        ChatManager.setBackendUrl("http://192.168.8.169:3000")
         
         // Auto-connect to online chat (for receiving messages)
         ChatManager.connect()

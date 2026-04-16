@@ -21,13 +21,16 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 // CLIENTS
 // ════════════════════════════════════════════════════════════════════
 
+const FALLBACK_URL = 'https://placeholder.supabase.co';
+const FALLBACK_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder';
+
 /**
  * Public client - uses anon key, respects RLS
  * Use for user-facing operations
  */
 export const supabase: SupabaseClient = createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY,
+  SUPABASE_URL || FALLBACK_URL,
+  SUPABASE_ANON_KEY || FALLBACK_KEY,
   {
     auth: {
       autoRefreshToken: true,
@@ -41,8 +44,8 @@ export const supabase: SupabaseClient = createClient(
  * Use only for server-side admin operations
  */
 export const supabaseAdmin: SupabaseClient = createClient(
-  SUPABASE_URL,
-  SUPABASE_SERVICE_ROLE_KEY,
+  SUPABASE_URL || FALLBACK_URL,
+  SUPABASE_SERVICE_ROLE_KEY || FALLBACK_KEY,
   {
     auth: {
       autoRefreshToken: false,

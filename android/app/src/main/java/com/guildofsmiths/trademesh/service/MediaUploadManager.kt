@@ -36,7 +36,7 @@ object MediaUploadManager {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     
     /** Legacy backend URL (fallback) */
-    private var backendUrl: String = "http://192.168.8.163:3000"
+    private var backendUrl: String = "http://192.168.8.169:3000"
     
     /** Upload queue */
     private val _uploadQueue = MutableStateFlow<List<UploadTask>>(emptyList())

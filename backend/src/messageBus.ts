@@ -76,6 +76,7 @@ export function publish(message: UnifiedMessage): void {
 }
 
 async function persistMessage(message: UnifiedMessage): Promise<void> {
+  if (!supabase) throw new Error('[MessageBus] Supabase client is not initialized');
   const { error } = await supabase.from('message_bus_messages').upsert({
     id: message.id,
     channel_id: message.channelId,
@@ -100,6 +101,7 @@ export async function getHistory(
   limit: number = 100,
   before?: number
 ): Promise<UnifiedMessage[]> {
+  if (!supabase) throw new Error('[MessageBus] Supabase client is not initialized');
   let query = supabase
     .from('message_bus_messages')
     .select('*')

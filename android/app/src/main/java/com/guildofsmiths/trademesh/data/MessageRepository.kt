@@ -46,7 +46,7 @@ object MessageRepository {
     fun init(context: Context) {
         appContext = context.applicationContext
         database = AppDatabase.getInstance(context)
-        
+
         // Load existing messages from database
         scope.launch {
             val dao = database?.messageDao() ?: return@launch
@@ -60,7 +60,75 @@ object MessageRepository {
             }
             _allMessages.value = messages.sortedBy { it.timestamp }
             seenMessageIds.addAll(messages.map { it.id })
+
+            // Seed mock roofing conversation if DB is empty
+            if (messages.isEmpty()) {
+                seedMockRoofingConversation()
+            }
         }
+    }
+
+    /**
+     * Seed a mock roofing conversation for demo purposes.
+     * Two coworkers: Marcus (lead roofer/Samsung) and Jay (crew/Emulator).
+     */
+    private fun seedMockRoofingConversation() {
+        val now = System.currentTimeMillis()
+        val min = 60_000L
+
+        // Conversation from earlier today — spacing messages ~1-3 min apart
+        val base = now - (45 * min)
+
+        val convo = listOf(
+            Triple("marcus-0002", "Marcus",
+                "Yo you good for the Henderson job tomorrow?"),
+            Triple("jay-0001", "Jay",
+                "Yeah I'm in. What time we meeting?"),
+            Triple("marcus-0002", "Marcus",
+                "Be at the shop by 6:30. Dumpster's already on site, I dropped it off today"),
+            Triple("jay-0001", "Jay",
+                "Cool. What are we looking at"),
+            Triple("marcus-0002", "Marcus",
+                "Full tear-off. 15 squares, 3-tab. South side is cooked. Got 2 sheets of decking to replace by the chimney too"),
+            Triple("jay-0001", "Jay",
+                "Architectural going back on?"),
+            Triple("marcus-0002", "Marcus",
+                "Yeah OC Duration, Driftwood. Material's already loaded on the trailer. Just need the plywood and ice & water shield"),
+            Triple("jay-0001", "Jay",
+                "I can grab the plywood from Home Depot on my way in. How many sheets"),
+            Triple("marcus-0002", "Marcus",
+                "Get 3 just in case. 1/2 inch CDX. And grab a roll of flashing tape we're almost out"),
+            Triple("jay-0001", "Jay",
+                "Got it. We doing the chimney flashing too or just the field?"),
+            Triple("marcus-0002", "Marcus",
+                "Whole thing. Step flashing is shot. I already bent the counter flashing pieces in the shop"),
+            Triple("jay-0001", "Jay",
+                "Nice. Is it just us two or is Ricky coming"),
+            Triple("marcus-0002", "Marcus",
+                "Ricky and the new kid Alex. 4 man crew we should knock tear-off out by lunch if we hustle"),
+            Triple("jay-0001", "Jay",
+                "Bet. I'll bring the nail gun too mine pulls cleaner than the shop ones"),
+            Triple("marcus-0002", "Marcus",
+                "Good call. Alright see you at 6:30. Don't be late bro we got a 2 day window before rain hits Thursday"),
+            Triple("jay-0001", "Jay",
+                "I'm never late lol. See you tomorrow")
+        )
+
+        convo.forEachIndexed { index, (senderId, senderName, content) ->
+            val msg = Message(
+                id = "mock-roof-${index.toString().padStart(3, '0')}",
+                beaconId = "default",
+                channelId = "general",
+                senderId = senderId,
+                senderName = senderName,
+                content = content,
+                timestamp = base + (index * 2 * min) + (index * 15_000L), // ~2min spacing
+                isMeshOrigin = false
+            )
+            addMessage(msg)
+        }
+
+        android.util.Log.i("MessageRepository", "Seeded mock roofing conversation (${convo.size} messages)")
     }
     
     /**

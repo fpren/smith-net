@@ -21,7 +21,7 @@ object RoleContext {
     fun isForeman(): Boolean = isAtLeast(UserRole.FOREMAN)
     fun isAdmin(): Boolean = isAtLeast(UserRole.ADMIN)
 
-    fun setRole(newRole: UserRole) {
+    fun updateRole(newRole: UserRole) {
         role = newRole
     }
 
