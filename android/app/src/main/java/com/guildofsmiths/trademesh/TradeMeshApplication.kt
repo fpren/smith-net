@@ -10,6 +10,7 @@ import com.guildofsmiths.trademesh.data.BeaconRepository
 import com.guildofsmiths.trademesh.data.IntentRepository
 import com.guildofsmiths.trademesh.data.IdentityResolver
 import com.guildofsmiths.trademesh.data.MessageRepository
+import com.guildofsmiths.trademesh.data.RoleContext
 import com.guildofsmiths.trademesh.data.SupabaseAuth
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
@@ -44,7 +45,10 @@ class TradeMeshApplication : Application() {
         
         // Initialize legacy auth service (fallback)
         AuthService.init(this)
-        
+
+        // Initialize role context from persisted auth data
+        RoleContext.setRoleFromString(AuthService.getUserRole())
+
         // Initialize user preferences
         UserPreferences.init(this)
         
@@ -67,7 +71,7 @@ class TradeMeshApplication : Application() {
         IntentRepository.init(getSharedPreferences("intent_prefs", MODE_PRIVATE))
 
         // Initialize unified Message Bus (Phase 1 — dedup, vector clocks, reconciliation)
-        BoundaryEngine.initMessageBus(this, "http://192.168.8.163:3000")
+        BoundaryEngine.initMessageBus(this, "http://192.168.8.169:3000")
 
         // Initialize AI components
         BatteryGate.initialize(this)
