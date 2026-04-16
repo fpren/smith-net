@@ -3,6 +3,7 @@ package com.guildofsmiths.trademesh.service
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import com.guildofsmiths.trademesh.data.RoleContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -45,6 +46,7 @@ object AuthService {
     
     fun init(context: Context) {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        RoleContext.setRoleFromString(getUserRole())
         Log.d(TAG, "AuthService initialized")
     }
     
@@ -315,6 +317,7 @@ object AuthService {
             putString(KEY_USER_ROLE, role)
             apply()
         }
+        RoleContext.setRoleFromString(role)
     }
     
     private fun clearAuthData() {
@@ -328,6 +331,7 @@ object AuthService {
             remove(KEY_TOKEN_EXPIRY)
             apply()
         }
+        RoleContext.reset()
     }
     
     /**
