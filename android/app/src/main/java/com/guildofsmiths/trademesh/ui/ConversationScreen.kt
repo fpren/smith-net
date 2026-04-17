@@ -43,10 +43,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.guildofsmiths.trademesh.service.ChatManager
+import com.guildofsmiths.trademesh.service.ConnectionMode
 import com.guildofsmiths.trademesh.data.Channel
 import com.guildofsmiths.trademesh.data.ChannelType
 import com.guildofsmiths.trademesh.data.MediaType
@@ -99,6 +103,14 @@ fun ConversationScreen(
     
     // Online status for media
     val isOnline by BoundaryEngine.isOnline.collectAsState()
+
+    // Connection mode for status bar and background tint
+    val connectionMode by ChatManager.connectionMode.collectAsState()
+    val chatBgColor = when (connectionMode) {
+        ConnectionMode.ONLINE -> Color(0xFFF4F2EE)   // default warm
+        ConnectionMode.MESH -> Color(0xFFF0F4F1)     // sage tint
+        ConnectionMode.OFFLINE -> Color(0xFFF4F0EE)  // brick tint
+    }
     
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
@@ -167,7 +179,9 @@ fun ConversationScreen(
         }
         
         ConsoleSeparator()
-        
+
+        ConnectionStatusBar(connectionMode)
+
         // DM selector bar - only show for non-DM channels
         if (!isDmChannel && (selectedPeer != null || activePeers.isNotEmpty())) {
             Row(
@@ -260,6 +274,7 @@ fun ConversationScreen(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
+                .background(chatBgColor)
                 .padding(horizontal = 16.dp)
         ) {
             item { Spacer(modifier = Modifier.height(12.dp)) }
@@ -1184,6 +1199,34 @@ private fun AudioLevelBars(
         ),
         modifier = modifier
     )
+}
+
+@Composable
+private fun ConnectionStatusBar(mode: ConnectionMode) {
+    val (color, label, detail) = when (mode) {
+        ConnectionMode.ONLINE -> Triple(Color(0xFF9A6F2E), "[ONLINE ●]", "ws://connected")
+        ConnectionMode.MESH -> Triple(Color(0xFF5A8C76), "[MESH ●]", "peers nearby")
+        ConnectionMode.OFFLINE -> Triple(Color(0xFF8C3A3A), "[OFFLINE ●]", "queued")
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(color.copy(alpha = 0.08f))
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = ConsoleTheme.caption.copy(color = color, fontWeight = FontWeight.SemiBold)
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = detail,
+            style = ConsoleTheme.timestamp.copy(color = ConsoleTheme.textMuted)
+        )
+    }
 }
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
