@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -295,41 +296,50 @@ fun ConversationScreen(
                 }
             }
             
-            items(items = messages, key = { it.id }) { message ->
+            itemsIndexed(items = messages, key = { _, msg -> msg.id }) { index, message ->
+                val previous = if (index > 0) messages[index - 1] else null
+                val showHeader = shouldShowHeader(message, previous)
+
                 val isSentByMe = if (localUserId.isNotEmpty()) {
                     message.senderId == localUserId
                 } else {
                     !message.isMeshOrigin
                 }
-                
+
+                if (isDifferentDay(message, previous)) {
+                    DateSeparator(date = formatDate(message.timestamp))
+                }
+
+                Spacer(modifier = Modifier.height(if (showHeader) 6.dp else 3.dp))
+
                 // Swipe state
                 var offsetX by remember { mutableStateOf(0f) }
                 val animatedOffsetX by animateFloatAsState(
                     targetValue = offsetX,
                     label = "swipe"
                 )
-                
+
                 // Action button width
                 val actionButtonWidth = 80.dp
                 val density = androidx.compose.ui.platform.LocalDensity.current
-                
+
                 // Left side: Archive (swipe right reveals)
                 val maxSwipeRight = with(density) { actionButtonWidth.toPx() }
-                
+
                 // Right side: Delete options (swipe left reveals)
                 // Show "Delete for all" only if user has permission (created channel or granted)
                 val maxSwipeLeft = with(density) {
                     if (canDeleteForAll) actionButtonWidth.toPx() * 2 else actionButtonWidth.toPx()
                 }
-                
+
                 // Fixed height for swipe actions
                 val messageHeight = 60.dp
-                
+
                 // Can only delete YOUR OWN messages
                 // Archive is available for any message (just hides from your view)
                 val canDelete = isSentByMe
                 val canDeleteAll = isSentByMe && canDeleteForAll
-                
+
                 // Adjust max swipe based on what's available
                 val actualMaxSwipeLeft = with(density) {
                     when {
@@ -338,7 +348,7 @@ fun ConversationScreen(
                         else -> 0f                                      // Can't delete others' messages
                     }
                 }
-                
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -363,7 +373,7 @@ fun ConversationScreen(
                             style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.background)
                         )
                     }
-                    
+
                     // RIGHT SIDE - Delete buttons (only for YOUR OWN messages)
                     if (canDelete) {
                         Row(
@@ -395,7 +405,7 @@ fun ConversationScreen(
                                     )
                                 }
                             }
-                            
+
                             // Delete for everyone (only if you sent it AND have permission)
                             if (canDeleteAll) {
                                 Box(
@@ -423,7 +433,7 @@ fun ConversationScreen(
                             }
                         }
                     }
-                    
+
                     // Foreground message (swipeable)
                     Box(
                         modifier = Modifier
@@ -449,13 +459,9 @@ fun ConversationScreen(
                             ),
                         contentAlignment = Alignment.CenterStart
                     ) {
-                        MessageBlock(message = message, isSentByMe = isSentByMe)
+                        MessageBlock(message = message, isSentByMe = isSentByMe, showHeader = showHeader)
                     }
                 }
-                
-                // Variable gap
-                val gap = if (message.content.length > 50) 12.dp else 8.dp
-                Spacer(modifier = Modifier.height(gap))
             }
             
             item { Spacer(modifier = Modifier.height(12.dp)) }
@@ -671,6 +677,24 @@ fun ConversationScreen(
 }
 
 
+@Composable
+private fun DateSeparator(date: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(modifier = Modifier.weight(1f).height(0.5.dp).background(ConsoleTheme.separatorFaint))
+        Text(
+            text = "── $date ──",
+            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+            modifier = Modifier.padding(horizontal = 8.dp)
+        )
+        Box(modifier = Modifier.weight(1f).height(0.5.dp).background(ConsoleTheme.separatorFaint))
+    }
+}
+
 /**
  * Message block with left/right alignment.
  * Bold sender, clear hierarchy. Shows media placeholders.
@@ -679,6 +703,7 @@ fun ConversationScreen(
 private fun MessageBlock(
     message: Message,
     isSentByMe: Boolean,
+    showHeader: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val time = formatTime(message.timestamp)
@@ -692,7 +717,7 @@ private fun MessageBlock(
         message.senderName.length > 8 -> message.senderName
         else -> message.senderName // Show whatever we have
     }
-    
+
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = if (isSentByMe) Arrangement.End else Arrangement.Start
@@ -700,81 +725,55 @@ private fun MessageBlock(
         Column(
             horizontalAlignment = if (isSentByMe) Alignment.End else Alignment.Start
         ) {
-            // Header: arrow + sender + time + [sub] + [DM]
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = if (isSentByMe) "▶" else "◀",
-                    style = ConsoleTheme.prefix.copy(
-                        color = if (isSentByMe) ConsoleTheme.sentPrefix else ConsoleTheme.receivedPrefix
-                    )
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = sender,
-                    style = ConsoleTheme.captionBold.copy(
-                        color = if (isSentByMe) ConsoleTheme.accent else ConsoleTheme.textSecondary
-                    )
-                )
-                Text(
-                    text = " · $time",
-                    style = ConsoleTheme.timestamp
-                )
-                if (message.isMeshOrigin && !isSentByMe) {
+            if (showHeader) {
+                // Header: arrow + sender + time + [sub] + [DM]
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = " [sub]",
-                        style = ConsoleTheme.timestamp.copy(color = ConsoleTheme.textDim)
+                        text = if (isSentByMe) "▶" else "◀",
+                        style = ConsoleTheme.prefix.copy(
+                            color = if (isSentByMe) ConsoleTheme.sentPrefix else ConsoleTheme.receivedPrefix
+                        )
                     )
-                } else if (!message.isMeshOrigin && !isSentByMe) {
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = " [online]",
-                        style = ConsoleTheme.timestamp.copy(color = ConsoleTheme.textDim)
+                        text = sender,
+                        style = ConsoleTheme.captionBold.copy(
+                            color = if (isSentByMe) ConsoleTheme.accent else ConsoleTheme.textSecondary
+                        )
                     )
-                }
-                // #region agent log
-                try {
-                    val data = mapOf(
-                        "sessionId" to "debug-session",
-                        "runId" to "transport-indicators-test",
-                        "hypothesisId" to "A",
-                        "location" to "ConversationScreen.kt:707",
-                        "message" to "Transport indicator check",
-                        "data" to mapOf(
-                            "messageId" to message.id.take(8),
-                            "senderName" to message.senderName,
-                            "isMeshOrigin" to message.isMeshOrigin,
-                            "isSentByMe" to isSentByMe,
-                            "hasSubIndicator" to (message.isMeshOrigin && !isSentByMe),
-                            "hasOnlineIndicator" to (!message.isMeshOrigin && !isSentByMe)
-                        ),
-                        "timestamp" to System.currentTimeMillis()
-                    )
-                    val jsonPayload = org.json.JSONObject(data).toString()
-                    val url = java.net.URL("http://127.0.0.1:7242/ingest/0adb3485-1a4e-45bf-a3c0-30e8c05573e2")
-                    val connection = url.openConnection() as java.net.HttpURLConnection
-                    connection.requestMethod = "POST"
-                    connection.setRequestProperty("Content-Type", "application/json")
-                    connection.doOutput = true
-                    connection.outputStream.write(jsonPayload.toByteArray())
-                    connection.inputStream.close()
-                } catch (e: Exception) {
-                    // Ignore logging errors
-                }
-                // #endregion
-                if (message.isDirectMessage()) {
                     Text(
-                        text = " [DM]",
-                        style = ConsoleTheme.timestamp.copy(color = ConsoleTheme.accent)
+                        text = " · $time",
+                        style = ConsoleTheme.timestamp
                     )
+                    if (message.isMeshOrigin && !isSentByMe) {
+                        Text(
+                            text = " [sub]",
+                            style = ConsoleTheme.timestamp.copy(color = ConsoleTheme.textDim)
+                        )
+                    } else if (!message.isMeshOrigin && !isSentByMe) {
+                        Text(
+                            text = " [online]",
+                            style = ConsoleTheme.timestamp.copy(color = ConsoleTheme.textDim)
+                        )
+                    }
+                    if (message.isDirectMessage()) {
+                        Text(
+                            text = " [DM]",
+                            style = ConsoleTheme.timestamp.copy(color = ConsoleTheme.accent)
+                        )
+                    }
+                    if (message.isMediaQueued()) {
+                        Text(
+                            text = " [queued]",
+                            style = ConsoleTheme.timestamp.copy(color = ConsoleTheme.warning)
+                        )
+                    }
                 }
-                if (message.isMediaQueued()) {
-                    Text(
-                        text = " [queued]",
-                        style = ConsoleTheme.timestamp.copy(color = ConsoleTheme.warning)
-                    )
-                }
+
+                Spacer(modifier = Modifier.height(3.dp))
+            } else {
+                Spacer(modifier = Modifier.height(3.dp))
             }
-            
-            Spacer(modifier = Modifier.height(3.dp))
             
             // Content — with media indicator
             Row {
@@ -840,8 +839,8 @@ private fun MessageTextContent(
                         if (showTextContent) {
                             Text(
                                 text = message.content,
-                                style = ConsoleTheme.body,
-            modifier = modifier
+                                style = ConsoleTheme.bodySmall,
+                                modifier = modifier
                             )
     }
 }
@@ -1070,6 +1069,26 @@ private fun PixelMicButton(
             )
         }
     }
+}
+
+private fun shouldShowHeader(current: Message, previous: Message?): Boolean {
+    if (previous == null) return true
+    if (current.senderId != previous.senderId) return true
+    if (current.timestamp - previous.timestamp > 120_000) return true // 2 min gap
+    return false
+}
+
+private fun isDifferentDay(current: Message, previous: Message?): Boolean {
+    if (previous == null) return true
+    val cal1 = java.util.Calendar.getInstance().apply { timeInMillis = current.timestamp }
+    val cal2 = java.util.Calendar.getInstance().apply { timeInMillis = previous.timestamp }
+    return cal1.get(java.util.Calendar.DAY_OF_YEAR) != cal2.get(java.util.Calendar.DAY_OF_YEAR)
+        || cal1.get(java.util.Calendar.YEAR) != cal2.get(java.util.Calendar.YEAR)
+}
+
+private fun formatDate(timestamp: Long): String {
+    val sdf = java.text.SimpleDateFormat("MMM d, yyyy", java.util.Locale.US)
+    return sdf.format(java.util.Date(timestamp))
 }
 
 private fun formatTime(timestamp: Long): String {
