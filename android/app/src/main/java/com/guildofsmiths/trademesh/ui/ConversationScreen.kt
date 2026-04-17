@@ -96,7 +96,20 @@ fun ConversationScreen(
 ) {
     val listState = rememberLazyListState()
     var inputText by remember { mutableStateOf("") }
-    
+    var typingUsers by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var lastTypingSent by remember { mutableStateOf(0L) }
+
+    LaunchedEffect(Unit) {
+        ChatManager.setTypingListener(object : ChatManager.OnTypingListener {
+            override fun onTypingStarted(channelId: String, userId: String, userName: String) {
+                typingUsers = typingUsers + (userId to userName)
+            }
+            override fun onTypingStopped(channelId: String, userId: String) {
+                typingUsers = typingUsers - userId
+            }
+        })
+    }
+
     // Peer selection for DM (initialize with passed-in peer if any)
     var showPeerSelector by remember { mutableStateOf(false) }
     var selectedPeer by remember { mutableStateOf(initialDmPeer) }
@@ -469,7 +482,9 @@ fun ConversationScreen(
         }
         
         ConsoleSeparator()
-        
+
+        TypingIndicator(typingUsers.values.toList())
+
         // Input bar — pixel art + and hold-to-record voice
         var showAttachMenu by remember { mutableStateOf(false) }
         var isRecording by remember { mutableStateOf(false) }
@@ -599,13 +614,21 @@ fun ConversationScreen(
                 
                 BasicTextField(
                     value = inputText,
-                    onValueChange = { inputText = it },
+                    onValueChange = {
+                        inputText = it
+                        val now = System.currentTimeMillis()
+                        if (now - lastTypingSent > 1000) {
+                            ChatManager.sendTypingStart(channel?.id ?: "")
+                            lastTypingSent = now
+                        }
+                    },
                     modifier = Modifier.weight(1f),
                     textStyle = ConsoleTheme.body,
                     cursorBrush = SolidColor(ConsoleTheme.cursor),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(onSend = {
                         if (inputText.isNotBlank()) {
+                            ChatManager.sendTypingStop(channel?.id ?: "")
                             onSendMessage(inputText.trim(), effectivePeer)
                             inputText = ""
                             if (!isDmChannel) selectedPeer = null  // Only clear if not in DM channel
@@ -638,6 +661,7 @@ fun ConversationScreen(
                         ),
                         modifier = Modifier
                             .clickable {
+                                ChatManager.sendTypingStop(channel?.id ?: "")
                                 onSendMessage(inputText.trim(), effectivePeer)
                                 inputText = ""
                                 if (!isDmChannel) selectedPeer = null  // Only clear if not in DM channel
@@ -677,6 +701,25 @@ fun ConversationScreen(
     }
 }
 
+
+@Composable
+private fun TypingIndicator(typers: List<String>) {
+    if (typers.isEmpty()) return
+    val text = when {
+        typers.size == 1 -> "◀ ${typers[0]} is typing..."
+        typers.size == 2 -> "◀ ${typers[0]}, ${typers[1]} are typing..."
+        else -> "◀ ${typers[0]} and ${typers.size - 1} others are typing..."
+    }
+    Text(
+        text = text,
+        style = ConsoleTheme.caption.copy(
+            color = ConsoleTheme.textMuted
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+    )
+}
 
 @Composable
 private fun DateSeparator(date: String) {
