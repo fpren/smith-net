@@ -107,6 +107,9 @@ export type WSMessageType =
   | 'gateway_connect'
   | 'gateway_disconnect'
   | 'gateway_message'
+  | 'message_read'
+  | 'typing_start'
+  | 'typing_stop'
   | 'error';
 
 export interface WSMessage {

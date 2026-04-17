@@ -89,6 +89,38 @@ class WSHandler {
         this.handleGatewayMessage(ws, msg.payload as Message);
         break;
 
+      case 'message_read': {
+        const { messageId, channelId, readBy, readAt } = msg.payload as { messageId: string; channelId: string; readBy: string; readAt?: number };
+        for (const [client] of this.clients) {
+          if (client !== ws && client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({
+              type: 'message_read',
+              messageId,
+              channelId,
+              readBy,
+              readAt: readAt || Date.now()
+            }));
+          }
+        }
+        break;
+      }
+
+      case 'typing_start':
+      case 'typing_stop': {
+        const { channelId, userId, userName } = msg.payload as { channelId: string; userId: string; userName: string };
+        for (const [client] of this.clients) {
+          if (client !== ws && client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({
+              type: msg.type,
+              channelId,
+              userId,
+              userName
+            }));
+          }
+        }
+        break;
+      }
+
       default:
         this.sendError(ws, `Unknown message type: ${msg.type}`);
     }
