@@ -16,10 +16,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,12 +29,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import androidx.navigation.NavController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.guildofsmiths.trademesh.ui.components.BottomToolbar
 import com.guildofsmiths.trademesh.data.Peer
 import com.guildofsmiths.trademesh.data.SupabaseAuth
 import com.guildofsmiths.trademesh.data.UserPreferences
@@ -214,6 +218,7 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
+                    var toolbarExpanded by remember { mutableStateOf(false) }
 
                     // Determine start destination - auth first, then onboarding
                     // Priority: Not logged in → Auth, Logged in but no onboarding → Onboarding, Complete → Dashboard
@@ -311,30 +316,36 @@ class MainActivity : ComponentActivity() {
                             val jobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel()
                             val jobs by jobViewModel.jobs.collectAsState()
 
-                            com.guildofsmiths.trademesh.ui.dashboard.DashboardScreen(
-                                jobs = jobs,
-                                onJobClick = { jobId ->
-                                    navController.navigate(NavRoutes.jobPipeline(jobId))
-                                },
-                                onNewJob = {
-                                    navController.navigate(NavRoutes.NEW_JOB)
-                                },
-                                onClockIn = {
-                                    navController.navigate(NavRoutes.TIME_TRACKING)
-                                },
-                                onMessages = {
-                                    navController.navigate(NavRoutes.BEACON_LIST)
-                                },
-                                onSettings = {
-                                    navController.navigate(NavRoutes.SETTINGS)
-                                },
-                                onProfile = {
-                                    navController.navigate(NavRoutes.PROFILE)
-                                },
-                                onArchive = {
-                                    navController.navigate(NavRoutes.ARCHIVE)
-                                }
-                            )
+                            WithToolbar(
+                                toolbarExpanded = toolbarExpanded,
+                                onToggle = { toolbarExpanded = !toolbarExpanded },
+                                navController = navController
+                            ) {
+                                com.guildofsmiths.trademesh.ui.dashboard.DashboardScreen(
+                                    jobs = jobs,
+                                    onJobClick = { jobId ->
+                                        navController.navigate(NavRoutes.jobPipeline(jobId))
+                                    },
+                                    onNewJob = {
+                                        navController.navigate(NavRoutes.NEW_JOB)
+                                    },
+                                    onClockIn = {
+                                        navController.navigate(NavRoutes.TIME_TRACKING)
+                                    },
+                                    onMessages = {
+                                        navController.navigate(NavRoutes.BEACON_LIST)
+                                    },
+                                    onSettings = {
+                                        navController.navigate(NavRoutes.SETTINGS)
+                                    },
+                                    onProfile = {
+                                        navController.navigate(NavRoutes.PROFILE)
+                                    },
+                                    onArchive = {
+                                        navController.navigate(NavRoutes.ARCHIVE)
+                                    }
+                                )
+                            }
                         }
 
                         // Job Pipeline detail screen
@@ -347,22 +358,28 @@ class MainActivity : ComponentActivity() {
                             val jobs by jobViewModel.jobs.collectAsState()
                             val job = jobs.find { it.id == jobId }
 
-                            if (job != null) {
-                                com.guildofsmiths.trademesh.ui.jobpipeline.JobPipelineScreen(
-                                    job = job,
-                                    onBack = { navController.popBackStack() },
-                                    onStageAction = { j, newStage ->
-                                        jobViewModel.moveJobStage(j.id, newStage)
-                                    },
-                                    onToggleMaterial = { index ->
-                                        jobViewModel.toggleMaterial(jobId, index)
-                                    },
-                                    onClockIn = {
-                                        navController.navigate(NavRoutes.TIME_TRACKING)
-                                    },
-                                    onShareProposal = { /* TODO: Wire in Task 11 */ },
-                                    onShareInvoice = { /* TODO: Wire in Task 12 */ }
-                                )
+                            WithToolbar(
+                                toolbarExpanded = toolbarExpanded,
+                                onToggle = { toolbarExpanded = !toolbarExpanded },
+                                navController = navController
+                            ) {
+                                if (job != null) {
+                                    com.guildofsmiths.trademesh.ui.jobpipeline.JobPipelineScreen(
+                                        job = job,
+                                        onBack = { navController.popBackStack() },
+                                        onStageAction = { j, newStage ->
+                                            jobViewModel.moveJobStage(j.id, newStage)
+                                        },
+                                        onToggleMaterial = { index ->
+                                            jobViewModel.toggleMaterial(jobId, index)
+                                        },
+                                        onClockIn = {
+                                            navController.navigate(NavRoutes.TIME_TRACKING)
+                                        },
+                                        onShareProposal = { /* TODO: Wire in Task 11 */ },
+                                        onShareInvoice = { /* TODO: Wire in Task 12 */ }
+                                    )
+                                }
                             }
                         }
 
@@ -370,23 +387,29 @@ class MainActivity : ComponentActivity() {
                         composable(NavRoutes.NEW_JOB) {
                             val jobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel()
 
-                            com.guildofsmiths.trademesh.ui.newjob.NewJobFlow(
-                                onBack = { navController.popBackStack() },
-                                onJobCreated = { newJob ->
-                                    jobViewModel.createJob(
-                                        title = newJob.clientName.ifBlank { "New Job" },
-                                        description = newJob.description,
-                                        materials = newJob.materials,
-                                        crewSize = newJob.crewSize,
-                                        clientName = newJob.clientName,
-                                        clientPhone = newJob.clientPhone,
-                                        clientAddress = newJob.clientAddress,
-                                        hourlyRate = com.guildofsmiths.trademesh.data.UserPreferences.getHourlyRate(),
-                                        equipmentList = newJob.equipmentList
-                                    )
-                                    navController.popBackStack()
-                                }
-                            )
+                            WithToolbar(
+                                toolbarExpanded = toolbarExpanded,
+                                onToggle = { toolbarExpanded = !toolbarExpanded },
+                                navController = navController
+                            ) {
+                                com.guildofsmiths.trademesh.ui.newjob.NewJobFlow(
+                                    onBack = { navController.popBackStack() },
+                                    onJobCreated = { newJob ->
+                                        jobViewModel.createJob(
+                                            title = newJob.clientName.ifBlank { "New Job" },
+                                            description = newJob.description,
+                                            materials = newJob.materials,
+                                            crewSize = newJob.crewSize,
+                                            clientName = newJob.clientName,
+                                            clientPhone = newJob.clientPhone,
+                                            clientAddress = newJob.clientAddress,
+                                            hourlyRate = com.guildofsmiths.trademesh.data.UserPreferences.getHourlyRate(),
+                                            equipmentList = newJob.equipmentList
+                                        )
+                                        navController.popBackStack()
+                                    }
+                                )
+                            }
                         }
 
                         // Beacon list screen (Messages/Chat Hub)
@@ -396,135 +419,189 @@ class MainActivity : ComponentActivity() {
                                 initializeCommunication()
                             }
 
-                            BeaconListScreen(
-                                onBeaconClick = { beacon ->
-                                    navController.navigate(NavRoutes.channelList(beacon.id))
-                                },
-                                onSettingsClick = {
-                                    navController.navigate(NavRoutes.SETTINGS)
-                                },
-                                onPeersClick = {
-                                    navController.navigate(NavRoutes.PEERS)
-                                },
-                                onProfileClick = {
-                                    navController.navigate(NavRoutes.PROFILE)
-                                },
-                                onCreateBeaconClick = {
-                                    navController.navigate(NavRoutes.CREATE_BEACON)
-                                }
-                            )
+                            WithToolbar(
+                                toolbarExpanded = toolbarExpanded,
+                                onToggle = { toolbarExpanded = !toolbarExpanded },
+                                navController = navController
+                            ) {
+                                BeaconListScreen(
+                                    onBeaconClick = { beacon ->
+                                        navController.navigate(NavRoutes.channelList(beacon.id))
+                                    },
+                                    onSettingsClick = {
+                                        navController.navigate(NavRoutes.SETTINGS)
+                                    },
+                                    onPeersClick = {
+                                        navController.navigate(NavRoutes.PEERS)
+                                    },
+                                    onProfileClick = {
+                                        navController.navigate(NavRoutes.PROFILE)
+                                    },
+                                    onCreateBeaconClick = {
+                                        navController.navigate(NavRoutes.CREATE_BEACON)
+                                    }
+                                )
+                            }
                         }
                         
                         // Profile screen
                         composable(NavRoutes.PROFILE) {
-                            ProfileScreen(
-                                onNavigateBack = { navController.popBackStack() },
-                                onSignOut = {
-                                    // Navigate back to auth screen
-                                    navController.navigate(NavRoutes.AUTH) {
-                                        popUpTo(0) { inclusive = true }
+                            WithToolbar(
+                                toolbarExpanded = toolbarExpanded,
+                                onToggle = { toolbarExpanded = !toolbarExpanded },
+                                navController = navController
+                            ) {
+                                ProfileScreen(
+                                    onNavigateBack = { navController.popBackStack() },
+                                    onSignOut = {
+                                        // Navigate back to auth screen
+                                        navController.navigate(NavRoutes.AUTH) {
+                                            popUpTo(0) { inclusive = true }
+                                        }
                                     }
-                                }
-                            )
+                                )
+                            }
                         }
                         
                         // Settings screen
                         composable(NavRoutes.SETTINGS) {
-                            SettingsScreen(
-                                onBackClick = {
-                                    navController.popBackStack()
-                                },
-                                onNameChanged = { newName ->
-                                    viewModel.setUserName(newName)
-                                },
-                                onProfileClick = {
-                                    navController.navigate(NavRoutes.PROFILE)
-                                },
-                                onSignOut = {
-                                    // Navigate to auth screen and clear backstack
-                                    navController.navigate(NavRoutes.AUTH) {
-                                        popUpTo(0) { inclusive = true }
+                            WithToolbar(
+                                toolbarExpanded = toolbarExpanded,
+                                onToggle = { toolbarExpanded = !toolbarExpanded },
+                                navController = navController
+                            ) {
+                                SettingsScreen(
+                                    onBackClick = {
+                                        navController.popBackStack()
+                                    },
+                                    onNameChanged = { newName ->
+                                        viewModel.setUserName(newName)
+                                    },
+                                    onProfileClick = {
+                                        navController.navigate(NavRoutes.PROFILE)
+                                    },
+                                    onSignOut = {
+                                        // Navigate to auth screen and clear backstack
+                                        navController.navigate(NavRoutes.AUTH) {
+                                            popUpTo(0) { inclusive = true }
+                                        }
                                     }
-                                }
-                            )
+                                )
+                            }
                         }
                         
                         // C-11: Job Board
                         composable(NavRoutes.JOB_BOARD) {
-                            JobBoardScreen(
-                                onNavigateBack = {
-                                    navController.popBackStack()
-                                }
-                            )
+                            WithToolbar(
+                                toolbarExpanded = toolbarExpanded,
+                                onToggle = { toolbarExpanded = !toolbarExpanded },
+                                navController = navController
+                            ) {
+                                JobBoardScreen(
+                                    onNavigateBack = {
+                                        navController.popBackStack()
+                                    }
+                                )
+                            }
                         }
-                        
+
                         // C-12: Time Tracking
                         composable(NavRoutes.TIME_TRACKING) {
-                            TimeTrackingScreen(
-                                onNavigateBack = {
-                                    navController.popBackStack()
-                                }
-                            )
+                            WithToolbar(
+                                toolbarExpanded = toolbarExpanded,
+                                onToggle = { toolbarExpanded = !toolbarExpanded },
+                                navController = navController
+                            ) {
+                                TimeTrackingScreen(
+                                    onNavigateBack = {
+                                        navController.popBackStack()
+                                    }
+                                )
+                            }
                         }
 
                         // C-13: Archive
                         composable(NavRoutes.ARCHIVE) {
-                            ArchiveScreen(
-                                onNavigateBack = {
-                                    navController.popBackStack()
-                                }
-                            )
+                            WithToolbar(
+                                toolbarExpanded = toolbarExpanded,
+                                onToggle = { toolbarExpanded = !toolbarExpanded },
+                                navController = navController
+                            ) {
+                                ArchiveScreen(
+                                    onNavigateBack = {
+                                        navController.popBackStack()
+                                    }
+                                )
+                            }
                         }
 
                         // Peers screen
                         composable(NavRoutes.PEERS) {
-                            PeersScreen(
-                                onBackClick = {
-                                    navController.popBackStack()
-                                },
-                                onPeerClick = { peer ->
-                                    // Just view peer info (optional)
-                                },
-                                onStartChat = { dmChannelId ->
-                                    // Join the DM channel before navigating
-                                    BoundaryEngine.joinChannel(dmChannelId)
-                                    Log.d("MainActivity", "Starting chat in DM channel: $dmChannelId")
-                                    
-                                    // Navigate to channel list first, then to conversation
-                                    navController.navigate(NavRoutes.conversation("default", dmChannelId))
-                                }
-                            )
+                            WithToolbar(
+                                toolbarExpanded = toolbarExpanded,
+                                onToggle = { toolbarExpanded = !toolbarExpanded },
+                                navController = navController
+                            ) {
+                                PeersScreen(
+                                    onBackClick = {
+                                        navController.popBackStack()
+                                    },
+                                    onPeerClick = { peer ->
+                                        // Just view peer info (optional)
+                                    },
+                                    onStartChat = { dmChannelId ->
+                                        // Join the DM channel before navigating
+                                        BoundaryEngine.joinChannel(dmChannelId)
+                                        Log.d("MainActivity", "Starting chat in DM channel: $dmChannelId")
+
+                                        // Navigate to channel list first, then to conversation
+                                        navController.navigate(NavRoutes.conversation("default", dmChannelId))
+                                    }
+                                )
+                            }
                         }
                         
                         // Create beacon screen
                         composable(NavRoutes.CREATE_BEACON) {
-                            CreateBeaconScreen(
-                                onBackClick = {
-                                    navController.popBackStack()
-                                },
-                                onBeaconCreated = { beacon ->
-                                    navController.popBackStack()
-                                    navController.navigate(NavRoutes.channelList(beacon.id))
-                                }
-                            )
+                            WithToolbar(
+                                toolbarExpanded = toolbarExpanded,
+                                onToggle = { toolbarExpanded = !toolbarExpanded },
+                                navController = navController
+                            ) {
+                                CreateBeaconScreen(
+                                    onBackClick = {
+                                        navController.popBackStack()
+                                    },
+                                    onBeaconCreated = { beacon ->
+                                        navController.popBackStack()
+                                        navController.navigate(NavRoutes.channelList(beacon.id))
+                                    }
+                                )
+                            }
                         }
                         
                         // Dashboard channels screen - discover and join channels from dashboard
                         composable(NavRoutes.DASHBOARD_CHANNELS) {
-                            ChannelsScreen(
-                                onBackClick = {
-                                    navController.popBackStack()
-                                },
-                                onChannelJoined = { channelId ->
-                                    // Navigate to conversation with the joined channel
-                                    Log.e("MainActivity", "████ onChannelJoined: $channelId ████")
-                                    // URL encode the channel ID to handle special characters
-                                    val encodedChannelId = java.net.URLEncoder.encode(channelId, "UTF-8")
-                                    val route = NavRoutes.conversation("default", encodedChannelId)
-                                    Log.e("MainActivity", "████ Route: $route ████")
-                                    navController.navigate(route)
-                                }
-                            )
+                            WithToolbar(
+                                toolbarExpanded = toolbarExpanded,
+                                onToggle = { toolbarExpanded = !toolbarExpanded },
+                                navController = navController
+                            ) {
+                                ChannelsScreen(
+                                    onBackClick = {
+                                        navController.popBackStack()
+                                    },
+                                    onChannelJoined = { channelId ->
+                                        // Navigate to conversation with the joined channel
+                                        Log.e("MainActivity", "████ onChannelJoined: $channelId ████")
+                                        // URL encode the channel ID to handle special characters
+                                        val encodedChannelId = java.net.URLEncoder.encode(channelId, "UTF-8")
+                                        val route = NavRoutes.conversation("default", encodedChannelId)
+                                        Log.e("MainActivity", "████ Route: $route ████")
+                                        navController.navigate(route)
+                                    }
+                                )
+                            }
                         }
                         
                         // Channel list screen
@@ -535,22 +612,28 @@ class MainActivity : ComponentActivity() {
                             )
                         ) { backStackEntry ->
                             val beaconId = backStackEntry.arguments?.getString("beaconId") ?: "default"
-                            
-                            ChannelListScreen(
-                                beaconId = beaconId,
-                                onChannelClick = { channel ->
-                                    navController.navigate(NavRoutes.conversation(beaconId, channel.id))
-                                },
-                                onBackClick = {
-                                    navController.popBackStack()
-                                },
-                                onCreateChannel = {
-                                    navController.navigate(NavRoutes.createChannel(beaconId))
-                                },
-                                onJoinDashboardChannels = {
-                                    navController.navigate(NavRoutes.DASHBOARD_CHANNELS)
-                                }
-                            )
+
+                            WithToolbar(
+                                toolbarExpanded = toolbarExpanded,
+                                onToggle = { toolbarExpanded = !toolbarExpanded },
+                                navController = navController
+                            ) {
+                                ChannelListScreen(
+                                    beaconId = beaconId,
+                                    onChannelClick = { channel ->
+                                        navController.navigate(NavRoutes.conversation(beaconId, channel.id))
+                                    },
+                                    onBackClick = {
+                                        navController.popBackStack()
+                                    },
+                                    onCreateChannel = {
+                                        navController.navigate(NavRoutes.createChannel(beaconId))
+                                    },
+                                    onJoinDashboardChannels = {
+                                        navController.navigate(NavRoutes.DASHBOARD_CHANNELS)
+                                    }
+                                )
+                            }
                         }
                         
                         // Create channel screen
@@ -561,17 +644,23 @@ class MainActivity : ComponentActivity() {
                             )
                         ) { backStackEntry ->
                             val beaconId = backStackEntry.arguments?.getString("beaconId") ?: "default"
-                            
-                            CreateChannelScreen(
-                                beaconId = beaconId,
-                                onBackClick = {
-                                    navController.popBackStack()
-                                },
-                                onChannelCreated = { channel ->
-                                    navController.popBackStack()
-                                    navController.navigate(NavRoutes.conversation(beaconId, channel.id))
-                                }
-                            )
+
+                            WithToolbar(
+                                toolbarExpanded = toolbarExpanded,
+                                onToggle = { toolbarExpanded = !toolbarExpanded },
+                                navController = navController
+                            ) {
+                                CreateChannelScreen(
+                                    beaconId = beaconId,
+                                    onBackClick = {
+                                        navController.popBackStack()
+                                    },
+                                    onChannelCreated = { channel ->
+                                        navController.popBackStack()
+                                        navController.navigate(NavRoutes.conversation(beaconId, channel.id))
+                                    }
+                                )
+                            }
                         }
                         
                         // Conversation screen (with optional DM peer parameters)
@@ -622,7 +711,12 @@ class MainActivity : ComponentActivity() {
                             
                             // Track DM peer for media callbacks
                             var currentDmPeer by remember { mutableStateOf(initialDmPeer) }
-                            
+
+                            WithToolbar(
+                                toolbarExpanded = toolbarExpanded,
+                                onToggle = { toolbarExpanded = !toolbarExpanded },
+                                navController = navController
+                            ) {
                             ConversationScreen(
                                 messages = messages,
                                 onSendMessage = { content, peer ->
@@ -665,6 +759,7 @@ class MainActivity : ComponentActivity() {
                                 },
                                 initialDmPeer = initialDmPeer
                             )
+                            }  // end WithToolbar
                         }
                     }
                 }
@@ -975,17 +1070,53 @@ class MainActivity : ComponentActivity() {
      */
     private fun launchVideoCapture() {
         // Check camera permission first
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) 
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
             != PackageManager.PERMISSION_GRANTED) {
             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
             return
         }
-        
+
         val uri = viewModel.createVideoUri()
         if (uri != null) {
             videoLauncher.launch(uri)
         } else {
             Toast.makeText(this, "Failed to create video file", Toast.LENGTH_SHORT).show()
         }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// BOTTOM TOOLBAR WRAPPER
+// ══════════════════════════════════════════════════════════════════
+
+/**
+ * Wraps post-auth screen content with the floating BottomToolbar overlay.
+ * The toolbar floats over content and provides quick navigation to Plan, Job, and Time screens.
+ */
+@Composable
+fun WithToolbar(
+    toolbarExpanded: Boolean,
+    onToggle: () -> Unit,
+    navController: NavController,
+    content: @Composable () -> Unit
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        content()
+        BottomToolbar(
+            isExpanded = toolbarExpanded,
+            onToggle = onToggle,
+            onNavigateToPlan = {
+                navController.navigate(com.guildofsmiths.trademesh.ui.NavRoutes.JOB_BOARD)
+                onToggle()
+            },
+            onNavigateToJob = {
+                navController.navigate(com.guildofsmiths.trademesh.ui.NavRoutes.JOB_BOARD)
+                onToggle()
+            },
+            onNavigateToTime = {
+                navController.navigate(com.guildofsmiths.trademesh.ui.NavRoutes.TIME_TRACKING)
+                onToggle()
+            },
+        )
     }
 }
