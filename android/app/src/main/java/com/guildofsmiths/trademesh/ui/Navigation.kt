@@ -28,6 +28,7 @@ object NavRoutes {
     const val PROFILE = "profile"
 
     // MESSAGING
+    const val CHAT_LIST = "chat_list"
     const val BEACON_LIST = "beacons"
     const val CHANNEL_LIST = "channels/{beaconId}"
     const val CONVERSATION = "conversation/{beaconId}/{channelId}"

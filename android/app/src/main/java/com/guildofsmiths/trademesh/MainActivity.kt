@@ -47,6 +47,7 @@ import com.guildofsmiths.trademesh.service.AuthService
 import com.guildofsmiths.trademesh.ui.ArchiveScreen
 import com.guildofsmiths.trademesh.ui.AuthScreen
 import com.guildofsmiths.trademesh.ui.BeaconListScreen
+import com.guildofsmiths.trademesh.ui.ChatListScreen
 import com.guildofsmiths.trademesh.ui.ChannelListScreen
 import com.guildofsmiths.trademesh.ui.ChannelsScreen
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
@@ -333,7 +334,7 @@ class MainActivity : ComponentActivity() {
                                         navController.navigate(NavRoutes.TIME_TRACKING)
                                     },
                                     onMessages = {
-                                        navController.navigate(NavRoutes.BEACON_LIST)
+                                        navController.navigate(NavRoutes.CHAT_LIST)
                                     },
                                     onSettings = {
                                         navController.navigate(NavRoutes.SETTINGS)
@@ -444,6 +445,23 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                         
+                        // Chat list screen (new primary messaging entry point)
+                        composable(NavRoutes.CHAT_LIST) {
+                            WithToolbar(toolbarExpanded, { toolbarExpanded = !toolbarExpanded }, navController) {
+                                ChatListScreen(
+                                    onChannelClick = { beaconId, channelId ->
+                                        navController.navigate(NavRoutes.conversation(beaconId, channelId))
+                                    },
+                                    onNewClick = {
+                                        navController.navigate(NavRoutes.CREATE_BEACON)
+                                    },
+                                    onBackClick = {
+                                        navController.popBackStack()
+                                    }
+                                )
+                            }
+                        }
+
                         // Profile screen
                         composable(NavRoutes.PROFILE) {
                             WithToolbar(
