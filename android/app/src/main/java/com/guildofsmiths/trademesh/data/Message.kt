@@ -18,6 +18,13 @@ enum class MediaType {
     FILE
 }
 
+enum class DeliveryStatus {
+    PENDING,
+    SENT,
+    DELIVERED,
+    READ
+}
+
 /**
  * Media attachment metadata.
  */
@@ -65,6 +72,7 @@ data class Message(
     val aiContext: String? = null,              // Context reference: job ID, time entry ID, etc.
     val aiPrompt: String? = null,               // Original user prompt that triggered AI
     val syncedToCloud: Boolean = false,         // Has this AI message been synced to cloud?
+    val deliveryStatus: DeliveryStatus = DeliveryStatus.SENT,
 
     // Archive support
     val isArchived: Boolean = false,            // Is this message archived?
