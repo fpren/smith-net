@@ -54,6 +54,7 @@ import com.guildofsmiths.trademesh.service.ChatManager
 import com.guildofsmiths.trademesh.service.ConnectionMode
 import com.guildofsmiths.trademesh.data.Channel
 import com.guildofsmiths.trademesh.data.ChannelType
+import com.guildofsmiths.trademesh.data.DeliveryStatus
 import com.guildofsmiths.trademesh.data.MediaType
 import com.guildofsmiths.trademesh.data.Message
 import com.guildofsmiths.trademesh.data.Peer
@@ -745,6 +746,22 @@ private fun MessageBlock(
                         text = " · $time",
                         style = ConsoleTheme.timestamp
                     )
+                    if (isSentByMe) {
+                        val statusText = when (message.deliveryStatus) {
+                            DeliveryStatus.PENDING -> "[...]"
+                            DeliveryStatus.SENT -> "[✓]"
+                            DeliveryStatus.DELIVERED -> "[✓✓]"
+                            DeliveryStatus.READ -> "[✓✓]"
+                        }
+                        val statusColor = if (message.deliveryStatus == DeliveryStatus.READ)
+                            Color(0xFF5A8C76)  // sage green
+                        else
+                            ConsoleTheme.textMuted
+                        Text(
+                            text = " $statusText",
+                            style = ConsoleTheme.timestamp.copy(color = statusColor)
+                        )
+                    }
                     if (message.isMeshOrigin && !isSentByMe) {
                         Text(
                             text = " [sub]",
