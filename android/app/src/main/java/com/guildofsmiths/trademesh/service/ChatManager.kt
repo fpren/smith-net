@@ -6,6 +6,9 @@ import android.util.Log
 import com.guildofsmiths.trademesh.data.Message
 import com.guildofsmiths.trademesh.data.MessageRepository
 import com.guildofsmiths.trademesh.data.UserPreferences
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -13,9 +16,11 @@ import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
+enum class ConnectionMode { ONLINE, MESH, OFFLINE }
+
 /**
  * ChatManager: Online chat via WebSocket + HTTP API.
- * 
+ *
  * - WebSocket for receiving real-time messages
  * - HTTP API for sending messages
  * - Works without gateway/mesh - pure online mode
@@ -42,7 +47,10 @@ object ChatManager {
     /** Connection state */
     private var isConnected = false
     private var isAuthenticated = false
-    
+
+    private val _connectionMode = MutableStateFlow(ConnectionMode.OFFLINE)
+    val connectionMode: StateFlow<ConnectionMode> = _connectionMode.asStateFlow()
+
     // Message listener
     interface OnMessageListener {
         fun onMessageReceived(message: Message)
@@ -53,7 +61,22 @@ object ChatManager {
     fun setMessageListener(listener: OnMessageListener) {
         messageListener = listener
     }
-    
+
+    interface OnTypingListener {
+        fun onTypingStarted(channelId: String, userId: String, userName: String)
+        fun onTypingStopped(channelId: String, userId: String)
+    }
+
+    interface OnReadReceiptListener {
+        fun onMessageRead(messageId: String, readBy: String, readAt: Long)
+    }
+
+    private var typingListener: OnTypingListener? = null
+    private var readReceiptListener: OnReadReceiptListener? = null
+
+    fun setTypingListener(listener: OnTypingListener?) { typingListener = listener }
+    fun setReadReceiptListener(listener: OnReadReceiptListener?) { readReceiptListener = listener }
+
     /**
      * Set the backend URL
      */
@@ -112,19 +135,22 @@ object ChatManager {
                 Log.d(TAG, "WebSocket closing: $reason")
                 isConnected = false
                 isAuthenticated = false
+                _connectionMode.value = ConnectionMode.OFFLINE
             }
-            
+
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 Log.d(TAG, "WebSocket closed: $reason")
                 isConnected = false
                 isAuthenticated = false
+                _connectionMode.value = ConnectionMode.OFFLINE
                 scheduleReconnect()
             }
-            
+
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 Log.e(TAG, "WebSocket error: ${t.message}")
                 isConnected = false
                 isAuthenticated = false
+                _connectionMode.value = ConnectionMode.OFFLINE
                 scheduleReconnect()
             }
         })
@@ -143,6 +169,7 @@ object ChatManager {
                 "auth_ok" -> {
                     Log.d(TAG, "✅ Authenticated with backend")
                     isAuthenticated = true
+                    _connectionMode.value = ConnectionMode.ONLINE
                 }
                 
                 "message" -> {
@@ -172,6 +199,26 @@ object ChatManager {
                     }
                 }
                 
+                "typing_start" -> {
+                    val chId = json.optString("channelId")
+                    val uId = json.optString("userId")
+                    val uName = json.optString("userName")
+                    handler.post { typingListener?.onTypingStarted(chId, uId, uName) }
+                }
+
+                "typing_stop" -> {
+                    val chId = json.optString("channelId")
+                    val uId = json.optString("userId")
+                    handler.post { typingListener?.onTypingStopped(chId, uId) }
+                }
+
+                "message_read" -> {
+                    val msgId = json.optString("messageId")
+                    val readBy = json.optString("readBy")
+                    val readAt = json.optLong("readAt", System.currentTimeMillis())
+                    handler.post { readReceiptListener?.onMessageRead(msgId, readBy, readAt) }
+                }
+
                 "error" -> {
                     val error = payload?.optString("error") ?: "Unknown error"
                     Log.e(TAG, "Server error: $error")
@@ -277,6 +324,37 @@ object ChatManager {
         })
     }
     
+    fun sendTypingStart(channelId: String) {
+        val userId = UserPreferences.getUserId() ?: return
+        val userName = UserPreferences.getUserName() ?: return
+        webSocket?.send(JSONObject().apply {
+            put("type", "typing_start")
+            put("channelId", channelId)
+            put("userId", userId)
+            put("userName", userName)
+        }.toString())
+    }
+
+    fun sendTypingStop(channelId: String) {
+        val userId = UserPreferences.getUserId() ?: return
+        webSocket?.send(JSONObject().apply {
+            put("type", "typing_stop")
+            put("channelId", channelId)
+            put("userId", userId)
+        }.toString())
+    }
+
+    fun sendReadReceipt(messageId: String, channelId: String) {
+        val userId = UserPreferences.getUserId() ?: return
+        webSocket?.send(JSONObject().apply {
+            put("type", "message_read")
+            put("messageId", messageId)
+            put("channelId", channelId)
+            put("readBy", userId)
+            put("readAt", System.currentTimeMillis())
+        }.toString())
+    }
+
     /**
      * Disconnect from backend.
      */
