@@ -23,6 +23,9 @@ class DashboardViewModel : ViewModel() {
     private val _alerts = MutableStateFlow<List<DashboardAlert>>(emptyList())
     val alerts: StateFlow<List<DashboardAlert>> = _alerts.asStateFlow()
 
+    // Clock-in state — stubbed; no persistent clock-in store exists yet
+    val isClockedIn = mutableStateOf(false)
+
     fun loadJobs(allJobs: List<Job>) {
         _jobs.value = allJobs.filter { it.stage != JobStage.CLOSED }
         _alerts.value = buildAlerts(allJobs)
