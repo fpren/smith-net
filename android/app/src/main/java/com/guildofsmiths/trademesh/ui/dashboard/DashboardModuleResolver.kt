@@ -34,14 +34,14 @@ fun resolveModules(role: UserRole): List<DashboardModule> = when (role) {
     UserRole.SOLO -> listOf(
         DashboardModule.HEADER,
         DashboardModule.MESSAGE_STRIP,
-        DashboardModule.AI_INBOX,
-        DashboardModule.FINANCIALS,
         DashboardModule.JOBS_PANEL,
-        DashboardModule.SITE_MAP,
         DashboardModule.GETTING_STARTED,
-        DashboardModule.PROGRESS,
+        DashboardModule.AI_INBOX,
         DashboardModule.CALENDAR,
         DashboardModule.QUICK_ACTIONS,
+        DashboardModule.FINANCIALS,
+        DashboardModule.SITE_MAP,
+        DashboardModule.PROGRESS,
         DashboardModule.ACTIVITY_LOG,
     )
 
