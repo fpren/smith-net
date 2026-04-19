@@ -1105,13 +1105,15 @@ fun AIInboxModule() {
                         Text(icon, style = ConsoleTheme.bodySmall.copy(color = iconColor))
                         Text(insight.title, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
                     }
-                    Text(
-                        "✕",
-                        style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted),
+                    Box(
                         modifier = Modifier
-                            .clickable { AISupervisor.dismissInsight(insight.id) }
-                            .padding(4.dp)
-                    )
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable { AISupervisor.dismissInsight(insight.id) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("✕", style = ConsoleTheme.body.copy(color = ConsoleTheme.textMuted))
+                    }
                 }
 
                 Text(
