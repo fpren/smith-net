@@ -304,11 +304,9 @@ class TimeTrackingViewModel : ViewModel() {
         // Try to sync to backend
         syncClockOutToBackend(completedEntry)
 
-        // Notify AISupervisor of clock-out for daily log generation
-        // The supervisor will generate the log on the next observation cycle
-        // or the end-of-day sweep will catch it
-        if (completedEntry.jobId != null || completedEntry.jobTitle != null) {
-            android.util.Log.i("TimeTrackingVM", "Clock-out on job: ${completedEntry.jobTitle} — daily log will be generated")
+        completedEntry.jobId?.let { jobId ->
+            android.util.Log.i("TimeTrackingVM", "Clock-out on job: ${completedEntry.jobTitle} — triggering daily log")
+            com.guildofsmiths.trademesh.ai.AISupervisor.onClockOut(jobId, completedEntry.id)
         }
     }
 

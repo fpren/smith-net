@@ -33,7 +33,7 @@ fun resolveModules(role: UserRole): List<DashboardModule> = when (role) {
 
     UserRole.SOLO -> listOf(
         DashboardModule.HEADER,
-        DashboardModule.MESSAGE_STRIP,
+        DashboardModule.ACTIVITY_LOG,
         DashboardModule.JOBS_PANEL,
         DashboardModule.SITE_MAP,
         DashboardModule.GETTING_STARTED,
@@ -46,7 +46,7 @@ fun resolveModules(role: UserRole): List<DashboardModule> = when (role) {
 
     UserRole.TEAM_MEMBER -> listOf(
         DashboardModule.HEADER,
-        DashboardModule.MESSAGE_STRIP,
+        DashboardModule.ACTIVITY_LOG,
         DashboardModule.AI_INBOX,
         DashboardModule.MY_TASKS,
         DashboardModule.CALENDAR,
@@ -55,7 +55,7 @@ fun resolveModules(role: UserRole): List<DashboardModule> = when (role) {
 
     UserRole.TEAM_LEAD -> listOf(
         DashboardModule.HEADER,
-        DashboardModule.MESSAGE_STRIP,
+        DashboardModule.ACTIVITY_LOG,
         DashboardModule.AI_INBOX,
         DashboardModule.TEAM_PRESENCE,
         DashboardModule.JOBS_PANEL,
@@ -67,7 +67,7 @@ fun resolveModules(role: UserRole): List<DashboardModule> = when (role) {
 
     UserRole.FOREMAN -> listOf(
         DashboardModule.HEADER,
-        DashboardModule.MESSAGE_STRIP,
+        DashboardModule.ACTIVITY_LOG,
         DashboardModule.AI_INBOX,
         DashboardModule.TEAM_PRESENCE,
         DashboardModule.DISPATCH,
@@ -82,12 +82,11 @@ fun resolveModules(role: UserRole): List<DashboardModule> = when (role) {
 
     UserRole.GENERAL_CONTRACTOR -> listOf(
         DashboardModule.HEADER,
-        DashboardModule.MESSAGE_STRIP,
+        DashboardModule.ACTIVITY_LOG,
         DashboardModule.AI_INBOX,
         DashboardModule.PROJECT_OVERVIEW,
         DashboardModule.DISPATCH,
         DashboardModule.TEAM_PRESENCE,
-        DashboardModule.SITE_MAP,
         DashboardModule.FINANCIALS,
         DashboardModule.CALENDAR,
         DashboardModule.QUICK_ACTIONS,
@@ -95,7 +94,7 @@ fun resolveModules(role: UserRole): List<DashboardModule> = when (role) {
 
     UserRole.ENTERPRISE, UserRole.ADMIN -> listOf(
         DashboardModule.HEADER,
-        DashboardModule.MESSAGE_STRIP,
+        DashboardModule.ACTIVITY_LOG,
         DashboardModule.PROJECT_OVERVIEW,
         DashboardModule.TEAM_PRESENCE,
         DashboardModule.JOBS_PANEL,

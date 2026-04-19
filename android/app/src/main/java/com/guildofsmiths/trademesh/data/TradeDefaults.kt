@@ -137,4 +137,28 @@ object TradeDefaults {
     fun getSocCode(occupation: String): String? {
         return defaults[occupation.uppercase()]?.socCode
     }
+
+    fun allCommonMaterials(): List<MaterialDefault> {
+        return defaults.values
+            .flatMap { it.commonMaterials }
+            .distinctBy { it.name.lowercase() }
+    }
+
+    private val aliases = mapOf(
+        "sheetrock" to "drywall",
+        "gypsum" to "drywall",
+        "thinset" to "tile",
+        "romex" to "romex",
+        "emt" to "emt",
+        "pex" to "pex",
+        "pvc" to "pvc"
+    )
+
+    fun expandQuery(raw: String): List<String> {
+        val q = raw.trim().lowercase()
+        if (q.isEmpty()) return emptyList()
+        val terms = mutableListOf(q)
+        aliases[q]?.let { terms.add(it) }
+        return terms
+    }
 }

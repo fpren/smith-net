@@ -127,14 +127,23 @@ class MainActivity : ComponentActivity() {
     private val cameraLauncher = registerForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { success ->
+        val jobId = pendingJobPhotoId
+        val uri = pendingJobPhotoUri
         if (success) {
-            Log.i(TAG, "📷 Camera capture successful")
-            viewModel.onCameraCaptured(pendingDmPeerId, pendingDmPeerName)
+            if (jobId != null && uri != null) {
+                Log.i(TAG, "📷 Job photo captured for job $jobId")
+                jobPhotoCallback?.invoke(jobId, uri.toString())
+            } else {
+                Log.i(TAG, "📷 Camera capture successful (messaging)")
+                viewModel.onCameraCaptured(pendingDmPeerId, pendingDmPeerName)
+            }
         } else {
             Log.w(TAG, "📷 Camera capture cancelled or failed")
         }
         pendingDmPeerId = null
         pendingDmPeerName = null
+        pendingJobPhotoId = null
+        pendingJobPhotoUri = null
     }
     
     /** Video capture launcher */
@@ -194,6 +203,29 @@ class MainActivity : ComponentActivity() {
     // Track DM context for media callbacks
     private var pendingDmPeerId: String? = null
     private var pendingDmPeerName: String? = null
+
+    // Track job-photo context for media callbacks
+    private var pendingJobPhotoId: String? = null
+    private var pendingJobPhotoUri: android.net.Uri? = null
+    private var jobPhotoCallback: ((String, String) -> Unit)? = null
+
+    fun captureJobPhoto(jobId: String, onCaptured: (String, String) -> Unit) {
+        jobPhotoCallback = onCaptured
+        pendingJobPhotoId = jobId
+        val uri = viewModel.createCameraUri()
+        if (uri == null) {
+            Toast.makeText(this, "Failed to create camera file", Toast.LENGTH_SHORT).show()
+            pendingJobPhotoId = null
+            return
+        }
+        pendingJobPhotoUri = uri
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+            == PackageManager.PERMISSION_GRANTED) {
+            cameraLauncher.launch(uri)
+        } else {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -419,6 +451,18 @@ class MainActivity : ComponentActivity() {
                                     onShareInvoice = { /* TODO: Wire in Task 12 */ },
                                     onAddNote = { noteText ->
                                         jobViewModel.addWorkLog(jobId, noteText)
+                                    },
+                                    onAddPhoto = {
+                                        this@MainActivity.captureJobPhoto(jobId) { id, uri ->
+                                            jobViewModel.addPhoto(id, uri)
+                                        }
+                                    },
+                                    onAddMaterial = { material, orderIt, vendor ->
+                                        jobViewModel.addMaterial(jobId, material)
+                                        if (orderIt) {
+                                            val vendorPart = if (vendor != null) " via $vendor" else ""
+                                            jobViewModel.addWorkLog(jobId, "ORDER$vendorPart: ${material.name} (${material.quantity} ${material.unit})")
+                                        }
                                     },
                                     onSummarizeToday = {
                                         jobViewModel.triggerManualSummary(jobId)
@@ -1215,6 +1259,11 @@ class MainActivity : ComponentActivity() {
      * Launch the camera to capture a photo.
      */
     private fun launchCamera() {
+        val pendingJobUri = pendingJobPhotoUri
+        if (pendingJobUri != null) {
+            cameraLauncher.launch(pendingJobUri)
+            return
+        }
         val uri = viewModel.createCameraUri()
         if (uri != null) {
             cameraLauncher.launch(uri)

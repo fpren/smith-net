@@ -2,15 +2,28 @@ package com.guildofsmiths.trademesh.ui.jobpipeline
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,12 +51,37 @@ fun JobPipelineScreen(
     onShareProposal: () -> Unit,
     onShareInvoice: () -> Unit,
     onAddNote: ((String) -> Unit)? = null,
+    onAddPhoto: (() -> Unit)? = null,
+    onAddMaterial: ((Material, orderIt: Boolean, vendor: String?) -> Unit)? = null,
     onSummarizeToday: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     var showInvoice by remember { mutableStateOf(false) }
     var invoiceDetailLevel by remember { mutableStateOf(com.guildofsmiths.trademesh.ui.invoice.InvoiceDetailLevel.STANDARD) }
+    var showAddMenu by remember { mutableStateOf(false) }
+    var showAddNoteDialog by remember { mutableStateOf(false) }
+    var showAddMaterialDialog by remember { mutableStateOf(false) }
+    var showProposal by remember { mutableStateOf(false) }
+    var noteDraft by remember { mutableStateOf("") }
     val timeEntries by TimeEntryRepository.entries.collectAsState()
+
+    val proposal = remember(job, showProposal) {
+        if (!showProposal) null
+        else com.guildofsmiths.trademesh.ui.proposal.ProposalGenerator.generateFromJob(
+            job = job,
+            providerName = UserPreferences.getUserName(),
+            providerBusiness = UserPreferences.getBusinessName(),
+            providerTrade = "${UserPreferences.getPrimaryTrade()} — Guild of Smiths",
+            hourlyRate = UserPreferences.getHourlyRate().takeIf { it > 0 } ?: job.hourlyRate.takeIf { it > 0 } ?: 85.0,
+            estimatedHours = job.estimatedHours.takeIf { it > 0 } ?: 8.0
+        )
+    }
+    if (showProposal && proposal != null) {
+        com.guildofsmiths.trademesh.ui.proposal.ProposalPreviewDialog(
+            proposal = proposal,
+            onDismiss = { showProposal = false }
+        )
+    }
 
     // Generate invoice when requested (reacts to detail level changes)
     val invoice = remember(job, showInvoice, invoiceDetailLevel) {
@@ -57,6 +95,60 @@ fun JobPipelineScreen(
             hourlyRate = UserPreferences.getHourlyRate().takeIf { it > 0 } ?: 85.0,
             taxRate = 8.25,
             detailLevel = invoiceDetailLevel
+        )
+    }
+
+    if (showAddMenu) {
+        AddMenuDialog(
+            onDismiss = { showAddMenu = false },
+            onAddNote = {
+                showAddMenu = false
+                showAddNoteDialog = true
+            },
+            onAddPhoto = onAddPhoto?.let { cb ->
+                {
+                    showAddMenu = false
+                    cb()
+                }
+            },
+            onAddMaterial = onAddMaterial?.let {
+                {
+                    showAddMenu = false
+                    showAddMaterialDialog = true
+                }
+            },
+            onMarkComplete = {
+                showAddMenu = false
+                onStageAction(job, JobStage.REVIEW)
+            }
+        )
+    }
+
+    if (showAddNoteDialog) {
+        AddNoteDialog(
+            value = noteDraft,
+            onValueChange = { noteDraft = it },
+            onSave = {
+                val text = noteDraft.trim()
+                if (text.isNotEmpty()) onAddNote?.invoke(text)
+                noteDraft = ""
+                showAddNoteDialog = false
+            },
+            onCancel = {
+                noteDraft = ""
+                showAddNoteDialog = false
+            }
+        )
+    }
+
+    if (showAddMaterialDialog && onAddMaterial != null) {
+        AddMaterialDialog(
+            existing = job.materials,
+            onSave = { material, orderIt, vendor ->
+                onAddMaterial(material, orderIt, vendor)
+                showAddMaterialDialog = false
+            },
+            onCancel = { showAddMaterialDialog = false }
         )
     }
 
@@ -141,7 +233,8 @@ fun JobPipelineScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(ConsoleTheme.surface)
+                            .shadow(1.dp, RoundedCornerShape(4.dp))
+                            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
                             .clickable { onToggleMaterial(index) }
                             .padding(8.dp)
                     ) {
@@ -175,51 +268,12 @@ fun JobPipelineScreen(
                 }
             }
 
-            // ── ADD NOTE (IN_PROGRESS only) ─────────────────
-            if (job.stage == JobStage.IN_PROGRESS && onAddNote != null) {
-                ConsoleSeparator()
-                SectionHeader("ADD NOTE")
-                var noteText by remember { mutableStateOf("") }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    BasicTextField(
-                        value = noteText,
-                        onValueChange = { noteText = it },
-                        textStyle = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text),
-                        modifier = Modifier
-                            .weight(1f)
-                            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.10f), RoundedCornerShape(4.dp))
-                            .padding(10.dp),
-                        decorationBox = { innerTextField ->
-                            if (noteText.isEmpty()) {
-                                Text("What did you work on?", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
-                            }
-                            innerTextField()
-                        }
-                    )
-                    Text(
-                        "[ADD]",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
-                        modifier = Modifier
-                            .clickable {
-                                if (noteText.isNotBlank()) {
-                                    onAddNote(noteText.trim())
-                                    noteText = ""
-                                }
-                            }
-                            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                            .padding(10.dp)
-                    )
-                }
-
-                // Show recent work notes
+            // Recent work notes (IN_PROGRESS only — add via + menu)
+            if (job.stage == JobStage.IN_PROGRESS) {
                 val recentNotes = job.workLog.takeLast(3).reversed()
                 if (recentNotes.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(4.dp))
+                    ConsoleSeparator()
+                    SectionHeader("NOTES")
                     recentNotes.forEach { note ->
                         val time = SimpleDateFormat("h:mm a", Locale.US).format(Date(note.timestamp))
                         Text(
@@ -289,37 +343,74 @@ fun JobPipelineScreen(
             // Price Breakdown
             ConsoleSeparator()
             SectionHeader("PRICE")
-            val materialsCost = job.materials.sumOf { it.totalCost }
-            val laborCost = job.hourlyRate * 8 // placeholder — actual hours from time entries
-            Text(text = "Labor: $${String.format("%.2f", laborCost)}", style = ConsoleTheme.bodySmall)
+            val materialsCost = job.materials.sumOf {
+                if (it.totalCost > 0) it.totalCost else it.quantity * it.unitCost
+            }
+            val hoursLogged = timeEntries
+                .filter { it.jobId == job.id && (it.durationMinutes ?: 0) > 0 }
+                .sumOf { it.durationMinutes ?: 0 } / 60.0
+            val effectiveRate = if (job.hourlyRate > 0) job.hourlyRate else 85.0
+            val laborCost = hoursLogged * effectiveRate
+            val total = laborCost + materialsCost
+            val deposit = job.depositCollected
+            val balanceDue = total - deposit
+
+            if (hoursLogged > 0) {
+                Text(
+                    text = "Hours:     ${String.format("%.2fh", hoursLogged)} × $${String.format("%.2f", effectiveRate)}",
+                    style = ConsoleTheme.bodySmall
+                )
+            } else {
+                Text(
+                    text = "Hours:     — (clock in to log)",
+                    style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted)
+                )
+            }
+            Text(text = "Labor:     $${String.format("%.2f", laborCost)}", style = ConsoleTheme.bodySmall)
             Text(text = "Materials: $${String.format("%.2f", materialsCost)}", style = ConsoleTheme.bodySmall)
             Text(
-                text = "Total: $${String.format("%.2f", laborCost + materialsCost)}",
+                text = "Total:     $${String.format("%.2f", total)}",
                 style = ConsoleTheme.bodyBold
             )
+            if (deposit > 0) {
+                Text(
+                    text = "Deposit:  -$${String.format("%.2f", deposit)}" +
+                            (job.depositNote?.let { "    ($it)" } ?: ""),
+                    style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted)
+                )
+                val balanceLabel = if (balanceDue < 0) "Credit:" else "Balance:"
+                val balanceAmt = "$${String.format("%.2f", kotlin.math.abs(balanceDue))}"
+                Text(
+                    text = "$balanceLabel   $balanceAmt",
+                    style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.accent)
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             // Stage-specific actions
             when (job.stage) {
                 JobStage.LEAD -> {
-                    ActionButton("[CREATE PROPOSAL]") { onStageAction(job, JobStage.PROPOSAL) }
+                    OutlinedActionButton("CREATE PROPOSAL") {
+                        onStageAction(job, JobStage.PROPOSAL)
+                        showProposal = true
+                    }
                 }
                 JobStage.PROPOSAL -> {
-                    ActionButton("[SHARE WITH CLIENT]") { onShareProposal() }
+                    OutlinedActionButton("PREVIEW PROPOSAL") { showProposal = true }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    OutlinedActionButton("SHARE WITH CLIENT") { showProposal = true }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    OutlinedActionButton("MARK APPROVED") { onStageAction(job, JobStage.APPROVED) }
                 }
                 JobStage.APPROVED -> {
-                    ActionButton("[START WORK]") { onStageAction(job, JobStage.IN_PROGRESS) }
+                    OutlinedActionButton("START WORK") { onStageAction(job, JobStage.IN_PROGRESS) }
                 }
                 JobStage.IN_PROGRESS -> {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ActionButton("[CLOCK IN]") { onClockIn() }
-                        ActionButton("[MARK COMPLETE]") { onStageAction(job, JobStage.REVIEW) }
-                    }
-                    if (onSummarizeToday != null) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        ActionButton("[SUMMARIZE TODAY]") { onSummarizeToday() }
-                    }
+                    com.guildofsmiths.trademesh.ui.PixelPlusButton(
+                        enabled = true,
+                        onClick = { showAddMenu = true }
+                    )
                 }
                 JobStage.REVIEW -> {
                     val unchecked = job.materials.count { !it.checked }
@@ -334,9 +425,9 @@ fun JobPipelineScreen(
                         InvoiceDetailPicker(invoiceDetailLevel) { invoiceDetailLevel = it }
                         Spacer(modifier = Modifier.height(4.dp))
                     }
-                    ActionButton("[PREVIEW INVOICE]") { showInvoice = true }
+                    OutlinedActionButton("PREVIEW INVOICE") { showInvoice = true }
                     Spacer(modifier = Modifier.height(4.dp))
-                    ActionButton("[GENERATE INVOICE]") { onStageAction(job, JobStage.INVOICE) }
+                    OutlinedActionButton("GENERATE INVOICE") { onStageAction(job, JobStage.INVOICE) }
                 }
                 JobStage.INVOICE -> {
                     // Detail level picker
@@ -344,9 +435,9 @@ fun JobPipelineScreen(
                         InvoiceDetailPicker(invoiceDetailLevel) { invoiceDetailLevel = it }
                         Spacer(modifier = Modifier.height(4.dp))
                     }
-                    ActionButton("[VIEW INVOICE]") { showInvoice = true }
+                    OutlinedActionButton("VIEW INVOICE") { showInvoice = true }
                     Spacer(modifier = Modifier.height(4.dp))
-                    ActionButton("[MARK PAID — CLOSE]") { onStageAction(job, JobStage.CLOSED) }
+                    OutlinedActionButton("MARK PAID — CLOSE") { onStageAction(job, JobStage.CLOSED) }
                 }
                 JobStage.CLOSED -> {
                     Text(text = "Job closed.", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
@@ -372,6 +463,368 @@ private fun ActionButton(text: String, onClick: () -> Unit) {
             .background(ConsoleTheme.surface)
             .padding(12.dp)
     )
+}
+
+@Composable
+private fun OutlinedActionButton(
+    text: String,
+    color: Color = ConsoleTheme.accent,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    val drawColor = if (enabled) color else ConsoleTheme.textMuted
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.95f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "btnScale"
+    )
+    val elevation by animateDpAsState(
+        targetValue = if (pressed || !enabled) 0.dp else 2.dp,
+        animationSpec = tween(120),
+        label = "btnElev"
+    )
+    Text(
+        text = text,
+        style = ConsoleTheme.action.copy(color = drawColor),
+        modifier = Modifier
+            .scale(scale)
+            .shadow(elevation, RoundedCornerShape(4.dp))
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                enabled = enabled,
+                onClick = onClick
+            )
+            .background(ConsoleTheme.background, RoundedCornerShape(4.dp))
+            .border(1.dp, drawColor, RoundedCornerShape(4.dp))
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    )
+}
+
+@Composable
+private fun AddMenuDialog(
+    onDismiss: () -> Unit,
+    onAddNote: () -> Unit,
+    onAddPhoto: (() -> Unit)?,
+    onAddMaterial: (() -> Unit)?,
+    onMarkComplete: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = ConsoleTheme.background,
+        title = { Text("ADD", style = ConsoleTheme.captionBold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                AddMenuRow(
+                    label = "Note",
+                    icon = { com.guildofsmiths.trademesh.ui.PixelNote(enabled = true) },
+                    enabled = true,
+                    onClick = onAddNote
+                )
+                AddMenuRow(
+                    label = "Photo",
+                    icon = { com.guildofsmiths.trademesh.ui.PixelCamera(enabled = onAddPhoto != null) },
+                    enabled = onAddPhoto != null,
+                    onClick = { onAddPhoto?.invoke() }
+                )
+                AddMenuRow(
+                    label = "Material",
+                    icon = { com.guildofsmiths.trademesh.ui.PixelPackage(enabled = onAddMaterial != null) },
+                    enabled = onAddMaterial != null,
+                    onClick = { onAddMaterial?.invoke() }
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                AddMenuRow(
+                    label = "Mark complete",
+                    icon = { com.guildofsmiths.trademesh.ui.PixelCheckmark(enabled = true) },
+                    enabled = true,
+                    onClick = onMarkComplete,
+                    accent = true
+                )
+            }
+        },
+        confirmButton = {
+            OutlinedActionButton(
+                text = "CLOSE",
+                color = ConsoleTheme.textMuted,
+                onClick = onDismiss
+            )
+        }
+    )
+}
+
+@Composable
+private fun AddMenuRow(
+    label: String,
+    icon: @Composable () -> Unit,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    accent: Boolean = false
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(ConsoleTheme.surface)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        icon()
+        Text(
+            text = label,
+            style = ConsoleTheme.action.copy(
+                color = when {
+                    !enabled -> ConsoleTheme.textMuted
+                    accent -> ConsoleTheme.accent
+                    else -> ConsoleTheme.text
+                }
+            )
+        )
+    }
+}
+
+@Composable
+private fun AddNoteDialog(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onCancel: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onCancel,
+        containerColor = ConsoleTheme.background,
+        title = { Text("ADD NOTE", style = ConsoleTheme.captionBold) },
+        text = {
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                textStyle = ConsoleTheme.body,
+                cursorBrush = SolidColor(ConsoleTheme.cursor),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .padding(10.dp)
+                    .height(100.dp),
+                decorationBox = { inner ->
+                    Box {
+                        if (value.isEmpty()) {
+                            Text("Work notes, extras, issues...", style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder))
+                        }
+                        inner()
+                    }
+                }
+            )
+        },
+        confirmButton = {
+            Text(
+                "SAVE",
+                style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                modifier = Modifier.clickable(onClick = onSave).padding(8.dp)
+            )
+        },
+        dismissButton = {
+            Text(
+                "CANCEL",
+                style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                modifier = Modifier.clickable(onClick = onCancel).padding(8.dp)
+            )
+        }
+    )
+}
+
+private data class MaterialVendor(val tag: String, val label: String, val url: String?)
+
+private val MATERIAL_VENDORS = listOf(
+    MaterialVendor("HD", "Home Depot", "https://www.homedepot.com/s/"),
+    MaterialVendor("Lowe's", "Lowe's", "https://www.lowes.com/search?searchTerm="),
+    MaterialVendor("Supply", "SupplyHouse", "https://www.supplyhouse.com/search?q="),
+    MaterialVendor("Amazon", "Amazon", "https://www.amazon.com/s?k="),
+    MaterialVendor("Store", "Buy in store", null)
+)
+
+@Composable
+private fun AddMaterialDialog(
+    existing: List<Material>,
+    onSave: (Material, orderIt: Boolean, vendor: String?) -> Unit,
+    onCancel: () -> Unit
+) {
+    val context = LocalContext.current
+    var query by remember { mutableStateOf("") }
+    var showVendorPicker by remember { mutableStateOf(false) }
+    val catalog = remember {
+        val occ = UserPreferences.getOccupation()
+        val preferred = com.guildofsmiths.trademesh.data.TradeDefaults.getForTrade(occ)?.commonMaterials.orEmpty()
+        val preferredNames = preferred.map { it.name.lowercase() }.toSet()
+        val rest = com.guildofsmiths.trademesh.data.TradeDefaults.allCommonMaterials()
+            .filter { it.name.lowercase() !in preferredNames }
+        preferred + rest
+    }
+    val suggestions = remember(query, catalog) {
+        if (query.isBlank()) {
+            catalog.take(8)
+        } else {
+            val terms = com.guildofsmiths.trademesh.data.TradeDefaults.expandQuery(query)
+            catalog.filter { mat -> terms.any { t -> mat.name.contains(t, ignoreCase = true) } }.take(8)
+        }
+    }
+    val existingNames = remember(existing) { existing.map { it.name.lowercase() }.toSet() }
+    val hasExactMatch = remember(query, suggestions) {
+        val q = query.trim()
+        q.isNotBlank() && suggestions.any { it.name.equals(q, ignoreCase = true) }
+    }
+
+    fun materialFrom(text: String): Material {
+        val match = catalog.firstOrNull { it.name.equals(text, ignoreCase = true) }
+        return if (match != null) {
+            Material(name = match.name, unit = match.unit, quantity = 1.0)
+        } else {
+            Material(name = text.trim(), unit = "ea", quantity = 1.0)
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onCancel,
+        containerColor = ConsoleTheme.background,
+        title = { Text("ADD MATERIAL", style = ConsoleTheme.captionBold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                BasicTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    textStyle = ConsoleTheme.body,
+                    cursorBrush = SolidColor(ConsoleTheme.cursor),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(ConsoleTheme.surface)
+                        .padding(10.dp),
+                    decorationBox = { inner ->
+                        Box {
+                            if (query.isEmpty()) {
+                                Text("Type a material name...", style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder))
+                            }
+                            inner()
+                        }
+                    }
+                )
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 240.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    if (query.isNotBlank() && !hasExactMatch) {
+                        Text(
+                            text = "[+]  Add \"${query.trim()}\" as new",
+                            style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSave(materialFrom(query), false, null) }
+                                .padding(vertical = 8.dp)
+                        )
+                    }
+                    suggestions.forEach { mat ->
+                        val already = mat.name.lowercase() in existingNames
+                        val marker = if (already) "[x]" else "[ ]"
+                        val suffix = if (already) "  — added" else ""
+                        Text(
+                            text = "$marker  ${mat.name}  (${mat.unit})$suffix",
+                            style = ConsoleTheme.caption.copy(
+                                color = if (already) ConsoleTheme.textMuted else ConsoleTheme.text
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = !already) { query = mat.name }
+                                .padding(vertical = 6.dp)
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedActionButton(
+                    text = "ORDER",
+                    color = ConsoleTheme.warning,
+                    enabled = query.isNotBlank(),
+                    onClick = { showVendorPicker = true }
+                )
+                OutlinedActionButton(
+                    text = "SAVE",
+                    color = ConsoleTheme.accent,
+                    enabled = query.isNotBlank(),
+                    onClick = { onSave(materialFrom(query), false, null) }
+                )
+            }
+        },
+        dismissButton = {
+            OutlinedActionButton(
+                text = "CANCEL",
+                color = ConsoleTheme.textMuted,
+                onClick = onCancel
+            )
+        }
+    )
+
+    if (showVendorPicker && query.isNotBlank()) {
+        AlertDialog(
+            onDismissRequest = { showVendorPicker = false },
+            containerColor = ConsoleTheme.background,
+            title = {
+                Column {
+                    Text("ORDER FROM", style = ConsoleTheme.captionBold)
+                    Text(query, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    MATERIAL_VENDORS.forEach { vendor ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+                                .clickable {
+                                    showVendorPicker = false
+                                    if (vendor.url != null) {
+                                        val url = vendor.url + Uri.encode(query.trim())
+                                        runCatching {
+                                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                                        }
+                                    }
+                                    onSave(materialFrom(query), true, vendor.label)
+                                }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                vendor.tag,
+                                style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent),
+                                modifier = Modifier.width(60.dp)
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(vendor.label, style = ConsoleTheme.bodySmall)
+                                Text(
+                                    if (vendor.url != null) "Search & order" else "Pickup / in-store",
+                                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                OutlinedActionButton(
+                    text = "CANCEL",
+                    color = ConsoleTheme.textMuted,
+                    onClick = { showVendorPicker = false }
+                )
+            }
+        )
+    }
 }
 
 @Composable

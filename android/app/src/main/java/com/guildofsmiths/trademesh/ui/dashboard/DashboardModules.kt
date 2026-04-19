@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -285,6 +286,7 @@ fun DispatchModule(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .shadow(3.dp, RoundedCornerShape(4.dp))
             .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
             .border(1.dp, urgencyColor.copy(alpha = 0.25f), RoundedCornerShape(4.dp))
             .padding(14.dp),
@@ -656,6 +658,7 @@ fun SiteMapModule(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .shadow(4.dp, RoundedCornerShape(4.dp))
             .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
             .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
             .clip(RoundedCornerShape(4.dp))
@@ -802,6 +805,7 @@ fun FinancialsModule(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .shadow(3.dp, RoundedCornerShape(4.dp))
             .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
             .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
             .padding(14.dp),
@@ -822,7 +826,10 @@ fun FinancialsModule(
                 )
                 androidx.compose.material3.DropdownMenu(
                     expanded = showDropdown,
-                    onDismissRequest = { showDropdown = false }
+                    onDismissRequest = { showDropdown = false },
+                    modifier = Modifier
+                        .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+                        .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
                 ) {
                     clientNames.forEach { client ->
                         androidx.compose.material3.DropdownMenuItem(
@@ -834,7 +841,8 @@ fun FinancialsModule(
                                     )
                                 )
                             },
-                            onClick = { selectedClient = client; showDropdown = false }
+                            onClick = { selectedClient = client; showDropdown = false },
+                            modifier = Modifier.background(ConsoleTheme.surface)
                         )
                     }
                 }

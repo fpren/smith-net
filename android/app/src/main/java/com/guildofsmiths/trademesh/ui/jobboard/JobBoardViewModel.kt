@@ -94,6 +94,8 @@ class JobBoardViewModel : ViewModel() {
                     Material(name = "2/0 THHN Copper", quantity = 60.0, unit = "ft", unitCost = 3.50),
                     Material(name = "Breakers assorted", quantity = 12.0, unit = "ea", unitCost = 18.0)
                 ),
+                depositCollected = 300.0,
+                depositNote = "Check #2041",
                 createdBy = userId,
                 createdAt = now - 3 * day,
                 updatedAt = now - 2 * 3600_000L
@@ -110,6 +112,7 @@ class JobBoardViewModel : ViewModel() {
                 priority = Priority.MEDIUM,
                 crewSize = 1,
                 hourlyRate = 85.0,
+                estimatedHours = 18.0,
                 materials = listOf(
                     Material(name = "12/2 Romex", quantity = 250.0, unit = "ft", unitCost = 0.65),
                     Material(name = "6/3 Range Cable", quantity = 30.0, unit = "ft", unitCost = 4.20)
@@ -511,6 +514,16 @@ class JobBoardViewModel : ViewModel() {
             } else job
         }
         // Update selected job
+        _selectedJob.value = _jobs.value.find { it.id == jobId }
+    }
+
+    // Append a photo URI to a job
+    fun addPhoto(jobId: String, uri: String) {
+        _jobs.value = _jobs.value.map { job ->
+            if (job.id == jobId) {
+                job.copy(photos = job.photos + uri, updatedAt = System.currentTimeMillis())
+            } else job
+        }
         _selectedJob.value = _jobs.value.find { it.id == jobId }
     }
 

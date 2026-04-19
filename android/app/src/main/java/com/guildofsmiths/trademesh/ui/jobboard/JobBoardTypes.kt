@@ -57,7 +57,12 @@ data class Job(
     val stage: JobStage = JobStage.LEAD,
     val equipmentList: List<String> = emptyList(),
     // Daily logs — AI-generated end-of-day summaries per date
-    val dailyLogs: List<DailyJobLog> = emptyList()
+    val dailyLogs: List<DailyJobLog> = emptyList(),
+    // Financials — deposit collected before invoice
+    val depositCollected: Double = 0.0,
+    val depositNote: String? = null,
+    // Proposal — estimated labor hours used for proposal generation
+    val estimatedHours: Double = 0.0
 )
 
 data class CrewMember(

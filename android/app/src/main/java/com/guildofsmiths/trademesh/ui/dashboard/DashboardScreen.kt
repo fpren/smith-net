@@ -483,7 +483,7 @@ fun DashboardScreen(
                     }
 
                     DashboardModule.ACTIVITY_LOG -> {
-                        val todayActivity = viewModel.getTodayActivity()
+                        val todayActivity = viewModel.getTodayActivity().take(3)
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()

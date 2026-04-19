@@ -192,6 +192,20 @@ object AISupervisor {
             )
 
             deliverInsight(insight)
+
+            // On transition into REVIEW, auto-generate today's daily log (if not already present).
+            if (newStage == JobStage.REVIEW) {
+                try {
+                    val today = DailyLogGenerator.todayMidnight()
+                    val alreadyLogged = job.dailyLogs.any { it.date == today }
+                    if (!alreadyLogged) {
+                        val log = DailyLogGenerator.generateLog(job, today)
+                        onDailyLogGenerated?.invoke(job.id, log)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "REVIEW auto-summary failed: ${e.message}")
+                }
+            }
         }
     }
 
@@ -214,6 +228,17 @@ object AISupervisor {
     // ════════════════════════════════════════════════════════════════════
     // CLOCK-OUT HOOK — trigger daily log generation
     // ════════════════════════════════════════════════════════════════════
+
+    /**
+     * Called when a worker clocks out of a job by ID. Resolves the full Job from the cache.
+     */
+    fun onClockOut(jobId: String, timeEntryId: String) {
+        val job = cachedJobs.find { it.id == jobId } ?: run {
+            Log.w(TAG, "Clock-out hook: job $jobId not in cache")
+            return
+        }
+        onClockOut(job, timeEntryId)
+    }
 
     /**
      * Called when a worker clocks out of a job. Generates a daily log.

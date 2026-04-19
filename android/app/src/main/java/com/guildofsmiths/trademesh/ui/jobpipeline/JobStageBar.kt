@@ -1,10 +1,19 @@
 package com.guildofsmiths.trademesh.ui.jobpipeline
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,28 +39,56 @@ fun JobStageBar(currentStage: JobStage, modifier: Modifier = Modifier) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             stages.forEachIndexed { index, _ ->
-                val dotColor = when {
-                    index < currentIndex -> ConsoleTheme.accent
-                    index == currentIndex -> ConsoleTheme.accent
-                    else -> ConsoleTheme.textDim.copy(alpha = 0.3f)
-                }
-                val dotSize = if (index == currentIndex) 10.dp else 8.dp
+                val isFilled = index <= currentIndex
+                val emptyRingColor = ConsoleTheme.textDim.copy(alpha = 0.4f)
 
-                // Dot
-                Box(
-                    modifier = Modifier
-                        .size(dotSize)
-                        .clip(CircleShape)
-                        .background(dotColor)
+                val targetDotSize = if (index == currentIndex) 10.dp else 8.dp
+                val dotSize by animateDpAsState(
+                    targetValue = targetDotSize,
+                    animationSpec = tween(durationMillis = 300),
+                    label = "dotSize"
+                )
+                val dotColor by animateColorAsState(
+                    targetValue = if (isFilled) ConsoleTheme.accent else emptyRingColor,
+                    animationSpec = tween(durationMillis = 300),
+                    label = "dotColor"
+                )
+                val bracketColor by animateColorAsState(
+                    targetValue = if (isFilled) ConsoleTheme.accent
+                                  else ConsoleTheme.textDim.copy(alpha = 0.4f),
+                    animationSpec = tween(durationMillis = 300),
+                    label = "bracketColor"
                 )
 
-                // Connecting line (not after last dot)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "(",
+                        style = ConsoleTheme.captionBold.copy(color = bracketColor)
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(dotSize)
+                            .clip(CircleShape)
+                            .then(
+                                if (isFilled) Modifier.background(dotColor)
+                                else Modifier.border(1.5.dp, dotColor, CircleShape)
+                            )
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text(
+                        text = ")",
+                        style = ConsoleTheme.captionBold.copy(color = bracketColor)
+                    )
+                }
+
                 if (index < stages.lastIndex) {
-                    val lineColor = if (index < currentIndex) {
-                        ConsoleTheme.accent
-                    } else {
-                        ConsoleTheme.textDim.copy(alpha = 0.15f)
-                    }
+                    val lineColor by animateColorAsState(
+                        targetValue = if (index < currentIndex) ConsoleTheme.accent
+                                      else ConsoleTheme.textDim.copy(alpha = 0.15f),
+                        animationSpec = tween(durationMillis = 400),
+                        label = "lineColor"
+                    )
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -64,10 +101,18 @@ fun JobStageBar(currentStage: JobStage, modifier: Modifier = Modifier) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Current stage label
-        Text(
-            text = currentStage.displayName.uppercase(),
-            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
-        )
+        // Current stage label — crossfade when stage changes
+        AnimatedContent(
+            targetState = currentStage,
+            transitionSpec = {
+                (fadeIn(tween(300)) togetherWith fadeOut(tween(200)))
+            },
+            label = "stageLabel"
+        ) { stage ->
+            Text(
+                text = stage.displayName.uppercase(),
+                style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
+            )
+        }
     }
 }
