@@ -286,7 +286,7 @@ fun BottomNavBar(
         com.guildofsmiths.trademesh.data.UserRole.TEAM_LEAD -> listOf(
             NavItem("[Home]", "dashboard", onHome),
             NavItem("[Jobs]", "job_board", onJobs),
-            NavItem("[Crew]", "chat_list", onComm),
+            NavItem("[Dispatch]", "dispatch", onDispatch),
             NavItem("[Comm]", "chat_list", onComm),
         )
         com.guildofsmiths.trademesh.data.UserRole.FOREMAN -> listOf(

@@ -1250,10 +1250,10 @@ fun getQuickActions(
         QuickActionItem("[Clients]", onClients),
     )
     com.guildofsmiths.trademesh.data.UserRole.FOREMAN -> listOf(
-        QuickActionItem("[Supply]", onSupply),
+        QuickActionItem("[Dispatch]", onDispatch),
+        QuickActionItem("[Crew]", onComm),
         QuickActionItem("[Report]", onReport),
-        QuickActionItem("[Archive]", onArchive),
-        QuickActionItem("[Clients]", onClients),
+        QuickActionItem("[Supply]", onSupply),
     )
     com.guildofsmiths.trademesh.data.UserRole.GENERAL_CONTRACTOR -> listOf(
         QuickActionItem("[Sites]", onJobBoard),
