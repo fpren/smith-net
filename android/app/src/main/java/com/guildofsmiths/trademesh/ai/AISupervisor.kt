@@ -821,6 +821,7 @@ object AISupervisor {
 
     fun dismissInsight(id: String) {
         _insights.value = _insights.value.filter { it.id != id }
+        _autoPosted.value = _autoPosted.value.filter { it.id != id }
     }
 
     fun clear() {
