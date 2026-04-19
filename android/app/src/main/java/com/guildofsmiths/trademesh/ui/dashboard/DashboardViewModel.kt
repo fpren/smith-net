@@ -18,7 +18,25 @@ class DashboardViewModel : ViewModel() {
     // All jobs (including closed) for progress tracking
     private var _allJobs: List<Job> = emptyList()
 
-    val isClockedIn = mutableStateOf(UserPreferences.getActiveTimeEntry() != null)
+    val isClockedIn = mutableStateOf(UserPreferences.isClockedIn())
+
+    /** Refresh clock state — call when returning to dashboard */
+    fun refreshClockState() {
+        isClockedIn.value = UserPreferences.isClockedIn()
+    }
+
+    /** Get active time entry info (job name, clock-in time) */
+    fun getActiveEntryInfo(): Pair<String?, Long> {
+        val json = UserPreferences.getActiveTimeEntry() ?: return Pair(null, 0L)
+        return try {
+            val obj = org.json.JSONObject(json)
+            val jobTitle = obj.optString("jobTitle", null)
+            val clockInTime = obj.optLong("clockInTime", 0L)
+            Pair(jobTitle, clockInTime)
+        } catch (e: Exception) {
+            Pair(null, 0L)
+        }
+    }
 
     fun loadJobs(allJobs: List<Job>) {
         _allJobs = allJobs

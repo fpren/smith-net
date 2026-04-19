@@ -59,13 +59,23 @@ fun DashboardScreen(
 ) {
     LaunchedEffect(jobs) {
         viewModel.loadJobs(jobs)
+        viewModel.refreshClockState()
         // Start AI supervisor loop — works for all roles including Solo
         AISupervisor.startLoop(jobs)
+    }
+
+    // Refresh clock state every time dashboard is visible
+    LaunchedEffect(Unit) {
+        while (true) {
+            viewModel.refreshClockState()
+            kotlinx.coroutines.delay(5000) // Check every 5 seconds
+        }
     }
 
     val activeJobs by viewModel.jobs.collectAsState()
     val isClockedIn by viewModel.isClockedIn
     val connectionMode by ChatManager.connectionMode.collectAsState()
+    val activeEntryInfo = remember(isClockedIn) { viewModel.getActiveEntryInfo() }
 
     // Update AI with latest jobs when they change
     LaunchedEffect(activeJobs) {
@@ -178,7 +188,18 @@ fun DashboardScreen(
                                     ConnectionMode.MESH    -> "mesh"
                                     ConnectionMode.OFFLINE -> "offline"
                                 }
-                                val clockLabel = if (isClockedIn) "● ON CLOCK · $connLabel" else "○ OFF CLOCK · $connLabel"
+                                val clockLabel = if (isClockedIn) {
+                                    val elapsed = if (activeEntryInfo.second > 0) {
+                                        val mins = (System.currentTimeMillis() - activeEntryInfo.second) / 60_000
+                                        val h = mins / 60; val m = mins % 60
+                                        "${h}h ${m}m"
+                                    } else ""
+                                    val jobName = activeEntryInfo.first?.take(15) ?: ""
+                                    val jobPart = if (jobName.isNotBlank()) " · $jobName" else ""
+                                    "● ON CLOCK $elapsed$jobPart"
+                                } else {
+                                    "○ OFF CLOCK · $connLabel"
+                                }
 
                                 Box(
                                     modifier = Modifier
