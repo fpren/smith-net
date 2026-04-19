@@ -474,6 +474,7 @@ object UserPreferences {
     // ════════════════════════════════════════════════════════════════════
 
     private const val KEY_ACTIVE_TIME_ENTRY = "active_time_entry"
+    private const val KEY_COMPLETED_TIME_ENTRIES = "completed_time_entries"
 
     fun setActiveTimeEntry(json: String) {
         prefs?.edit()?.putString(KEY_ACTIVE_TIME_ENTRY, json)?.apply()
@@ -485,6 +486,14 @@ object UserPreferences {
 
     fun clearActiveTimeEntry() {
         prefs?.edit()?.remove(KEY_ACTIVE_TIME_ENTRY)?.apply()
+    }
+
+    fun saveCompletedEntries(json: String) {
+        prefs?.edit()?.putString(KEY_COMPLETED_TIME_ENTRIES, json)?.apply()
+    }
+
+    fun getCompletedEntries(): String? {
+        return prefs?.getString(KEY_COMPLETED_TIME_ENTRIES, null)
     }
 
     // ════════════════════════════════════════════════════════════════════

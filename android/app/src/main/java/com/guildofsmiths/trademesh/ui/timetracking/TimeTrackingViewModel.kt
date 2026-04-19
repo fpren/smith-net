@@ -77,6 +77,22 @@ class TimeTrackingViewModel : ViewModel() {
     // ════════════════════════════════════════════════════════════════════
 
     private fun restorePersistedState() {
+        // Restore completed entries first
+        val completedJson = UserPreferences.getCompletedEntries()
+        if (completedJson != null) {
+            try {
+                val arr = org.json.JSONArray(completedJson)
+                for (i in 0 until arr.length()) {
+                    val entry = parseEntry(arr.getJSONObject(i))
+                    localEntries.add(entry)
+                    TimeEntryRepository.addEntry(entry)
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("TimeTrackingVM", "Failed to restore completed entries", e)
+            }
+        }
+
+        // Restore active entry
         val activeJson = UserPreferences.getActiveTimeEntry()
         if (activeJson != null) {
             try {
@@ -87,10 +103,33 @@ class TimeTrackingViewModel : ViewModel() {
                 _isClockedIn.value = true
                 TimeEntryRepository.addEntry(entry)
             } catch (e: Exception) {
-                // Corrupted data — clear it
                 UserPreferences.clearActiveTimeEntry()
             }
         }
+    }
+
+    /** Persist all completed entries to SharedPreferences */
+    private fun persistCompletedEntries() {
+        val completed = localEntries.filter { it.clockOutTime != null }
+        val arr = org.json.JSONArray()
+        completed.forEach { entry ->
+            arr.put(JSONObject().apply {
+                put("id", entry.id)
+                put("userId", entry.userId)
+                put("userName", entry.userName)
+                put("clockInTime", entry.clockInTime)
+                put("clockOutTime", entry.clockOutTime)
+                put("durationMinutes", entry.durationMinutes)
+                put("jobId", entry.jobId ?: "")
+                put("jobTitle", entry.jobTitle ?: "")
+                put("entryType", entry.entryType.name)
+                put("source", entry.source.name)
+                put("createdAt", entry.createdAt)
+                put("immutableHash", entry.immutableHash)
+                put("status", entry.status.name)
+            })
+        }
+        UserPreferences.saveCompletedEntries(arr.toString())
     }
 
     private fun persistActiveEntry(entry: TimeEntry) {
@@ -257,6 +296,7 @@ class TimeTrackingViewModel : ViewModel() {
         // Update entries list and summary
         _entries.value = localEntries.toList()
         updateDailySummary()
+        persistCompletedEntries()
 
         // Sync completed entry to shared repository for invoice generator
         TimeEntryRepository.addEntry(completedEntry)
