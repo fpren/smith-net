@@ -76,6 +76,7 @@ fun ChatListScreen(
 ) {
     val beacons by BeaconRepository.beacons.collectAsState()
     val isMeshConnected by BoundaryEngine.isMeshConnected.collectAsState()
+    val isOnline by BoundaryEngine.isOnline.collectAsState()
     var selectedTab by remember { mutableStateOf(CommTab.ALL) }
 
     // Flatten all visible channels across all beacons, sorted by most recent message
@@ -140,7 +141,12 @@ fun ChatListScreen(
             // Header
             ConsoleHeader(
                 title = "COMM",
-                subtitle = if (isMeshConnected) "mesh connected" else null,
+                subtitle = when {
+                    isOnline -> "online"
+                    isMeshConnected && meshPeerCount > 0 -> "mesh · $meshPeerCount peer${if (meshPeerCount != 1) "s" else ""}"
+                    isMeshConnected -> "mesh · scanning"
+                    else -> "offline"
+                },
                 onBackClick = onBackClick,
                 modifier = Modifier.background(ConsoleTheme.surface)
             )

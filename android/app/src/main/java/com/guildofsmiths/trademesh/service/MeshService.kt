@@ -78,8 +78,11 @@ class MeshService : Service() {
         private const val SENDER_ID_BYTES = 4      // Shortened sender ID
         private const val CHANNEL_HASH_BYTES = 2   // 2-byte channel hash for routing
         private const val TIMESTAMP_BYTES = 4      // Use 4-byte timestamp (seconds, not ms)
-        private const val MAX_CONTENT_BYTES = 10   // Message content (~10 chars due to BLE limits)
-        private const val MAX_PAYLOAD_BYTES = SENDER_ID_BYTES + CHANNEL_HASH_BYTES + TIMESTAMP_BYTES + MAX_CONTENT_BYTES // 20
+        private const val TTL_BYTES = 1            // Multi-hop TTL (max 3 hops)
+        private const val ORIGIN_HASH_BYTES = 2    // Origin sender hash (prevent echo)
+        private const val MAX_CONTENT_BYTES = 7    // Content reduced for relay headers
+        private const val MAX_PAYLOAD_BYTES = SENDER_ID_BYTES + CHANNEL_HASH_BYTES + TIMESTAMP_BYTES + TTL_BYTES + ORIGIN_HASH_BYTES + MAX_CONTENT_BYTES // 20
+        private const val DEFAULT_TTL: Byte = 3    // Max 3 hops
         
         /** Special channel hash for invites */
         private const val INVITE_CHANNEL_HASH: Short = 0x7FFF.toShort()
@@ -340,18 +343,25 @@ class MeshService : Service() {
         }
         Log.d(TAG, "📤 Serializing: channel=${message.channelId}, hash=$hash, content='${message.content}'")
         buffer.putShort(hash)
-        
+
         // Timestamp: 4 bytes (seconds since epoch, not milliseconds)
         val timestampSeconds = (message.timestamp / 1000).toInt()
         buffer.putInt(timestampSeconds)
-        
-        // Content: up to 10 bytes (truncate if needed)
+
+        // TTL: 1 byte (multi-hop relay)
+        buffer.put(DEFAULT_TTL)
+
+        // Origin hash: 2 bytes (prevent echo back to sender)
+        val originHash = (message.senderId.hashCode() and 0xFFFF).toShort()
+        buffer.putShort(originHash)
+
+        // Content: up to MAX_CONTENT_BYTES (truncate if needed)
         val contentBytes = message.content.toByteArray(Charsets.UTF_8)
         val contentLen = minOf(contentBytes.size, MAX_CONTENT_BYTES)
         buffer.put(contentBytes, 0, contentLen)
-        
+
         // Return only the bytes we wrote
-        val totalLen = SENDER_ID_BYTES + CHANNEL_HASH_BYTES + TIMESTAMP_BYTES + contentLen
+        val totalLen = SENDER_ID_BYTES + CHANNEL_HASH_BYTES + TIMESTAMP_BYTES + TTL_BYTES + ORIGIN_HASH_BYTES + contentLen
         val result = ByteArray(totalLen)
         buffer.rewind()
         buffer.get(result)
@@ -363,28 +373,56 @@ class MeshService : Service() {
      * Deserialize beacon bytes to a Message.
      * Returns null if parsing fails or message is for a channel we haven't joined.
      */
+    /** Seen message IDs for dedup (prevents relay loops) */
+    private val seenMessageIds = java.util.LinkedHashSet<String>()
+    private val MAX_SEEN_CACHE = 500
+
     private fun deserializeFromBeacon(data: ByteArray): Message? {
-        val minLen = SENDER_ID_BYTES + CHANNEL_HASH_BYTES + TIMESTAMP_BYTES
+        val minLen = SENDER_ID_BYTES + CHANNEL_HASH_BYTES + TIMESTAMP_BYTES + TTL_BYTES + ORIGIN_HASH_BYTES
         if (data.size < minLen) {
             Log.w(TAG, "   ⚠️ Payload too short: ${data.size} bytes (need at least $minLen)")
             return null
         }
-        
+
         return try {
             val buffer = ByteBuffer.wrap(data)
-            
+
             // SenderId: 4 bytes, trim trailing zeros
             val senderBytes = ByteArray(SENDER_ID_BYTES)
             buffer.get(senderBytes)
             val senderId = String(senderBytes, Charsets.UTF_8).trimEnd('\u0000')
-            
+
             // Channel hash: 2 bytes
             val channelHashValue = buffer.getShort()
-            
+
             // Timestamp: 4 bytes (seconds since epoch)
             val timestampSeconds = buffer.getInt()
             val timestamp = timestampSeconds.toLong() * 1000
-            
+
+            // TTL: 1 byte
+            val ttl = buffer.get()
+
+            // Origin hash: 2 bytes
+            val originHash = buffer.getShort()
+
+            // Check if this is from ourselves (prevent echo)
+            val myOriginHash = (com.guildofsmiths.trademesh.data.UserPreferences.getUserId().hashCode() and 0xFFFF).toShort()
+            if (originHash == myOriginHash) {
+                Log.d(TAG, "   ↩️ Ignoring echo (origin is self)")
+                return null
+            }
+
+            // Dedup check
+            val msgId = "${senderId}_${timestampSeconds}_${channelHashValue}"
+            if (seenMessageIds.contains(msgId)) {
+                Log.d(TAG, "   ♻️ Duplicate message, dropping")
+                return null
+            }
+            seenMessageIds.add(msgId)
+            if (seenMessageIds.size > MAX_SEEN_CACHE) {
+                seenMessageIds.iterator().let { it.next(); it.remove() }
+            }
+
             // Content: remaining bytes
             val contentLen = data.size - minLen
             val content = if (contentLen > 0) {
@@ -393,6 +431,17 @@ class MeshService : Service() {
                 String(contentBytes, Charsets.UTF_8)
             } else {
                 ""
+            }
+
+            // ── MULTI-HOP RELAY ──
+            // If TTL > 0, rebroadcast to all peers (even if we don't subscribe to the channel)
+            if (ttl > 0) {
+                val relayData = data.clone()
+                // Decrement TTL in the relay copy
+                val ttlOffset = SENDER_ID_BYTES + CHANNEL_HASH_BYTES + TIMESTAMP_BYTES
+                relayData[ttlOffset] = (ttl - 1).toByte()
+                Log.i(TAG, "🔄 Relaying message (TTL ${ttl}→${ttl-1}): sender=$senderId, hash=$channelHashValue")
+                broadcastToAllPeers(relayData)
             }
             
             Log.d(TAG, "   📦 Parsed: sender=$senderId, channelHash=$channelHashValue, content='$content'")
@@ -1132,6 +1181,14 @@ class MeshService : Service() {
     /**
      * Broadcast a raw payload directly (for retries and ACKs).
      */
+    /**
+     * Relay a raw message payload to all peers (multi-hop).
+     * TTL should already be decremented by the caller.
+     */
+    private fun broadcastToAllPeers(payload: ByteArray) {
+        broadcastPayloadDirect(payload)
+    }
+
     private fun broadcastPayloadDirect(payload: ByteArray) {
         if (!checkBlePermissions()) return
         
