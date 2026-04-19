@@ -54,6 +54,7 @@ fun DashboardScreen(
     onReport: () -> Unit = {},
     onSupply: () -> Unit = {},
     onClients: () -> Unit = {},
+    onMap: () -> Unit = {},
     viewModel: DashboardViewModel = viewModel()
 ) {
     LaunchedEffect(jobs) {
@@ -265,7 +266,7 @@ fun DashboardScreen(
                         )
                     }
                     DashboardModule.PROJECT_OVERVIEW -> ProjectOverviewModule()
-                    DashboardModule.SITE_MAP -> SiteMapModule()
+                    DashboardModule.SITE_MAP -> SiteMapModule(onMapClick = onMap)
                     DashboardModule.FINANCIALS -> {
                         FinancialsModule(allJobs = jobs)
                     }

@@ -654,7 +654,8 @@ fun SiteMapModule(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Tap to open crew map",
+                text = if (com.guildofsmiths.trademesh.data.RoleContext.isSolo()) "Tap to view job sites"
+                       else "Tap to open crew map",
                 style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
             )
         }

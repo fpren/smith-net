@@ -385,6 +385,9 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onClients = {
                                     navController.navigate(NavRoutes.CLIENTS)
+                                },
+                                onMap = {
+                                    navController.navigate(NavRoutes.MAP)
                                 }
                             )
                         }
