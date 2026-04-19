@@ -79,6 +79,7 @@ object AISupervisor {
 
     // End-of-day sweep tracking
     private var lastSweepDate: Long = 0 // midnight of last swept day
+    private var lastWeatherCheck: Long = 0
     private const val END_OF_DAY_HOUR = 18 // 6 PM
 
     // Callback to store daily logs on jobs (set by ViewModel)
@@ -301,18 +302,34 @@ object AISupervisor {
             if (jobs.isEmpty()) return
 
             val allInsights = mutableListOf<AIInsight>()
+            val isSolo = com.guildofsmiths.trademesh.data.RoleContext.isSolo()
 
-            // 1. Job issue detection (rule-based)
+            // 1. Job issue detection (stale, budget, materials, invoices, proposals)
             allInsights.addAll(detectJobIssues(jobs))
 
             // 2. Self-monitoring (Solo) or crew check-ins (Team)
-            if (com.guildofsmiths.trademesh.data.RoleContext.isSolo()) {
+            if (isSolo) {
                 allInsights.addAll(detectSelfIssues())
             } else {
                 allInsights.addAll(detectCrewIssues())
             }
 
-            // 3. AI-powered check-in (if API key set and enough jobs)
+            // 3. Client follow-ups (unresponsive clients, auto follow-up)
+            allInsights.addAll(detectClientFollowUps())
+
+            // 4. Auto-respond to client messages when busy
+            monitorClientMessages()
+
+            // 5. Schedule conflicts (overlapping jobs)
+            allInsights.addAll(detectScheduleConflicts(jobs))
+
+            // 6. Weather alerts (bad weather at job sites)
+            allInsights.addAll(checkWeather(jobs))
+
+            // 7. Travel time between same-day jobs
+            allInsights.addAll(estimateTravelTime(jobs))
+
+            // 8. AI-powered check-in (if API key set and enough jobs)
             val apiKey = UserPreferences.getOpenRouterApiKey()
             val activeJobs = jobs.filter { it.stage != JobStage.CLOSED }
             if (apiKey.isNotBlank() && activeJobs.size > 1) {
@@ -336,7 +353,7 @@ object AISupervisor {
             lastObservation = System.currentTimeMillis()
             Log.i(TAG, "Observation complete: ${allInsights.size} insights (mode=${getMode()})")
 
-            // End-of-day sweep for daily logs
+            // 9. End-of-day sweep (daily/weekly summaries)
             runEndOfDaySweep()
 
         } catch (e: Exception) {
@@ -473,6 +490,235 @@ object AISupervisor {
 
         return insights
     }
+
+    // ════════════════════════════════════════════════════════════════════
+    // CLIENT FOLLOW-UPS — auto-follow up on unresponsive clients
+    // ════════════════════════════════════════════════════════════════════
+
+    private fun detectClientFollowUps(): List<AIInsight> {
+        val insights = mutableListOf<AIInsight>()
+        val now = System.currentTimeMillis()
+        val threeDaysMs = 3 * 24 * 3_600_000L
+
+        val beacons = com.guildofsmiths.trademesh.data.BeaconRepository.beacons.value
+        val allChannels = beacons.flatMap { it.channels }
+
+        allChannels.forEach { channel ->
+            if (channel.type != com.guildofsmiths.trademesh.data.ChannelType.DM) return@forEach
+            if (channel.id.contains("smith-ai")) return@forEach
+
+            val lastTime = channel.lastMessageTime ?: return@forEach
+            val daysSinceMessage = (now - lastTime) / 86_400_000
+
+            // Client hasn't responded in 3+ days
+            if (daysSinceMessage >= 3) {
+                val clientName = channel.name
+                insights.add(AIInsight(
+                    type = InsightType.ALERT,
+                    title = "Follow up — $clientName",
+                    body = "No response from $clientName in ${daysSinceMessage}d. Sending a follow-up."
+                ))
+
+                // Auto-send follow-up message
+                val myUserId = UserPreferences.getUserId()
+                val userName = UserPreferences.getUserName().ifBlank { "your tradesperson" }
+                sendCrewDM(
+                    crewUserId = channel.members.firstOrNull { it != myUserId } ?: return@forEach,
+                    crewName = clientName,
+                    messageBody = "Hi $clientName, just checking in. Let me know if you have any questions or need anything. — $userName via SmithAI"
+                )
+            }
+        }
+        return insights
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // AUTO-RESPOND TO CLIENT MESSAGES — reply when user is busy
+    // ════════════════════════════════════════════════════════════════════
+
+    private fun monitorClientMessages() {
+        if (!UserPreferences.isClockedIn()) return // only auto-respond when working
+
+        val now = System.currentTimeMillis()
+        val fiveMinMs = 5 * 60_000L
+        val userName = UserPreferences.getUserName().ifBlank { "the tradesperson" }
+        val myUserId = UserPreferences.getUserId()
+
+        val beacons = com.guildofsmiths.trademesh.data.BeaconRepository.beacons.value
+        val allChannels = beacons.flatMap { it.channels }
+
+        allChannels.forEach { channel ->
+            if (channel.type != com.guildofsmiths.trademesh.data.ChannelType.DM) return@forEach
+            if (channel.id.contains("smith-ai")) return@forEach
+
+            val lastTime = channel.lastMessageTime ?: return@forEach
+            // Message received in last 5 minutes (fresh)
+            if (now - lastTime < fiveMinMs && channel.unreadCount > 0) {
+                val clientName = channel.name
+                val peerId = channel.members.firstOrNull { it != myUserId } ?: return@forEach
+
+                // Check we haven't already auto-replied recently
+                val lastAutoReplyKey = "auto_reply_${channel.id}"
+                val lastAutoReply = autoReplyTimestamps[lastAutoReplyKey] ?: 0L
+                if (now - lastAutoReply < 30 * 60_000L) return@forEach // throttle: max 1 per 30 min
+
+                autoReplyTimestamps[lastAutoReplyKey] = now
+
+                sendCrewDM(
+                    crewUserId = peerId,
+                    crewName = clientName,
+                    messageBody = "Hi! $userName is currently on a job site and will get back to you shortly. — SmithAI"
+                )
+                Log.i(TAG, "Auto-replied to $clientName (user is clocked in)")
+            }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // SCHEDULE CONFLICTS — overlapping jobs on same day
+    // ════════════════════════════════════════════════════════════════════
+
+    private fun detectScheduleConflicts(jobs: List<Job>): List<AIInsight> {
+        val insights = mutableListOf<AIInsight>()
+        val activeJobs = jobs.filter { it.stage == JobStage.IN_PROGRESS || it.stage == JobStage.APPROVED }
+
+        if (activeJobs.size >= 2) {
+            // Check for same-day overlaps based on start dates
+            val today = System.currentTimeMillis()
+            val todayStart = today - (today % 86_400_000L)
+            val todayEnd = todayStart + 86_400_000L
+
+            val todayJobs = activeJobs.filter { job ->
+                val startDate = job.estimatedStartDate ?: job.createdAt
+                startDate in todayStart..todayEnd || job.stage == JobStage.IN_PROGRESS
+            }
+
+            if (todayJobs.size >= 2) {
+                val names = todayJobs.take(3).joinToString(" and ") { it.clientName ?: it.title }
+                insights.add(AIInsight(
+                    type = InsightType.ALERT,
+                    title = "Schedule conflict",
+                    body = "You have ${todayJobs.size} active jobs today: $names. Make sure you have time for all of them."
+                ))
+            }
+        }
+        return insights
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // WEATHER ALERTS — bad weather at job sites
+    // ════════════════════════════════════════════════════════════════════
+
+    private suspend fun checkWeather(jobs: List<Job>): List<AIInsight> {
+        val insights = mutableListOf<AIInsight>()
+        val now = System.currentTimeMillis()
+
+        // Throttle: check weather max once per 6 hours
+        val lastCheck = lastWeatherCheck
+        if (now - lastCheck < 6 * 3_600_000L) return insights
+
+        val activeJobs = jobs.filter { it.stage == JobStage.IN_PROGRESS || it.stage == JobStage.APPROVED }
+        if (activeJobs.isEmpty()) return insights
+
+        // Known coordinates for job sites
+        val siteCoords = mapOf(
+            "847 Flatbush Ave, Brooklyn NY" to Pair(40.6505, -73.9612),
+            "55 W 125th St, Apt 4B, Manhattan NY" to Pair(40.8088, -73.9442),
+            "1220 Ocean Pkwy, Brooklyn NY" to Pair(40.6275, -73.9685),
+        )
+
+        for (job in activeJobs.take(3)) {
+            val coords = siteCoords[job.clientAddress] ?: continue
+            try {
+                val url = "https://api.open-meteo.com/v1/forecast?latitude=${coords.first}&longitude=${coords.second}&daily=precipitation_sum,temperature_2m_max&timezone=America/New_York&forecast_days=1"
+                val request = okhttp3.Request.Builder().url(url).build()
+                val response = okhttp3.OkHttpClient().newCall(request).execute()
+                if (response.isSuccessful) {
+                    val body = response.body?.string() ?: continue
+                    val json = org.json.JSONObject(body)
+                    val daily = json.optJSONObject("daily") ?: continue
+                    val precip = daily.optJSONArray("precipitation_sum")?.optDouble(0, 0.0) ?: 0.0
+                    val maxTemp = daily.optJSONArray("temperature_2m_max")?.optDouble(0, 70.0) ?: 70.0
+
+                    if (precip > 5.0) {
+                        insights.add(AIInsight(
+                            type = InsightType.ALERT,
+                            title = "Rain alert — ${job.clientName ?: "job site"}",
+                            body = "Heavy rain expected (${String.format("%.0f", precip)}mm) at ${job.clientAddress.take(30)}. Plan indoor work or reschedule."
+                        ))
+                    } else if (maxTemp > 35.0) { // 95°F
+                        insights.add(AIInsight(
+                            type = InsightType.ALERT,
+                            title = "Heat alert — ${job.clientName ?: "job site"}",
+                            body = "Extreme heat (${String.format("%.0f", maxTemp * 9/5 + 32)}°F) at ${job.clientAddress.take(30)}. Stay hydrated, take extra breaks."
+                        ))
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Weather check failed for ${job.clientAddress}: ${e.message}")
+            }
+        }
+
+        lastWeatherCheck = now
+        return insights
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // TRAVEL TIME — drive time between same-day jobs
+    // ════════════════════════════════════════════════════════════════════
+
+    private suspend fun estimateTravelTime(jobs: List<Job>): List<AIInsight> {
+        val insights = mutableListOf<AIInsight>()
+        val activeJobs = jobs.filter {
+            (it.stage == JobStage.IN_PROGRESS || it.stage == JobStage.APPROVED) && it.clientAddress.isNotBlank()
+        }
+        if (activeJobs.size < 2) return insights
+
+        val siteCoords = mapOf(
+            "847 Flatbush Ave, Brooklyn NY" to Pair(-73.9612, 40.6505),
+            "55 W 125th St, Apt 4B, Manhattan NY" to Pair(-73.9442, 40.8088),
+            "1220 Ocean Pkwy, Brooklyn NY" to Pair(-73.9685, 40.6275),
+        )
+
+        // Check pairs of jobs for travel time
+        for (i in activeJobs.indices) {
+            for (j in i + 1 until activeJobs.size) {
+                val coordsA = siteCoords[activeJobs[i].clientAddress] ?: continue
+                val coordsB = siteCoords[activeJobs[j].clientAddress] ?: continue
+
+                try {
+                    val url = "https://router.project-osrm.org/route/v1/driving/${coordsA.first},${coordsA.second};${coordsB.first},${coordsB.second}?overview=false"
+                    val request = okhttp3.Request.Builder().url(url).build()
+                    val response = okhttp3.OkHttpClient().newCall(request).execute()
+                    if (response.isSuccessful) {
+                        val body = response.body?.string() ?: continue
+                        val json = org.json.JSONObject(body)
+                        val routes = json.optJSONArray("routes") ?: continue
+                        if (routes.length() > 0) {
+                            val durationSec = routes.getJSONObject(0).optDouble("duration", 0.0)
+                            val durationMin = (durationSec / 60).toInt()
+
+                            if (durationMin >= 15) {
+                                val nameA = activeJobs[i].clientName ?: activeJobs[i].title
+                                val nameB = activeJobs[j].clientName ?: activeJobs[j].title
+                                insights.add(AIInsight(
+                                    type = InsightType.CHECKIN,
+                                    title = "Travel time",
+                                    body = "${durationMin} min drive between $nameA and $nameB. Plan accordingly."
+                                ))
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Travel time check failed: ${e.message}")
+                }
+            }
+        }
+        return insights
+    }
+
+    // Track auto-reply throttling
+    private val autoReplyTimestamps = mutableMapOf<String, Long>()
 
     // ════════════════════════════════════════════════════════════════════
     // INSIGHT DELIVERY

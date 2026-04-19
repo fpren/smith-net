@@ -201,18 +201,39 @@ Be specific to the trade and scope. Use real materials and tools a $trade would 
      */
     fun detectIssue(job: Job): String? {
         val daysSinceUpdate = ((System.currentTimeMillis() - job.updatedAt) / 86_400_000).toInt()
+        val daysSinceCreated = ((System.currentTimeMillis() - job.createdAt) / 86_400_000).toInt()
         val materialsBudget = job.materials.sumOf { it.quantity * it.unitCost }
         val materialsSpent = job.materials.filter { it.checked }.sumOf { it.totalCost }
         val budgetPct = if (materialsBudget > 0) (materialsSpent / materialsBudget * 100).toInt() else 0
+        val uncheckedMaterials = job.materials.filter { !it.checked }
 
         return when {
             job.stage == JobStage.CLOSED -> null
-            daysSinceUpdate >= 3 && job.stage == JobStage.IN_PROGRESS ->
-                "No update in ${daysSinceUpdate} days — job may be stalled"
-            budgetPct >= 80 ->
-                "Materials budget ${budgetPct}% used (${"$%.0f".format(materialsSpent)}/${"$%.0f".format(materialsBudget)})"
+
+            // Overdue invoice (14+ days in INVOICE stage)
+            job.stage == JobStage.INVOICE && daysSinceUpdate >= 14 ->
+                "Invoice overdue by ${daysSinceUpdate - 14} days. Follow up on payment."
+
+            // Invoice pending (5+ days)
             job.stage == JobStage.INVOICE && daysSinceUpdate >= 5 ->
                 "Invoice pending ${daysSinceUpdate} days — follow up with client"
+
+            // Stale proposal (7+ days in LEAD/PROPOSAL)
+            (job.stage == JobStage.LEAD || job.stage == JobStage.PROPOSAL) && daysSinceUpdate >= 7 ->
+                "Proposal sitting for ${daysSinceUpdate} days — send it or archive it"
+
+            // Stale job (3+ days no update while in progress)
+            daysSinceUpdate >= 3 && job.stage == JobStage.IN_PROGRESS ->
+                "No update in ${daysSinceUpdate} days — job may be stalled"
+
+            // Materials not picked up (active job, 3+ days old, unchecked materials)
+            job.stage == JobStage.IN_PROGRESS && uncheckedMaterials.isNotEmpty() && daysSinceCreated >= 3 ->
+                "Still need: ${uncheckedMaterials.take(2).joinToString(", ") { it.name }}${if (uncheckedMaterials.size > 2) " +${uncheckedMaterials.size - 2} more" else ""}"
+
+            // Budget overrun
+            budgetPct >= 80 ->
+                "Materials budget ${budgetPct}% used (${"$%.0f".format(materialsSpent)}/${"$%.0f".format(materialsBudget)})"
+
             else -> null
         }
     }
