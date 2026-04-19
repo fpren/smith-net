@@ -12,10 +12,12 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.IntentRepository
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import kotlinx.coroutines.launch
 
 // ════════════════════════════════════════════════════════════════════
 // CREATE INTENT DIALOG — Proposal Template
@@ -24,6 +26,7 @@ import com.guildofsmiths.trademesh.ui.ConsoleTheme
 @Composable
 fun CreateIntentDialog(
     onDismiss: () -> Unit,
+    onAssist: (suspend (scope: String, trade: String) -> ProposalSuggestion?)? = null,
     onCreate: (
         scopeStatement: String,
         clientName: String?,
@@ -41,6 +44,35 @@ fun CreateIntentDialog(
     var taskLines by remember { mutableStateOf(listOf("")) }
     var equipmentLines by remember { mutableStateOf(listOf("")) }
     var supplyLines by remember { mutableStateOf(listOf("")) }
+
+    // Assist state — auto-triggers when scope loses focus
+    var isAssisting by remember { mutableStateOf(false) }
+    var hasAssisted by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+
+    // Helper to check if fields are still untouched
+    fun fieldsAreEmpty() = taskLines.all { it.isBlank() } &&
+        equipmentLines.all { it.isBlank() } && supplyLines.all { it.isBlank() }
+
+    fun triggerAssist() {
+        if (onAssist == null || hasAssisted || isAssisting) return
+        if (scopeStatement.trim().length < 10 || !fieldsAreEmpty()) return
+        isAssisting = true
+        hasAssisted = true
+        coroutineScope.launch {
+            try {
+                val suggestion = onAssist(scopeStatement.trim(), "")
+                if (suggestion != null) {
+                    if (suggestion.tasks.isNotEmpty()) taskLines = suggestion.tasks
+                    if (suggestion.equipment.isNotEmpty()) equipmentLines = suggestion.equipment
+                    if (suggestion.supplies.isNotEmpty()) supplyLines = suggestion.supplies
+                    crewSizeText = suggestion.crewSize.toString()
+                }
+            } finally {
+                isAssisting = false
+            }
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -65,11 +97,30 @@ fun CreateIntentDialog(
             ) {
                 // ── SCOPE ──
                 ProposalSection(label = "SCOPE OF WORK *") {
-                    ProposalTextField(
+                    TextField(
                         value = scopeStatement,
                         onValueChange = { scopeStatement = it },
-                        placeholder = "Describe the work to be performed..."
+                        placeholder = { Text("Describe the work to be performed...", style = ConsoleTheme.caption) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { state ->
+                                if (!state.isFocused) triggerAssist()
+                            },
+                        textStyle = ConsoleTheme.body,
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            focusedIndicatorColor = ConsoleTheme.accent,
+                            unfocusedIndicatorColor = ConsoleTheme.text.copy(alpha = 0.2f)
+                        )
                     )
+                    if (isAssisting) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Generating suggestions...",
+                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent)
+                        )
+                    }
                 }
 
                 // ── CLIENT ──

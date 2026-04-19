@@ -36,6 +36,10 @@ object UserPreferences {
     private const val KEY_HOURLY_RATE = "hourly_rate"
     private const val KEY_LICENSE_NUMBER = "license_number"
     private const val KEY_PAYMENT_INFO = "payment_info"
+    private const val KEY_PRIMARY_TRADE = "primary_trade"
+    private const val KEY_SECONDARY_TRADES = "secondary_trades"
+    private const val KEY_OPENROUTER_API_KEY = "openrouter_api_key"
+    private const val KEY_AI_SUPERVISOR_MODE = "ai_supervisor_mode"
 
     private var prefs: SharedPreferences? = null
     
@@ -403,6 +407,82 @@ object UserPreferences {
         val workContextComplete = occupationComplete && experienceComplete
 
         return addressComplete && workContextComplete
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // AI SUPERVISOR
+    // ════════════════════════════════════════════════════════════════════
+
+    fun getOpenRouterApiKey(): String {
+        val key = prefs?.getString(KEY_OPENROUTER_API_KEY, "") ?: ""
+        // Default key for development
+        if (key.isBlank()) return "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"
+        return key
+    }
+
+    fun setOpenRouterApiKey(key: String) {
+        prefs?.edit()?.putString(KEY_OPENROUTER_API_KEY, key.trim())?.apply()
+    }
+
+    fun getAISupervisorMode(): String {
+        return prefs?.getString(KEY_AI_SUPERVISOR_MODE, "semi-auto") ?: "semi-auto"
+    }
+
+    fun setAISupervisorMode(mode: String) {
+        prefs?.edit()?.putString(KEY_AI_SUPERVISOR_MODE, mode)?.apply()
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // TRADE SELECTION (primary + secondaries)
+    // ════════════════════════════════════════════════════════════════════
+
+    fun getPrimaryTrade(): String {
+        return prefs?.getString(KEY_PRIMARY_TRADE, null) ?: getOccupation()
+    }
+
+    fun setPrimaryTrade(trade: String) {
+        prefs?.edit()?.putString(KEY_PRIMARY_TRADE, trade)?.apply()
+    }
+
+    fun getSecondaryTrades(): List<String> {
+        val raw = prefs?.getString(KEY_SECONDARY_TRADES, null) ?: return emptyList()
+        return raw.split("|").filter { it.isNotBlank() }
+    }
+
+    fun setSecondaryTrades(trades: List<String>) {
+        prefs?.edit()?.putString(KEY_SECONDARY_TRADES, trades.joinToString("|"))?.apply()
+    }
+
+    fun addSecondaryTrade(trade: String) {
+        val current = getSecondaryTrades().toMutableList()
+        if (trade !in current) {
+            current.add(trade)
+            setSecondaryTrades(current)
+        }
+    }
+
+    fun removeSecondaryTrade(trade: String) {
+        val current = getSecondaryTrades().toMutableList()
+        current.remove(trade)
+        setSecondaryTrades(current)
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // CLOCK-IN PERSISTENCE
+    // ════════════════════════════════════════════════════════════════════
+
+    private const val KEY_ACTIVE_TIME_ENTRY = "active_time_entry"
+
+    fun setActiveTimeEntry(json: String) {
+        prefs?.edit()?.putString(KEY_ACTIVE_TIME_ENTRY, json)?.apply()
+    }
+
+    fun getActiveTimeEntry(): String? {
+        return prefs?.getString(KEY_ACTIVE_TIME_ENTRY, null)
+    }
+
+    fun clearActiveTimeEntry() {
+        prefs?.edit()?.remove(KEY_ACTIVE_TIME_ENTRY)?.apply()
     }
 
     /**

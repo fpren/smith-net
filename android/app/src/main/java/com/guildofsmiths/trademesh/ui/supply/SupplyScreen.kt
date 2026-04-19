@@ -1,0 +1,546 @@
+package com.guildofsmiths.trademesh.ui.supply
+
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.ripple.rememberRipple
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import com.guildofsmiths.trademesh.ui.ConsoleHeader
+import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.jobboard.Job
+import com.guildofsmiths.trademesh.ui.jobboard.JobStage
+import com.guildofsmiths.trademesh.ui.jobboard.Material
+
+data class SupplyItem(
+    val material: Material,
+    val materialIndex: Int,
+    val jobId: String,
+    val jobName: String
+)
+
+data class Vendor(
+    val tag: String,
+    val label: String,
+    val url: String?
+)
+
+private val VENDORS = listOf(
+    Vendor("HD", "Home Depot", "https://www.homedepot.com/s/"),
+    Vendor("Lowes", "Lowe's", "https://www.lowes.com/search?searchTerm="),
+    Vendor("Supply", "SupplyHouse", "https://www.supplyhouse.com/search?q="),
+    Vendor("Amazon", "Amazon", "https://www.amazon.com/s?k="),
+    Vendor("Other", "Buy in store", null)
+)
+
+@Composable
+fun SupplyScreen(
+    allJobs: List<Job>,
+    onToggleMaterial: (jobId: String, materialIndex: Int) -> Unit,
+    onAddMaterial: (jobId: String, material: Material) -> Unit,
+    onUpdateMaterial: (jobId: String, materialIndex: Int, material: Material) -> Unit,
+    onBack: () -> Unit
+) {
+    var selectedJobId by remember { mutableStateOf<String?>(null) }
+    var showJobPicker by remember { mutableStateOf(false) }
+    var showAddDialog by remember { mutableStateOf(false) }
+    var editingItem by remember { mutableStateOf<SupplyItem?>(null) }
+
+    val activeJobs = remember(allJobs) {
+        allJobs.filter { it.stage != JobStage.CLOSED }
+    }
+    val jobsWithMaterials = remember(allJobs) {
+        allJobs.filter { it.stage != JobStage.CLOSED && it.materials.isNotEmpty() }
+    }
+
+    val allItems = remember(allJobs, selectedJobId) {
+        val jobs = if (selectedJobId != null) {
+            allJobs.filter { it.id == selectedJobId }
+        } else {
+            allJobs.filter { it.stage != JobStage.CLOSED }
+        }
+
+        jobs.flatMap { job ->
+            job.materials.mapIndexed { index, material ->
+                SupplyItem(
+                    material = material,
+                    materialIndex = index,
+                    jobId = job.id,
+                    jobName = job.clientName ?: job.title
+                )
+            }
+        }
+    }
+
+    val unchecked = allItems.filter { !it.material.checked }
+    val checked = allItems.filter { it.material.checked }
+    val totalCost = allItems.sumOf { it.material.totalCost }
+    val selectedJobName = if (selectedJobId != null) {
+        allJobs.find { it.id == selectedJobId }?.let { it.clientName ?: it.title } ?: "All Jobs"
+    } else "All Jobs"
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(ConsoleTheme.background)
+    ) {
+        ConsoleHeader(
+            title = "SUPPLY",
+            onBackClick = onBack,
+            actionText = "[+ ADD]",
+            onActionClick = { showAddDialog = true }
+        )
+
+        // Job filter
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+                .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                .clip(RoundedCornerShape(4.dp))
+                .clickable { showJobPicker = !showJobPicker }
+                .padding(horizontal = 12.dp, vertical = 10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(selectedJobName, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
+                Text("▼", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+            }
+        }
+
+        // Job picker dropdown
+        if (showJobPicker) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+                    .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+            ) {
+                Text(
+                    text = "All Jobs",
+                    style = ConsoleTheme.bodySmall.copy(
+                        color = if (selectedJobId == null) ConsoleTheme.accent else ConsoleTheme.text
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { selectedJobId = null; showJobPicker = false }
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                )
+                jobsWithMaterials.forEach { job ->
+                    Box(Modifier.fillMaxWidth().height(0.5.dp).padding(horizontal = 12.dp).background(ConsoleTheme.text.copy(alpha = 0.06f)))
+                    Text(
+                        text = job.clientName ?: job.title,
+                        style = ConsoleTheme.bodySmall.copy(
+                            color = if (selectedJobId == job.id) ConsoleTheme.accent else ConsoleTheme.text
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedJobId = job.id; showJobPicker = false }
+                            .padding(horizontal = 12.dp, vertical = 10.dp)
+                    )
+                }
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // SHOPPING LIST
+            SupplyCard("SHOPPING LIST (${unchecked.size} items)") {
+                if (unchecked.isEmpty()) {
+                    Text(
+                        text = "All items checked off!",
+                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                } else {
+                    unchecked.forEach { item ->
+                        MaterialRow(
+                            item = item,
+                            onToggle = { onToggleMaterial(item.jobId, item.materialIndex) },
+                            onEdit = { editingItem = item }
+                        )
+                    }
+                }
+            }
+
+            // CHECKED OFF
+            if (checked.isNotEmpty()) {
+                SupplyCard("CHECKED OFF (${checked.size} items)") {
+                    checked.forEach { item ->
+                        MaterialRow(
+                            item = item,
+                            onToggle = { onToggleMaterial(item.jobId, item.materialIndex) },
+                            onEdit = { editingItem = item }
+                        )
+                    }
+                }
+            }
+
+            // TOTAL
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+                    .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                    .padding(14.dp)
+            ) {
+                Text("TOTAL", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "$${String.format("%.0f", totalCost)} total · ${allItems.size} items · ${checked.size} purchased",
+                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+
+    // Add material dialog
+    if (showAddDialog) {
+        MaterialDialog(
+            title = "Add Material",
+            jobs = activeJobs,
+            preselectedJobId = selectedJobId,
+            onDismiss = { showAddDialog = false },
+            onSave = { jobId, material ->
+                onAddMaterial(jobId, material)
+                showAddDialog = false
+            }
+        )
+    }
+
+    // Edit material dialog
+    if (editingItem != null) {
+        val item = editingItem!!
+        MaterialDialog(
+            title = "Edit Material",
+            jobs = activeJobs,
+            preselectedJobId = item.jobId,
+            initialMaterial = item.material,
+            lockJob = true,
+            onDismiss = { editingItem = null },
+            onSave = { _, material ->
+                onUpdateMaterial(item.jobId, item.materialIndex, material)
+                editingItem = null
+            }
+        )
+    }
+}
+
+@Composable
+private fun MaterialRow(item: SupplyItem, onToggle: () -> Unit, onEdit: () -> Unit) {
+    val mat = item.material
+    val context = LocalContext.current
+    var showVendorPicker by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(4.dp))
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Checkbox area — tap to toggle
+        Text(
+            text = if (mat.checked) "[x]" else "[ ]",
+            style = ConsoleTheme.body.copy(color = if (mat.checked) ConsoleTheme.textMuted else ConsoleTheme.text),
+            modifier = Modifier
+                .width(32.dp)
+                .clickable(onClick = onToggle)
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = mat.name,
+                style = ConsoleTheme.bodySmall.copy(
+                    color = if (mat.checked) ConsoleTheme.textMuted else ConsoleTheme.text
+                )
+            )
+            val detailParts = buildString {
+                if (item.jobName.isNotBlank()) append(item.jobName)
+                if (mat.quantity > 0 && mat.unit.isNotBlank()) {
+                    if (isNotEmpty()) append(" · ")
+                    append("${mat.quantity.toInt()} ${mat.unit}")
+                }
+                if (mat.vendor.isNotBlank()) {
+                    if (isNotEmpty()) append(" · ")
+                    append(mat.vendor)
+                }
+            }
+            if (detailParts.isNotBlank()) {
+                Text(detailParts, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+            }
+        }
+        if (mat.totalCost > 0) {
+            Text(
+                text = "$${String.format("%.0f", mat.totalCost)}",
+                style = ConsoleTheme.caption.copy(
+                    color = if (mat.checked) ConsoleTheme.textMuted else ConsoleTheme.accent
+                ),
+                modifier = Modifier.padding(end = 8.dp)
+            )
+        }
+        // Order button — always visible on unchecked items
+        if (!mat.checked) {
+            Text(
+                text = "[Order]",
+                style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent),
+                modifier = Modifier
+                    .clickable { showVendorPicker = true }
+                    .padding(4.dp)
+            )
+        }
+        // Edit button
+        Text(
+            text = "[Edit]",
+            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+            modifier = Modifier
+                .clickable(onClick = onEdit)
+                .padding(4.dp)
+        )
+    }
+
+    // Vendor picker modal
+    if (showVendorPicker) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showVendorPicker = false },
+            containerColor = ConsoleTheme.surface,
+            title = {
+                Column {
+                    Text("Order", style = ConsoleTheme.bodyBold)
+                    Text(mat.name, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    VENDORS.forEach { vendor ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(ConsoleTheme.background, RoundedCornerShape(6.dp))
+                                .clickable {
+                                    showVendorPicker = false
+                                    if (vendor.url != null) {
+                                        val url = vendor.url + Uri.encode(mat.name)
+                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                                    }
+                                }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = vendor.tag,
+                                style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent),
+                                modifier = Modifier.width(50.dp)
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(vendor.label, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
+                                if (vendor.url != null) {
+                                    Text("Search & order", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                                } else {
+                                    Text("Manual purchase", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                Text(
+                    text = "[Cancel]",
+                    style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                    modifier = Modifier.clickable { showVendorPicker = false }.padding(8.dp)
+                )
+            }
+        )
+    }
+}
+
+@Composable
+private fun MaterialDialog(
+    title: String,
+    jobs: List<Job>,
+    preselectedJobId: String?,
+    initialMaterial: Material? = null,
+    lockJob: Boolean = false,
+    onDismiss: () -> Unit,
+    onSave: (jobId: String, material: Material) -> Unit
+) {
+    var selectedJobId by remember { mutableStateOf(preselectedJobId ?: jobs.firstOrNull()?.id ?: "") }
+    var name by remember { mutableStateOf(initialMaterial?.name ?: "") }
+    var quantity by remember { mutableStateOf(if (initialMaterial != null && initialMaterial.quantity > 0) initialMaterial.quantity.toInt().toString() else "") }
+    var unit by remember { mutableStateOf(initialMaterial?.unit ?: "ea") }
+    var unitCost by remember { mutableStateOf(if (initialMaterial != null && initialMaterial.unitCost > 0) String.format("%.2f", initialMaterial.unitCost) else "") }
+    var vendor by remember { mutableStateOf(initialMaterial?.vendor ?: "") }
+    var showJobSelect by remember { mutableStateOf(false) }
+
+    val selectedJobName = jobs.find { it.id == selectedJobId }?.let { it.clientName ?: it.title } ?: "Select job"
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = ConsoleTheme.surface,
+        title = { Text(title, style = ConsoleTheme.bodyBold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Job selector
+                if (!lockJob) {
+                    Text("JOB", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(ConsoleTheme.background, RoundedCornerShape(4.dp))
+                            .clickable { showJobSelect = !showJobSelect }
+                            .padding(8.dp)
+                    ) {
+                        Text(selectedJobName, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
+                    }
+                    if (showJobSelect) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(ConsoleTheme.background, RoundedCornerShape(4.dp))
+                                .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                        ) {
+                            jobs.forEach { job ->
+                                Text(
+                                    text = job.clientName ?: job.title,
+                                    style = ConsoleTheme.bodySmall.copy(
+                                        color = if (job.id == selectedJobId) ConsoleTheme.accent else ConsoleTheme.text
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { selectedJobId = job.id; showJobSelect = false }
+                                        .padding(8.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                DialogField("NAME", name) { name = it }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        DialogField("QTY", quantity) { quantity = it }
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        DialogField("UNIT", unit) { unit = it }
+                    }
+                }
+
+                DialogField("UNIT COST ($)", unitCost, KeyboardType.Decimal) { unitCost = it }
+
+                // Vendor chip selector (matches job board)
+                Text("VENDOR", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("HD", "Lowes", "Supply", "Other").forEach { v ->
+                        Text(
+                            text = if (vendor == v) "[$v]" else v,
+                            style = ConsoleTheme.action.copy(
+                                color = if (vendor == v) ConsoleTheme.accent else ConsoleTheme.textMuted
+                            ),
+                            modifier = Modifier.clickable { vendor = v }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Text(
+                text = "[Save]",
+                style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                modifier = Modifier
+                    .clickable {
+                        if (name.isNotBlank() && selectedJobId.isNotBlank()) {
+                            val qty = quantity.toDoubleOrNull() ?: 0.0
+                            val cost = unitCost.toDoubleOrNull() ?: 0.0
+                            val material = (initialMaterial ?: Material(name = "")).copy(
+                                name = name.trim(),
+                                quantity = qty,
+                                unit = unit.trim().ifBlank { "ea" },
+                                unitCost = cost,
+                                totalCost = qty * cost,
+                                vendor = vendor.trim()
+                            )
+                            onSave(selectedJobId, material)
+                        }
+                    }
+                    .padding(8.dp)
+            )
+        },
+        dismissButton = {
+            Text(
+                text = "[Cancel]",
+                style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                modifier = Modifier.clickable { onDismiss() }.padding(8.dp)
+            )
+        }
+    )
+}
+
+@Composable
+private fun DialogField(
+    label: String,
+    value: String,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    onValueChange: (String) -> Unit
+) {
+    Column {
+        Text(label, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            textStyle = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(ConsoleTheme.background, RoundedCornerShape(4.dp))
+                .padding(8.dp),
+            singleLine = true
+        )
+    }
+}
+
+@Composable
+private fun SupplyCard(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Text(title, style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+        Spacer(modifier = Modifier.height(4.dp))
+        content()
+    }
+}

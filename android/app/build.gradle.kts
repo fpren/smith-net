@@ -16,8 +16,8 @@ android {
         applicationId = "com.guildofsmiths.trademesh"
         minSdk = 26
         targetSdk = 34
-        versionCode = 6
-        versionName = "0.2.0-ai-alpha"
+        versionCode = 18
+        versionName = "0.6.1-map-jobs"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -122,6 +122,9 @@ dependencies {
     implementation("io.ktor:ktor-client-okhttp:2.3.7")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
     
+    // OpenStreetMap
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
+
     // Core library desugaring
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
     

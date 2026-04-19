@@ -16,11 +16,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Text
+import com.guildofsmiths.trademesh.data.ClientInfo
+import com.guildofsmiths.trademesh.data.ClientRepository
 import com.guildofsmiths.trademesh.data.TradeDefaults
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
 import com.guildofsmiths.trademesh.ui.ConsoleSeparator
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.Material
 
 // ════════════════════════════════════════════════════════════════════
@@ -49,7 +52,8 @@ data class NewJobData(
 @Composable
 fun NewJobFlow(
     onBack: () -> Unit,
-    onJobCreated: (NewJobData) -> Unit
+    onJobCreated: (NewJobData) -> Unit,
+    allJobs: List<Job> = emptyList()
 ) {
     // Navigation state
     var currentStep by remember { mutableStateOf(1) }
@@ -119,7 +123,13 @@ fun NewJobFlow(
                     clientAddress = clientAddress,
                     onClientNameChange = { clientName = it },
                     onClientPhoneChange = { clientPhone = it },
-                    onClientAddressChange = { clientAddress = it }
+                    onClientAddressChange = { clientAddress = it },
+                    existingClients = remember(allJobs) { ClientRepository.getClients(allJobs) },
+                    onClientSelected = { client ->
+                        clientName = client.name
+                        clientPhone = client.phone
+                        clientAddress = client.address
+                    }
                 )
                 2 -> StepScope(
                     description = description,
@@ -242,13 +252,73 @@ private fun StepClient(
     clientAddress: String,
     onClientNameChange: (String) -> Unit,
     onClientPhoneChange: (String) -> Unit,
-    onClientAddressChange: (String) -> Unit
+    onClientAddressChange: (String) -> Unit,
+    existingClients: List<ClientInfo> = emptyList(),
+    onClientSelected: (ClientInfo) -> Unit = {}
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Existing clients picker
+        if (existingClients.isNotEmpty()) {
+            item {
+                SectionLabel("EXISTING CLIENTS")
+            }
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(ConsoleTheme.surface)
+                        .border(1.dp, ConsoleTheme.separator)
+                        .padding(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    existingClients.forEach { client ->
+                        val isSelected = client.name.equals(clientName, ignoreCase = true)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(
+                                    if (isSelected) Modifier.background(ConsoleTheme.accent.copy(alpha = 0.10f))
+                                    else Modifier
+                                )
+                                .clickable { onClientSelected(client) }
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = client.name,
+                                    style = ConsoleTheme.bodySmall.copy(
+                                        color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.text
+                                    )
+                                )
+                                if (client.address.isNotBlank()) {
+                                    Text(
+                                        text = "${client.jobCount} jobs · ${client.address.take(30)}",
+                                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                                    )
+                                }
+                            }
+                            if (isSelected) {
+                                Text("✓", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.accent))
+                            }
+                        }
+                    }
+                }
+            }
+            item {
+                Text(
+                    text = "— or enter new client below —",
+                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                    modifier = Modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally)
+                )
+            }
+        }
+
         item {
             SectionLabel("CLIENT INFO")
         }

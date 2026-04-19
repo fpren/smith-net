@@ -204,22 +204,17 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
             return
         }
         
-        // For DMs, use a private channel ID based on both user IDs (truncated to 4 chars for BLE)
+        // For DMs, use the channel ID from BeaconRepository (consistent with navigation)
         val actualChannelId = if (recipientId != null) {
-            // Create deterministic DM channel ID using SHORT IDs (4 chars) for BLE compatibility
-            val myIdShort = localUserId.take(4)
-            val recipientIdShort = recipientId.take(4)
-            val dmChannelId = "dm_${listOf(myIdShort, recipientIdShort).sorted().joinToString("_")}"
-            android.util.Log.i("ConversationVM", "   📨 DM to $recipientName using channel: $dmChannelId")
-            
-            // Ensure DM channel exists in repository
-            BeaconRepository.getOrCreateDM(_beaconId.value, localUserId, recipientId, recipientName ?: recipientId)
-            
+            // Get or create DM channel — use its ID for consistency
+            val dm = BeaconRepository.getOrCreateDM(_beaconId.value, localUserId, recipientId, recipientName ?: recipientId)
+            android.util.Log.i("ConversationVM", "   📨 DM to $recipientName using channel: ${dm.id}")
+
             // Join the DM channel so we can receive replies
-            BoundaryEngine.joinChannel(dmChannelId)
-            android.util.Log.i("ConversationVM", "   ✅ Joined DM channel: $dmChannelId")
-            
-            dmChannelId
+            BoundaryEngine.joinChannel(dm.id)
+            android.util.Log.i("ConversationVM", "   ✅ Joined DM channel: ${dm.id}")
+
+            dm.id
         } else {
             _channelId.value
         }
@@ -244,8 +239,84 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
         // NOTE: BoundaryEngine.routeMessage() already sends via SupabaseChat when online
         // Do NOT call SupabaseChat.sendMessage() again here - it causes duplicates!
 
-        // Ambient AI observation - analyze our own messages for assistance opportunities
-        observeMessageForAI(message)
+        // AI response path: direct chat for SmithAI DMs, ambient for others
+        if (message.recipientId == "smith-ai" || message.channelId.contains("smith")) {
+            handleSmithAIChat(message)
+        } else {
+            observeMessageForAI(message)
+        }
+    }
+
+    /**
+     * Direct SmithAI conversation — every message gets an AI response.
+     */
+    private fun handleSmithAIChat(message: Message) {
+        viewModelScope.launch {
+            try {
+                val apiKey = com.guildofsmiths.trademesh.data.UserPreferences.getOpenRouterApiKey()
+                if (apiKey.isBlank()) {
+                    // No API key — provide a fallback message
+                    val fallback = Message(
+                        beaconId = message.beaconId,
+                        channelId = message.channelId,
+                        senderId = "ai-assistant",
+                        senderName = "SmithAI",
+                        content = "I need an API key to respond. Go to Settings > SmithAI > Cloud to connect.",
+                        timestamp = System.currentTimeMillis(),
+                        aiGenerated = true,
+                        aiModel = "fallback",
+                        aiSource = "local",
+                        aiContext = "smithai-chat"
+                    )
+                    com.guildofsmiths.trademesh.data.MessageRepository.addMessage(fallback)
+                    return@launch
+                }
+
+                // Build context from recent messages in this channel
+                val recentMessages = com.guildofsmiths.trademesh.data.MessageRepository
+                    .getAllMessages()
+                    .filter { it.channelId == message.channelId }
+                    .sortedBy { it.timestamp }
+                    .takeLast(10)
+                    .joinToString("\n") { m: Message ->
+                        val role = if (m.aiGenerated) "SmithAI" else "User"
+                        "$role: ${m.content}"
+                    }
+
+                val systemPrompt = com.guildofsmiths.trademesh.ai.AIPrompts.SYSTEM +
+                    "\n\nYou are in a direct conversation with the user. Answer their questions, help with job planning, scheduling, materials, invoicing, and anything construction-related. Be conversational and helpful. If they ask you to do something (create a job, send a message, check materials), explain what you would do and confirm."
+
+                val userPrompt = if (recentMessages.isNotBlank()) {
+                    "Recent conversation:\n$recentMessages\n\nUser: ${message.content}"
+                } else {
+                    message.content
+                }
+
+                val response = com.guildofsmiths.trademesh.ai.OpenRouterClient.chat(
+                    systemPrompt = systemPrompt,
+                    userMessage = userPrompt,
+                    maxTokens = 300
+                )
+
+                val aiMessage = Message(
+                    beaconId = message.beaconId,
+                    channelId = message.channelId,
+                    senderId = "ai-assistant",
+                    senderName = "SmithAI",
+                    content = response ?: "I'm having trouble connecting right now. Check your internet and try again.",
+                    timestamp = System.currentTimeMillis(),
+                    aiGenerated = true,
+                    aiModel = "openrouter",
+                    aiSource = "cloud",
+                    aiContext = "smithai-chat",
+                    aiPrompt = message.content
+                )
+                com.guildofsmiths.trademesh.data.MessageRepository.addMessage(aiMessage)
+                android.util.Log.i("ConversationVM", "SmithAI response: ${(response ?: "").take(50)}...")
+            } catch (e: Exception) {
+                android.util.Log.w("ConversationVM", "SmithAI chat failed", e)
+            }
+        }
     }
 
     /**

@@ -1,41 +1,40 @@
 package com.guildofsmiths.trademesh.ui.dashboard
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
-import com.guildofsmiths.trademesh.ui.ConsoleSeparator
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.JobStage
+import com.guildofsmiths.trademesh.ai.AISupervisor
+import com.guildofsmiths.trademesh.data.ChannelType
+import com.guildofsmiths.trademesh.data.CrewPresenceRepository
 import com.guildofsmiths.trademesh.data.RoleContext
 import com.guildofsmiths.trademesh.data.Permission
 import com.guildofsmiths.trademesh.data.BeaconRepository
-import com.guildofsmiths.trademesh.data.PeerRepository
-import com.guildofsmiths.trademesh.data.UserPreferences
+import com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel
 import com.guildofsmiths.trademesh.service.ChatManager
 import com.guildofsmiths.trademesh.service.ConnectionMode
 
-@Composable
-private fun ActionButton(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Text(
-        text = label,
-        style = ConsoleTheme.action,
-        modifier = modifier
-            .clickable { onClick() }
-            .background(ConsoleTheme.surface)
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-    )
-}
+// ════════════════════════════════════════════════════════════════════
+// DASHBOARD SCREEN — Role-Adaptive Command Surface
+// ════════════════════════════════════════════════════════════════════
 
 @Composable
 fun DashboardScreen(
@@ -43,288 +42,636 @@ fun DashboardScreen(
     onJobClick: (String) -> Unit,
     onNewJob: () -> Unit,
     onClockIn: () -> Unit,
-    onMessages: () -> Unit,
+    onComm: () -> Unit,
     onSettings: () -> Unit,
     onProfile: () -> Unit,
     onArchive: () -> Unit,
+    onJobBoard: () -> Unit = {},
+    onDispatch: () -> Unit = {},
+    onMessageCrew: ((com.guildofsmiths.trademesh.data.CrewPresenceInfo) -> Unit)? = null,
+    onTimeTracking: () -> Unit = {},
+    onPlan: () -> Unit = {},
+    onReport: () -> Unit = {},
+    onSupply: () -> Unit = {},
+    onClients: () -> Unit = {},
     viewModel: DashboardViewModel = viewModel()
 ) {
-    LaunchedEffect(jobs) { viewModel.loadJobs(jobs) }
+    LaunchedEffect(jobs) {
+        viewModel.loadJobs(jobs)
+        // Start AI supervisor loop — works for all roles including Solo
+        AISupervisor.startLoop(jobs)
+    }
 
-    val alerts by viewModel.alerts.collectAsState()
     val activeJobs by viewModel.jobs.collectAsState()
     val isClockedIn by viewModel.isClockedIn
-
-    // Connection mode for dot indicator
     val connectionMode by ChatManager.connectionMode.collectAsState()
 
-    // Unread count: sum unreadCount across all channels in all beacons
-    val beacons by BeaconRepository.beacons.collectAsState()
-    val totalUnreads = remember(beacons) {
-        beacons.flatMap { it.channels }.sumOf { it.unreadCount }
+    // Update AI with latest jobs when they change
+    LaunchedEffect(activeJobs) {
+        AISupervisor.updateJobs(activeJobs)
     }
 
-    // Active peers for crew panel
-    val allPeers by PeerRepository.peers.collectAsState()
-    val activePeers = remember(allPeers) {
-        allPeers.values.filter { it.isActive() }.sortedByDescending { it.lastSeen }
+    var selectedDay by remember { mutableStateOf<Int?>(null) }
+
+    // Crew assignment dialog state
+    var assigningJob by remember { mutableStateOf<com.guildofsmiths.trademesh.ui.jobboard.Job?>(null) }
+    val jobViewModel: JobBoardViewModel = viewModel()
+
+    if (assigningJob != null) {
+        CrewAssignDialog(
+            job = assigningJob!!,
+            onAssign = { job, crewMember ->
+                jobViewModel.assignCrewToJob(job.id, crewMember)
+                assigningJob = null
+            },
+            onDismiss = { assigningJob = null }
+        )
     }
+
+    val beacons by BeaconRepository.beacons.collectAsState()
+    // In Solo mode, exclude crew DM channels from notification banner
+    val isSoloMode = RoleContext.isSolo()
+    val crewNames = remember(isSoloMode) {
+        if (isSoloMode) CrewPresenceRepository.getCrew().map { it.name }.toSet() else emptySet()
+    }
+    val relevantChannels = remember(beacons, isSoloMode, crewNames) {
+        beacons.flatMap { it.channels }.let { channels ->
+            if (isSoloMode) channels.filter { ch ->
+                ch.type != ChannelType.DM || ch.name !in crewNames
+            } else channels
+        }
+    }
+    val totalUnreads = remember(relevantChannels) {
+        relevantChannels.sumOf { it.unreadCount }
+    }
+    val latestMessage = remember(relevantChannels) {
+        relevantChannels
+            .filter { it.lastMessagePreview != null && it.lastMessageTime != null }
+            .maxByOrNull { it.lastMessageTime ?: 0L }
+    }
+
+    // Resolve which modules to show based on current role
+    val modules = resolveModules(RoleContext.role)
+
+    // Role-specific quick actions
+    val quickActions = getQuickActions(
+        role = RoleContext.role,
+        onReport = onReport,
+        onSupply = onSupply,
+        onArchive = onArchive,
+        onClients = onClients,
+        onClockIn = onClockIn,
+        onComm = onComm,
+        onJobBoard = onJobBoard,
+        onDispatch = onDispatch,
+    )
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(ConsoleTheme.background)
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp)
     ) {
-        // ── Header ─────────────────────────────────────────────────────
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Render modules in order
+            modules.forEach { module ->
+                when (module) {
+                    DashboardModule.HEADER -> {
+                        // ── HEADER ─────────────────────────────────────
+                        val headerTitle = if (RoleContext.isTeamMember()) {
+                            "Team" // Will show org name when org system is wired
+                        } else {
+                            viewModel.getBusinessName()
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = headerTitle,
+                                style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.text),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = rememberRipple(bounded = true),
+                                        onClick = { onProfile() }
+                                    )
+                                    .padding(4.dp)
+                            )
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                val clockBg = if (isClockedIn) ConsoleTheme.success.copy(alpha = 0.10f) else ConsoleTheme.surface
+                                val clockColor = if (isClockedIn) ConsoleTheme.success else ConsoleTheme.textMuted
+                                val connLabel = when (connectionMode) {
+                                    ConnectionMode.ONLINE  -> "online"
+                                    ConnectionMode.MESH    -> "mesh"
+                                    ConnectionMode.OFFLINE -> "offline"
+                                }
+                                val clockLabel = if (isClockedIn) "● ON CLOCK · $connLabel" else "○ OFF CLOCK · $connLabel"
+
+                                Box(
+                                    modifier = Modifier
+                                        .background(clockBg, RoundedCornerShape(4.dp))
+                                        .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = rememberRipple(bounded = true, color = ConsoleTheme.accent),
+                                            onClick = { onClockIn() }
+                                        )
+                                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                                ) {
+                                    Text(clockLabel, style = ConsoleTheme.caption.copy(color = clockColor))
+                                }
+
+                                Text(
+                                    text = "[⚙]",
+                                    style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                                    modifier = Modifier.clickable { onSettings() }.padding(4.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    DashboardModule.MESSAGE_STRIP -> {
+                        if (latestMessage != null && latestMessage.lastMessagePreview != null) {
+                            val age = formatTimeAgo(latestMessage.lastMessageTime ?: 0L)
+                            val preview = latestMessage.lastMessagePreview ?: ""
+                            val channelName = latestMessage.name
+                            val unreadExtra = if (totalUnreads > 1) " · +${totalUnreads - 1} unread" else ""
+                            val stripColor = if (totalUnreads > 0) ConsoleTheme.accent else ConsoleTheme.textMuted
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        if (totalUnreads > 0) ConsoleTheme.accent.copy(alpha = 0.05f) else ConsoleTheme.surface,
+                                        RoundedCornerShape(4.dp)
+                                    )
+                                    .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.04f), RoundedCornerShape(4.dp))
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = rememberRipple(bounded = true),
+                                        onClick = { onComm() }
+                                    )
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "$channelName: \"$preview\"  $age$unreadExtra",
+                                    style = ConsoleTheme.caption.copy(color = stripColor),
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
+
+                    DashboardModule.AI_INBOX -> AIInboxModule()
+                    DashboardModule.MY_TASKS -> MyTasksModule()
+                    DashboardModule.TEAM_PRESENCE -> {
+                        val ctx = androidx.compose.ui.platform.LocalContext.current
+                        TeamPresenceModule(
+                            onMapClick = { /* Navigate to map via bottom nav */ },
+                            onDispatchClick = onJobBoard,
+                            onCallPhone = { phone ->
+                                val intent = android.content.Intent(
+                                    android.content.Intent.ACTION_DIAL,
+                                    android.net.Uri.parse("tel:$phone")
+                                )
+                                ctx.startActivity(intent)
+                            },
+                            onMessageCrew = onMessageCrew
+                        )
+                    }
+                    DashboardModule.DISPATCH -> {
+                        // Show jobs that have no crew assigned
+                        val unassigned = activeJobs.filter { it.crew.isEmpty() && it.stage != JobStage.CLOSED }
+                        DispatchModule(
+                            unassignedJobs = unassigned,
+                            onAssignCrew = { job -> assigningJob = job },
+                            onJobClick = onJobClick
+                        )
+                    }
+                    DashboardModule.PROJECT_OVERVIEW -> ProjectOverviewModule()
+                    DashboardModule.SITE_MAP -> SiteMapModule()
+                    DashboardModule.FINANCIALS -> {
+                        FinancialsModule(allJobs = jobs)
+                    }
+                    DashboardModule.HUB_STATUS -> HubStatusModule()
+
+                    DashboardModule.JOBS_PANEL -> {
+                        // ── JOBS (dominant module) ─────────────────────
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+                                .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                                .padding(14.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("JOBS", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+                                    Text("${viewModel.getActiveJobCount()} active", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                                    val outstanding = viewModel.getOutstandingTotal()
+                                    if (outstanding > 0 && (RoleContext.can(Permission.VIEW_FINANCIALS) || RoleContext.isSolo())) {
+                                        Text("· $${String.format("%.0f", outstanding)} owed", style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent))
+                                    }
+                                }
+                                if (RoleContext.can(Permission.MANAGE_JOBS)) {
+                                    Text(
+                                        text = "[+ NEW]",
+                                        style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                                        modifier = Modifier.clickable { onNewJob() }.padding(2.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            val displayJobs = if (selectedDay != null) viewModel.getJobsForDay(selectedDay!!) else viewModel.getPrioritizedJobs()
+                            val visibleJobs = if (selectedDay != null) displayJobs else displayJobs.take(3)
+
+                            for (slot in 0 until 3) {
+                                val job = visibleJobs.getOrNull(slot)
+                                if (job != null) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(52.dp)
+                                            .clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = rememberRipple(bounded = true),
+                                                onClick = { onJobClick(job.id) }
+                                            )
+                                            .padding(vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "${job.stage.icon} ${job.clientName ?: job.title}",
+                                                style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text)
+                                            )
+                                            val timeContext = formatJobTimeContext(job)
+                                            val addressShort = job.clientAddress.take(25)
+                                            val moneyContext = if (job.stage == JobStage.INVOICE) {
+                                                val invoiceTotal = job.materials.sumOf { it.totalCost } + (job.hourlyRate * 8)
+                                                " · $${String.format("%.0f", invoiceTotal)}"
+                                            } else ""
+                                            Text(
+                                                text = "${job.stage.displayName} · $addressShort · $timeContext$moneyContext",
+                                                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                                                maxLines = 1, overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                        Text(">", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted), modifier = Modifier.padding(start = 8.dp))
+                                    }
+                                } else if (slot == 0 && activeJobs.isEmpty()) {
+                                    Box(modifier = Modifier.fillMaxWidth().height(52.dp).padding(vertical = 8.dp), contentAlignment = Alignment.CenterStart) {
+                                        Text("No active jobs. Tap [+ NEW] to get started.", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                                    }
+                                } else {
+                                    Spacer(modifier = Modifier.fillMaxWidth().height(52.dp))
+                                }
+                                if (slot < 2) {
+                                    Box(Modifier.fillMaxWidth().height(0.5.dp).background(ConsoleTheme.text.copy(alpha = 0.06f)))
+                                }
+                            }
+
+                            if (selectedDay != null) {
+                                Text("[Clear filter]", style = ConsoleTheme.action.copy(color = ConsoleTheme.accent), modifier = Modifier.clickable { selectedDay = null }.padding(vertical = 6.dp))
+                            } else if (displayJobs.size > 3) {
+                                Text("[See all ${displayJobs.size} jobs >]", style = ConsoleTheme.action.copy(color = ConsoleTheme.accent), modifier = Modifier.clickable { onJobBoard() }.padding(vertical = 6.dp))
+                            }
+                        }
+                    }
+
+                    DashboardModule.GETTING_STARTED -> {
+                        if (!viewModel.hasAnyJobs()) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+                                    .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                                    .padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text("GETTING STARTED", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+                                GettingStartedRow("[Set up profile]", onProfile)
+                                if (RoleContext.can(Permission.MANAGE_JOBS)) {
+                                    GettingStartedRow("[Create first job]", onNewJob)
+                                }
+                                GettingStartedRow("[Explore Comm]", onComm)
+                            }
+                        }
+                    }
+
+                    DashboardModule.PROGRESS -> {
+                        val completedCount = viewModel.getCompletedThisMonth()
+                        val totalCount = viewModel.getTotalThisMonth()
+                        val earned = viewModel.getEarnedThisMonth()
+                        val owed = viewModel.getOutstandingTotal()
+
+                        if (completedCount > 0 || earned > 0) {
+                            val progress = if (totalCount > 0) completedCount.toFloat() / totalCount else 0f
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+                                    .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = rememberRipple(bounded = true),
+                                        onClick = { onReport() }
+                                    )
+                                    .padding(14.dp)
+                            ) {
+                                Text("PROGRESS", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Box(Modifier.weight(1f).height(6.dp).background(ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(3.dp))) {
+                                        Box(Modifier.fillMaxHeight().fillMaxWidth(progress).background(ConsoleTheme.accent, RoundedCornerShape(3.dp)))
+                                    }
+                                    Text("$completedCount/$totalCount this month", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                val commonJobs = viewModel.getCommonJobTypes()
+                                if (commonJobs.isNotEmpty()) {
+                                    Text("Common: ${commonJobs.joinToString(", ")}", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                                }
+                                if (earned > 0 || owed > 0) {
+                                    Text("$${String.format("%.0f", earned)} earned · $${String.format("%.0f", owed)} owed", style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent))
+                                }
+                            }
+                        }
+                    }
+
+                    DashboardModule.CALENDAR -> {
+                        MonthCalendar(
+                            scheduledDays = viewModel.getScheduledDays(),
+                            selectedDay = selectedDay,
+                            onDayClick = { day -> selectedDay = if (selectedDay == day) null else day }
+                        )
+                    }
+
+                    DashboardModule.QUICK_ACTIONS -> {
+                        val rows = quickActions.chunked(2)
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            rows.forEach { row ->
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    row.forEach { action ->
+                                        QuickAction(action.label, Modifier.weight(1f), action.onClick)
+                                    }
+                                    if (row.size == 1) Spacer(Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+
+                    DashboardModule.ACTIVITY_LOG -> {
+                        val todayActivity = viewModel.getTodayActivity()
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+                                .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                                .padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text("TODAY", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+                            if (todayActivity.isEmpty()) {
+                                Text("No activity yet today.", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted), modifier = Modifier.padding(vertical = 4.dp))
+                            } else {
+                                todayActivity.forEach { event ->
+                                    Text(
+                                        text = event.description,
+                                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.text),
+                                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .then(if (event.jobId != null) Modifier.clickable { onJobClick(event.jobId) } else Modifier)
+                                            .padding(vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── FOOTER ─────────────────────────────────────────────────
+            val today = java.text.SimpleDateFormat("MMM d", java.util.Locale.US).format(java.util.Date())
+            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("$today · ${RoleContext.role.displayName}", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                Text("${viewModel.getActiveJobCount()} active", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+            }
+        }
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// MONTH CALENDAR — full month grid with day selection
+// ════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun MonthCalendar(
+    scheduledDays: Set<Int>,
+    selectedDay: Int?,
+    onDayClick: (Int) -> Unit
+) {
+    val cal = java.util.Calendar.getInstance()
+    val todayOfMonth = cal.get(java.util.Calendar.DAY_OF_MONTH)
+
+    // Month info
+    val monthCal = java.util.Calendar.getInstance()
+    monthCal.set(java.util.Calendar.DAY_OF_MONTH, 1)
+    val firstDayOfWeek = monthCal.get(java.util.Calendar.DAY_OF_WEEK) - 1 // 0=Sun
+    val daysInMonth = monthCal.getActualMaximum(java.util.Calendar.DAY_OF_MONTH)
+    val monthName = java.text.SimpleDateFormat("MMM yyyy", java.util.Locale.US)
+        .format(monthCal.time).uppercase()
+
+    val dayNames = listOf("S", "M", "T", "W", "T", "F", "S")
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+            .padding(14.dp)
+    ) {
+        // Header: SCHEDULE + month label
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Column {
-                Text(text = viewModel.getBusinessName(), style = ConsoleTheme.title)
-                Text(
-                    text = UserPreferences.getUserName(),
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent),
-                    modifier = Modifier.clickable { onProfile() }.padding(vertical = 2.dp)
-                )
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // Connection dot
-                val dotColor = when (connectionMode) {
-                    ConnectionMode.ONLINE  -> ConsoleTheme.success
-                    ConnectionMode.MESH    -> ConsoleTheme.accent
-                    ConnectionMode.OFFLINE -> ConsoleTheme.error
-                }
-                Box(
-                    modifier = Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(dotColor)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                // Msg badge
-                val msgStyle = if (totalUnreads > 0)
-                    ConsoleTheme.action.copy(color = ConsoleTheme.accent)
-                else
-                    ConsoleTheme.action.copy(color = ConsoleTheme.textMuted)
-                val msgLabel = if (totalUnreads > 0) "[Msg $totalUnreads]" else "[Msg]"
-                Text(
-                    text = msgLabel,
-                    style = msgStyle,
-                    modifier = Modifier.clickable { onMessages() }.padding(4.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "[⚙]",
-                    style = ConsoleTheme.action,
-                    modifier = Modifier.clickable { onSettings() }.padding(4.dp)
-                )
-            }
+            Text("SCHEDULE", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+            Text(monthName, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-        ConsoleSeparator()
-
-        // ── Clock Status Strip ─────────────────────────────────────────
-        Spacer(modifier = Modifier.height(8.dp))
-        if (isClockedIn) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(ConsoleTheme.success.copy(alpha = 0.08f))
-                    .clickable { onClockIn() }
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "[● ON CLOCK]",
-                    style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.success)
-                )
-            }
-        } else {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
-                    .clickable { onClockIn() }
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "[○ OFF CLOCK]",
-                    style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // ── Needs Attention ────────────────────────────────────────────
-        if (alerts.isNotEmpty()) {
-            Text(text = "NEEDS ATTENTION", style = ConsoleTheme.captionBold)
-            Spacer(modifier = Modifier.height(8.dp))
-            alerts.forEach { alert ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(ConsoleTheme.surface)
-                        .clickable { onJobClick(alert.jobId) }
-                        .padding(12.dp)
-                ) {
-                    Text(
-                        text = "! ",
-                        style = ConsoleTheme.bodyBold,
-                        color = ConsoleTheme.warning
-                    )
-                    Text(text = alert.message, style = ConsoleTheme.bodySmall)
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-
-        // ── Active Jobs ────────────────────────────────────────────────
-        Text(text = "JOBS", style = ConsoleTheme.captionBold)
         Spacer(modifier = Modifier.height(8.dp))
 
-        if (activeJobs.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
-                    .padding(24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "No active jobs.\nTap [+ NEW JOB] to get started.",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
-                )
-            }
-        } else {
-            activeJobs.forEach { job ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(ConsoleTheme.surface)
-                        .clickable { onJobClick(job.id) }
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "${job.stage.icon} ${job.clientName ?: job.title}",
-                            style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text)
-                        )
-                        Text(
-                            text = "${job.stage.displayName} · ${job.clientAddress.take(30)}",
-                            style = ConsoleTheme.caption
-                        )
-                    }
-                    Text(text = ">", style = ConsoleTheme.body, color = ConsoleTheme.textMuted)
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // ── Quick Action Grid ──────────────────────────────────────────
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (RoleContext.can(Permission.MANAGE_JOBS)) {
-                    ActionButton("[+ NEW JOB]") { onNewJob() }
-                }
-                ActionButton("[CLOCK IN]") { onClockIn() }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ActionButton("[MESSAGES]") { onMessages() }
-                if (RoleContext.can(Permission.VIEW_FINANCIALS) || RoleContext.isSolo()) {
-                    ActionButton("[INVOICES]") { onArchive() }
-                }
-            }
-            if (RoleContext.can(Permission.MANAGE_CREW)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ActionButton("[CREW]") { /* future: navigate to crew screen */ }
-                    ActionButton("[DISPATCH]") { /* future: navigate to dispatch screen */ }
-                }
-            }
-        }
-
-        // ── Crew Status Panel (foreman only) ───────────────────────────
-        if (RoleContext.isForeman()) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Text("CREW", style = ConsoleTheme.captionBold)
-            Spacer(modifier = Modifier.height(8.dp))
-
-            if (activePeers.isEmpty()) {
-                Text("No crew members connected", style = ConsoleTheme.caption)
-            } else {
-                activePeers.forEach { peer ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row {
-                            Text(
-                                text = "● ",
-                                style = ConsoleTheme.caption.copy(color = ConsoleTheme.success)
-                            )
-                            Text(text = peer.userName, style = ConsoleTheme.bodySmall)
-                        }
-                        Text(text = "connected", style = ConsoleTheme.caption)
-                    }
-                }
-            }
-        }
-
-        // ── Stats ──────────────────────────────────────────────────────
-        Spacer(modifier = Modifier.height(16.dp))
+        // Day name headers
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = "${viewModel.getActiveJobCount()}", style = ConsoleTheme.bodyBold)
-                Text(text = "Active", style = ConsoleTheme.caption)
-            }
-            if (RoleContext.can(Permission.VIEW_FINANCIALS) || RoleContext.isSolo()) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "$${String.format("%.0f", viewModel.getOutstandingTotal())}",
-                        style = ConsoleTheme.bodyBold
-                    )
-                    Text(text = "Outstanding", style = ConsoleTheme.caption)
+            dayNames.forEach { name ->
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    Text(name, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
                 }
             }
         }
 
-        // ── Today Summary ──────────────────────────────────────────────
-        Spacer(modifier = Modifier.height(16.dp))
-        ConsoleSeparator()
-        Spacer(modifier = Modifier.height(8.dp))
-
-        val today = java.text.SimpleDateFormat("MMM d", java.util.Locale.US).format(java.util.Date())
-        val blockedCount = activeJobs.count { it.stage == JobStage.BLOCKED }
-        Text("TODAY · $today", style = ConsoleTheme.captionBold)
         Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = "${viewModel.getActiveJobCount()} jobs active · $blockedCount blocked",
-            style = ConsoleTheme.caption
-        )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        // Calendar grid
+        val totalCells = firstDayOfWeek + daysInMonth
+        val rows = (totalCells + 6) / 7
 
-        // ── Archive link ───────────────────────────────────────────────
-        Text(
-            text = "[Archive]",
-            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
-            modifier = Modifier.clickable { onArchive() }.padding(4.dp)
-        )
+        for (row in 0 until rows) {
+            Row(
+                modifier = Modifier.fillMaxWidth().height(32.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                for (col in 0..6) {
+                    val cellIndex = row * 7 + col
+                    val dayNum = cellIndex - firstDayOfWeek + 1
+
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (dayNum in 1..daysInMonth) {
+                            val isToday = dayNum == todayOfMonth
+                            val hasJob = scheduledDays.contains(dayNum)
+                            val isSelected = dayNum == selectedDay
+
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .then(
+                                        when {
+                                            isSelected -> Modifier.background(ConsoleTheme.accent, CircleShape)
+                                            isToday && hasJob -> Modifier.background(ConsoleTheme.accent, CircleShape)
+                                            isToday -> Modifier.border(1.5.dp, ConsoleTheme.accent, CircleShape)
+                                            hasJob -> Modifier.background(ConsoleTheme.accent.copy(alpha = 0.10f), CircleShape)
+                                            else -> Modifier
+                                        }
+                                    )
+                                    .clickable { onDayClick(dayNum) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "$dayNum",
+                                    style = ConsoleTheme.caption.copy(
+                                        color = when {
+                                            isSelected -> Color.White
+                                            isToday && hasJob -> Color.White
+                                            isToday -> ConsoleTheme.accent
+                                            hasJob -> ConsoleTheme.accent
+                                            else -> ConsoleTheme.textMuted
+                                        }
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// QUICK ACTION BUTTON (Fix 5: ripple)
+// ════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun QuickAction(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(
+        modifier = modifier
+            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
+            .clip(RoundedCornerShape(4.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = rememberRipple(bounded = true, color = ConsoleTheme.accent),
+                onClick = onClick
+            )
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(label, style = ConsoleTheme.action.copy(color = ConsoleTheme.text))
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// GETTING STARTED ROW (Fix 9)
+// ════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun GettingStartedRow(label: String, onClick: () -> Unit) {
+    Text(
+        text = label,
+        style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(4.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = rememberRipple(bounded = true, color = ConsoleTheme.accent),
+                onClick = onClick
+            )
+            .padding(vertical = 8.dp, horizontal = 4.dp)
+    )
+}
+
+// ════════════════════════════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════════════════════════════
+
+private fun formatTimeAgo(timestamp: Long): String {
+    val diff = System.currentTimeMillis() - timestamp
+    val minutes = diff / 60_000
+    val hours = diff / 3_600_000
+    val days = diff / 86_400_000
+    return when {
+        minutes < 1 -> "now"
+        minutes < 60 -> "${minutes}m"
+        hours < 24 -> "${hours}h"
+        else -> "${days}d"
+    }
+}
+
+private fun formatJobTimeContext(job: Job): String {
+    val diff = System.currentTimeMillis() - job.updatedAt
+    val days = diff / 86_400_000
+    val hours = diff / 3_600_000
+    return when {
+        job.stage == JobStage.IN_PROGRESS && job.createdAt > 0 -> {
+            val elapsed = (System.currentTimeMillis() - job.createdAt) / 86_400_000
+            "Day ${elapsed + 1}"
+        }
+        hours < 1 -> "updated now"
+        hours < 24 -> "${hours}h ago"
+        else -> "${days}d ago"
     }
 }

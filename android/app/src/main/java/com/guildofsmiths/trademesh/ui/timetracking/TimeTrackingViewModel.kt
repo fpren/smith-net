@@ -60,15 +60,59 @@ class TimeTrackingViewModel : ViewModel() {
 
     // Local storage for entries
     private val localEntries = mutableListOf<TimeEntry>()
-    
+
     // Custom job names (saved locally)
     private val customJobs = mutableSetOf<String>()
 
     init {
+        restorePersistedState()
         loadStatus()
         loadEntries()
         loadDailySummary()
         loadAvailableJobs()
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // PERSISTENCE (SharedPreferences for clock-in state)
+    // ════════════════════════════════════════════════════════════════════
+
+    private fun restorePersistedState() {
+        val activeJson = UserPreferences.getActiveTimeEntry()
+        if (activeJson != null) {
+            try {
+                val json = JSONObject(activeJson)
+                val entry = parseEntry(json)
+                localEntries.add(0, entry)
+                _activeEntry.value = entry
+                _isClockedIn.value = true
+                TimeEntryRepository.addEntry(entry)
+            } catch (e: Exception) {
+                // Corrupted data — clear it
+                UserPreferences.clearActiveTimeEntry()
+            }
+        }
+    }
+
+    private fun persistActiveEntry(entry: TimeEntry) {
+        val json = JSONObject().apply {
+            put("id", entry.id)
+            put("userId", entry.userId)
+            put("userName", entry.userName)
+            put("clockInTime", entry.clockInTime)
+            entry.jobId?.let { put("jobId", it) }
+            entry.jobTitle?.let { put("jobTitle", it) }
+            put("entryType", entry.entryType.name.lowercase())
+            put("source", entry.source.name.lowercase())
+            put("createdAt", entry.createdAt)
+            put("immutableHash", entry.immutableHash)
+            put("status", entry.status.name.lowercase())
+            put("notes", JSONArray())
+        }
+        UserPreferences.setActiveTimeEntry(json.toString())
+    }
+
+    private fun clearPersistedEntry() {
+        UserPreferences.clearActiveTimeEntry()
     }
     
     private fun loadAvailableJobs() {
@@ -139,7 +183,10 @@ class TimeTrackingViewModel : ViewModel() {
         localEntries.add(0, entry)
         _activeEntry.value = entry
         _isClockedIn.value = true
-        
+
+        // Persist active entry for app restart recovery
+        persistActiveEntry(entry)
+
         // Sync to shared repository for invoice generator
         TimeEntryRepository.addEntry(entry)
         _isLoading.value = false
@@ -199,16 +246,26 @@ class TimeTrackingViewModel : ViewModel() {
         _activeEntry.value = null
         _isClockedIn.value = false
         _isLoading.value = false
-        
+
+        // Clear persisted active entry
+        clearPersistedEntry()
+
         // Update entries list and summary
         _entries.value = localEntries.toList()
         updateDailySummary()
-        
+
         // Sync completed entry to shared repository for invoice generator
         TimeEntryRepository.addEntry(completedEntry)
         
         // Try to sync to backend
         syncClockOutToBackend(completedEntry)
+
+        // Notify AISupervisor of clock-out for daily log generation
+        // The supervisor will generate the log on the next observation cycle
+        // or the end-of-day sweep will catch it
+        if (completedEntry.jobId != null || completedEntry.jobTitle != null) {
+            android.util.Log.i("TimeTrackingVM", "Clock-out on job: ${completedEntry.jobTitle} — daily log will be generated")
+        }
     }
 
     fun loadEntries(limit: Int = 10) {

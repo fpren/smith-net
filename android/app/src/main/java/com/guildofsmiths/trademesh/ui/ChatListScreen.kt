@@ -1,7 +1,13 @@
 package com.guildofsmiths.trademesh.ui
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -22,10 +29,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -34,32 +44,41 @@ import androidx.compose.ui.unit.sp
 import com.guildofsmiths.trademesh.data.BeaconRepository
 import com.guildofsmiths.trademesh.data.Channel
 import com.guildofsmiths.trademesh.data.ChannelType
+import com.guildofsmiths.trademesh.data.ClientRepository
+import com.guildofsmiths.trademesh.data.ColleagueRepository
+import com.guildofsmiths.trademesh.data.PeerRepository
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+// ═════════════════════════════════════════════════════════════════════
+// CONTACT ROLE — categorizes each conversation
+// ═════════════════════════════════════════════════════════════════════
+
+enum class ContactRole { CREW, CLIENT, DISPATCH, AI, UNKNOWN }
+
 /**
- * ChatListScreen — Flat WhatsApp-style conversation list.
+ * ChatListScreen — Hybrid layout (A+C).
  *
- * Collapses the old Beacon → Channel hierarchy into a single scrollable list,
- * sorted by most recent message. Each row shows avatar, name, preview and
- * unread badge. Part of the Messenger Cleanup (Task 4).
+ * Quick contacts strip on top + filter tabs (ALL/CREW/CLIENTS/DISPATCH)
+ * + mesh peers bar + conversation list. SmithAI always first in strip.
  */
 @Composable
 fun ChatListScreen(
     onChannelClick: (beaconId: String, channelId: String) -> Unit,
     onNewClick: () -> Unit,
     onBackClick: () -> Unit,
-    // Typing states: keyed by channelId → true if someone is typing.
-    // Wired in Task 9; pass emptyMap() until then.
+    onPeersClick: () -> Unit = {},
+    onSmithAIClick: () -> Unit = {},
     typingState: Map<String, Boolean> = emptyMap(),
     modifier: Modifier = Modifier
 ) {
     val beacons by BeaconRepository.beacons.collectAsState()
     val isMeshConnected by BoundaryEngine.isMeshConnected.collectAsState()
+    var selectedTab by remember { mutableStateOf(CommTab.ALL) }
 
-    // Flatten all visible channels across all beacons, sorted by most recent message.
+    // Flatten all visible channels across all beacons, sorted by most recent message
     val allChannels: List<Pair<String, Channel>> = remember(beacons) {
         beacons
             .flatMap { beacon ->
@@ -68,6 +87,34 @@ fun ChatListScreen(
                     .map { beacon.id to it }
             }
             .sortedByDescending { (_, ch) -> ch.lastMessageTime ?: ch.createdAt }
+    }
+
+    // Tag each channel with a role
+    val taggedChannels = remember(allChannels) {
+        allChannels.map { (beaconId, channel) ->
+            Triple(beaconId, channel, resolveRole(channel))
+        }
+    }
+
+    // Filter by selected tab
+    val filteredChannels = remember(taggedChannels, selectedTab) {
+        when (selectedTab) {
+            CommTab.ALL -> taggedChannels
+            CommTab.CREW -> taggedChannels.filter { it.third == ContactRole.CREW || (it.second.type != ChannelType.DM && it.second.id != "general") }
+            CommTab.CLIENTS -> taggedChannels.filter { it.third == ContactRole.CLIENT }
+            CommTab.DISPATCH -> taggedChannels.filter { it.third == ContactRole.DISPATCH }
+        }
+    }
+
+    // Badge counts per tab
+    val crewUnread = taggedChannels.filter { it.third == ContactRole.CREW }.sumOf { it.second.unreadCount }
+    val clientUnread = taggedChannels.filter { it.third == ContactRole.CLIENT }.sumOf { it.second.unreadCount }
+    val dispatchUnread = taggedChannels.filter { it.third == ContactRole.DISPATCH }.sumOf { it.second.unreadCount }
+    val totalUnread = taggedChannels.sumOf { it.second.unreadCount }
+
+    // Mesh peer count
+    val meshPeerCount = remember(isMeshConnected) {
+        if (isMeshConnected) PeerRepository.getActivePeers().size else 0
     }
 
     Scaffold(
@@ -92,7 +139,7 @@ fun ChatListScreen(
         ) {
             // Header
             ConsoleHeader(
-                title = "MESSAGES",
+                title = "COMM",
                 subtitle = if (isMeshConnected) "mesh connected" else null,
                 onBackClick = onBackClick,
                 modifier = Modifier.background(ConsoleTheme.surface)
@@ -100,8 +147,35 @@ fun ChatListScreen(
 
             ConsoleSeparator()
 
-            // Conversation list
-            if (allChannels.isEmpty()) {
+            // ── Quick Contacts Strip ──
+            QuickContactsStrip(
+                channels = allChannels,
+                isMeshConnected = isMeshConnected,
+                onChannelClick = onChannelClick,
+                onSmithAIClick = onSmithAIClick
+            )
+
+            ConsoleSeparator()
+
+            // ── Filter Tabs ──
+            CommTabs(
+                selectedTab = selectedTab,
+                onTabSelected = { selectedTab = it },
+                totalUnread = totalUnread,
+                crewUnread = crewUnread,
+                clientUnread = clientUnread,
+                dispatchUnread = dispatchUnread
+            )
+
+            // ── Mesh Bar ──
+            if (isMeshConnected) {
+                MeshBar(peerCount = meshPeerCount, onClick = onPeersClick)
+            }
+
+            ConsoleSeparator()
+
+            // ── Conversation List ──
+            if (filteredChannels.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -115,14 +189,17 @@ fun ChatListScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "tap [+ NEW] to start one",
+                            text = "tap [+ NEW] to message a client or colleague",
                             style = ConsoleTheme.caption
                         )
                     }
                 }
             } else {
                 LazyColumn(modifier = Modifier.weight(1f)) {
-                    items(allChannels, key = { (beaconId, ch) -> "$beaconId:${ch.id}" }) { (beaconId, channel) ->
+                    items(
+                        filteredChannels,
+                        key = { (beaconId, ch, _) -> "$beaconId:${ch.id}" }
+                    ) { (beaconId, channel, _) ->
                         ChatRow(
                             channel = channel,
                             isTyping = typingState[channel.id] == true,
@@ -137,9 +214,247 @@ fun ChatListScreen(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ChatRow
-// ─────────────────────────────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════
+// QUICK CONTACTS STRIP
+// ═════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun QuickContactsStrip(
+    channels: List<Pair<String, Channel>>,
+    isMeshConnected: Boolean,
+    onChannelClick: (beaconId: String, channelId: String) -> Unit,
+    onSmithAIClick: () -> Unit
+) {
+    val scrollState = rememberScrollState()
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(ConsoleTheme.surface)
+            .horizontalScroll(scrollState)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // SmithAI always first
+        QuickContact(
+            initials = "AI",
+            name = "Ask AI",
+            avatarBrush = Brush.linearGradient(listOf(ConsoleTheme.accent, Color(0xFF8C6B2A))),
+            statusColor = ConsoleTheme.accent,
+            onClick = onSmithAIClick
+        )
+
+        // Recent contacts from channels (DMs only, sorted by last message)
+        val dmChannels = channels
+            .filter { (_, ch) -> ch.type == ChannelType.DM }
+            .take(7)
+
+        dmChannels.forEach { (beaconId, channel) ->
+            QuickContact(
+                initials = chatInitials(channel),
+                name = channel.name.split(" ").firstOrNull() ?: channel.name.take(6),
+                avatarColor = avatarColorFor(channel),
+                statusColor = when {
+                    isMeshConnected -> ConsoleTheme.accent  // gold = mesh
+                    else -> ConsoleTheme.success             // green = online
+                },
+                showStatus = true,
+                onClick = { onChannelClick(beaconId, channel.id) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun QuickContact(
+    initials: String,
+    name: String,
+    avatarColor: Color = ConsoleTheme.accent,
+    avatarBrush: Brush? = null,
+    statusColor: Color = ConsoleTheme.textDim,
+    showStatus: Boolean = false,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Box(modifier = Modifier.size(32.dp)) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .then(
+                        if (avatarBrush != null) Modifier.background(avatarBrush)
+                        else Modifier.background(avatarColor)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = initials,
+                    style = ConsoleTheme.captionBold.copy(
+                        color = ConsoleTheme.surface,
+                        fontSize = 10.sp
+                    )
+                )
+            }
+            if (showStatus) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(ConsoleTheme.background)
+                        .align(Alignment.BottomEnd)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(statusColor)
+                            .align(Alignment.Center)
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = name,
+            style = ConsoleTheme.caption.copy(fontSize = 8.sp),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// FILTER TABS
+// ═════════════════════════════════════════════════════════════════════
+
+private enum class CommTab { ALL, CREW, CLIENTS, DISPATCH }
+
+@Composable
+private fun CommTabs(
+    selectedTab: CommTab,
+    onTabSelected: (CommTab) -> Unit,
+    totalUnread: Int,
+    crewUnread: Int,
+    clientUnread: Int,
+    dispatchUnread: Int
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(ConsoleTheme.surface),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        CommTabItem("ALL", totalUnread, selectedTab == CommTab.ALL) { onTabSelected(CommTab.ALL) }
+        CommTabItem("CREW", crewUnread, selectedTab == CommTab.CREW) { onTabSelected(CommTab.CREW) }
+        CommTabItem("CLIENTS", clientUnread, selectedTab == CommTab.CLIENTS) { onTabSelected(CommTab.CLIENTS) }
+        CommTabItem("DISPATCH", dispatchUnread, selectedTab == CommTab.DISPATCH) { onTabSelected(CommTab.DISPATCH) }
+    }
+}
+
+@Composable
+private fun CommTabItem(
+    label: String,
+    unreadCount: Int,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 8.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = label,
+                style = ConsoleTheme.captionBold.copy(
+                    fontSize = 10.sp,
+                    color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.textMuted,
+                    letterSpacing = 0.5.sp
+                )
+            )
+            if (unreadCount > 0) {
+                Spacer(modifier = Modifier.width(3.dp))
+                Box(
+                    modifier = Modifier
+                        .background(ConsoleTheme.accent, CircleShape)
+                        .padding(horizontal = 4.dp, vertical = 1.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (unreadCount > 99) "99+" else unreadCount.toString(),
+                        style = ConsoleTheme.caption.copy(
+                            color = Color.White,
+                            fontSize = 7.sp
+                        )
+                    )
+                }
+            }
+        }
+        if (isSelected) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Box(
+                modifier = Modifier
+                    .size(width = 40.dp, height = 2.dp)
+                    .background(ConsoleTheme.accent)
+            )
+        } else {
+            Spacer(modifier = Modifier.height(6.dp))
+        }
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// MESH BAR
+// ═════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun MeshBar(peerCount: Int, onClick: () -> Unit) {
+    val transition = rememberInfiniteTransition(label = "mesh_pulse")
+    val alpha by transition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0.4f,
+        animationSpec = infiniteRepeatable(tween(1500), RepeatMode.Reverse),
+        label = "pulse"
+    )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(ConsoleTheme.accent.copy(alpha = 0.08f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(ConsoleTheme.accent.copy(alpha = alpha))
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = "MESH · $peerCount peer${if (peerCount != 1) "s" else ""} nearby",
+            style = ConsoleTheme.caption.copy(
+                color = ConsoleTheme.accent,
+                fontSize = 9.sp,
+                letterSpacing = 0.5.sp
+            ),
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = "›",
+            style = ConsoleTheme.body.copy(color = ConsoleTheme.accent)
+        )
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// CHAT ROW
+// ═════════════════════════════════════════════════════════════════════
 
 @Composable
 private fun ChatRow(
@@ -157,10 +472,7 @@ private fun ChatRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Avatar with status dot
-        ChatAvatar(
-            channel = channel,
-            isOnline = isMeshConnected
-        )
+        ChatAvatar(channel = channel, isOnline = isMeshConnected)
 
         Spacer(modifier = Modifier.width(12.dp))
 
@@ -216,9 +528,9 @@ private fun ChatRow(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Avatar
-// ─────────────────────────────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════
+// AVATAR
+// ═════════════════════════════════════════════════════════════════════
 
 @Composable
 private fun ChatAvatar(
@@ -230,7 +542,6 @@ private fun ChatAvatar(
     val avatarColor = avatarColorFor(channel)
 
     Box(modifier = modifier.size(44.dp)) {
-        // Colored circle
         Box(
             modifier = Modifier
                 .size(44.dp)
@@ -247,12 +558,11 @@ private fun ChatAvatar(
             )
         }
 
-        // Status dot — bottom-right corner
         Box(
             modifier = Modifier
                 .size(10.dp)
                 .clip(CircleShape)
-                .background(ConsoleTheme.background)  // Ring using background color
+                .background(ConsoleTheme.background)
                 .align(Alignment.BottomEnd)
         ) {
             Box(
@@ -268,9 +578,9 @@ private fun ChatAvatar(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Unread badge
-// ─────────────────────────────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════
+// UNREAD BADGE
+// ═════════════════════════════════════════════════════════════════════
 
 @Composable
 private fun UnreadBadge(count: Int) {
@@ -291,9 +601,49 @@ private fun UnreadBadge(count: Int) {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════
+// ROLE RESOLUTION
+// ═════════════════════════════════════════════════════════════════════
+
+/**
+ * Resolve a channel's contact role by checking repositories.
+ */
+private fun resolveRole(channel: Channel): ContactRole {
+    if (channel.id == "smithai" || channel.name.lowercase().contains("smithai")) {
+        return ContactRole.AI
+    }
+    if (channel.name.lowercase().contains("dispatch") || channel.name.lowercase().contains("hq")) {
+        return ContactRole.DISPATCH
+    }
+    if (channel.type == ChannelType.DM) {
+        val peerName = channel.name.trim().lowercase()
+        // Check colleague repository
+        val colleagues = ColleagueRepository.getAll()
+        if (colleagues.any { it.name.lowercase() == peerName || it.id in channel.members }) {
+            return ContactRole.CREW
+        }
+        // Check crew presence (simulated team members like Dana W.)
+        val crewMembers = com.guildofsmiths.trademesh.data.CrewPresenceRepository.getCrew()
+        if (crewMembers.any { it.name.lowercase() == peerName }) {
+            return ContactRole.CREW
+        }
+        // Check if the channel ID contains "client_" prefix (from NewConversationScreen DM creation)
+        if (channel.id.contains("client_")) {
+            return ContactRole.CLIENT
+        }
+        // Default unrecognized DMs to CLIENT (most DMs for solo are with clients)
+        return ContactRole.CLIENT
+    }
+    // Group channels are crew
+    if (channel.type == ChannelType.GROUP || channel.type == ChannelType.BROADCAST) {
+        return ContactRole.CREW
+    }
+    return ContactRole.UNKNOWN
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// HELPERS
+// ═════════════════════════════════════════════════════════════════════
 
 /** Display name: "@person" for DMs, "#channel" for groups/broadcast. */
 private fun chatDisplayName(channel: Channel): String = when (channel.type) {
@@ -322,24 +672,22 @@ private fun chatInitials(channel: Channel): String {
 
 /**
  * Deterministic accent color for an avatar based on channel id.
- * Cycles through a set of warm palette tones.
  */
 private fun avatarColorFor(channel: Channel): Color {
     val palette = listOf(
-        ConsoleTheme.accent,           // gold
-        ConsoleTheme.success,          // sage
-        ConsoleTheme.warning,          // sienna
-        ConsoleTheme.error,            // brick
-        Color(0xFF6B5E8C),             // dusty purple
-        Color(0xFF3A6B8C),             // slate blue
+        ConsoleTheme.accent,
+        ConsoleTheme.success,
+        ConsoleTheme.warning,
+        ConsoleTheme.error,
+        Color(0xFF6B5E8C),
+        Color(0xFF3A6B8C),
     )
     val index = Math.abs(channel.id.hashCode()) % palette.size
     return palette[index]
 }
 
 /**
- * Relative timestamp — mirrors the format used in ChannelListScreen.
- * "now" / "5m" / "2:45pm" / "Mar 14"
+ * Relative timestamp — "now" / "5m" / "2:45pm" / "Mar 14"
  */
 private fun chatFormatTime(timestamp: Long): String {
     val now = System.currentTimeMillis()
@@ -355,9 +703,9 @@ private fun chatFormatTime(timestamp: Long): String {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Preview
-// ─────────────────────────────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════
+// PREVIEW
+// ═════════════════════════════════════════════════════════════════════
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable

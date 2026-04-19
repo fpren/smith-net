@@ -11,7 +11,7 @@ object NavRoutes {
 
     // MAIN
     const val DASHBOARD = "dashboard"
-    @Deprecated("Removed in Task 9") const val PLAN = "plan"
+    const val PLAN = "plan"  // Proposals screen
     @Deprecated("Removed in Task 9") const val PLAN_MODE = "plan_mode"
     @Deprecated("Removed in Task 9") const val INTENT = "intent"
     @Deprecated("Removed in Task 9") const val SOLO_DASHBOARD = "solo_dashboard"
@@ -37,6 +37,21 @@ object NavRoutes {
     const val CREATE_CHANNEL = "create_channel/{beaconId}"
     const val CREATE_BEACON = "create_beacon"
     const val PEERS = "peers"
+    const val NEW_CONVERSATION = "new_conversation"
+
+    // REPORT & SUPPLY
+    const val REPORT = "report"
+    const val SUPPLY = "supply"
+
+    // DISPATCH
+    const val DISPATCH = "dispatch"
+
+    // MAP
+    const val MAP = "map"
+
+    // CLIENTS
+    const val CLIENTS = "clients"
+    const val CLIENT_DETAIL = "client_detail/{clientName}"
 
     // HELPERS
     fun jobPipeline(jobId: String) = "job_pipeline/$jobId"
@@ -45,4 +60,5 @@ object NavRoutes {
     fun conversationDM(beaconId: String, channelId: String, peerId: String, peerName: String) =
         "conversation/$beaconId/$channelId?dmPeerId=$peerId&dmPeerName=$peerName"
     fun createChannel(beaconId: String) = "create_channel/$beaconId"
+    fun clientDetail(clientName: String) = "client_detail/${android.net.Uri.encode(clientName)}"
 }

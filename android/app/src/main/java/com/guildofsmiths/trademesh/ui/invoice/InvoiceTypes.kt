@@ -22,6 +22,12 @@ enum class InvoiceMode {
     ENTERPRISE  // Crew with foreman, multi-day projects
 }
 
+enum class InvoiceDetailLevel {
+    STANDARD,   // Totals only (existing behavior)
+    DETAILED,   // Daily line items from DailyJobLog
+    ADVANCED    // Full AI narrative per day
+}
+
 // ════════════════════════════════════════════════════════════════════
 // INVOICE
 // ════════════════════════════════════════════════════════════════════
@@ -174,7 +180,8 @@ object InvoiceGenerator {
         hourlyRate: Double = 85.0,
         travelRate: Double = 45.0,
         taxRate: Double = 8.25,
-        paymentTermsDays: Int = 14
+        paymentTermsDays: Int = 14,
+        detailLevel: InvoiceDetailLevel = InvoiceDetailLevel.STANDARD
     ): Invoice {
         val jobTimeEntries = timeEntries.filter { it.jobId == job.id || it.jobTitle == job.title }
         
@@ -183,14 +190,38 @@ object InvoiceGenerator {
         val projectDays = calculateProjectDays(jobTimeEntries, job)
         val isEnterprise = hasCrew || projectDays > 1
         
-        return if (isEnterprise) {
-            generateEnterpriseInvoice(job, jobTimeEntries, providerName, providerBusiness, 
+        val baseInvoice = if (isEnterprise) {
+            generateEnterpriseInvoice(job, jobTimeEntries, providerName, providerBusiness,
                 providerTrade, providerPhone, providerEmail, providerAddress,
                 hourlyRate, travelRate, taxRate, paymentTermsDays, projectDays)
         } else {
             generateSoloInvoice(job, jobTimeEntries, providerName, providerBusiness,
                 providerTrade, providerPhone, providerEmail, providerAddress,
                 hourlyRate, travelRate, taxRate, paymentTermsDays)
+        }
+
+        // Enrich with daily logs if DETAILED or ADVANCED
+        return if (detailLevel != InvoiceDetailLevel.STANDARD && job.dailyLogs.isNotEmpty()) {
+            val logsBreakdown = job.dailyLogs.sortedBy { it.date }.mapIndexed { index, log ->
+                DailyWorkSummary(
+                    day = index + 1,
+                    date = log.date,
+                    startTime = "",
+                    endTime = "",
+                    totalHours = log.hoursWorked,
+                    activities = if (detailLevel == InvoiceDetailLevel.ADVANCED && log.summaryNarrative != null)
+                        log.summaryNarrative else log.summaryDetailed,
+                    meshSyncNotes = "",
+                    photoCount = 0,
+                    voiceNoteCount = 0,
+                    checklistCount = log.materialsCheckedCount,
+                    keyNotes = log.workerNotes.joinToString("; ") { it.text }
+                )
+            }
+            // Merge: if enterprise already has dailyBreakdown, prefer the log-based one
+            baseInvoice.copy(dailyBreakdown = logsBreakdown)
+        } else {
+            baseInvoice
         }
     }
     

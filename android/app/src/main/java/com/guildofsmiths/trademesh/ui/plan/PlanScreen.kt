@@ -11,7 +11,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.guildofsmiths.trademesh.ai.AIPrompts
+import com.guildofsmiths.trademesh.ai.OpenRouterClient
 import com.guildofsmiths.trademesh.data.IntentRepository
+import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.ConsoleSeparator
 
@@ -99,6 +102,24 @@ fun PlanScreen(
     if (showCreateDialog) {
         CreateIntentDialog(
             onDismiss = { showCreateDialog = false },
+            onAssist = { scope, _ ->
+                val trade = UserPreferences.getPrimaryTrade()
+                // Try AI first
+                val aiResponse = try {
+                    OpenRouterClient.chat(
+                        systemPrompt = AIPrompts.SYSTEM,
+                        userMessage = AIPrompts.generateProposal(scope, trade),
+                        maxTokens = 400
+                    )
+                } catch (_: Exception) { null }
+
+                if (aiResponse != null) {
+                    ProposalAssist.parseAIResponse(aiResponse)
+                        ?: ProposalAssist.getRuleBasedSuggestion(scope, trade)
+                } else {
+                    ProposalAssist.getRuleBasedSuggestion(scope, trade)
+                }
+            },
             onCreate = { scopeStatement, clientName, tasks, equipment, supplies, crewSize ->
                 val parties = if (clientName != null) listOf(clientName) else emptyList()
                 IntentRepository.createIntent(

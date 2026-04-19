@@ -48,6 +48,12 @@ import com.guildofsmiths.trademesh.data.Permission
 import com.guildofsmiths.trademesh.data.RoleContext
 import com.guildofsmiths.trademesh.data.SupabaseAuth
 import com.guildofsmiths.trademesh.data.UserPreferences
+import com.guildofsmiths.trademesh.data.TradesList
+import com.guildofsmiths.trademesh.data.UserRole
+import com.guildofsmiths.trademesh.service.AuthService
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
 import kotlinx.coroutines.launch
 import kotlin.system.exitProcess
@@ -124,6 +130,15 @@ fun SettingsScreen(
             ConsoleSeparator()
             Spacer(modifier = Modifier.height(12.dp))
             
+            // ════════════════════════════════════════════════════════════════
+            // WORK MODE
+            // ════════════════════════════════════════════════════════════════
+            WorkModeSection()
+
+            Spacer(modifier = Modifier.height(16.dp))
+            ConsoleSeparator()
+            Spacer(modifier = Modifier.height(12.dp))
+
             // ════════════════════════════════════════════════════════════════
             // TRADE ROLE
             // ════════════════════════════════════════════════════════════════
@@ -262,9 +277,9 @@ fun SettingsScreen(
             } // end foreman-only mesh/gateway section
 
             // ════════════════════════════════════════════════════════════════
-            // AI ASSISTANT
+            // SMITHAI — unified AI settings
             // ════════════════════════════════════════════════════════════════
-            AISettingsSection()
+            SmithAISection()
             
             Spacer(modifier = Modifier.height(16.dp))
             ConsoleSeparator()
@@ -353,33 +368,39 @@ fun SettingsScreen(
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// AI SETTINGS SECTION
+// SMITHAI — UNIFIED AI SETTINGS
 // ════════════════════════════════════════════════════════════════════════════
 
 @Composable
-private fun AISettingsSection() {
+private fun SmithAISection() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    
+
     // AI state
     val aiStatus by AIRouter.status.collectAsState()
     val modelState by LlamaInference.modelState.collectAsState()
-    val modelInfo by LlamaInference.modelInfo.collectAsState()
+    @Suppress("UNUSED_VARIABLE") val modelInfo by LlamaInference.modelInfo.collectAsState()
     val batteryState by BatteryGate.gateState.collectAsState()
 
     // Agent state
     val agentState by com.guildofsmiths.trademesh.ai.AgentInitializer.agentState.collectAsState()
     val agentInitProgress by com.guildofsmiths.trademesh.ai.AgentInitializer.initializationProgress.collectAsState()
-    val agentContextSummary by com.guildofsmiths.trademesh.ai.AgentInitializer.contextSummary.collectAsState()
-    
+
     // Download state
     val downloadState by ModelDownloader.downloadState.collectAsState()
     val downloadProgress by ModelDownloader.downloadProgress.collectAsState()
-    
+
     var aiEnabled by remember { mutableStateOf(AIRouter.isEnabled()) }
-    var aiMode by remember { mutableStateOf(UserPreferences.getAIMode()) }
+    var supervisorMode by remember { mutableStateOf(UserPreferences.getAISupervisorMode()) }
     var autoDegradeEnabled by remember { mutableStateOf(BatteryGate.isAutoDegradeEnabled()) }
     var showModelPicker by remember { mutableStateOf(false) }
+
+    // Cloud API key
+    var apiKey by remember { mutableStateOf(UserPreferences.getOpenRouterApiKey()) }
+    var showKeyField by remember { mutableStateOf(false) }
+    var keyInput by remember { mutableStateOf("") }
+    var testResult by remember { mutableStateOf<String?>(null) }
+    val maskedKey = if (apiKey.length > 8) "••••••••${apiKey.takeLast(4)}" else if (apiKey.isNotBlank()) "••••" else ""
     
     // Check if any model exists
     val downloadedModels = remember(downloadState) {
@@ -389,10 +410,10 @@ private fun AISettingsSection() {
     val isDownloading = downloadState is ModelDownloader.DownloadState.Downloading
     
     Column {
-        Text(text = "AI ASSISTANT", style = ConsoleTheme.captionBold)
+        Text(text = "SMITHAI", style = ConsoleTheme.captionBold)
         Spacer(modifier = Modifier.height(8.dp))
-        
-        // Enable/Disable Toggle
+
+        // ── Enable Toggle ──
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -404,9 +425,7 @@ private fun AISettingsSection() {
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "[◈]", style = ConsoleTheme.bodyBold)
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(text = "Enable Offline AI", style = ConsoleTheme.body, modifier = Modifier.weight(1f))
+            Text(text = "Enable SmithAI", style = ConsoleTheme.body, modifier = Modifier.weight(1f))
             Text(
                 text = if (aiEnabled) "[ON]" else "[OFF]",
                 style = ConsoleTheme.bodyBold.copy(
@@ -417,41 +436,144 @@ private fun AISettingsSection() {
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        // AI Mode Toggle (Standard vs Hybrid)
+        // ── Mode: Auto / Approve / Off ──
+        Text(text = "MODE", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+            modifier = Modifier.padding(top = 4.dp))
+        Spacer(modifier = Modifier.height(4.dp))
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(ConsoleTheme.surface)
-                .clickable {
-                    aiMode = if (aiMode == AIMode.STANDARD) AIMode.HYBRID else AIMode.STANDARD
-                    UserPreferences.setAIMode(aiMode)
-                }
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(text = "[⥮]", style = ConsoleTheme.bodyBold)
-            Spacer(modifier = Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = "AI Mode: ${aiMode.name}", style = ConsoleTheme.body)
-                Text(
-                    text = when (aiMode) {
-                        AIMode.STANDARD -> "Local rules only (always-on, zero battery)"
-                        AIMode.HYBRID -> "Local + cloud AI (when connected & charged)"
-                    },
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
-                )
+            listOf("auto" to "Auto", "semi-auto" to "Approve", "off" to "Off").forEach { (value, label) ->
+                val isSelected = supervisorMode == value
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(
+                            if (isSelected) ConsoleTheme.accent.copy(alpha = 0.10f) else ConsoleTheme.surface
+                        )
+                        .border(
+                            0.5.dp,
+                            if (isSelected) ConsoleTheme.accent else ConsoleTheme.text.copy(alpha = 0.06f),
+                            RoundedCornerShape(4.dp)
+                        )
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable {
+                            supervisorMode = value
+                            UserPreferences.setAISupervisorMode(value)
+                        }
+                        .padding(vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        label,
+                        style = ConsoleTheme.captionBold.copy(
+                            color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.textMuted
+                        )
+                    )
+                }
             }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = when (supervisorMode) {
+                "auto" -> "Acts on your behalf — posts insights, drafts messages."
+                "semi-auto" -> "Drafts suggestions for your approval before acting."
+                else -> "SmithAI will only respond when asked."
+            },
+            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // ── Cloud Connection ──
+        Text(text = "CLOUD", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        Spacer(modifier = Modifier.height(4.dp))
+
+        if (!showKeyField) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .clickable { showKeyField = true; keyInput = apiKey }
+                    .padding(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (apiKey.isNotBlank()) maskedKey else "Not set",
+                    style = ConsoleTheme.bodySmall.copy(
+                        color = if (apiKey.isNotBlank()) ConsoleTheme.text else ConsoleTheme.textMuted
+                    )
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (apiKey.isNotBlank()) {
+                        Text("Connected", style = ConsoleTheme.caption.copy(color = ConsoleTheme.success))
+                    }
+                    Text("[Edit]", style = ConsoleTheme.action.copy(color = ConsoleTheme.accent))
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                BasicTextField(
+                    value = keyInput,
+                    onValueChange = { keyInput = it },
+                    textStyle = ConsoleTheme.bodySmall,
+                    cursorBrush = SolidColor(ConsoleTheme.cursor),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    decorationBox = { inner ->
+                        Box {
+                            if (keyInput.isEmpty()) {
+                                Text("sk-or-v1-...", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted))
+                            }
+                            inner()
+                        }
+                    }
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "[Save]",
+                        style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                        modifier = Modifier.clickable {
+                            UserPreferences.setOpenRouterApiKey(keyInput.trim())
+                            apiKey = keyInput.trim()
+                            showKeyField = false
+                            testResult = null
+                            scope.launch {
+                                val ok = com.guildofsmiths.trademesh.ai.OpenRouterClient.testConnection()
+                                testResult = if (ok) "Connected" else "Failed"
+                            }
+                        }
+                    )
+                    Text(
+                        "[Cancel]",
+                        style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                        modifier = Modifier.clickable { showKeyField = false }
+                    )
+                }
+            }
+        }
+        if (testResult != null) {
             Text(
-                text = if (aiMode == AIMode.HYBRID) "[HYBRID]" else "[STANDARD]",
-                style = ConsoleTheme.bodyBold.copy(
-                    color = if (aiMode == AIMode.HYBRID) ConsoleTheme.accent else ConsoleTheme.success
+                testResult!!,
+                style = ConsoleTheme.caption.copy(
+                    color = if (testResult == "Connected") ConsoleTheme.success else ConsoleTheme.error
                 )
             )
         }
-        
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // ── Offline Model ──
+        Text(text = "OFFLINE", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
         Spacer(modifier = Modifier.height(4.dp))
-        
-        // Model Status & Download
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -459,36 +581,24 @@ private fun AISettingsSection() {
                 .padding(12.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = "Model:", style = ConsoleTheme.caption)
-                Spacer(modifier = Modifier.width(8.dp))
-                
                 val statusText = when {
-                    agentState == com.guildofsmiths.trademesh.ai.AgentState.WAKING -> {
-                        "Agent Waking... (${(agentInitProgress * 100).toInt()}%)"
-                    }
-                    agentState == com.guildofsmiths.trademesh.ai.AgentState.ALIVE -> {
-                        "Agent Alive - ${downloadedModels.firstOrNull()?.name ?: "Model"}"
-                    }
-                    agentState == com.guildofsmiths.trademesh.ai.AgentState.RULE_BASED_FALLBACK -> {
-                        "Agent (Rule-Based Mode) - ${downloadedModels.firstOrNull()?.name ?: "Model"}"
-                    }
+                    agentState == com.guildofsmiths.trademesh.ai.AgentState.WAKING ->
+                        "Waking... (${(agentInitProgress * 100).toInt()}%)"
+                    agentState == com.guildofsmiths.trademesh.ai.AgentState.ALIVE ->
+                        "${downloadedModels.firstOrNull()?.name ?: "Model"} · Active"
+                    agentState == com.guildofsmiths.trademesh.ai.AgentState.RULE_BASED_FALLBACK ->
+                        "${downloadedModels.firstOrNull()?.name ?: "Model"} · Rules"
                     isDownloading -> {
                         val dlState = downloadState as? ModelDownloader.DownloadState.Downloading
                         "Downloading ${dlState?.model?.name ?: ""}..."
                     }
                     modelState == ModelState.LOADING -> "Loading..."
-                    modelState == ModelState.READY -> {
-                        val loadedModel = downloadedModels.firstOrNull()
-                        loadedModel?.name ?: "Ready"
-                    }
+                    modelState == ModelState.READY -> downloadedModels.firstOrNull()?.name ?: "Ready"
                     modelState == ModelState.ERROR -> "Error"
-                    modelDownloaded -> {
-                        val model = downloadedModels.firstOrNull()
-                        "${model?.name ?: "Downloaded"}"
-                    }
-                    else -> "Not Downloaded"
+                    modelDownloaded -> downloadedModels.firstOrNull()?.name ?: "Downloaded"
+                    else -> "No model"
                 }
-                
+
                 val statusColor = when {
                     agentState == com.guildofsmiths.trademesh.ai.AgentState.ALIVE -> ConsoleTheme.success
                     agentState == com.guildofsmiths.trademesh.ai.AgentState.WAKING -> ConsoleTheme.warning
@@ -499,26 +609,21 @@ private fun AISettingsSection() {
                     modelDownloaded -> ConsoleTheme.accent
                     else -> ConsoleTheme.textDim
                 }
-                
+
                 Text(
                     text = statusText,
                     style = ConsoleTheme.body.copy(color = statusColor),
                     modifier = Modifier.weight(1f)
                 )
-                
-                // Download/Manage button
+
                 if (!isDownloading) {
                     Text(
                         text = if (modelDownloaded) "[MODELS]" else "[DOWNLOAD]",
                         style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
-                        modifier = Modifier.clickable {
-                            showModelPicker = true
-                        }
+                        modifier = Modifier.clickable { showModelPicker = true }
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                
-                // Load button (if downloaded but not loaded)
                 if (modelDownloaded && modelState == ModelState.NOT_LOADED && aiEnabled && !isDownloading) {
                     Text(
                         text = "[LOAD]",
@@ -529,26 +634,20 @@ private fun AISettingsSection() {
                                 if (model != null) {
                                     val modelPath = ModelDownloader.getModelPath(context, model.id)
                                     if (modelPath != null) {
-                                AIRouter.loadModel(modelPath)
-                            }
+                                        AIRouter.loadModel(modelPath)
+                                    }
                                 }
                             }
                         }
                     )
                 }
-                
-                // Cancel download button
                 if (isDownloading) {
                     Text(
                         text = "[CANCEL]",
                         style = ConsoleTheme.action.copy(color = ConsoleTheme.error),
-                        modifier = Modifier.clickable {
-                            ModelDownloader.cancelDownload()
-                        }
+                        modifier = Modifier.clickable { ModelDownloader.cancelDownload() }
                     )
                 }
-                
-                // Unload button (if loaded or agent alive)
                 if (modelState == ModelState.READY || agentState == com.guildofsmiths.trademesh.ai.AgentState.ALIVE) {
                     Text(
                         text = "[UNLOAD]",
@@ -560,7 +659,7 @@ private fun AISettingsSection() {
                     )
                 }
             }
-            
+
             // Download progress
             if (isDownloading) {
                 val dlState = downloadState as? ModelDownloader.DownloadState.Downloading
@@ -576,8 +675,6 @@ private fun AISettingsSection() {
                     style = ConsoleTheme.caption
                 )
             }
-
-            // Agent initialization progress
             if (agentState == com.guildofsmiths.trademesh.ai.AgentState.WAKING) {
                 Spacer(modifier = Modifier.height(8.dp))
                 LinearProgressIndicator(
@@ -591,51 +688,23 @@ private fun AISettingsSection() {
                     style = ConsoleTheme.caption.copy(color = ConsoleTheme.success)
                 )
             }
-            
-            // Download complete message
             if (downloadState is ModelDownloader.DownloadState.Complete) {
-                val completeState = downloadState as ModelDownloader.DownloadState.Complete
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "✓ ${completeState.model.name} downloaded!",
+                    text = "Downloaded!",
                     style = ConsoleTheme.caption.copy(color = ConsoleTheme.success)
                 )
             }
-            
-            // Download error message
             if (downloadState is ModelDownloader.DownloadState.Error) {
                 val errorState = downloadState as ModelDownloader.DownloadState.Error
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "✗ ${errorState.message}",
+                    text = errorState.message,
                     style = ConsoleTheme.caption.copy(color = ConsoleTheme.error)
                 )
             }
-            
-            // Model info (if loaded)
-            if (modelInfo != null && modelState == ModelState.READY) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "ctx: ${modelInfo?.contextSize} | vocab: ${modelInfo?.vocabSize}",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
-                )
-            }
-
-            // Agent context info (if alive)
-            if (agentState == com.guildofsmiths.trademesh.ai.AgentState.ALIVE && agentContextSummary.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Agent Context:",
-                    style = ConsoleTheme.captionBold
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = agentContextSummary.take(200) + if (agentContextSummary.length > 200) "..." else "",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
-                )
-            }
         }
-        
+
         // Model Picker Dialog
         if (showModelPicker) {
             ModelPickerDialog(
@@ -643,13 +712,10 @@ private fun AISettingsSection() {
                 downloadState = downloadState,
                 downloadProgress = downloadProgress,
                 onDownload = { model ->
-                    scope.launch {
-                        ModelDownloader.downloadModel(context, model)
-                    }
+                    scope.launch { ModelDownloader.downloadModel(context, model) }
                 },
                 onDelete = { model ->
                     ModelDownloader.deleteModel(context, model.id)
-                    // Force recomposition
                     showModelPicker = false
                     showModelPicker = true
                 },
@@ -659,10 +725,10 @@ private fun AISettingsSection() {
                 }
             )
         }
-        
-        Spacer(modifier = Modifier.height(4.dp))
-        
-        // Battery/Thermal Status
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // ── Status ──
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -670,20 +736,10 @@ private fun AISettingsSection() {
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "Status:", style = ConsoleTheme.caption)
-            Spacer(modifier = Modifier.width(8.dp))
-            
-            // Battery indicator
             val batteryText = "${batteryState.batteryLevel}%"
-            val chargingIcon = if (batteryState.isCharging) "⚡" else ""
-            val thermalIcon = when {
-                batteryState.batteryTemperature >= 42 -> "🔥"
-                batteryState.batteryTemperature >= 38 -> "🌡"
-                else -> ""
-            }
-            
+            val chargingIcon = if (batteryState.isCharging) " charging" else ""
             Text(
-                text = "Battery: $batteryText$chargingIcon $thermalIcon",
+                text = "Battery: $batteryText$chargingIcon",
                 style = ConsoleTheme.body.copy(
                     color = when {
                         batteryState.batteryLevel <= 15 -> ConsoleTheme.error
@@ -693,21 +749,19 @@ private fun AISettingsSection() {
                 ),
                 modifier = Modifier.weight(1f)
             )
-            
-            // AI status badge
+
             val aiStatusText = when {
-                agentState == com.guildofsmiths.trademesh.ai.AgentState.ALIVE -> "[AGENT ALIVE]"
+                agentState == com.guildofsmiths.trademesh.ai.AgentState.ALIVE -> "[ACTIVE]"
                 agentState == com.guildofsmiths.trademesh.ai.AgentState.WAKING -> "[WAKING]"
-                agentState == com.guildofsmiths.trademesh.ai.AgentState.RULE_BASED_FALLBACK -> "[AGENT FALLBACK]"
+                agentState == com.guildofsmiths.trademesh.ai.AgentState.RULE_BASED_FALLBACK -> "[RULES]"
                 aiStatus == AIStatus.READY -> "[READY]"
                 aiStatus == AIStatus.LOADING -> "[LOADING]"
                 aiStatus == AIStatus.DEGRADED -> "[DEGRADED]"
                 aiStatus == AIStatus.RULE_BASED -> "[RULES]"
                 aiStatus == AIStatus.OFFLINE -> "[OFFLINE]"
                 aiStatus == AIStatus.DISABLED -> "[OFF]"
-                else -> "[UNKNOWN]"
+                else -> "[OFF]"
             }
-            
             val aiStatusColor = when (aiStatus) {
                 AIStatus.READY -> ConsoleTheme.success
                 AIStatus.LOADING -> ConsoleTheme.warning
@@ -715,15 +769,14 @@ private fun AISettingsSection() {
                 AIStatus.RULE_BASED -> ConsoleTheme.accent
                 AIStatus.OFFLINE, AIStatus.DISABLED -> ConsoleTheme.textDim
             }
-            
             Text(
                 text = aiStatusText,
                 style = ConsoleTheme.bodyBold.copy(color = aiStatusColor)
             )
         }
-        
+
         Spacer(modifier = Modifier.height(4.dp))
-        
+
         // Auto-degrade toggle
         Row(
             modifier = Modifier
@@ -744,97 +797,215 @@ private fun AISettingsSection() {
                 )
             )
         }
-        
-        Spacer(modifier = Modifier.height(4.dp))
-        
-        // Usage hint
-        val usageHint = when (agentState) {
-            com.guildofsmiths.trademesh.ai.AgentState.ALIVE ->
-                "Agent is alive and proactive - observes all messages automatically"
-            com.guildofsmiths.trademesh.ai.AgentState.RULE_BASED_FALLBACK ->
-                "Agent in rule-based mode - use @AI in chat for assistance"
-            else -> "Use @AI in chat to invoke assistant"
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// WORK MODE SECTION
+// ════════════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun WorkModeSection() {
+    var currentMode by remember { mutableStateOf(RoleContext.role) }
+
+    val modes = listOf(
+        UserRole.SOLO to "Jobs, time tracking, invoicing — just for me.",
+        UserRole.TEAM_MEMBER to "I receive tasks from a lead or foreman.",
+        UserRole.TEAM_LEAD to "I manage a small crew and assign jobs.",
+        UserRole.FOREMAN to "Crew tracking, dispatch, team invoicing.",
+        UserRole.GENERAL_CONTRACTOR to "Multiple subs, multiple sites, project oversight.",
+    )
+
+    Column {
+        Text(text = "WORK MODE", style = ConsoleTheme.captionBold)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        modes.forEach { (role, description) ->
+            val isSelected = role == currentMode
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(if (isSelected) ConsoleTheme.surface else ConsoleTheme.background)
+                    .clickable {
+                        currentMode = role
+                        AuthService.updateUserRole(role.key)
+                    }
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (isSelected) "(●)" else "(○)",
+                    style = ConsoleTheme.bodySmall.copy(
+                        color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.textMuted
+                    )
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = role.displayName,
+                        style = ConsoleTheme.bodySmall.copy(
+                            color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.text
+                        )
+                    )
+                    Text(
+                        text = description,
+                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                    )
+                }
+            }
         }
 
+        Spacer(modifier = Modifier.height(6.dp))
         Text(
-            text = usageHint,
-            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+            text = "Changes the dashboard layout, permissions, and available features.",
+            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
         )
     }
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// TRADE ROLE SECTION
+// TRADE SELECTION SECTION — searchable dropdown + secondary tags
 // ════════════════════════════════════════════════════════════════════════════
 
 @Composable
 private fun TradeRoleSection() {
-    val scope = rememberCoroutineScope()
-
-    var currentRole by remember { mutableStateOf(UserPreferences.getTradeRole()) }
-    var showRoleSelector by remember { mutableStateOf(false) }
+    var primaryTrade by remember { mutableStateOf(UserPreferences.getPrimaryTrade()) }
+    var secondaryTrades by remember { mutableStateOf(UserPreferences.getSecondaryTrades()) }
+    var searchQuery by remember { mutableStateOf("") }
+    var showPrimaryPicker by remember { mutableStateOf(false) }
+    var showSecondaryPicker by remember { mutableStateOf(false) }
 
     Column {
-        Text(text = "TRADE ROLE", style = ConsoleTheme.captionBold)
+        Text(text = "TRADE", style = ConsoleTheme.captionBold)
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Current role display and selector
+        // Primary trade
+        Text(text = "PRIMARY", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        Spacer(modifier = Modifier.height(4.dp))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(ConsoleTheme.surface)
-                .clickable { showRoleSelector = true }
+                .clickable { showPrimaryPicker = true; searchQuery = "" }
                 .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "[ROLE]", style = ConsoleTheme.bodyBold)
-            Spacer(modifier = Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = currentRole.displayName, style = ConsoleTheme.body)
-                Text(
-                    text = currentRole.description,
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+            Text(
+                text = primaryTrade.ifBlank { "Select your trade" },
+                style = ConsoleTheme.bodySmall.copy(
+                    color = if (primaryTrade.isBlank()) ConsoleTheme.textMuted else ConsoleTheme.accent
                 )
+            )
+            Text(text = "[Change]", style = ConsoleTheme.action.copy(color = ConsoleTheme.accent))
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Secondary trades
+        Text(text = "SECONDARY", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        Spacer(modifier = Modifier.height(4.dp))
+
+        if (secondaryTrades.isNotEmpty()) {
+            // Show tags
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                secondaryTrades.forEach { trade ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(ConsoleTheme.surface)
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(trade, style = ConsoleTheme.caption.copy(color = ConsoleTheme.text))
+                        Text(
+                            text = "[x]",
+                            style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                            modifier = Modifier.clickable {
+                                UserPreferences.removeSecondaryTrade(trade)
+                                secondaryTrades = UserPreferences.getSecondaryTrades()
+                            }
+                        )
+                    }
+                }
             }
-            Text(text = ">", style = ConsoleTheme.body)
+            Spacer(modifier = Modifier.height(4.dp))
+        }
+
+        Text(
+            text = "[+ Add secondary trade]",
+            style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+            modifier = Modifier
+                .clickable { showSecondaryPicker = true; searchQuery = "" }
+                .padding(vertical = 6.dp)
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "Trade affects AI suggestions, safety reminders, and material defaults.",
+            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+        )
+    }
+
+    // Primary trade picker dialog
+    if (showPrimaryPicker) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showPrimaryPicker = false }) {
+            TradePickerContent(
+                title = "Primary Trade",
+                searchQuery = searchQuery,
+                onSearchChange = { searchQuery = it },
+                selectedTrade = primaryTrade,
+                excludeTrades = emptyList(),
+                onTradeSelected = { trade ->
+                    primaryTrade = trade
+                    UserPreferences.setPrimaryTrade(trade)
+                    showPrimaryPicker = false
+                },
+                onDismiss = { showPrimaryPicker = false }
+            )
         }
     }
 
-    // Role selector dialog - outside the Column to avoid layout issues
-    if (showRoleSelector) {
-        androidx.compose.ui.window.Dialog(onDismissRequest = { showRoleSelector = false }) {
-            RoleSelectorContent(
-                currentRole = currentRole,
-                onRoleSelected = { newRole ->
-                    currentRole = newRole
-                    UserPreferences.setTradeRole(newRole)
-                    showRoleSelector = false
-
-                    // Send confirmation to chat timeline
-                    scope.launch {
-                        android.util.Log.i("SettingsScreen", "Trade role updated to: ${newRole.displayName}")
-                    }
+    // Secondary trade picker dialog
+    if (showSecondaryPicker) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showSecondaryPicker = false }) {
+            TradePickerContent(
+                title = "Add Secondary Trade",
+                searchQuery = searchQuery,
+                onSearchChange = { searchQuery = it },
+                selectedTrade = null,
+                excludeTrades = listOf(primaryTrade) + secondaryTrades,
+                onTradeSelected = { trade ->
+                    UserPreferences.addSecondaryTrade(trade)
+                    secondaryTrades = UserPreferences.getSecondaryTrades()
+                    showSecondaryPicker = false
                 },
-                onDismiss = { showRoleSelector = false }
+                onDismiss = { showSecondaryPicker = false }
             )
         }
     }
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-// ROLE SELECTOR CONTENT
-// ════════════════════════════════════════════════════════════════════════════
-
 @Composable
-private fun RoleSelectorContent(
-    currentRole: com.guildofsmiths.trademesh.data.TradeRole,
-    onRoleSelected: (com.guildofsmiths.trademesh.data.TradeRole) -> Unit,
+private fun TradePickerContent(
+    title: String,
+    searchQuery: String,
+    onSearchChange: (String) -> Unit,
+    selectedTrade: String?,
+    excludeTrades: List<String>,
+    onTradeSelected: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val results = remember(searchQuery, excludeTrades) {
+        TradesList.search(searchQuery).filter { it !in excludeTrades }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.background)
+            .background(ConsoleTheme.background, RoundedCornerShape(8.dp))
             .padding(16.dp)
     ) {
         // Header
@@ -843,74 +1014,75 @@ private fun RoleSelectorContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Occupation",
-                style = ConsoleTheme.header
-            )
-            Text(
-                text = "[✕]",
-                style = ConsoleTheme.bodyBold,
-                modifier = Modifier.clickable { onDismiss() }
-            )
+            Text(title, style = ConsoleTheme.header)
+            Text("[x]", style = ConsoleTheme.bodyBold, modifier = Modifier.clickable { onDismiss() })
         }
 
         Spacer(modifier = Modifier.height(12.dp))
-        ConsoleSeparator()
-        Spacer(modifier = Modifier.height(12.dp))
 
-        // Role list with fixed height
+        // Search field
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(ConsoleTheme.surface)
+                .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f))
+                .padding(12.dp)
+        ) {
+            if (searchQuery.isEmpty()) {
+                Text("Search 120+ trades...", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted))
+            }
+            BasicTextField(
+                value = searchQuery,
+                onValueChange = onSearchChange,
+                textStyle = ConsoleTheme.bodySmall,
+                cursorBrush = SolidColor(ConsoleTheme.cursor),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            "${results.size} trades",
+            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Results list
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(350.dp)
+                .heightIn(max = 350.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            com.guildofsmiths.trademesh.data.TradeRole.values().forEach { role ->
-                val isSelected = role == currentRole
-
+            results.forEach { trade ->
+                val isSelected = trade == selectedTrade
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(
-                            if (isSelected) ConsoleTheme.surface else ConsoleTheme.background
-                        )
-                        .clickable { onRoleSelected(role) }
-                        .padding(10.dp),
+                        .background(if (isSelected) ConsoleTheme.surface else ConsoleTheme.background)
+                        .clickable { onTradeSelected(trade) }
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (isSelected) "[●]" else "[○]",
-                        style = ConsoleTheme.bodyBold.copy(
-                            color = if (isSelected) ConsoleTheme.success else ConsoleTheme.textDim
+                        text = if (isSelected) "(●)" else "(○)",
+                        style = ConsoleTheme.caption.copy(
+                            color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.textMuted
                         )
                     )
                     Spacer(modifier = Modifier.width(10.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = role.displayName,
-                            style = ConsoleTheme.bodyBold
+                    Text(
+                        text = trade,
+                        style = ConsoleTheme.bodySmall.copy(
+                            color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.text
                         )
-                        Text(
-                            text = role.description,
-                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
-                        )
-                    }
+                    )
                 }
-
-                Spacer(modifier = Modifier.height(2.dp))
             }
         }
-
-        Spacer(modifier = Modifier.height(12.dp))
-        ConsoleSeparator()
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Info text
-        Text(
-            text = "Role affects AI suggestions and safety reminders.",
-            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
-        )
     }
 }
 

@@ -2,13 +2,16 @@ package com.guildofsmiths.trademesh.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -198,16 +201,14 @@ fun ConsoleHeader(
     title: String,
     subtitle: String? = null,
     onBackClick: (() -> Unit)? = null,
+    actionText: String? = null,
+    onActionClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .background(ConsoleTheme.background)
-            .then(
-                if (onBackClick != null) Modifier.clickable(onClick = onBackClick)
-                else Modifier
-            )
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -219,7 +220,8 @@ fun ConsoleHeader(
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = ConsoleTheme.text
-                )
+                ),
+                modifier = Modifier.clickable(onClick = onBackClick)
             )
             Spacer(modifier = Modifier.width(14.dp))
         }
@@ -229,6 +231,16 @@ fun ConsoleHeader(
             if (subtitle != null) {
                 Text(text = subtitle, style = ConsoleTheme.caption)
             }
+        }
+
+        if (actionText != null && onActionClick != null) {
+            Text(
+                text = actionText,
+                style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                modifier = Modifier
+                    .clickable(onClick = onActionClick)
+                    .padding(4.dp)
+            )
         }
     }
 }
@@ -243,5 +255,100 @@ fun ConsoleSeparator(modifier: Modifier = Modifier) {
             .fillMaxWidth()
             .height(1.dp)
             .background(ConsoleTheme.separatorFaint)
+    )
+}
+
+/**
+ * Role-aware bottom navigation bar.
+ * Tab labels change based on the user's current role.
+ */
+@Composable
+fun BottomNavBar(
+    currentRoute: String,
+    onHome: () -> Unit,
+    onJobs: () -> Unit,
+    onComm: () -> Unit,
+    onPlan: () -> Unit,
+    onClockIn: () -> Unit = {},
+    onDispatch: () -> Unit = {}
+) {
+    val role = com.guildofsmiths.trademesh.data.RoleContext.role
+
+    // Role-specific nav tabs
+    data class NavItem(val label: String, val activeRoute: String, val onClick: () -> Unit)
+    val tabs = when (role) {
+        com.guildofsmiths.trademesh.data.UserRole.TEAM_MEMBER -> listOf(
+            NavItem("[Home]", "dashboard", onHome),
+            NavItem("[Tasks]", "job_board", onJobs),
+            NavItem("[Comm]", "chat_list", onComm),
+            NavItem("[Clock]", "time_clock", onClockIn),
+        )
+        com.guildofsmiths.trademesh.data.UserRole.TEAM_LEAD -> listOf(
+            NavItem("[Home]", "dashboard", onHome),
+            NavItem("[Jobs]", "job_board", onJobs),
+            NavItem("[Crew]", "chat_list", onComm),
+            NavItem("[Comm]", "chat_list", onComm),
+        )
+        com.guildofsmiths.trademesh.data.UserRole.FOREMAN -> listOf(
+            NavItem("[Home]", "dashboard", onHome),
+            NavItem("[Dispatch]", "dispatch", onDispatch),
+            NavItem("[Map]", "map", onPlan),
+            NavItem("[Comm]", "chat_list", onComm),
+        )
+        com.guildofsmiths.trademesh.data.UserRole.GENERAL_CONTRACTOR -> listOf(
+            NavItem("[Home]", "dashboard", onHome),
+            NavItem("[Projects]", "job_board", onJobs),
+            NavItem("[Map]", "map", onPlan),
+            NavItem("[Comm]", "chat_list", onComm),
+        )
+        else -> listOf(
+            NavItem("[Home]", "dashboard", onHome),
+            NavItem("[Jobs]", "job_board", onJobs),
+            NavItem("[Comm]", "chat_list", onComm),
+            NavItem("[Plan]", "plan", onPlan),
+        )
+    }
+
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(ConsoleTheme.surface)
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(0.5.dp)
+                .background(ConsoleTheme.text.copy(alpha = 0.08f))
+        )
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            tabs.forEach { tab ->
+                BottomNavTab(tab.label, currentRoute == tab.activeRoute, tab.onClick)
+            }
+        }
+        Text(
+            text = "\u00A9 2026 Guild of Smiths",
+            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted.copy(alpha = 0.5f)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 6.dp)
+                .wrapContentWidth(Alignment.CenterHorizontally)
+        )
+    }
+}
+
+@Composable
+private fun BottomNavTab(label: String, isActive: Boolean, onClick: () -> Unit) {
+    Text(
+        text = label,
+        style = ConsoleTheme.action.copy(color = if (isActive) ConsoleTheme.accent else ConsoleTheme.textMuted),
+        modifier = Modifier
+            .clickable { onClick() }
+            .padding(horizontal = 12.dp, vertical = 6.dp)
     )
 }

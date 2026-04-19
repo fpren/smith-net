@@ -518,20 +518,12 @@ object AIRouter {
     }
 
     private suspend fun callExternalLLM(prompt: String): String {
-        // Placeholder for external LLM integration
-        // Replace with actual LLM API call (OpenAI, Claude, etc.)
-        // Should respect battery/signal priorities - keep payloads small
-
-        // Example structure:
-        // return llmInterface.generateResponse(
-        //     prompt = prompt,
-        //     maxTokens = 100, // Keep small for mesh-friendliness
-        //     temperature = 0.3f
-        // )
-
-        // For now, simulate network call
-        delay(500) // Simulate network latency
-        return "Enhanced insight from cloud AI (integrate your LLM service here)"
+        val response = OpenRouterClient.chat(
+            systemPrompt = AIPrompts.SYSTEM,
+            userMessage = prompt,
+            maxTokens = 150
+        )
+        return response ?: "Unable to reach cloud AI — using local analysis only."
     }
 
     private fun buildExternalPrompt(

@@ -2,10 +2,12 @@ package com.guildofsmiths.trademesh.ui.jobpipeline
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.jobboard.JobStage
@@ -15,28 +17,57 @@ fun JobStageBar(currentStage: JobStage, modifier: Modifier = Modifier) {
     val stages = JobStage.entries.toList()
     val currentIndex = stages.indexOf(currentStage)
 
-    Row(
+    Column(
         modifier = modifier
             .fillMaxWidth()
             .background(ConsoleTheme.surface)
-            .padding(8.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly
+            .padding(horizontal = 24.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        stages.forEach { stage ->
-            val stageIndex = stages.indexOf(stage)
-            val color = when {
-                stageIndex < currentIndex -> ConsoleTheme.success
-                stageIndex == currentIndex -> ConsoleTheme.accent
-                else -> ConsoleTheme.textDim
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = stage.icon, style = ConsoleTheme.bodySmall, color = color)
-                Text(
-                    text = stage.displayName.take(4),
-                    style = ConsoleTheme.caption,
-                    color = color
+        // Dots + connecting lines
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            stages.forEachIndexed { index, _ ->
+                val dotColor = when {
+                    index < currentIndex -> ConsoleTheme.accent
+                    index == currentIndex -> ConsoleTheme.accent
+                    else -> ConsoleTheme.textDim.copy(alpha = 0.3f)
+                }
+                val dotSize = if (index == currentIndex) 10.dp else 8.dp
+
+                // Dot
+                Box(
+                    modifier = Modifier
+                        .size(dotSize)
+                        .clip(CircleShape)
+                        .background(dotColor)
                 )
+
+                // Connecting line (not after last dot)
+                if (index < stages.lastIndex) {
+                    val lineColor = if (index < currentIndex) {
+                        ConsoleTheme.accent
+                    } else {
+                        ConsoleTheme.textDim.copy(alpha = 0.15f)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(2.dp)
+                            .background(lineColor)
+                    )
+                }
             }
         }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Current stage label
+        Text(
+            text = currentStage.displayName.uppercase(),
+            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
+        )
     }
 }

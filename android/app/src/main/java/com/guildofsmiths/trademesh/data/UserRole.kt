@@ -1,12 +1,13 @@
 package com.guildofsmiths.trademesh.data
 
-enum class UserRole(val key: String) {
-    SOLO("solo"),
-    TEAM_MEMBER("team_member"),
-    TEAM_LEAD("team_lead"),
-    FOREMAN("foreman"),
-    ENTERPRISE("enterprise"),
-    ADMIN("admin");
+enum class UserRole(val key: String, val displayName: String) {
+    SOLO("solo", "Solo"),
+    TEAM_MEMBER("team_member", "Team Member"),
+    TEAM_LEAD("team_lead", "Team Lead"),
+    FOREMAN("foreman", "Dispatcher"),
+    GENERAL_CONTRACTOR("general_contractor", "General Contractor"),
+    ENTERPRISE("enterprise", "Enterprise"),
+    ADMIN("admin", "Admin");
 
     companion object {
         fun fromString(value: String?): UserRole =
@@ -36,6 +37,12 @@ enum class Permission {
     MANAGE_JOBS,
     VIEW_ALL_JOBS,
     VIEW_REPORTS,
+
+    // Team & site management
+    VIEW_TEAM_LOCATION,
+    MANAGE_SUBS,
+    VIEW_ALL_PROJECTS,
+    MANAGE_SITES,
 }
 
 val ROLE_PERMISSIONS: Map<UserRole, Set<Permission>> = mapOf(
@@ -67,6 +74,7 @@ val ROLE_PERMISSIONS: Map<UserRole, Set<Permission>> = mapOf(
         Permission.MANAGE_CREW,
         Permission.MANAGE_JOBS,
         Permission.VIEW_ALL_JOBS,
+        Permission.VIEW_TEAM_LOCATION,
     ),
     UserRole.FOREMAN to setOf(
         Permission.SEND_MESSAGE,
@@ -86,6 +94,32 @@ val ROLE_PERMISSIONS: Map<UserRole, Set<Permission>> = mapOf(
         Permission.VIEW_ALL_JOBS,
         Permission.VIEW_FINANCIALS,
         Permission.VIEW_REPORTS,
+        Permission.VIEW_TEAM_LOCATION,
+    ),
+    UserRole.GENERAL_CONTRACTOR to setOf(
+        Permission.SEND_MESSAGE,
+        Permission.DELETE_OWN_MESSAGE,
+        Permission.DELETE_ANY_MESSAGE,
+        Permission.CREATE_CHANNEL,
+        Permission.DELETE_CHANNEL,
+        Permission.MANAGE_CHANNEL_MEMBERS,
+        Permission.CLEAR_CHANNEL,
+        Permission.SEND_MEDIA,
+        Permission.USE_MESH,
+        Permission.GATEWAY_RELAY,
+        Permission.VIEW_AUDIT_LOGS,
+        Permission.INVITE_MEMBERS,
+        Permission.MANAGE_CREW,
+        Permission.MANAGE_JOBS,
+        Permission.VIEW_ALL_JOBS,
+        Permission.VIEW_FINANCIALS,
+        Permission.VIEW_REPORTS,
+        Permission.VIEW_TEAM_LOCATION,
+        Permission.MANAGE_SUBS,
+        Permission.VIEW_ALL_PROJECTS,
+        Permission.MANAGE_SITES,
+        Permission.CREATE_ORG,
+        Permission.MANAGE_ORG,
     ),
     UserRole.ENTERPRISE to setOf(
         Permission.SEND_MESSAGE,
@@ -109,6 +143,10 @@ val ROLE_PERMISSIONS: Map<UserRole, Set<Permission>> = mapOf(
         Permission.VIEW_ALL_JOBS,
         Permission.VIEW_FINANCIALS,
         Permission.VIEW_REPORTS,
+        Permission.VIEW_TEAM_LOCATION,
+        Permission.MANAGE_SUBS,
+        Permission.VIEW_ALL_PROJECTS,
+        Permission.MANAGE_SITES,
     ),
     UserRole.ADMIN to Permission.entries.toSet(),
 )

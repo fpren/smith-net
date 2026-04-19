@@ -73,3 +73,10 @@ enum class IntentFilter {
     CONFIRMED,
     SUPERSEDED
 }
+
+data class ProposalSuggestion(
+    val tasks: List<String>,
+    val equipment: List<String>,
+    val supplies: List<String>,
+    val crewSize: Int
+)

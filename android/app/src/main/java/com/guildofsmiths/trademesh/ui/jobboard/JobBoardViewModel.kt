@@ -59,6 +59,87 @@ class JobBoardViewModel : ViewModel() {
 
     init {
         loadJobs()
+        seedDemoJobsIfEmpty()
+        // Wire AISupervisor callback to store daily logs
+        com.guildofsmiths.trademesh.ai.AISupervisor.onDailyLogGenerated = { jobId, log ->
+            addDailyLog(jobId, log)
+        }
+    }
+
+    /**
+     * Seeds demo jobs so the dashboard isn't empty on fresh install.
+     * Remove this when persistent local storage is wired up.
+     */
+    private fun seedDemoJobsIfEmpty() {
+        if (_jobs.value.isNotEmpty()) return
+        val now = System.currentTimeMillis()
+        val day = 86_400_000L
+        val userId = UserPreferences.getUserId()
+
+        _jobs.value = listOf(
+            Job(
+                id = "demo-1",
+                title = "200A Panel Upgrade",
+                clientName = "Maria Rodriguez",
+                clientPhone = "718-555-0142",
+                clientAddress = "847 Flatbush Ave, Brooklyn NY",
+                description = "Replace 100A Federal Pacific with 200A Square D. Run new feeder from meter to panel.",
+                stage = JobStage.IN_PROGRESS,
+                status = JobStatus.IN_PROGRESS,
+                priority = Priority.HIGH,
+                crewSize = 2,
+                hourlyRate = 85.0,
+                materials = listOf(
+                    Material(name = "200A Square D Panel", quantity = 1.0, unit = "ea", unitCost = 420.0),
+                    Material(name = "2/0 THHN Copper", quantity = 60.0, unit = "ft", unitCost = 3.50),
+                    Material(name = "Breakers assorted", quantity = 12.0, unit = "ea", unitCost = 18.0)
+                ),
+                createdBy = userId,
+                createdAt = now - 3 * day,
+                updatedAt = now - 2 * 3600_000L
+            ),
+            Job(
+                id = "demo-2",
+                title = "Kitchen Remodel Rough-In",
+                clientName = "Tony Bianchi",
+                clientPhone = "347-555-0298",
+                clientAddress = "1220 Ocean Pkwy, Brooklyn NY",
+                description = "Rough-in electrical for kitchen remodel: 6 new circuits, dedicated 50A range, under-cabinet LED.",
+                stage = JobStage.PROPOSAL,
+                status = JobStatus.TODO,
+                priority = Priority.MEDIUM,
+                crewSize = 1,
+                hourlyRate = 85.0,
+                materials = listOf(
+                    Material(name = "12/2 Romex", quantity = 250.0, unit = "ft", unitCost = 0.65),
+                    Material(name = "6/3 Range Cable", quantity = 30.0, unit = "ft", unitCost = 4.20)
+                ),
+                createdBy = userId,
+                createdAt = now - 1 * day,
+                updatedAt = now - 1 * day
+            ),
+            Job(
+                id = "demo-3",
+                title = "Bathroom GFI Install",
+                clientName = "Angela Park",
+                clientPhone = "917-555-0811",
+                clientAddress = "55 W 125th St, Apt 4B, Manhattan NY",
+                description = "Install GFCI outlets in two bathrooms per NEC 210.8. Replace old 2-prong with grounded GFCI.",
+                stage = JobStage.INVOICE,
+                status = JobStatus.DONE,
+                priority = Priority.LOW,
+                crewSize = 1,
+                hourlyRate = 85.0,
+                materials = listOf(
+                    Material(name = "20A GFCI Outlet", quantity = 4.0, unit = "ea", unitCost = 22.0),
+                    Material(name = "Decora Wall Plate", quantity = 4.0, unit = "ea", unitCost = 3.50)
+                ),
+                createdBy = userId,
+                createdAt = now - 7 * day,
+                updatedAt = now - 1 * day
+            )
+        )
+        syncToRepository()
     }
     
     private fun syncToRepository() {
@@ -341,6 +422,10 @@ class JobBoardViewModel : ViewModel() {
     }
 
     fun moveJobStage(jobId: String, newStage: JobStage) {
+        // Capture old stage before updating
+        val oldJob = _jobs.value.find { it.id == jobId }
+        val oldStage = oldJob?.stage
+
         _jobs.value = _jobs.value.map { job ->
             if (job.id == jobId) job.copy(stage = newStage, updatedAt = System.currentTimeMillis())
             else job
@@ -351,6 +436,12 @@ class JobBoardViewModel : ViewModel() {
             }
         }
         syncToRepository()
+
+        // Trigger AI stage change hook
+        val updatedJob = _jobs.value.find { it.id == jobId }
+        if (updatedJob != null && oldStage != null && oldStage != newStage) {
+            com.guildofsmiths.trademesh.ai.AISupervisor.onStageChange(updatedJob, oldStage, newStage)
+        }
     }
 
     fun selectJob(job: Job?) {
@@ -423,6 +514,32 @@ class JobBoardViewModel : ViewModel() {
         _selectedJob.value = _jobs.value.find { it.id == jobId }
     }
 
+    // Add a new material to a job
+    fun addMaterial(jobId: String, material: Material) {
+        _jobs.value = _jobs.value.map { job ->
+            if (job.id == jobId) {
+                val updatedMaterials = job.materials.toMutableList()
+                updatedMaterials.add(material)
+                job.copy(materials = updatedMaterials, updatedAt = System.currentTimeMillis())
+            } else job
+        }
+        _selectedJob.value = _jobs.value.find { it.id == jobId }
+    }
+
+    // Update material details without changing checked state
+    fun updateMaterial(jobId: String, materialIndex: Int, updated: Material) {
+        _jobs.value = _jobs.value.map { job ->
+            if (job.id == jobId) {
+                val updatedMaterials = job.materials.toMutableList()
+                if (materialIndex < updatedMaterials.size) {
+                    updatedMaterials[materialIndex] = updated
+                }
+                job.copy(materials = updatedMaterials, updatedAt = System.currentTimeMillis())
+            } else job
+        }
+        _selectedJob.value = _jobs.value.find { it.id == jobId }
+    }
+
     // Update material with cost information (for invoice generation)
     fun updateMaterialCost(
         jobId: String,
@@ -482,6 +599,54 @@ class JobBoardViewModel : ViewModel() {
 
     fun clearInvoice() {
         _generatedInvoice.value = null
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // DAILY LOG OPERATIONS
+    // ════════════════════════════════════════════════════════════════════
+
+    fun addDailyLog(jobId: String, log: DailyJobLog) {
+        _jobs.value = _jobs.value.map { job ->
+            if (job.id == jobId) {
+                // Deduplicate by date — merge if log for same date exists
+                val existingIndex = job.dailyLogs.indexOfFirst { it.date == log.date }
+                val updatedLogs = if (existingIndex >= 0) {
+                    job.dailyLogs.toMutableList().apply { set(existingIndex, log) }
+                } else {
+                    job.dailyLogs + log
+                }
+                job.copy(dailyLogs = updatedLogs, updatedAt = System.currentTimeMillis())
+            } else job
+        }
+        _selectedJob.value = _jobs.value.find { it.id == jobId }
+    }
+
+    fun triggerManualSummary(jobId: String) {
+        val job = _jobs.value.find { it.id == jobId } ?: return
+        viewModelScope.launch {
+            try {
+                val log = com.guildofsmiths.trademesh.ai.DailyLogGenerator.generateLog(job)
+                addDailyLog(jobId, log)
+            } catch (e: Exception) {
+                android.util.Log.e("JobBoardVM", "Manual summary failed: ${e.message}")
+            }
+        }
+    }
+
+    fun assignCrewToJob(jobId: String, crewMember: com.guildofsmiths.trademesh.data.CrewPresenceInfo) {
+        _jobs.value = _jobs.value.map { job ->
+            if (job.id == jobId) {
+                val newCrewMember = CrewMember(
+                    name = crewMember.name,
+                    occupation = crewMember.trade,
+                    task = ""
+                )
+                val updatedCrew = job.crew + newCrewMember
+                job.copy(crew = updatedCrew, updatedAt = System.currentTimeMillis())
+            } else job
+        }
+        _selectedJob.value = _jobs.value.find { it.id == jobId }
+        syncToRepository()
     }
 
     fun deleteJob(jobId: String) {

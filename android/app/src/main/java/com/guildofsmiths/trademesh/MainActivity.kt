@@ -16,12 +16,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,16 +27,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
-import androidx.navigation.NavController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.guildofsmiths.trademesh.ui.components.BottomToolbar
 import com.guildofsmiths.trademesh.data.Peer
 import com.guildofsmiths.trademesh.data.SupabaseAuth
+import com.guildofsmiths.trademesh.data.BeaconRepository
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
 import com.guildofsmiths.trademesh.service.MeshService
@@ -48,6 +46,7 @@ import com.guildofsmiths.trademesh.ui.ArchiveScreen
 import com.guildofsmiths.trademesh.ui.AuthScreen
 import com.guildofsmiths.trademesh.ui.BeaconListScreen
 import com.guildofsmiths.trademesh.ui.ChatListScreen
+import com.guildofsmiths.trademesh.ui.NewConversationScreen
 import com.guildofsmiths.trademesh.ui.ChannelListScreen
 import com.guildofsmiths.trademesh.ui.ChannelsScreen
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
@@ -61,6 +60,8 @@ import com.guildofsmiths.trademesh.ui.ProfileScreen
 import com.guildofsmiths.trademesh.ui.PeersScreen
 import com.guildofsmiths.trademesh.ui.SettingsScreen
 import com.guildofsmiths.trademesh.ui.WelcomeScreen
+import com.guildofsmiths.trademesh.ui.clients.ClientsScreen
+import com.guildofsmiths.trademesh.ui.clients.ClientDetailScreen
 import com.guildofsmiths.trademesh.ui.jobboard.JobBoardScreen
 import com.guildofsmiths.trademesh.ui.timetracking.TimeTrackingScreen
 import com.guildofsmiths.trademesh.ui.theme.TradeMeshTheme
@@ -219,7 +220,6 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
-                    var toolbarExpanded by remember { mutableStateOf(false) }
 
                     // Determine start destination - auth first, then onboarding
                     // Priority: Not logged in → Auth, Logged in but no onboarding → Onboarding, Complete → Dashboard
@@ -238,9 +238,27 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
+                    // Routes that show the bottom nav bar
+                    val navBarRoutes = setOf(
+                        NavRoutes.DASHBOARD, NavRoutes.JOB_BOARD,
+                        NavRoutes.TIME_TRACKING, NavRoutes.ARCHIVE,
+                        NavRoutes.REPORT, NavRoutes.SUPPLY,
+                        NavRoutes.CLIENTS, NavRoutes.CHAT_LIST,
+                        NavRoutes.SETTINGS, NavRoutes.PROFILE,
+                        NavRoutes.MAP, NavRoutes.DISPATCH,
+                        NavRoutes.PLAN
+                    )
+
+                    val navBackStackEntry by navController.currentBackStackEntryAsState()
+                    val currentRoute = navBackStackEntry?.destination?.route
+
+                    androidx.compose.foundation.layout.Column(
+                        modifier = Modifier.fillMaxSize()
+                    ) {
                     NavHost(
                         navController = navController,
-                        startDestination = startDestination
+                        startDestination = startDestination,
+                        modifier = Modifier.weight(1f)
                     ) {
                         // Auth screen (C-01) - Supabase Auth
                         composable(NavRoutes.AUTH) {
@@ -317,36 +335,58 @@ class MainActivity : ComponentActivity() {
                             val jobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel()
                             val jobs by jobViewModel.jobs.collectAsState()
 
-                            WithToolbar(
-                                toolbarExpanded = toolbarExpanded,
-                                onToggle = { toolbarExpanded = !toolbarExpanded },
-                                navController = navController
-                            ) {
-                                com.guildofsmiths.trademesh.ui.dashboard.DashboardScreen(
-                                    jobs = jobs,
-                                    onJobClick = { jobId ->
-                                        navController.navigate(NavRoutes.jobPipeline(jobId))
-                                    },
-                                    onNewJob = {
-                                        navController.navigate(NavRoutes.NEW_JOB)
-                                    },
-                                    onClockIn = {
-                                        navController.navigate(NavRoutes.TIME_TRACKING)
-                                    },
-                                    onMessages = {
-                                        navController.navigate(NavRoutes.CHAT_LIST)
-                                    },
-                                    onSettings = {
-                                        navController.navigate(NavRoutes.SETTINGS)
-                                    },
-                                    onProfile = {
-                                        navController.navigate(NavRoutes.PROFILE)
-                                    },
-                                    onArchive = {
-                                        navController.navigate(NavRoutes.ARCHIVE)
-                                    }
-                                )
-                            }
+                            com.guildofsmiths.trademesh.ui.dashboard.DashboardScreen(
+                                jobs = jobs,
+                                onJobClick = { jobId ->
+                                    navController.navigate(NavRoutes.jobPipeline(jobId))
+                                },
+                                onNewJob = {
+                                    navController.navigate(NavRoutes.NEW_JOB)
+                                },
+                                onClockIn = {
+                                    navController.navigate(NavRoutes.TIME_TRACKING)
+                                },
+                                onComm = {
+                                    navController.navigate(NavRoutes.CHAT_LIST)
+                                },
+                                onSettings = {
+                                    navController.navigate(NavRoutes.SETTINGS)
+                                },
+                                onProfile = {
+                                    navController.navigate(NavRoutes.PROFILE)
+                                },
+                                onArchive = {
+                                    navController.navigate(NavRoutes.ARCHIVE)
+                                },
+                                onJobBoard = {
+                                    navController.navigate(NavRoutes.JOB_BOARD)
+                                },
+                                onDispatch = {
+                                    navController.navigate(NavRoutes.DISPATCH)
+                                },
+                                onMessageCrew = { crewMember ->
+                                    val myUserId = UserPreferences.getUserId()
+                                    val dm = com.guildofsmiths.trademesh.data.BeaconRepository.getOrCreateDM(
+                                        "default", myUserId, crewMember.userId, crewMember.name
+                                    )
+                                    navController.navigate(NavRoutes.conversation("default", dm.id))
+                                },
+                                onTimeTracking = {
+                                    navController.navigate(NavRoutes.TIME_TRACKING)
+                                },
+                                onPlan = {
+                                    navController.navigate(NavRoutes.JOB_BOARD)
+                                },
+                                onReport = {
+                                    navController.navigate(NavRoutes.REPORT)
+                                },
+                                onSupply = {
+                                    navController.navigate(NavRoutes.SUPPLY)
+                                },
+                                onClients = {
+                                    navController.navigate(NavRoutes.CLIENTS)
+                                }
+                            )
                         }
 
                         // Job Pipeline detail screen
@@ -359,58 +399,54 @@ class MainActivity : ComponentActivity() {
                             val jobs by jobViewModel.jobs.collectAsState()
                             val job = jobs.find { it.id == jobId }
 
-                            WithToolbar(
-                                toolbarExpanded = toolbarExpanded,
-                                onToggle = { toolbarExpanded = !toolbarExpanded },
-                                navController = navController
-                            ) {
-                                if (job != null) {
-                                    com.guildofsmiths.trademesh.ui.jobpipeline.JobPipelineScreen(
-                                        job = job,
-                                        onBack = { navController.popBackStack() },
-                                        onStageAction = { j, newStage ->
-                                            jobViewModel.moveJobStage(j.id, newStage)
-                                        },
-                                        onToggleMaterial = { index ->
-                                            jobViewModel.toggleMaterial(jobId, index)
-                                        },
-                                        onClockIn = {
-                                            navController.navigate(NavRoutes.TIME_TRACKING)
-                                        },
-                                        onShareProposal = { /* TODO: Wire in Task 11 */ },
-                                        onShareInvoice = { /* TODO: Wire in Task 12 */ }
-                                    )
-                                }
+                            if (job != null) {
+                                com.guildofsmiths.trademesh.ui.jobpipeline.JobPipelineScreen(
+                                    job = job,
+                                    onBack = { navController.popBackStack() },
+                                    onStageAction = { j, newStage ->
+                                        jobViewModel.moveJobStage(j.id, newStage)
+                                    },
+                                    onToggleMaterial = { index ->
+                                        jobViewModel.toggleMaterial(jobId, index)
+                                    },
+                                    onClockIn = {
+                                        navController.navigate(NavRoutes.TIME_TRACKING)
+                                    },
+                                    onShareProposal = { /* TODO: Wire in Task 11 */ },
+                                    onShareInvoice = { /* TODO: Wire in Task 12 */ },
+                                    onAddNote = { noteText ->
+                                        jobViewModel.addWorkLog(jobId, noteText)
+                                    },
+                                    onSummarizeToday = {
+                                        jobViewModel.triggerManualSummary(jobId)
+                                    }
+                                )
                             }
                         }
 
                         // New Job guided flow
                         composable(NavRoutes.NEW_JOB) {
                             val jobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel()
+                            val allJobsForPicker by jobViewModel.jobs.collectAsState()
 
-                            WithToolbar(
-                                toolbarExpanded = toolbarExpanded,
-                                onToggle = { toolbarExpanded = !toolbarExpanded },
-                                navController = navController
-                            ) {
-                                com.guildofsmiths.trademesh.ui.newjob.NewJobFlow(
-                                    onBack = { navController.popBackStack() },
-                                    onJobCreated = { newJob ->
-                                        jobViewModel.createJob(
-                                            title = newJob.clientName.ifBlank { "New Job" },
-                                            description = newJob.description,
-                                            materials = newJob.materials,
-                                            crewSize = newJob.crewSize,
-                                            clientName = newJob.clientName,
-                                            clientPhone = newJob.clientPhone,
-                                            clientAddress = newJob.clientAddress,
-                                            hourlyRate = com.guildofsmiths.trademesh.data.UserPreferences.getHourlyRate(),
-                                            equipmentList = newJob.equipmentList
-                                        )
-                                        navController.popBackStack()
-                                    }
-                                )
-                            }
+                            com.guildofsmiths.trademesh.ui.newjob.NewJobFlow(
+                                onBack = { navController.popBackStack() },
+                                allJobs = allJobsForPicker,
+                                onJobCreated = { newJob ->
+                                    jobViewModel.createJob(
+                                        title = newJob.clientName.ifBlank { "New Job" },
+                                        description = newJob.description,
+                                        materials = newJob.materials,
+                                        crewSize = newJob.crewSize,
+                                        clientName = newJob.clientName,
+                                        clientPhone = newJob.clientPhone,
+                                        clientAddress = newJob.clientAddress,
+                                        hourlyRate = com.guildofsmiths.trademesh.data.UserPreferences.getHourlyRate(),
+                                        equipmentList = newJob.equipmentList
+                                    )
+                                    navController.popBackStack()
+                                }
+                            )
                         }
 
                         // Beacon list screen (Messages/Chat Hub)
@@ -420,206 +456,301 @@ class MainActivity : ComponentActivity() {
                                 initializeCommunication()
                             }
 
-                            WithToolbar(
-                                toolbarExpanded = toolbarExpanded,
-                                onToggle = { toolbarExpanded = !toolbarExpanded },
-                                navController = navController
-                            ) {
-                                BeaconListScreen(
-                                    onBeaconClick = { beacon ->
-                                        navController.navigate(NavRoutes.channelList(beacon.id))
-                                    },
-                                    onSettingsClick = {
-                                        navController.navigate(NavRoutes.SETTINGS)
-                                    },
-                                    onPeersClick = {
-                                        navController.navigate(NavRoutes.PEERS)
-                                    },
-                                    onProfileClick = {
-                                        navController.navigate(NavRoutes.PROFILE)
-                                    },
-                                    onCreateBeaconClick = {
-                                        navController.navigate(NavRoutes.CREATE_BEACON)
-                                    }
-                                )
-                            }
+                            BeaconListScreen(
+                                onBeaconClick = { beacon ->
+                                    navController.navigate(NavRoutes.channelList(beacon.id))
+                                },
+                                onSettingsClick = {
+                                    navController.navigate(NavRoutes.SETTINGS)
+                                },
+                                onPeersClick = {
+                                    navController.navigate(NavRoutes.PEERS)
+                                },
+                                onProfileClick = {
+                                    navController.navigate(NavRoutes.PROFILE)
+                                },
+                                onCreateBeaconClick = {
+                                    navController.navigate(NavRoutes.CREATE_BEACON)
+                                }
+                            )
                         }
                         
                         // Chat list screen (new primary messaging entry point)
                         composable(NavRoutes.CHAT_LIST) {
-                            WithToolbar(toolbarExpanded, { toolbarExpanded = !toolbarExpanded }, navController) {
-                                ChatListScreen(
-                                    onChannelClick = { beaconId, channelId ->
-                                        navController.navigate(NavRoutes.conversation(beaconId, channelId))
-                                    },
-                                    onNewClick = {
-                                        navController.navigate(NavRoutes.CREATE_BEACON)
-                                    },
-                                    onBackClick = {
-                                        navController.popBackStack()
-                                    }
-                                )
-                            }
+                            ChatListScreen(
+                                onChannelClick = { beaconId, channelId ->
+                                    navController.navigate(NavRoutes.conversation(beaconId, channelId))
+                                },
+                                onNewClick = {
+                                    navController.navigate(NavRoutes.NEW_CONVERSATION)
+                                },
+                                onBackClick = {
+                                    navController.popBackStack()
+                                },
+                                onPeersClick = {
+                                    navController.navigate(NavRoutes.PEERS)
+                                },
+                                onSmithAIClick = {
+                                    val myUserId = UserPreferences.getUserId()
+                                    val aiPeerId = "smith-ai"
+                                    val aiPeerName = "SmithAI"
+                                    val dm = BeaconRepository.getOrCreateDM("default", myUserId, aiPeerId, aiPeerName)
+                                    BoundaryEngine.joinChannel(dm.id)
+                                    navController.navigate(NavRoutes.conversationDM("default", dm.id, aiPeerId, aiPeerName))
+                                }
+                            )
+                        }
+
+                        // New conversation screen (contact picker)
+                        composable(NavRoutes.NEW_CONVERSATION) {
+                            val jobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel =
+                                androidx.lifecycle.viewmodel.compose.viewModel()
+                            val allJobs by jobViewModel.jobs.collectAsState()
+                            NewConversationScreen(
+                                allJobs = allJobs,
+                                onConversationStart = { beaconId, channelId, peerId, peerName ->
+                                    navController.popBackStack()
+                                    navController.navigate(NavRoutes.conversationDM(beaconId, channelId, peerId, peerName))
+                                },
+                                onBackClick = { navController.popBackStack() }
+                            )
                         }
 
                         // Profile screen
                         composable(NavRoutes.PROFILE) {
-                            WithToolbar(
-                                toolbarExpanded = toolbarExpanded,
-                                onToggle = { toolbarExpanded = !toolbarExpanded },
-                                navController = navController
-                            ) {
-                                ProfileScreen(
-                                    onNavigateBack = { navController.popBackStack() },
-                                    onSignOut = {
-                                        // Navigate back to auth screen
-                                        navController.navigate(NavRoutes.AUTH) {
-                                            popUpTo(0) { inclusive = true }
-                                        }
+                            ProfileScreen(
+                                onNavigateBack = { navController.popBackStack() },
+                                onSignOut = {
+                                    // Navigate back to auth screen
+                                    navController.navigate(NavRoutes.AUTH) {
+                                        popUpTo(0) { inclusive = true }
                                     }
-                                )
-                            }
+                                }
+                            )
                         }
                         
                         // Settings screen
                         composable(NavRoutes.SETTINGS) {
-                            WithToolbar(
-                                toolbarExpanded = toolbarExpanded,
-                                onToggle = { toolbarExpanded = !toolbarExpanded },
-                                navController = navController
-                            ) {
-                                SettingsScreen(
-                                    onBackClick = {
-                                        navController.popBackStack()
-                                    },
-                                    onNameChanged = { newName ->
-                                        viewModel.setUserName(newName)
-                                    },
-                                    onProfileClick = {
-                                        navController.navigate(NavRoutes.PROFILE)
-                                    },
-                                    onSignOut = {
-                                        // Navigate to auth screen and clear backstack
-                                        navController.navigate(NavRoutes.AUTH) {
-                                            popUpTo(0) { inclusive = true }
-                                        }
+                            SettingsScreen(
+                                onBackClick = {
+                                    navController.popBackStack()
+                                },
+                                onNameChanged = { newName ->
+                                    viewModel.setUserName(newName)
+                                },
+                                onProfileClick = {
+                                    navController.navigate(NavRoutes.PROFILE)
+                                },
+                                onSignOut = {
+                                    // Navigate to auth screen and clear backstack
+                                    navController.navigate(NavRoutes.AUTH) {
+                                        popUpTo(0) { inclusive = true }
                                     }
-                                )
-                            }
+                                }
+                            )
                         }
                         
                         // C-11: Job Board
                         composable(NavRoutes.JOB_BOARD) {
-                            WithToolbar(
-                                toolbarExpanded = toolbarExpanded,
-                                onToggle = { toolbarExpanded = !toolbarExpanded },
-                                navController = navController
-                            ) {
-                                JobBoardScreen(
-                                    onNavigateBack = {
-                                        navController.popBackStack()
-                                    }
-                                )
-                            }
+                            JobBoardScreen(
+                                onNavigateBack = {
+                                    navController.popBackStack()
+                                }
+                            )
                         }
 
                         // C-12: Time Tracking
                         composable(NavRoutes.TIME_TRACKING) {
-                            WithToolbar(
-                                toolbarExpanded = toolbarExpanded,
-                                onToggle = { toolbarExpanded = !toolbarExpanded },
-                                navController = navController
-                            ) {
-                                TimeTrackingScreen(
-                                    onNavigateBack = {
-                                        navController.popBackStack()
-                                    }
-                                )
-                            }
+                            TimeTrackingScreen(
+                                onNavigateBack = {
+                                    navController.popBackStack()
+                                }
+                            )
                         }
 
                         // C-13: Archive
                         composable(NavRoutes.ARCHIVE) {
-                            WithToolbar(
-                                toolbarExpanded = toolbarExpanded,
-                                onToggle = { toolbarExpanded = !toolbarExpanded },
-                                navController = navController
-                            ) {
-                                ArchiveScreen(
-                                    onNavigateBack = {
-                                        navController.popBackStack()
-                                    }
-                                )
-                            }
+                            ArchiveScreen(
+                                onNavigateBack = {
+                                    navController.popBackStack()
+                                },
+                                onJobClick = { jobId ->
+                                    navController.navigate(NavRoutes.jobPipeline(jobId))
+                                }
+                            )
+                        }
+
+                        // Supply screen
+                        composable(NavRoutes.SUPPLY) {
+                            val supplyJobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel()
+                            val allJobs by supplyJobViewModel.jobs.collectAsState()
+                            com.guildofsmiths.trademesh.ui.supply.SupplyScreen(
+                                allJobs = allJobs,
+                                onToggleMaterial = { jobId, materialIndex ->
+                                    supplyJobViewModel.toggleMaterial(jobId, materialIndex)
+                                },
+                                onAddMaterial = { jobId, material ->
+                                    supplyJobViewModel.addMaterial(jobId, material)
+                                },
+                                onUpdateMaterial = { jobId, materialIndex, material ->
+                                    supplyJobViewModel.updateMaterial(jobId, materialIndex, material)
+                                },
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+
+                        // Report screen
+                        composable(NavRoutes.REPORT) {
+                            val reportJobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel()
+                            val allJobs by reportJobViewModel.jobs.collectAsState()
+                            com.guildofsmiths.trademesh.ui.report.ReportScreen(
+                                allJobs = allJobs,
+                                onJobClick = { jobId ->
+                                    navController.navigate(NavRoutes.jobPipeline(jobId))
+                                },
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+
+                        // Plan / Proposals screen
+                        composable(NavRoutes.PLAN) {
+                            com.guildofsmiths.trademesh.ui.plan.PlanScreen(
+                                onNavigateToJob = {
+                                    navController.navigate(NavRoutes.JOB_BOARD)
+                                }
+                            )
+                        }
+
+                        // Crew Map
+                        composable(NavRoutes.MAP) {
+                            com.guildofsmiths.trademesh.ui.map.MapScreen(
+                                onBack = { navController.popBackStack() },
+                                onJobClick = { jobId ->
+                                    navController.navigate(NavRoutes.jobPipeline(jobId))
+                                },
+                                onCallPhone = { phone ->
+                                    val intent = android.content.Intent(
+                                        android.content.Intent.ACTION_DIAL,
+                                        android.net.Uri.parse("tel:$phone")
+                                    )
+                                    startActivity(intent)
+                                },
+                                onMessageCrew = { crewMember ->
+                                    val myUserId = UserPreferences.getUserId()
+                                    val dm = com.guildofsmiths.trademesh.data.BeaconRepository.getOrCreateDM(
+                                        "default", myUserId, crewMember.userId, crewMember.name
+                                    )
+                                    navController.navigate(NavRoutes.conversation("default", dm.id))
+                                }
+                            )
+                        }
+
+                        // Dispatch screen — crew-to-task assignments
+                        composable(NavRoutes.DISPATCH) {
+                            com.guildofsmiths.trademesh.ui.dispatch.DispatchScreen(
+                                onBack = { navController.popBackStack() },
+                                onJobClick = { jobId ->
+                                    navController.navigate(NavRoutes.jobPipeline(jobId))
+                                },
+                                onCallPhone = { phone ->
+                                    val intent = android.content.Intent(
+                                        android.content.Intent.ACTION_DIAL,
+                                        android.net.Uri.parse("tel:$phone")
+                                    )
+                                    startActivity(intent)
+                                },
+                                onMessageCrew = { crewMember ->
+                                    val myUserId = UserPreferences.getUserId()
+                                    val dm = com.guildofsmiths.trademesh.data.BeaconRepository.getOrCreateDM(
+                                        "default", myUserId, crewMember.userId, crewMember.name
+                                    )
+                                    navController.navigate(NavRoutes.conversation("default", dm.id))
+                                }
+                            )
+                        }
+
+                        // Clients list
+                        composable(NavRoutes.CLIENTS) {
+                            val clientJobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel()
+                            val allJobs by clientJobViewModel.jobs.collectAsState()
+                            ClientsScreen(
+                                allJobs = allJobs,
+                                onClientClick = { clientName ->
+                                    navController.navigate(NavRoutes.clientDetail(clientName))
+                                },
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+
+                        // Client detail
+                        composable(
+                            route = NavRoutes.CLIENT_DETAIL,
+                            arguments = listOf(navArgument("clientName") { type = NavType.StringType })
+                        ) { backStackEntry ->
+                            val clientName = android.net.Uri.decode(
+                                backStackEntry.arguments?.getString("clientName") ?: ""
+                            )
+                            val detailJobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel()
+                            val allJobs by detailJobViewModel.jobs.collectAsState()
+                            ClientDetailScreen(
+                                clientName = clientName,
+                                allJobs = allJobs,
+                                onJobClick = { jobId ->
+                                    navController.navigate(NavRoutes.jobPipeline(jobId))
+                                },
+                                onBack = { navController.popBackStack() }
+                            )
                         }
 
                         // Peers screen
                         composable(NavRoutes.PEERS) {
-                            WithToolbar(
-                                toolbarExpanded = toolbarExpanded,
-                                onToggle = { toolbarExpanded = !toolbarExpanded },
-                                navController = navController
-                            ) {
-                                PeersScreen(
-                                    onBackClick = {
-                                        navController.popBackStack()
-                                    },
-                                    onPeerClick = { peer ->
-                                        // Just view peer info (optional)
-                                    },
-                                    onStartChat = { dmChannelId ->
-                                        // Join the DM channel before navigating
-                                        BoundaryEngine.joinChannel(dmChannelId)
-                                        Log.d("MainActivity", "Starting chat in DM channel: $dmChannelId")
+                            PeersScreen(
+                                onBackClick = {
+                                    navController.popBackStack()
+                                },
+                                onPeerClick = { peer ->
+                                    // Just view peer info (optional)
+                                },
+                                onStartChat = { dmChannelId ->
+                                    // Join the DM channel before navigating
+                                    BoundaryEngine.joinChannel(dmChannelId)
+                                    Log.d("MainActivity", "Starting chat in DM channel: $dmChannelId")
 
-                                        // Navigate to channel list first, then to conversation
-                                        navController.navigate(NavRoutes.conversation("default", dmChannelId))
-                                    }
-                                )
-                            }
+                                    // Navigate to channel list first, then to conversation
+                                    navController.navigate(NavRoutes.conversation("default", dmChannelId))
+                                }
+                            )
                         }
                         
                         // Create beacon screen
                         composable(NavRoutes.CREATE_BEACON) {
-                            WithToolbar(
-                                toolbarExpanded = toolbarExpanded,
-                                onToggle = { toolbarExpanded = !toolbarExpanded },
-                                navController = navController
-                            ) {
-                                CreateBeaconScreen(
-                                    onBackClick = {
-                                        navController.popBackStack()
-                                    },
-                                    onBeaconCreated = { beacon ->
-                                        navController.popBackStack()
-                                        navController.navigate(NavRoutes.channelList(beacon.id))
-                                    }
-                                )
-                            }
+                            CreateBeaconScreen(
+                                onBackClick = {
+                                    navController.popBackStack()
+                                },
+                                onBeaconCreated = { beacon ->
+                                    navController.popBackStack()
+                                    navController.navigate(NavRoutes.channelList(beacon.id))
+                                }
+                            )
                         }
                         
                         // Dashboard channels screen - discover and join channels from dashboard
                         composable(NavRoutes.DASHBOARD_CHANNELS) {
-                            WithToolbar(
-                                toolbarExpanded = toolbarExpanded,
-                                onToggle = { toolbarExpanded = !toolbarExpanded },
-                                navController = navController
-                            ) {
-                                ChannelsScreen(
-                                    onBackClick = {
-                                        navController.popBackStack()
-                                    },
-                                    onChannelJoined = { channelId ->
-                                        // Navigate to conversation with the joined channel
-                                        Log.e("MainActivity", "████ onChannelJoined: $channelId ████")
-                                        // URL encode the channel ID to handle special characters
-                                        val encodedChannelId = java.net.URLEncoder.encode(channelId, "UTF-8")
-                                        val route = NavRoutes.conversation("default", encodedChannelId)
-                                        Log.e("MainActivity", "████ Route: $route ████")
-                                        navController.navigate(route)
-                                    }
-                                )
-                            }
+                            ChannelsScreen(
+                                onBackClick = {
+                                    navController.popBackStack()
+                                },
+                                onChannelJoined = { channelId ->
+                                    // Navigate to conversation with the joined channel
+                                    Log.e("MainActivity", "████ onChannelJoined: $channelId ████")
+                                    // URL encode the channel ID to handle special characters
+                                    val encodedChannelId = java.net.URLEncoder.encode(channelId, "UTF-8")
+                                    val route = NavRoutes.conversation("default", encodedChannelId)
+                                    Log.e("MainActivity", "████ Route: $route ████")
+                                    navController.navigate(route)
+                                }
+                            )
                         }
                         
                         // Channel list screen
@@ -631,27 +762,21 @@ class MainActivity : ComponentActivity() {
                         ) { backStackEntry ->
                             val beaconId = backStackEntry.arguments?.getString("beaconId") ?: "default"
 
-                            WithToolbar(
-                                toolbarExpanded = toolbarExpanded,
-                                onToggle = { toolbarExpanded = !toolbarExpanded },
-                                navController = navController
-                            ) {
-                                ChannelListScreen(
-                                    beaconId = beaconId,
-                                    onChannelClick = { channel ->
-                                        navController.navigate(NavRoutes.conversation(beaconId, channel.id))
-                                    },
-                                    onBackClick = {
-                                        navController.popBackStack()
-                                    },
-                                    onCreateChannel = {
-                                        navController.navigate(NavRoutes.createChannel(beaconId))
-                                    },
-                                    onJoinDashboardChannels = {
-                                        navController.navigate(NavRoutes.DASHBOARD_CHANNELS)
-                                    }
-                                )
-                            }
+                            ChannelListScreen(
+                                beaconId = beaconId,
+                                onChannelClick = { channel ->
+                                    navController.navigate(NavRoutes.conversation(beaconId, channel.id))
+                                },
+                                onBackClick = {
+                                    navController.popBackStack()
+                                },
+                                onCreateChannel = {
+                                    navController.navigate(NavRoutes.createChannel(beaconId))
+                                },
+                                onJoinDashboardChannels = {
+                                    navController.navigate(NavRoutes.DASHBOARD_CHANNELS)
+                                }
+                            )
                         }
                         
                         // Create channel screen
@@ -663,22 +788,16 @@ class MainActivity : ComponentActivity() {
                         ) { backStackEntry ->
                             val beaconId = backStackEntry.arguments?.getString("beaconId") ?: "default"
 
-                            WithToolbar(
-                                toolbarExpanded = toolbarExpanded,
-                                onToggle = { toolbarExpanded = !toolbarExpanded },
-                                navController = navController
-                            ) {
-                                CreateChannelScreen(
-                                    beaconId = beaconId,
-                                    onBackClick = {
-                                        navController.popBackStack()
-                                    },
-                                    onChannelCreated = { channel ->
-                                        navController.popBackStack()
-                                        navController.navigate(NavRoutes.conversation(beaconId, channel.id))
-                                    }
-                                )
-                            }
+                            CreateChannelScreen(
+                                beaconId = beaconId,
+                                onBackClick = {
+                                    navController.popBackStack()
+                                },
+                                onChannelCreated = { channel ->
+                                    navController.popBackStack()
+                                    navController.navigate(NavRoutes.conversation(beaconId, channel.id))
+                                }
+                            )
                         }
                         
                         // Conversation screen (with optional DM peer parameters)
@@ -730,11 +849,6 @@ class MainActivity : ComponentActivity() {
                             // Track DM peer for media callbacks
                             var currentDmPeer by remember { mutableStateOf(initialDmPeer) }
 
-                            WithToolbar(
-                                toolbarExpanded = toolbarExpanded,
-                                onToggle = { toolbarExpanded = !toolbarExpanded },
-                                navController = navController
-                            ) {
                             ConversationScreen(
                                 messages = messages,
                                 onSendMessage = { content, peer ->
@@ -777,9 +891,62 @@ class MainActivity : ComponentActivity() {
                                 },
                                 initialDmPeer = initialDmPeer
                             )
-                            }  // end WithToolbar
                         }
                     }
+
+                    // Bottom nav bar — visible on main screens
+                    if (currentRoute in navBarRoutes) {
+                        com.guildofsmiths.trademesh.ui.BottomNavBar(
+                            currentRoute = currentRoute ?: "",
+                            onHome = {
+                                if (currentRoute != NavRoutes.DASHBOARD) {
+                                    navController.navigate(NavRoutes.DASHBOARD) {
+                                        popUpTo(NavRoutes.DASHBOARD) { inclusive = true }
+                                    }
+                                }
+                            },
+                            onJobs = {
+                                if (currentRoute != NavRoutes.JOB_BOARD) {
+                                    navController.navigate(NavRoutes.JOB_BOARD) {
+                                        popUpTo(NavRoutes.DASHBOARD)
+                                    }
+                                }
+                            },
+                            onComm = {
+                                if (currentRoute != NavRoutes.CHAT_LIST) {
+                                    navController.navigate(NavRoutes.CHAT_LIST) {
+                                        popUpTo(NavRoutes.DASHBOARD)
+                                    }
+                                }
+                            },
+                            onPlan = {
+                                // [Plan] for solo → Proposals, [Map] for foreman/GC
+                                val target = if (com.guildofsmiths.trademesh.data.RoleContext.isForeman() || com.guildofsmiths.trademesh.data.RoleContext.isGC()) {
+                                    NavRoutes.MAP
+                                } else {
+                                    NavRoutes.PLAN
+                                }
+                                if (currentRoute != target) {
+                                    navController.navigate(target) {
+                                        popUpTo(NavRoutes.DASHBOARD)
+                                    }
+                                }
+                            },
+                            onClockIn = {
+                                navController.navigate(NavRoutes.TIME_TRACKING) {
+                                    popUpTo(NavRoutes.DASHBOARD)
+                                }
+                            },
+                            onDispatch = {
+                                if (currentRoute != NavRoutes.DISPATCH) {
+                                    navController.navigate(NavRoutes.DISPATCH) {
+                                        popUpTo(NavRoutes.DASHBOARD)
+                                    }
+                                }
+                            }
+                        )
+                    }
+                    } // Column
                 }
             }
         }
@@ -1100,41 +1267,5 @@ class MainActivity : ComponentActivity() {
         } else {
             Toast.makeText(this, "Failed to create video file", Toast.LENGTH_SHORT).show()
         }
-    }
-}
-
-// ══════════════════════════════════════════════════════════════════
-// BOTTOM TOOLBAR WRAPPER
-// ══════════════════════════════════════════════════════════════════
-
-/**
- * Wraps post-auth screen content with the floating BottomToolbar overlay.
- * The toolbar floats over content and provides quick navigation to Plan, Job, and Time screens.
- */
-@Composable
-fun WithToolbar(
-    toolbarExpanded: Boolean,
-    onToggle: () -> Unit,
-    navController: NavController,
-    content: @Composable () -> Unit
-) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        content()
-        BottomToolbar(
-            isExpanded = toolbarExpanded,
-            onToggle = onToggle,
-            onNavigateToPlan = {
-                navController.navigate(com.guildofsmiths.trademesh.ui.NavRoutes.JOB_BOARD)
-                onToggle()
-            },
-            onNavigateToJob = {
-                navController.navigate(com.guildofsmiths.trademesh.ui.NavRoutes.JOB_BOARD)
-                onToggle()
-            },
-            onNavigateToTime = {
-                navController.navigate(com.guildofsmiths.trademesh.ui.NavRoutes.TIME_TRACKING)
-                onToggle()
-            },
-        )
     }
 }

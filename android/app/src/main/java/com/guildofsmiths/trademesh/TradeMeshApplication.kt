@@ -7,6 +7,8 @@ import com.guildofsmiths.trademesh.ai.BatteryGate
 import com.guildofsmiths.trademesh.ai.LlamaInference
 import com.guildofsmiths.trademesh.ai.ResponseCache
 import com.guildofsmiths.trademesh.data.BeaconRepository
+import com.guildofsmiths.trademesh.data.ClientRepository
+import com.guildofsmiths.trademesh.data.ColleagueRepository
 import com.guildofsmiths.trademesh.data.IntentRepository
 import com.guildofsmiths.trademesh.data.IdentityResolver
 import com.guildofsmiths.trademesh.data.MessageRepository
@@ -54,6 +56,12 @@ class TradeMeshApplication : Application() {
         
         // Initialize beacon repository (loads saved channels)
         BeaconRepository.init(this)
+
+        // Initialize client repository
+        ClientRepository.init(this)
+
+        // Initialize colleague/crew contacts repository
+        ColleagueRepository.init(this)
 
         // Initialize message repository (with Room database)
         MessageRepository.init(this)

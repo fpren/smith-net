@@ -81,7 +81,14 @@ fun JobBoardScreen(
             .fillMaxSize()
             .background(ConsoleTheme.background)
     ) {
-        ConsoleHeader(title = "JOB BOARD", onBackClick = onNavigateBack)
+        ConsoleHeader(
+            title = when {
+                RoleContext.isTeamMember() -> "MY TASKS"
+                RoleContext.isGC() -> "PROJECTS"
+                else -> "JOB BOARD"
+            },
+            onBackClick = onNavigateBack
+        )
         ConsoleSeparator()
 
         error?.let { errorMsg ->
@@ -160,11 +167,13 @@ fun JobBoardScreen(
                         modifier = Modifier.clickable { filterStatus = null }
                     )
                 }
-                Text(
-                    text = "+ NEW",
-                    style = ConsoleTheme.action,
-                    modifier = Modifier.clickable { showCreateDialog = true }
-                )
+                if (!RoleContext.isTeamMember()) {
+                    Text(
+                        text = "+ NEW",
+                        style = ConsoleTheme.action,
+                        modifier = Modifier.clickable { showCreateDialog = true }
+                    )
+                }
             }
         }
 
@@ -200,7 +209,11 @@ fun JobBoardScreen(
                             style = ConsoleTheme.body
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = "Tap + NEW to create one", style = ConsoleTheme.caption)
+                        Text(
+                            text = if (RoleContext.isTeamMember()) "Tasks will appear when assigned by your lead"
+                                   else "Tap + NEW to create one",
+                            style = ConsoleTheme.caption
+                        )
                     }
                 }
             }

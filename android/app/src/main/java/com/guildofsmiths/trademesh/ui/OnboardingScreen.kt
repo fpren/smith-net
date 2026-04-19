@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.text.font.FontWeight
 import com.guildofsmiths.trademesh.data.RoleContext
 import com.guildofsmiths.trademesh.data.TradeDefaults
+import com.guildofsmiths.trademesh.data.TradesList
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.data.UserRole
 import com.guildofsmiths.trademesh.data.WageService
@@ -230,45 +231,89 @@ private fun TradeScreen(
 
         Spacer(modifier = Modifier.height(48.dp))
 
-        // Occupation dropdown
-        ConsoleLabel("OCCUPATION")
+        // Trade picker — searchable 120+ trades
+        ConsoleLabel("YOUR TRADE")
         Spacer(modifier = Modifier.height(8.dp))
-        var occupationExpanded by remember { mutableStateOf(false) }
-        Box(
+        var tradeSearch by remember { mutableStateOf("") }
+        var tradeExpanded by remember { mutableStateOf(false) }
+        var selectedTrade by remember { mutableStateOf(UserPreferences.getPrimaryTrade()) }
+        val filteredTrades = remember(tradeSearch) {
+            if (tradeSearch.isBlank()) TradesList.ALL_TRADES.take(20)
+            else TradesList.search(tradeSearch).take(15)
+        }
+
+        // Selected trade display
+        if (selectedTrade.isNotBlank()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.accent.copy(alpha = 0.08f))
+                    .clickable { tradeExpanded = true }
+                    .padding(16.dp)
+            ) {
+                Text(selectedTrade, style = ConsoleTheme.body.copy(color = ConsoleTheme.accent))
+            }
+        }
+
+        // Search field
+        BasicTextField(
+            value = tradeSearch,
+            onValueChange = { tradeSearch = it; tradeExpanded = true },
+            textStyle = ConsoleTheme.body,
+            cursorBrush = SolidColor(ConsoleTheme.cursor),
+            singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { occupationExpanded = true }
                 .background(ConsoleTheme.surface)
-                .padding(16.dp)
-        ) {
-            androidx.compose.material3.Text(
-                text = data.occupation?.name?.lowercase()?.replaceFirstChar { it.uppercase() }
-                    ?.replace("_", " ") ?: "Select occupation",
-                style = if (data.occupation != null) ConsoleTheme.body
-                        else ConsoleTheme.body.copy(color = ConsoleTheme.placeholder)
-            )
-            DropdownMenu(
-                expanded = occupationExpanded,
-                onDismissRequest = { occupationExpanded = false },
+                .padding(16.dp),
+            decorationBox = { innerTextField ->
+                Box {
+                    if (tradeSearch.isEmpty()) {
+                        Text(
+                            "Search trades (${TradesList.ALL_TRADES.size}+ available)",
+                            style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder)
+                        )
+                    }
+                    innerTextField()
+                }
+            }
+        )
+
+        // Dropdown results
+        if (tradeExpanded && filteredTrades.isNotEmpty()) {
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth(0.8f)
-                    .background(ConsoleTheme.background)
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .heightIn(max = 200.dp)
+                    .verticalScroll(rememberScrollState())
             ) {
-                Occupation.values().forEach { occupation ->
-                    DropdownMenuItem(
-                        text = {
-                            androidx.compose.material3.Text(
-                                occupation.name.lowercase().replaceFirstChar { it.uppercase() }
-                                    .replace("_", " "),
-                                style = ConsoleTheme.body,
-                                color = ConsoleTheme.text
-                            )
-                        },
-                        onClick = {
-                            onDataChange(data.copy(occupation = occupation))
-                            occupationExpanded = false
-                        }
+                filteredTrades.forEach { trade ->
+                    Text(
+                        text = trade,
+                        style = ConsoleTheme.bodySmall.copy(
+                            color = if (trade == selectedTrade) ConsoleTheme.accent else ConsoleTheme.text
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                selectedTrade = trade
+                                tradeSearch = ""
+                                tradeExpanded = false
+                                // Map to Occupation for backward compat
+                                val occ = when {
+                                    trade.contains("Electr", ignoreCase = true) -> Occupation.ELECTRICIAN
+                                    trade.contains("HVAC", ignoreCase = true) || trade.contains("Heating", ignoreCase = true) -> Occupation.HVAC
+                                    trade.contains("Plumb", ignoreCase = true) -> Occupation.PLUMBER
+                                    trade.contains("Carpen", ignoreCase = true) || trade.contains("Framing", ignoreCase = true) -> Occupation.CARPENTER
+                                    else -> Occupation.OTHER
+                                }
+                                onDataChange(data.copy(occupation = occ))
+                                UserPreferences.setPrimaryTrade(trade)
+                            }
+                            .padding(horizontal = 16.dp, vertical = 10.dp)
                     )
+                    Box(Modifier.fillMaxWidth().height(0.5.dp).padding(horizontal = 16.dp).background(ConsoleTheme.text.copy(alpha = 0.04f)))
                 }
             }
         }
