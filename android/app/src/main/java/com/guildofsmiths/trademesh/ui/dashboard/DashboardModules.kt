@@ -1082,17 +1082,36 @@ fun AIInboxModule() {
                     AISupervisor.InsightType.CHECKIN -> "(◈)"
                     AISupervisor.InsightType.STAGE -> "(→)"
                     AISupervisor.InsightType.CREW -> "(●)"
+                    AISupervisor.InsightType.FINANCIAL -> "($)"
                 }
                 val iconColor = when (insight.type) {
                     AISupervisor.InsightType.ALERT -> ConsoleTheme.warning
                     AISupervisor.InsightType.CREW -> Color(0xFFD97706)
                     AISupervisor.InsightType.STAGE -> ConsoleTheme.success
+                    AISupervisor.InsightType.FINANCIAL -> ConsoleTheme.warning
                     else -> ConsoleTheme.accent
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(icon, style = ConsoleTheme.bodySmall.copy(color = iconColor))
-                    Text(insight.title, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
+                // Title row with dismiss X
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(icon, style = ConsoleTheme.bodySmall.copy(color = iconColor))
+                        Text(insight.title, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
+                    }
+                    Text(
+                        "✕",
+                        style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted),
+                        modifier = Modifier
+                            .clickable { AISupervisor.dismissInsight(insight.id) }
+                            .padding(4.dp)
+                    )
                 }
 
                 Text(
@@ -1100,21 +1119,21 @@ fun AIInboxModule() {
                     style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
                 )
 
-                // Approve/Dismiss buttons in semi-auto mode
-                if (mode == "semi-auto" && !insight.approved) {
+                // Confirm/Reject for FINANCIAL insights (needs permission)
+                if (insight.type == AISupervisor.InsightType.FINANCIAL && !insight.approved) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End
                     ) {
                         Text(
-                            "[Approve]",
-                            style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                            "[Confirm]",
+                            style = ConsoleTheme.action.copy(color = ConsoleTheme.success),
                             modifier = Modifier.clickable { AISupervisor.approveInsight(insight.id) }.padding(4.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            "[Dismiss]",
-                            style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                            "[Reject]",
+                            style = ConsoleTheme.action.copy(color = ConsoleTheme.error),
                             modifier = Modifier.clickable { AISupervisor.dismissInsight(insight.id) }.padding(4.dp)
                         )
                     }

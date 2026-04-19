@@ -54,7 +54,8 @@ object AISupervisor {
         DRAFT,      // Draft message for crew
         CHECKIN,    // Overall status check
         STAGE,      // Stage change summary
-        CREW        // Crew status alert
+        CREW,       // Crew status alert
+        FINANCIAL   // Needs user permission (invoices, payments, expenses)
     }
 
     // Pending insights (semi-auto mode)
@@ -305,29 +306,44 @@ object AISupervisor {
             val isSolo = com.guildofsmiths.trademesh.data.RoleContext.isSolo()
 
             // 1. Job issue detection (stale, budget, materials, invoices, proposals)
-            allInsights.addAll(detectJobIssues(jobs))
+            val jobIssues = detectJobIssues(jobs)
+            Log.i(TAG, "Monitor 1 — Job issues: ${jobIssues.size} found${jobIssues.take(2).joinToString("") { " [${it.title}: ${it.body.take(40)}]" }}")
+            allInsights.addAll(jobIssues)
 
             // 2. Self-monitoring (Solo) or crew check-ins (Team)
             if (isSolo) {
-                allInsights.addAll(detectSelfIssues())
+                val selfIssues = detectSelfIssues()
+                Log.i(TAG, "Monitor 2 — Self: ${selfIssues.size} found${selfIssues.take(2).joinToString("") { " [${it.title}]" }}")
+                allInsights.addAll(selfIssues)
             } else {
-                allInsights.addAll(detectCrewIssues())
+                val crewIssues = detectCrewIssues()
+                Log.i(TAG, "Monitor 2 — Crew: ${crewIssues.size} found")
+                allInsights.addAll(crewIssues)
             }
 
             // 3. Client follow-ups (unresponsive clients, auto follow-up)
-            allInsights.addAll(detectClientFollowUps())
+            val followUps = detectClientFollowUps()
+            Log.i(TAG, "Monitor 3 — Client follow-ups: ${followUps.size} found")
+            allInsights.addAll(followUps)
 
             // 4. Auto-respond to client messages when busy
             monitorClientMessages()
+            Log.i(TAG, "Monitor 4 — Auto-respond: checked (clocked in: ${UserPreferences.isClockedIn()})")
 
             // 5. Schedule conflicts (overlapping jobs)
-            allInsights.addAll(detectScheduleConflicts(jobs))
+            val conflicts = detectScheduleConflicts(jobs)
+            Log.i(TAG, "Monitor 5 — Schedule conflicts: ${conflicts.size} found")
+            allInsights.addAll(conflicts)
 
             // 6. Weather alerts (bad weather at job sites)
-            allInsights.addAll(checkWeather(jobs))
+            val weather = checkWeather(jobs)
+            Log.i(TAG, "Monitor 6 — Weather: ${weather.size} alerts")
+            allInsights.addAll(weather)
 
             // 7. Travel time between same-day jobs
-            allInsights.addAll(estimateTravelTime(jobs))
+            val travel = estimateTravelTime(jobs)
+            Log.i(TAG, "Monitor 7 — Travel time: ${travel.size} warnings")
+            allInsights.addAll(travel)
 
             // 8. AI-powered check-in (if API key set and enough jobs)
             val apiKey = UserPreferences.getOpenRouterApiKey()
@@ -370,16 +386,18 @@ object AISupervisor {
     private fun detectJobIssues(jobs: List<Job>): List<AIInsight> {
         val insights = mutableListOf<AIInsight>()
         jobs.forEach { job ->
-            val issue = AIPrompts.detectIssue(job)
-            if (issue != null) {
-                insights.add(AIInsight(
-                    type = InsightType.ALERT,
-                    jobId = job.id,
-                    jobTitle = job.clientName ?: job.title,
-                    title = job.clientName ?: job.title,
-                    body = issue
-                ))
-            }
+            val issue = AIPrompts.detectIssue(job) ?: return@forEach
+            // Invoice/payment issues need user permission → FINANCIAL type
+            val isFinancial = issue.contains("Invoice", ignoreCase = true) ||
+                              issue.contains("overdue", ignoreCase = true) ||
+                              issue.contains("payment", ignoreCase = true)
+            insights.add(AIInsight(
+                type = if (isFinancial) InsightType.FINANCIAL else InsightType.ALERT,
+                jobId = job.id,
+                jobTitle = job.clientName ?: job.title,
+                title = job.clientName ?: job.title,
+                body = issue
+            ))
         }
         return insights
     }
