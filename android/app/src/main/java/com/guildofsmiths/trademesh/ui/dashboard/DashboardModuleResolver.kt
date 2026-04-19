@@ -35,12 +35,12 @@ fun resolveModules(role: UserRole): List<DashboardModule> = when (role) {
         DashboardModule.HEADER,
         DashboardModule.MESSAGE_STRIP,
         DashboardModule.JOBS_PANEL,
+        DashboardModule.SITE_MAP,
         DashboardModule.GETTING_STARTED,
         DashboardModule.AI_INBOX,
         DashboardModule.CALENDAR,
         DashboardModule.QUICK_ACTIONS,
         DashboardModule.FINANCIALS,
-        DashboardModule.SITE_MAP,
         DashboardModule.PROGRESS,
         DashboardModule.ACTIVITY_LOG,
     )
