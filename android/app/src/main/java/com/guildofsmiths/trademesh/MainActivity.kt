@@ -228,7 +228,7 @@ class MainActivity : ComponentActivity() {
                             // User not authenticated - show auth screen
                             NavRoutes.AUTH
                         }
-                        !UserPreferences.isOnboardingDataComplete() -> {
+                        !UserPreferences.isOnboardingComplete() -> {
                             // User authenticated but hasn't completed onboarding
                             NavRoutes.ONBOARDING
                         }

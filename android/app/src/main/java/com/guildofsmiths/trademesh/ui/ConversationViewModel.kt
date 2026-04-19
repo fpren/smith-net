@@ -273,21 +273,24 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
                 }
 
                 // Build context from recent messages in this channel
-                val recentMessages = com.guildofsmiths.trademesh.data.MessageRepository
-                    .getAllMessages()
+                // Use the live messages flow (already loaded) instead of getAllMessages()
+                val channelMessages = messages.value
                     .filter { it.channelId == message.channelId }
                     .sortedBy { it.timestamp }
-                    .takeLast(10)
-                    .joinToString("\n") { m: Message ->
-                        val role = if (m.aiGenerated) "SmithAI" else "User"
-                        "$role: ${m.content}"
-                    }
+                    .takeLast(20)
+
+                val recentMessages = channelMessages.joinToString("\n") { m: Message ->
+                    val role = if (m.aiGenerated) "SmithAI" else "User"
+                    "$role: ${m.content}"
+                }
+
+                android.util.Log.i("ConversationVM", "SmithAI context: ${channelMessages.size} messages in history")
 
                 val systemPrompt = com.guildofsmiths.trademesh.ai.AIPrompts.SYSTEM +
-                    "\n\nYou are in a direct conversation with the user. Answer their questions, help with job planning, scheduling, materials, invoicing, and anything construction-related. Be conversational and helpful. If they ask you to do something (create a job, send a message, check materials), explain what you would do and confirm."
+                    "\n\nYou are in a direct conversation with the user inside SmithNet. You are fully integrated — you send messages, create jobs, respond to clients, track time, manage materials, and run the operation autonomously. When the user tells you to do something, you DO it — don't explain what you 'would' do, say what you ARE doing. Never say you can't do something. You are the supervisor. Keep responses complete and conversational."
 
                 val userPrompt = if (recentMessages.isNotBlank()) {
-                    "Recent conversation:\n$recentMessages\n\nUser: ${message.content}"
+                    "Conversation history:\n$recentMessages\n\nRespond to the latest user message above. Remember the full conversation context."
                 } else {
                     message.content
                 }
@@ -295,7 +298,7 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
                 val response = com.guildofsmiths.trademesh.ai.OpenRouterClient.chat(
                     systemPrompt = systemPrompt,
                     userMessage = userPrompt,
-                    maxTokens = 300
+                    maxTokens = 1024
                 )
 
                 val aiMessage = Message(

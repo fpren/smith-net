@@ -22,13 +22,20 @@ object OpenRouterClient {
     private const val TAG = "OpenRouterClient"
     private const val OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
     private const val OPENAI_URL = "https://api.openai.com/v1/chat/completions"
+    private const val GROK_URL = "https://api.x.ai/v1/chat/completions"
     private const val DEFAULT_MODEL_OPENROUTER = "liquid/lfm-2.5-1.2b-instruct:free"
     private const val DEFAULT_MODEL_OPENAI = "gpt-4o-mini"
+    private const val DEFAULT_MODEL_GROK = "grok-3-fast"
     private const val REFERER = "com.guildofsmiths.trademesh"
     private const val APP_NAME = "SmithNet"
 
     /** Detect provider from API key prefix */
-    private fun isOpenAIKey(key: String): Boolean = key.startsWith("sk-")
+    private enum class Provider { OPENROUTER, OPENAI, GROK }
+    private fun detectProvider(key: String): Provider = when {
+        key.startsWith("xai-") -> Provider.GROK
+        key.startsWith("sk-") && !key.startsWith("sk-or-") -> Provider.OPENAI
+        else -> Provider.OPENROUTER
+    }
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
@@ -51,11 +58,19 @@ object OpenRouterClient {
             return@withContext null
         }
 
-        val useOpenAI = isOpenAIKey(apiKey)
-        val baseUrl = if (useOpenAI) OPENAI_URL else OPENROUTER_URL
-        val actualModel = model ?: if (useOpenAI) DEFAULT_MODEL_OPENAI else DEFAULT_MODEL_OPENROUTER
+        val provider = detectProvider(apiKey)
+        val baseUrl = when (provider) {
+            Provider.GROK -> GROK_URL
+            Provider.OPENAI -> OPENAI_URL
+            Provider.OPENROUTER -> OPENROUTER_URL
+        }
+        val actualModel = model ?: when (provider) {
+            Provider.GROK -> DEFAULT_MODEL_GROK
+            Provider.OPENAI -> DEFAULT_MODEL_OPENAI
+            Provider.OPENROUTER -> DEFAULT_MODEL_OPENROUTER
+        }
 
-        Log.i(TAG, "Using ${if (useOpenAI) "OpenAI" else "OpenRouter"} with model $actualModel")
+        Log.i(TAG, "Using ${provider.name} with model $actualModel")
 
         val messages = JSONArray().apply {
             put(JSONObject().apply {
@@ -82,7 +97,7 @@ object OpenRouterClient {
             .post(body.toString().toRequestBody("application/json".toMediaType()))
 
         // OpenRouter-specific headers
-        if (!useOpenAI) {
+        if (provider == Provider.OPENROUTER) {
             requestBuilder.header("HTTP-Referer", REFERER)
             requestBuilder.header("X-Title", APP_NAME)
         }

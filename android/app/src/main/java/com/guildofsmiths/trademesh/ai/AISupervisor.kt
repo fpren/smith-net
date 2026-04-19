@@ -305,8 +305,12 @@ object AISupervisor {
             // 1. Job issue detection (rule-based)
             allInsights.addAll(detectJobIssues(jobs))
 
-            // 2. Crew status check-ins
-            allInsights.addAll(detectCrewIssues())
+            // 2. Self-monitoring (Solo) or crew check-ins (Team)
+            if (com.guildofsmiths.trademesh.data.RoleContext.isSolo()) {
+                allInsights.addAll(detectSelfIssues())
+            } else {
+                allInsights.addAll(detectCrewIssues())
+            }
 
             // 3. AI-powered check-in (if API key set and enough jobs)
             val apiKey = UserPreferences.getOpenRouterApiKey()
@@ -418,6 +422,52 @@ object AISupervisor {
                         ))
                     }
                 }
+            }
+        }
+
+        return insights
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // SOLO SELF-MONITORING — SmithAI watches the user's own work patterns
+    // ════════════════════════════════════════════════════════════════════
+
+    private fun detectSelfIssues(): List<AIInsight> {
+        val insights = mutableListOf<AIInsight>()
+        val isClockedIn = UserPreferences.isClockedIn()
+        val clockInTime = UserPreferences.getClockInTime()
+        val now = System.currentTimeMillis()
+        val userName = UserPreferences.getUserName().ifBlank { "Boss" }
+
+        if (isClockedIn && clockInTime > 0) {
+            val hoursWorked = (now - clockInTime) / 3_600_000.0
+            val minutesWorked = (now - clockInTime) / 60_000
+
+            // Working 4+ hours without break — lunch reminder
+            if (hoursWorked >= 4.0 && hoursWorked < 4.5) {
+                insights.add(AIInsight(
+                    type = InsightType.CREW,
+                    title = "Lunch break",
+                    body = "You've been on the clock for ${String.format("%.0f", hoursWorked)}h. Time to take a lunch break — I'll keep an eye on things."
+                ))
+            }
+
+            // Working 8+ hours — end of day reminder
+            if (hoursWorked >= 8.0 && hoursWorked < 8.5) {
+                insights.add(AIInsight(
+                    type = InsightType.CREW,
+                    title = "End of day",
+                    body = "You've been working ${String.format("%.1f", hoursWorked)}h today. Consider wrapping up — I'll handle any client messages that come in."
+                ))
+            }
+
+            // Working 10+ hours — overtime alert
+            if (hoursWorked >= 10.0) {
+                insights.add(AIInsight(
+                    type = InsightType.ALERT,
+                    title = "Overtime",
+                    body = "You're at ${String.format("%.1f", hoursWorked)}h today — that's overtime. Make sure to bill accordingly."
+                ))
             }
         }
 

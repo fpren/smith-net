@@ -184,6 +184,9 @@ class TimeTrackingViewModel : ViewModel() {
         _activeEntry.value = entry
         _isClockedIn.value = true
 
+        // Sync clock state for AISupervisor monitoring
+        UserPreferences.setClockState(true, now)
+
         // Persist active entry for app restart recovery
         persistActiveEntry(entry)
 
@@ -245,6 +248,7 @@ class TimeTrackingViewModel : ViewModel() {
 
         _activeEntry.value = null
         _isClockedIn.value = false
+        UserPreferences.setClockState(false)
         _isLoading.value = false
 
         // Clear persisted active entry

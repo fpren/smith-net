@@ -19,6 +19,8 @@ object UserPreferences {
     private const val KEY_GATEWAY_ENABLED = "gateway_enabled"
     private const val KEY_GATEWAY_URL = "gateway_url"
     private const val KEY_AI_MODE = "ai_mode" // "standard" or "hybrid"
+    private const val KEY_CLOCK_IN_TIME = "clock_in_time"
+    private const val KEY_IS_CLOCKED_IN = "is_clocked_in"
     private const val KEY_TRADE_ROLE = "trade_role"
     private const val KEY_DEVICE_ID = "device_id"
 
@@ -484,6 +486,21 @@ object UserPreferences {
     fun clearActiveTimeEntry() {
         prefs?.edit()?.remove(KEY_ACTIVE_TIME_ENTRY)?.apply()
     }
+
+    // ════════════════════════════════════════════════════════════════════
+    // CLOCK STATE (shared with AISupervisor for self-monitoring)
+    // ════════════════════════════════════════════════════════════════════
+
+    fun setClockState(isClockedIn: Boolean, clockInTime: Long = 0L) {
+        prefs?.edit()
+            ?.putBoolean(KEY_IS_CLOCKED_IN, isClockedIn)
+            ?.putLong(KEY_CLOCK_IN_TIME, if (isClockedIn) clockInTime else 0L)
+            ?.apply()
+    }
+
+    fun isClockedIn(): Boolean = prefs?.getBoolean(KEY_IS_CLOCKED_IN, false) ?: false
+
+    fun getClockInTime(): Long = prefs?.getLong(KEY_CLOCK_IN_TIME, 0L) ?: 0L
 
     /**
      * Clear all stored data (for sign out/reset)
