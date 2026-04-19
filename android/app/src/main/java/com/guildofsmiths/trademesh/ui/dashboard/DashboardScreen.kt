@@ -266,7 +266,7 @@ fun DashboardScreen(
                         )
                     }
                     DashboardModule.PROJECT_OVERVIEW -> ProjectOverviewModule()
-                    DashboardModule.SITE_MAP -> SiteMapModule(onMapClick = onMap)
+                    DashboardModule.SITE_MAP -> SiteMapModule(onMapClick = onMap, allJobs = jobs)
                     DashboardModule.FINANCIALS -> {
                         FinancialsModule(allJobs = jobs)
                     }

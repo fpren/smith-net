@@ -631,33 +631,125 @@ fun ProjectOverviewModule(
 
 @Composable
 fun SiteMapModule(
-    onMapClick: () -> Unit = {}
+    onMapClick: () -> Unit = {},
+    allJobs: List<Job> = emptyList()
 ) {
-    Box(
+    val context = LocalContext.current
+    val isSolo = com.guildofsmiths.trademesh.data.RoleContext.isSolo()
+    val crew = CrewPresenceRepository.getCrew()
+    val bySite = remember(crew) {
+        crew.filter { it.currentSite != null }.groupBy { it.currentSite!! }
+    }
+    val activeJobs = remember(allJobs) { allJobs.filter { it.stage != JobStage.CLOSED } }
+
+    // Coordinates for known addresses
+    val siteCoords = mapOf(
+        "847 Flatbush Ave, Brooklyn NY" to GeoPoint(40.6505, -73.9612),
+        "55 W 125th St, Apt 4B, Manhattan NY" to GeoPoint(40.8088, -73.9442),
+        "1220 Ocean Pkwy, Brooklyn NY" to GeoPoint(40.6275, -73.9685),
+    )
+
+    LaunchedEffect(Unit) {
+        Configuration.getInstance().userAgentValue = context.packageName
+    }
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(160.dp)
             .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
             .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
             .clip(RoundedCornerShape(4.dp))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = rememberRipple(bounded = true),
-                onClick = onMapClick
-            ),
-        contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        // Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
-                text = "[MAP]",
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.accent)
+                if (isSolo) "JOB SITES" else "CREW MAP",
+                style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted)
             )
-            Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = if (com.guildofsmiths.trademesh.data.RoleContext.isSolo()) "Tap to view job sites"
-                       else "Tap to open crew map",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                "${activeJobs.size} active",
+                style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent)
             )
+        }
+
+        // Embedded map
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = rememberRipple(bounded = true),
+                    onClick = onMapClick
+                )
+        ) {
+            AndroidView(
+                modifier = Modifier.fillMaxSize(),
+                factory = { ctx ->
+                    MapView(ctx).apply {
+                        setTileSource(TileSourceFactory.MAPNIK)
+                        setMultiTouchControls(false) // disable touch on thumbnail
+                        layoutParams = ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                        controller.setZoom(11.5)
+                        controller.setCenter(GeoPoint(40.7128, -73.9560))
+                    }
+                },
+                update = { mapView ->
+                    mapView.overlays.clear()
+
+                    if (isSolo) {
+                        // Solo: show job site pins
+                        activeJobs.forEach { job ->
+                            val addr = job.clientAddress
+                            if (addr.isNotBlank()) {
+                                val coords = siteCoords[addr] ?: return@forEach
+                                val marker = Marker(mapView).apply {
+                                    position = coords
+                                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                                    title = job.clientName ?: job.title
+                                    snippet = "${job.stage.displayName} · $addr"
+                                }
+                                mapView.overlays.add(marker)
+                            }
+                        }
+                    } else {
+                        // Team modes: show crew at sites
+                        bySite.forEach { (site, members) ->
+                            val coords = siteCoords[site] ?: return@forEach
+                            val activeOnSite = members.count { it.status == ClockStatus.ON_CLOCK }
+                            val marker = Marker(mapView).apply {
+                                position = coords
+                                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                                title = members.firstOrNull()?.currentJobTitle ?: site
+                                snippet = "$activeOnSite/${members.size} on site"
+                            }
+                            mapView.overlays.add(marker)
+                        }
+                    }
+
+                    mapView.invalidate()
+                }
+            )
+
+            // "Tap to expand" overlay
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(8.dp)
+                    .background(ConsoleTheme.background.copy(alpha = 0.8f), RoundedCornerShape(4.dp))
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Text("expand >", style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent))
+            }
         }
     }
 }
