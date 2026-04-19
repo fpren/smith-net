@@ -216,11 +216,20 @@ fun DashboardScreen(
                                     Text(clockLabel, style = ConsoleTheme.caption.copy(color = clockColor))
                                 }
 
-                                Text(
-                                    text = "[⚙]",
-                                    style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
-                                    modifier = Modifier.clickable { onSettings() }.padding(4.dp)
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+                                        .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = rememberRipple(bounded = true),
+                                            onClick = { onSettings() }
+                                        )
+                                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                                ) {
+                                    Text("[⚙]", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                                }
                             }
                         }
                     }
