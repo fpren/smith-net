@@ -42,7 +42,6 @@ fun resolveModules(role: UserRole): List<DashboardModule> = when (role) {
         DashboardModule.QUICK_ACTIONS,
         DashboardModule.FINANCIALS,
         DashboardModule.PROGRESS,
-        DashboardModule.ACTIVITY_LOG,
     )
 
     UserRole.TEAM_MEMBER -> listOf(
@@ -52,7 +51,6 @@ fun resolveModules(role: UserRole): List<DashboardModule> = when (role) {
         DashboardModule.MY_TASKS,
         DashboardModule.CALENDAR,
         DashboardModule.QUICK_ACTIONS,
-        DashboardModule.ACTIVITY_LOG,
     )
 
     UserRole.TEAM_LEAD -> listOf(
@@ -65,7 +63,6 @@ fun resolveModules(role: UserRole): List<DashboardModule> = when (role) {
         DashboardModule.PROGRESS,
         DashboardModule.CALENDAR,
         DashboardModule.QUICK_ACTIONS,
-        DashboardModule.ACTIVITY_LOG,
     )
 
     UserRole.FOREMAN -> listOf(
@@ -81,7 +78,6 @@ fun resolveModules(role: UserRole): List<DashboardModule> = when (role) {
         DashboardModule.CALENDAR,
         DashboardModule.QUICK_ACTIONS,
         DashboardModule.HUB_STATUS,
-        DashboardModule.ACTIVITY_LOG,
     )
 
     UserRole.GENERAL_CONTRACTOR -> listOf(
@@ -95,7 +91,6 @@ fun resolveModules(role: UserRole): List<DashboardModule> = when (role) {
         DashboardModule.FINANCIALS,
         DashboardModule.CALENDAR,
         DashboardModule.QUICK_ACTIONS,
-        DashboardModule.ACTIVITY_LOG,
     )
 
     UserRole.ENTERPRISE, UserRole.ADMIN -> listOf(
@@ -107,6 +102,5 @@ fun resolveModules(role: UserRole): List<DashboardModule> = when (role) {
         DashboardModule.FINANCIALS,
         DashboardModule.CALENDAR,
         DashboardModule.QUICK_ACTIONS,
-        DashboardModule.ACTIVITY_LOG,
     )
 }

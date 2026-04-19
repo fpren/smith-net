@@ -226,20 +226,19 @@ fun DashboardScreen(
                     }
 
                     DashboardModule.MESSAGE_STRIP -> {
-                        if (latestMessage != null && latestMessage.lastMessagePreview != null) {
-                            val age = formatTimeAgo(latestMessage.lastMessageTime ?: 0L)
-                            val preview = latestMessage.lastMessagePreview ?: ""
-                            val channelName = latestMessage.name
-                            val unreadExtra = if (totalUnreads > 1) " · +${totalUnreads - 1} unread" else ""
-                            val stripColor = if (totalUnreads > 0) ConsoleTheme.accent else ConsoleTheme.textMuted
+                        // Show last 3 recent channel events
+                        val recentChannels = remember(relevantChannels) {
+                            relevantChannels
+                                .filter { it.lastMessagePreview != null && it.lastMessageTime != null }
+                                .sortedByDescending { it.lastMessageTime ?: 0L }
+                                .take(3)
+                        }
 
-                            Row(
+                        if (recentChannels.isNotEmpty()) {
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(
-                                        if (totalUnreads > 0) ConsoleTheme.accent.copy(alpha = 0.05f) else ConsoleTheme.surface,
-                                        RoundedCornerShape(4.dp)
-                                    )
+                                    .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
                                     .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.04f), RoundedCornerShape(4.dp))
                                     .clip(RoundedCornerShape(4.dp))
                                     .clickable(
@@ -247,15 +246,22 @@ fun DashboardScreen(
                                         indication = rememberRipple(bounded = true),
                                         onClick = { onComm() }
                                     )
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
                             ) {
-                                Text(
-                                    text = "$channelName: \"$preview\"  $age$unreadExtra",
-                                    style = ConsoleTheme.caption.copy(color = stripColor),
-                                    maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
-                                )
+                                recentChannels.forEach { ch ->
+                                    val age = formatTimeAgo(ch.lastMessageTime ?: 0L)
+                                    val preview = (ch.lastMessagePreview ?: "").take(35)
+                                    val name = ch.name
+                                    val hasUnread = ch.unreadCount > 0
+                                    val color = if (hasUnread) ConsoleTheme.accent else ConsoleTheme.textMuted
+
+                                    Text(
+                                        text = "$name: \"$preview\"  $age",
+                                        style = ConsoleTheme.caption.copy(color = color),
+                                        maxLines = 1, overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
                         }
                     }
@@ -498,12 +504,7 @@ fun DashboardScreen(
                 }
             }
 
-            // ── FOOTER ─────────────────────────────────────────────────
-            val today = java.text.SimpleDateFormat("MMM d", java.util.Locale.US).format(java.util.Date())
-            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("$today · ${RoleContext.role.displayName}", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
-                Text("${viewModel.getActiveJobCount()} active", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
-            }
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
