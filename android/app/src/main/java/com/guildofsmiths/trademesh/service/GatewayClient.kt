@@ -3,6 +3,7 @@ package com.guildofsmiths.trademesh.service
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.guildofsmiths.trademesh.BuildConfig
 import com.guildofsmiths.trademesh.data.Message
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
@@ -24,8 +25,9 @@ object GatewayClient {
     
     private const val TAG = "GatewayClient"
     
-    // Backend URL - configurable
-    private var backendUrl = "ws://192.168.8.169:3000" // Default to local network
+    // Backend URL - configurable. Defaults sourced from BuildConfig (build.gradle.kts).
+    private var backendUrl = BuildConfig.BACKEND_URL_PRIMARY
+        .replace("http://", "ws://").replace("https://", "wss://")
     
     private var webSocket: WebSocket? = null
     private var isConnected = false

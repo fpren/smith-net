@@ -79,7 +79,7 @@ class TradeMeshApplication : Application() {
         IntentRepository.init(getSharedPreferences("intent_prefs", MODE_PRIVATE))
 
         // Initialize unified Message Bus (Phase 1 — dedup, vector clocks, reconciliation)
-        BoundaryEngine.initMessageBus(this, "http://192.168.8.169:3000")
+        BoundaryEngine.initMessageBus(this, BuildConfig.BACKEND_URL_PRIMARY)
 
         // Initialize AI components
         BatteryGate.initialize(this)

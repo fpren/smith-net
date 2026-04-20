@@ -1,11 +1,17 @@
 import { v4 as uuidv4 } from 'uuid';
 import { SummaryArtifact, LedgerEntry } from './types';
 import { validateSealing, validateAmendment, computeHash } from './ledgerAuthority';
-import { supabase } from './supabase';
+import { pg, isPgEnabled } from './db';
+
+function requirePg() {
+  if (!isPgEnabled() || !pg) throw new Error('[Ledger] Postgres client not initialized');
+  return pg;
+}
 
 export async function seal(
   artifact: SummaryArtifact, actorUuid: string
 ): Promise<LedgerEntry | { error: string }> {
+  const db = requirePg();
   const validation = validateSealing(artifact);
   if (!validation.valid) return { error: validation.message };
 
@@ -15,24 +21,24 @@ export async function seal(
     sha256Hash: hash, actorUuid, sealedAt: Date.now(),
   };
 
-  const { error } = await supabase.from('ledger_entries').insert({
-    id: entry.id, artifact_serial: entry.artifactSerial, artifact_id: entry.artifactId,
-    sha256_hash: entry.sha256Hash, blockchain_ref: entry.blockchainRef,
-    actor_uuid: entry.actorUuid, sealed_at: new Date(entry.sealedAt).toISOString(),
-  });
+  await db.query(
+    `INSERT INTO ledger_entries
+       (id, artifact_serial, artifact_id, sha256_hash, blockchain_ref, actor_uuid, sealed_at)
+     VALUES ($1, $2, $3, $4, $5, $6, to_timestamp($7/1000.0))`,
+    [entry.id, entry.artifactSerial, entry.artifactId, entry.sha256Hash, entry.blockchainRef || null, entry.actorUuid, entry.sealedAt]
+  );
 
-  if (error) return { error: error.message };
   return entry;
 }
 
 export async function amend(
   newArtifact: SummaryArtifact, priorEntryId: string, actorUuid: string
 ): Promise<LedgerEntry | { error: string }> {
-  const { data: priorData, error: fetchErr } = await supabase
-    .from('ledger_entries').select('*').eq('id', priorEntryId).single();
-  if (fetchErr || !priorData) return { error: 'Prior Ledger entry not found' };
+  const db = requirePg();
+  const { rows: priorRows } = await db.query(`SELECT * FROM ledger_entries WHERE id = $1`, [priorEntryId]);
+  if (priorRows.length === 0) return { error: 'Prior Ledger entry not found' };
 
-  const priorEntry = mapLedgerRow(priorData);
+  const priorEntry = mapLedgerRow(priorRows[0]);
   const validation = validateAmendment(newArtifact, priorEntry);
   if (!validation.valid) return { error: validation.message };
 
@@ -42,32 +48,31 @@ export async function amend(
     sha256Hash: hash, actorUuid, supersedes: priorEntryId, sealedAt: Date.now(),
   };
 
-  await supabase.from('ledger_entries')
-    .update({ superseded_by: newEntry.id }).eq('id', priorEntryId);
+  await db.query(`UPDATE ledger_entries SET superseded_by = $1 WHERE id = $2`, [newEntry.id, priorEntryId]);
 
-  const { error } = await supabase.from('ledger_entries').insert({
-    id: newEntry.id, artifact_serial: newEntry.artifactSerial, artifact_id: newEntry.artifactId,
-    sha256_hash: newEntry.sha256Hash, actor_uuid: newEntry.actorUuid,
-    supersedes: newEntry.supersedes, sealed_at: new Date(newEntry.sealedAt).toISOString(),
-  });
+  await db.query(
+    `INSERT INTO ledger_entries
+       (id, artifact_serial, artifact_id, sha256_hash, actor_uuid, supersedes, sealed_at)
+     VALUES ($1, $2, $3, $4, $5, $6, to_timestamp($7/1000.0))`,
+    [newEntry.id, newEntry.artifactSerial, newEntry.artifactId, newEntry.sha256Hash, newEntry.actorUuid, newEntry.supersedes, newEntry.sealedAt]
+  );
 
-  if (error) return { error: error.message };
   return newEntry;
 }
 
 export async function getLedgerEntry(id: string): Promise<LedgerEntry | null> {
-  const { data, error } = await supabase
-    .from('ledger_entries').select('*').eq('id', id).single();
-  if (error || !data) return null;
-  return mapLedgerRow(data);
+  const db = requirePg();
+  const { rows } = await db.query(`SELECT * FROM ledger_entries WHERE id = $1`, [id]);
+  return rows.length ? mapLedgerRow(rows[0]) : null;
 }
 
 export async function getLatestForArtifact(artifactSerial: string): Promise<LedgerEntry | null> {
-  const { data, error } = await supabase
-    .from('ledger_entries').select('*')
-    .eq('artifact_serial', artifactSerial).is('superseded_by', null).single();
-  if (error || !data) return null;
-  return mapLedgerRow(data);
+  const db = requirePg();
+  const { rows } = await db.query(
+    `SELECT * FROM ledger_entries WHERE artifact_serial = $1 AND superseded_by IS NULL LIMIT 1`,
+    [artifactSerial]
+  );
+  return rows.length ? mapLedgerRow(rows[0]) : null;
 }
 
 function mapLedgerRow(row: any): LedgerEntry {

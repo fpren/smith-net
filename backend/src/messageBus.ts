@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { UnifiedMessage, VectorClockState, TransportType } from './types';
 import { increment, merge } from './vectorClock';
 import { supabase } from './supabase';
+import { pg, isPgEnabled } from './db';
 
 type MessageHandler = (message: UnifiedMessage) => void;
 
@@ -76,7 +77,37 @@ export function publish(message: UnifiedMessage): void {
 }
 
 async function persistMessage(message: UnifiedMessage): Promise<void> {
-  if (!supabase) throw new Error('[MessageBus] Supabase client is not initialized');
+  // Prefer self-hosted Postgres when configured; fall back to Supabase otherwise.
+  if (isPgEnabled() && pg) {
+    await pg.query(
+      `INSERT INTO message_bus_messages
+         (id, channel_id, sender_id, sender_name, content, timestamp,
+          vector_clock, transport_type, media_type, media_url,
+          ai_generated, ai_model, synced_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11, $12, NOW())
+       ON CONFLICT (id) DO UPDATE SET
+         content = EXCLUDED.content,
+         vector_clock = EXCLUDED.vector_clock,
+         synced_at = NOW()`,
+      [
+        message.id,
+        message.channelId,
+        message.senderId,
+        message.senderName,
+        message.content,
+        message.timestamp,
+        JSON.stringify(message.vectorClock),
+        message.transportType,
+        message.mediaType || 'TEXT',
+        message.mediaUrl || null,
+        message.aiGenerated || false,
+        message.aiModel || null,
+      ]
+    );
+    return;
+  }
+
+  if (!supabase) throw new Error('[MessageBus] No persistence backend available');
   const { error } = await supabase.from('message_bus_messages').upsert({
     id: message.id,
     channel_id: message.channelId,
@@ -101,7 +132,38 @@ export async function getHistory(
   limit: number = 100,
   before?: number
 ): Promise<UnifiedMessage[]> {
-  if (!supabase) throw new Error('[MessageBus] Supabase client is not initialized');
+  if (isPgEnabled() && pg) {
+    const params: any[] = [channelId, limit];
+    let sql = `SELECT id, channel_id, sender_id, sender_name, content, timestamp,
+                      vector_clock, transport_type, media_type, media_url,
+                      ai_generated, ai_model
+                 FROM message_bus_messages
+                WHERE channel_id = $1`;
+    if (before) {
+      sql += ` AND timestamp < $3`;
+      params.push(before);
+    }
+    sql += ` ORDER BY timestamp DESC LIMIT $2`;
+    const { rows } = await pg.query(sql, params);
+    return rows
+      .map((row: any) => ({
+        id: row.id,
+        channelId: row.channel_id,
+        senderId: row.sender_id,
+        senderName: row.sender_name,
+        content: row.content,
+        timestamp: Number(row.timestamp),
+        vectorClock: row.vector_clock,
+        transportType: row.transport_type as TransportType,
+        mediaType: row.media_type,
+        mediaUrl: row.media_url,
+        aiGenerated: row.ai_generated,
+        aiModel: row.ai_model,
+      }))
+      .reverse();
+  }
+
+  if (!supabase) throw new Error('[MessageBus] No persistence backend available');
   let query = supabase
     .from('message_bus_messages')
     .select('*')

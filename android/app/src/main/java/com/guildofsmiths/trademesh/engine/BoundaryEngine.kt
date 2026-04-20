@@ -168,8 +168,9 @@ object BoundaryEngine {
             }
         })
         
-        // Initialize ChatManager with backend URL for online messaging (local network fallback)
-        ChatManager.setBackendUrl("http://192.168.8.169:3000")
+        // Initialize ChatManager with backend URL for online messaging.
+        // Source: BuildConfig.BACKEND_URL_PRIMARY (configured in app/build.gradle.kts).
+        ChatManager.setBackendUrl(com.guildofsmiths.trademesh.BuildConfig.BACKEND_URL_PRIMARY)
         
         // Auto-connect to online chat (for receiving messages)
         ChatManager.connect()

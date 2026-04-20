@@ -3,7 +3,7 @@
  * Creates shareable invoice web pages for clients
  */
 
-import { supabase } from './supabase';
+import { pg, isPgEnabled } from './db';
 
 export interface InvoiceMaterial {
   name: string;
@@ -30,47 +30,43 @@ export interface InvoiceLinkData {
   paymentInfo?: string;
 }
 
+function requirePg() {
+  if (!isPgEnabled() || !pg) throw new Error('[InvoiceLinks] Postgres client not initialized');
+  return pg;
+}
+
 export class InvoiceLinkService {
   async createInvoiceLink(data: InvoiceLinkData): Promise<{ uuid: string } | null> {
-    const { data: result, error } = await supabase
-      .from('invoice_links')
-      .insert({
-        job_id: data.jobId,
-        contractor_name: data.contractorName,
-        contractor_phone: data.contractorPhone,
-        contractor_license: data.contractorLicense,
-        client_name: data.clientName,
-        client_address: data.clientAddress,
-        work_summary: data.workSummary,
-        hours_worked: data.hoursWorked ?? 0,
-        hourly_rate: data.hourlyRate ?? 0,
-        labor_cost: data.laborCost ?? 0,
-        materials: data.materials ?? [],
-        materials_cost: data.materialsCost ?? 0,
-        total_due: data.totalDue ?? 0,
-        payment_info: data.paymentInfo,
-        status: 'unpaid',
-      })
-      .select('uuid')
-      .single();
-
-    if (error) {
-      console.error('[InvoiceLinks] Create error:', error);
+    const db = requirePg();
+    try {
+      const { rows } = await db.query(
+        `INSERT INTO invoice_links
+           (job_id, contractor_name, contractor_phone, contractor_license,
+            client_name, client_address, work_summary,
+            hours_worked, hourly_rate, labor_cost,
+            materials, materials_cost, total_due,
+            payment_info, status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14,'unpaid')
+         RETURNING uuid`,
+        [
+          data.jobId, data.contractorName ?? null, data.contractorPhone ?? null, data.contractorLicense ?? null,
+          data.clientName ?? null, data.clientAddress ?? null, data.workSummary ?? null,
+          data.hoursWorked ?? 0, data.hourlyRate ?? 0, data.laborCost ?? 0,
+          JSON.stringify(data.materials ?? []), data.materialsCost ?? 0, data.totalDue ?? 0,
+          data.paymentInfo ?? null,
+        ]
+      );
+      return rows.length ? { uuid: rows[0].uuid } : null;
+    } catch (e) {
+      console.error('[InvoiceLinks] Create error:', e);
       return null;
     }
-
-    return { uuid: result.uuid };
   }
 
   async getByUuid(uuid: string): Promise<any | null> {
-    const { data, error } = await supabase
-      .from('invoice_links')
-      .select('*')
-      .eq('uuid', uuid)
-      .single();
-
-    if (error || !data) return null;
-    return data;
+    const db = requirePg();
+    const { rows } = await db.query(`SELECT * FROM invoice_links WHERE uuid = $1`, [uuid]);
+    return rows.length ? rows[0] : null;
   }
 }
 

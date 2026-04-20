@@ -12,6 +12,7 @@
 
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import { WebSocketServer } from 'ws';
 import http from 'http';
 import path from 'path';
@@ -41,8 +42,32 @@ app.use(cors({
 
 app.use(express.json());
 
+// Trust X-Forwarded-For when behind Tailscale Funnel / reverse proxy so rate limits
+// bucket by the originating IP, not the proxy's loopback address.
+app.set('trust proxy', 1);
+
+// Global rate limit on all /api/* traffic. 300 req/min/IP is plenty for a real client
+// and chokes off trivial abuse before it hits application logic.
+const apiLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.path === '/api/health',
+});
+
+// Tighter limit on auth — defends against credential stuffing.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60_000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use('/api', apiLimiter);
+
 // Mount Auth API (C-01, C-02)
-app.use('/api/auth', authRouter);
+app.use('/api/auth', authLimiter, authRouter);
 
 // Mount Admin API
 app.use('/api/admin', adminRouter);

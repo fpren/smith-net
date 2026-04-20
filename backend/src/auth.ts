@@ -181,8 +181,12 @@ class UserStore {
 
   private async createDefaultAdmin() {
     const adminId = 'admin-001';
-    const passwordHash = await bcrypt.hash('admin123', SALT_ROUNDS);
-    
+    // Prefer the DEFAULT_ADMIN_PASSWORD env var; fall back to a dev default only
+    // when it's unset (local dev convenience; production deployments must set it).
+    const rawPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'admin123';
+    const isDefault = !process.env.DEFAULT_ADMIN_PASSWORD;
+    const passwordHash = await bcrypt.hash(rawPassword, SALT_ROUNDS);
+
     const admin: StoredUser = {
       id: adminId,
       email: 'admin@smithnet.local',
@@ -194,10 +198,14 @@ class UserStore {
       isActive: true,
       mfaEnabled: false,
     };
-    
+
     this.users.set(adminId, admin);
     this.emailIndex.set(admin.email, adminId);
-    console.log('[Auth] Default admin user created: admin@smithnet.local / admin123');
+    if (isDefault) {
+      console.warn('[Auth] Using built-in admin password — set DEFAULT_ADMIN_PASSWORD for production.');
+    } else {
+      console.log('[Auth] Default admin user created with DEFAULT_ADMIN_PASSWORD from env.');
+    }
   }
 
   async createUser(

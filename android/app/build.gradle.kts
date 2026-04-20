@@ -23,6 +23,11 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        // Backend relay URLs. Primary is the Hetzner relay exposed publicly via Tailscale Funnel
+        // (HTTPS, auto-renewed cert, reachable from any network). Fallback is the Mac Mini on LAN.
+        buildConfigField("String", "BACKEND_URL_PRIMARY", "\"https://ubuntu-8gb-ash-1.tail2523e7.ts.net\"")
+        buildConfigField("String", "BACKEND_URL_FALLBACK", "\"http://192.168.8.169:3000\"")
         
         // Native build configuration for llama.cpp
         externalNativeBuild {
@@ -51,12 +56,20 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Debug builds prefer the Hetzner relay via public Tailscale Funnel URL; Mac Mini LAN is fallback.
+            buildConfigField("String", "BACKEND_URL_PRIMARY", "\"https://ubuntu-8gb-ash-1.tail2523e7.ts.net\"")
+            buildConfigField("String", "BACKEND_URL_FALLBACK", "\"http://192.168.8.169:3000\"")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Release builds use the Hetzner relay via public Tailscale Funnel URL.
+            buildConfigField("String", "BACKEND_URL_PRIMARY", "\"https://ubuntu-8gb-ash-1.tail2523e7.ts.net\"")
+            buildConfigField("String", "BACKEND_URL_FALLBACK", "\"http://192.168.8.169:3000\"")
         }
     }
     compileOptions {
@@ -69,6 +82,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"

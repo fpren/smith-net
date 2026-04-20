@@ -3,6 +3,7 @@ package com.guildofsmiths.trademesh.service
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.guildofsmiths.trademesh.BuildConfig
 import com.guildofsmiths.trademesh.data.Message
 import com.guildofsmiths.trademesh.data.MessageRepository
 import com.guildofsmiths.trademesh.data.UserPreferences
@@ -29,9 +30,28 @@ object ChatManager {
     
     private const val TAG = "ChatManager"
     
-    // Backend URLs
-    private var httpUrl = "http://192.168.8.169:3000"
-    private var wsUrl = "ws://192.168.8.169:3000"
+    // Backend URLs — primary tried first, fallback used after a failed connect.
+    // Values originate from BuildConfig (see app/build.gradle.kts defaultConfig / buildTypes).
+    private val candidateUrls: List<String> = listOf(
+        BuildConfig.BACKEND_URL_PRIMARY,
+        BuildConfig.BACKEND_URL_FALLBACK,
+    ).distinct()
+    private var activeUrlIndex = 0
+    private var httpUrl = toHttp(candidateUrls[0])
+    private var wsUrl = toWs(candidateUrls[0])
+
+    private fun toHttp(u: String) = u.replace("ws://", "http://").replace("wss://", "https://")
+    private fun toWs(u: String) = u.replace("http://", "ws://").replace("https://", "wss://")
+
+    /** Rotate to the next configured URL on the next connect. */
+    private fun rotateUrl() {
+        if (candidateUrls.size <= 1) return
+        activeUrlIndex = (activeUrlIndex + 1) % candidateUrls.size
+        val next = candidateUrls[activeUrlIndex]
+        httpUrl = toHttp(next)
+        wsUrl = toWs(next)
+        Log.i(TAG, "Rotating backend URL → $httpUrl")
+    }
     
     private val httpClient = OkHttpClient()
     private val wsClient = OkHttpClient.Builder()
@@ -82,10 +102,13 @@ object ChatManager {
      */
     fun setBackendUrl(url: String) {
         // Handle both http and ws URLs
-        httpUrl = url.replace("ws://", "http://").replace("wss://", "https://")
-        wsUrl = url.replace("http://", "ws://").replace("https://", "wss://")
+        httpUrl = toHttp(url)
+        wsUrl = toWs(url)
         Log.d(TAG, "Backend URL set to: HTTP=$httpUrl, WS=$wsUrl")
     }
+
+    /** Get the current HTTP base URL (e.g. for reconciliation or REST calls). */
+    fun currentBackendHttpUrl(): String = httpUrl
     
     /**
      * Connect to backend via WebSocket for receiving messages.
@@ -151,6 +174,9 @@ object ChatManager {
                 isConnected = false
                 isAuthenticated = false
                 _connectionMode.value = ConnectionMode.OFFLINE
+                // Try the fallback URL next time — keeps Hetzner primary,
+                // flips to Mac Mini LAN (or back) after a failed attempt.
+                rotateUrl()
                 scheduleReconnect()
             }
         })

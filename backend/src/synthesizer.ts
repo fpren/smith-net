@@ -1,21 +1,23 @@
 import { v4 as uuidv4 } from 'uuid';
 import { IntentVersion, SummaryArtifact } from './types';
 import { validateSynthesisInputs, validateArtifact } from './synthesisAuthority';
-import { supabase } from './supabase';
+import { pg, isPgEnabled } from './db';
+
+function requirePg() {
+  if (!isPgEnabled() || !pg) throw new Error('[Synthesizer] Postgres client not initialized');
+  return pg;
+}
 
 async function generateSerial(): Promise<string> {
-  if (!supabase) throw new Error('[Synthesizer] Supabase client is not initialized');
-  const { data, error } = await supabase
-    .from('summary_artifacts')
-    .select('serial')
-    .order('created_at', { ascending: false })
-    .limit(1);
+  const db = requirePg();
+  const { rows } = await db.query(
+    `SELECT serial FROM summary_artifacts ORDER BY created_at DESC LIMIT 1`
+  );
 
   let seq = 1;
-  if (!error && data && data.length > 0) {
-    const lastSerial = data[0].serial;
-    const lastNum = parseInt(lastSerial.split('-').pop() || '0', 10);
-    seq = lastNum + 1;
+  if (rows.length > 0 && rows[0].serial) {
+    const lastNum = parseInt(String(rows[0].serial).split('-').pop() || '0', 10);
+    if (Number.isFinite(lastNum)) seq = lastNum + 1;
   }
 
   const date = new Date();
@@ -30,62 +32,63 @@ export async function synthesize(
   timeEntryIds: string[],
   approvedChatMessageIds: string[] = []
 ): Promise<SummaryArtifact | { error: string }> {
-  if (!supabase) throw new Error('[Synthesizer] Supabase client is not initialized');
-  const _supabase = supabase; // capture local const — TS loses narrowing of module-level var after awaits
+  const db = requirePg();
   const inputValidation = validateSynthesisInputs(intentVersion, jobIds, timeEntryIds);
   if (!inputValidation.valid) return { error: inputValidation.message };
 
-  // Query real job data
-  const { data: jobRows } = await _supabase
-    .from('jobs')
-    .select('id, title, description, status')
-    .in('id', jobIds);
+  // Fetch jobs
+  const { rows: jobRows } = jobIds.length
+    ? await db.query(
+        `SELECT id, title, description, status FROM jobs WHERE id = ANY($1::uuid[])`,
+        [jobIds]
+      )
+    : { rows: [] };
 
-  const workPerformed = (jobRows || []).map(j =>
+  const workPerformed = jobRows.map((j: any) =>
     `${j.title || 'Untitled job'}: ${j.status || 'completed'}${j.description ? ' — ' + j.description : ''}`
   );
 
-  // Query real time entry data
-  const { data: timeRows } = await _supabase
-    .from('time_entries')
-    .select('id, user_id, duration_minutes, job_id')
-    .in('id', timeEntryIds);
+  // Fetch time entries
+  const { rows: timeRows } = timeEntryIds.length
+    ? await db.query(
+        `SELECT id, user_id, duration_minutes, job_id FROM time_entries WHERE id = ANY($1::uuid[])`,
+        [timeEntryIds]
+      )
+    : { rows: [] };
 
-  const totalMinutes = (timeRows || []).reduce((sum, t) => sum + (t.duration_minutes || 0), 0);
+  const totalMinutes = timeRows.reduce((sum: number, t: any) => sum + (t.duration_minutes || 0), 0);
   const totalHours = Math.round((totalMinutes / 60) * 100) / 100;
 
-  const laborRecorded = (timeRows || []).map(t =>
-    `${t.user_id?.substring(0, 8) || 'unknown'}: ${t.duration_minutes || 0} min on job ${t.job_id?.substring(0, 8) || 'unlinked'}`
+  const laborRecorded = timeRows.map((t: any) =>
+    `${t.user_id?.substring(0, 8) || 'unknown'}: ${t.duration_minutes || 0} min on job ${t.job_id?.toString().substring(0, 8) || 'unlinked'}`
   );
 
-  // Query materials by job IDs
-  const { data: materialRows } = await _supabase
-    .from('materials')
-    .select('name, quantity, unit_cost, job_id')
-    .in('job_id', jobIds);
+  // Fetch materials for these jobs
+  const { rows: materialRows } = jobIds.length
+    ? await db.query(
+        `SELECT name, quantity, unit_cost, job_id FROM materials WHERE job_id = ANY($1::uuid[])`,
+        [jobIds]
+      )
+    : { rows: [] };
 
-  const materialsUsed = (materialRows || []).map(m =>
+  const materialsUsed = materialRows.map((m: any) =>
     `${m.name}: ${m.quantity} × $${m.unit_cost || 0}`
   );
 
-  const materialCost = (materialRows || []).reduce((sum, m) =>
-    sum + ((m.quantity || 0) * (m.unit_cost || 0)), 0
+  const materialCost = materialRows.reduce((sum: number, m: any) =>
+    sum + (Number(m.quantity || 0) * Number(m.unit_cost || 0)), 0
   );
 
-  // Query approved chat messages
+  // Fetch approved chat messages
   const contextualNotes: string[] = [];
   if (approvedChatMessageIds.length > 0) {
-    const { data: chatRows } = await _supabase
-      .from('message_bus_messages')
-      .select('content, sender_name')
-      .in('id', approvedChatMessageIds);
-
-    for (const msg of chatRows || []) {
-      contextualNotes.push(`${msg.sender_name}: ${msg.content}`);
-    }
+    const { rows: chatRows } = await db.query(
+      `SELECT content, sender_name FROM message_bus_messages WHERE id = ANY($1::uuid[])`,
+      [approvedChatMessageIds]
+    );
+    for (const msg of chatRows) contextualNotes.push(`${msg.sender_name}: ${msg.content}`);
   }
 
-  // Calculate total cost: labor ($55/hr default) + materials
   const laborCost = totalHours * 55;
   const totalCost = Math.round((laborCost + materialCost) * 100) / 100;
 
@@ -103,34 +106,41 @@ export async function synthesize(
   const outputValidation = validateArtifact(artifact);
   if (!outputValidation.valid) return { error: outputValidation.message };
 
-  const { error } = await _supabase.from('summary_artifacts').insert({
-    id: artifact.id, serial: artifact.serial, intent_version_id: artifact.intentVersionId,
-    scope_statement: artifact.scopeStatement, work_performed: artifact.workPerformed,
-    labor_recorded: artifact.laborRecorded, materials_used: artifact.materialsUsed,
-    contextual_notes: artifact.contextualNotes, total_hours: artifact.totalHours,
-    total_cost: artifact.totalCost, job_ids: artifact.jobIds,
-    time_entry_ids: artifact.timeEntryIds, chat_message_ids: artifact.chatMessageIds,
-    created_at: new Date(artifact.createdAt).toISOString(),
-  });
+  await db.query(
+    `INSERT INTO summary_artifacts
+       (id, serial, intent_version_id, scope_statement,
+        work_performed, labor_recorded, materials_used, contextual_notes,
+        total_hours, total_cost,
+        job_ids, time_entry_ids, chat_message_ids,
+        created_at)
+     VALUES ($1,$2,$3,$4,
+             $5::jsonb,$6::jsonb,$7::jsonb,$8::jsonb,
+             $9,$10,
+             $11::jsonb,$12::jsonb,$13::jsonb,
+             to_timestamp($14/1000.0))`,
+    [
+      artifact.id, artifact.serial, artifact.intentVersionId, artifact.scopeStatement,
+      JSON.stringify(artifact.workPerformed), JSON.stringify(artifact.laborRecorded),
+      JSON.stringify(artifact.materialsUsed), JSON.stringify(artifact.contextualNotes),
+      artifact.totalHours, artifact.totalCost,
+      JSON.stringify(artifact.jobIds), JSON.stringify(artifact.timeEntryIds), JSON.stringify(artifact.chatMessageIds),
+      artifact.createdAt,
+    ]
+  );
 
-  if (error) return { error: error.message };
   return artifact;
 }
 
 export async function getArtifact(artifactId: string): Promise<SummaryArtifact | null> {
-  if (!supabase) throw new Error('[Synthesizer] Supabase client is not initialized');
-  const { data, error } = await supabase
-    .from('summary_artifacts').select('*').eq('id', artifactId).single();
-  if (error || !data) return null;
-  return mapArtifactRow(data);
+  const db = requirePg();
+  const { rows } = await db.query(`SELECT * FROM summary_artifacts WHERE id = $1`, [artifactId]);
+  return rows.length ? mapArtifactRow(rows[0]) : null;
 }
 
 export async function getArtifactBySerial(serial: string): Promise<SummaryArtifact | null> {
-  if (!supabase) throw new Error('[Synthesizer] Supabase client is not initialized');
-  const { data, error } = await supabase
-    .from('summary_artifacts').select('*').eq('serial', serial).single();
-  if (error || !data) return null;
-  return mapArtifactRow(data);
+  const db = requirePg();
+  const { rows } = await db.query(`SELECT * FROM summary_artifacts WHERE serial = $1`, [serial]);
+  return rows.length ? mapArtifactRow(rows[0]) : null;
 }
 
 function mapArtifactRow(row: any): SummaryArtifact {
