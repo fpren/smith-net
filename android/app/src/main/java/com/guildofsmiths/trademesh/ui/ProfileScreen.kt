@@ -39,6 +39,13 @@ fun ProfileScreen(
     var licenseNumber by remember { mutableStateOf(UserPreferences.getLicenseNumber()) }
     var paymentInfo by remember { mutableStateOf(UserPreferences.getPaymentInfo()) }
 
+    val initialAddress = UserPreferences.getAddress()
+    var addressStreet by remember { mutableStateOf(initialAddress["street"] ?: "") }
+    var addressCity by remember { mutableStateOf(initialAddress["city"] ?: "") }
+    var addressState by remember { mutableStateOf(initialAddress["stateProvince"] ?: "") }
+    var addressZip by remember { mutableStateOf(initialAddress["zipPostal"] ?: "") }
+    var addressCountry by remember { mutableStateOf(initialAddress["country"]?.ifBlank { "US" } ?: "US") }
+
     val occupations = listOf(
         "Electrician" to Occupation.ELECTRICIAN,
         "HVAC" to Occupation.HVAC,
@@ -147,10 +154,44 @@ fun ProfileScreen(
 
             // ── ADDRESS ──
             SectionLabel("ADDRESS")
-            val address = UserPreferences.getAddress()
-            Text(
-                text = "${address["street"]}\n${address["city"]}, ${address["stateProvince"]} ${address["zipPostal"]}",
-                style = ConsoleTheme.bodySmall
+            ProfileEditField(
+                label = "Street",
+                value = addressStreet,
+                onValueChange = { addressStreet = it },
+                placeholder = "123 Main St"
+            )
+            ProfileEditField(
+                label = "City",
+                value = addressCity,
+                onValueChange = { addressCity = it },
+                placeholder = "Brooklyn"
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(modifier = Modifier.weight(1f)) {
+                    ProfileEditField(
+                        label = "State",
+                        value = addressState,
+                        onValueChange = { addressState = it },
+                        placeholder = "NY"
+                    )
+                }
+                Box(modifier = Modifier.weight(1f)) {
+                    ProfileEditField(
+                        label = "ZIP",
+                        value = addressZip,
+                        onValueChange = { addressZip = it },
+                        placeholder = "11220"
+                    )
+                }
+            }
+            ProfileEditField(
+                label = "Country",
+                value = addressCountry,
+                onValueChange = { addressCountry = it },
+                placeholder = "US"
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -168,6 +209,10 @@ fun ProfileScreen(
                         hourlyRate.toDoubleOrNull()?.let { UserPreferences.setHourlyRate(it) }
                         UserPreferences.setLicenseNumber(licenseNumber)
                         UserPreferences.setPaymentInfo(paymentInfo)
+                        UserPreferences.saveAddress(
+                            addressStreet, addressCity, addressState, addressZip,
+                            addressCountry.ifBlank { "US" }
+                        )
                         Toast.makeText(context, "Profile saved", Toast.LENGTH_SHORT).show()
                     }
                     .background(ConsoleTheme.surface)

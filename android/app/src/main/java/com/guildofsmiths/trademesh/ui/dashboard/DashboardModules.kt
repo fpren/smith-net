@@ -743,16 +743,6 @@ fun SiteMapModule(
                 }
             )
 
-            // "Tap to expand" overlay
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(8.dp)
-                    .background(ConsoleTheme.background.copy(alpha = 0.8f), RoundedCornerShape(4.dp))
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            ) {
-                Text("expand >", style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent))
-            }
         }
     }
 }
