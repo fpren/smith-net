@@ -5,19 +5,10 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Narrow rhombus: Top (54,16), Right (76,54), Bottom (54,92), Left (32,54).
-         Everything below is clipped to this shape so the stripes end at the rhombus edges. -->
-    <group>
-        <clip-path android:pathData="M54,16 L76,54 L54,92 L32,54 Z"/>
-
-        <!-- Yellow fill for the whole rhombus -->
-        <path android:fillColor="#F5C518" android:pathData="M0,0 h108 v108 h-108 z"/>
-
-        <!-- Five vertical black stripes -->
-        <path android:fillColor="#000000" android:pathData="M32.5,16 h3 v76 h-3 z"/>
-        <path android:fillColor="#000000" android:pathData="M42.5,16 h3 v76 h-3 z"/>
-        <path android:fillColor="#000000" android:pathData="M52.5,16 h3 v76 h-3 z"/>
-        <path android:fillColor="#000000" android:pathData="M62.5,16 h3 v76 h-3 z"/>
-        <path android:fillColor="#000000" android:pathData="M72.5,16 h3 v76 h-3 z"/>
-    </group>
+    <!-- Narrow yellow rhombus, centered. -->
+    <path
+        android:fillColor="#F5C518"
+        android:strokeColor="#AA820A"
+        android:strokeWidth="1"
+        android:pathData="M54,14 L78,54 L54,94 L30,54 Z"/>
 </vector>
