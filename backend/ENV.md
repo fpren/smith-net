@@ -44,16 +44,23 @@ Status: `tailscale funnel status`
 
 ## Backups
 
-Daily at 03:00 UTC via `/etc/cron.d/smithnet-backup`. Dumps land in `/var/backups/smithnet/` with 14-day retention.
+Daily via `/etc/cron.d/smithnet-backup`. Both artifacts land in `/var/backups/smithnet/` with 14-day retention.
+
+- `smithnet-YYYY-MM-DD.sql.gz` — Postgres dump, 03:00 UTC
+- `uploads-YYYY-MM-DD.tar.gz` — user-uploaded media from `backend/uploads/`, 03:02 UTC
 
 Manual dump:
 
 ```bash
 sudo -u postgres pg_dump smithnet | gzip > /tmp/smithnet-$(date +%F).sql.gz
+sudo tar -czf /tmp/uploads-$(date +%F).tar.gz -C /opt/smith-net/backend uploads/
 ```
 
 Restore:
 
 ```bash
-gunzip -c /path/to/dump.sql.gz | sudo -u postgres psql -d smithnet
+gunzip -c /path/to/smithnet-*.sql.gz | sudo -u postgres psql -d smithnet
+sudo tar -xzf /path/to/uploads-*.tar.gz -C /opt/smith-net/backend/
 ```
+
+Consider rsync'ing the backup directory off-box (to another Hetzner region or to a home NAS) for disaster recovery. Current setup only survives disk loss, not full VPS loss.
