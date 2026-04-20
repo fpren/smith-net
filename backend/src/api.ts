@@ -961,14 +961,57 @@ apiRouter.post('/reports/generate', async (req: Request, res: Response) => {
 // HEALTH
 // ════════════════════════════════════════════════════════════════════
 
+const SERVER_START_MS = Date.now();
+
 apiRouter.get('/health', (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
     timestamp: Date.now(),
+    uptimeSeconds: Math.floor((Date.now() - SERVER_START_MS) / 1000),
     channels: channelRegistry.list().length,
     onlineUsers: presenceManager.getOnline().length,
     relays: gatewayManager.getAll().length,
     wsClients: wsHandler.getClientCount(),
+  });
+});
+
+// More detailed metrics for monitoring. Cheap to serve; no DB hits by default.
+apiRouter.get('/metrics', async (_req: Request, res: Response) => {
+  let dbOk = false;
+  let messageCount: number | null = null;
+  try {
+    const { pg, isPgEnabled } = await import('./db');
+    if (isPgEnabled() && pg) {
+      const { rows } = await pg.query(
+        `SELECT (SELECT COUNT(*)::int FROM message_bus_messages) AS msgs`
+      );
+      messageCount = rows[0].msgs;
+      dbOk = true;
+    }
+  } catch {
+    dbOk = false;
+  }
+  const mem = process.memoryUsage();
+  res.json({
+    status: 'ok',
+    timestamp: Date.now(),
+    uptimeSeconds: Math.floor((Date.now() - SERVER_START_MS) / 1000),
+    db: { connected: dbOk, messageBusCount: messageCount },
+    connections: {
+      channels: channelRegistry.list().length,
+      onlineUsers: presenceManager.getOnline().length,
+      relays: gatewayManager.getAll().length,
+      wsClients: wsHandler.getClientCount(),
+    },
+    memory: {
+      rssMB: Math.round(mem.rss / 1024 / 1024),
+      heapUsedMB: Math.round(mem.heapUsed / 1024 / 1024),
+      heapTotalMB: Math.round(mem.heapTotal / 1024 / 1024),
+    },
+    process: {
+      pid: process.pid,
+      nodeVersion: process.version,
+    },
   });
 });
 

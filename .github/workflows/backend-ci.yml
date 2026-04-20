@@ -77,7 +77,7 @@ jobs:
           done
 
       - name: Run integration tests
-        run: node --test tests/relay.integration.test.js
+        run: node --test tests/relay.integration.test.js tests/services.integration.test.js
 
       - name: Stop relay
         if: always()
