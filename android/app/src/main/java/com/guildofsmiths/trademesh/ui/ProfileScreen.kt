@@ -38,6 +38,8 @@ fun ProfileScreen(
     var hourlyRate by remember { mutableStateOf(UserPreferences.getHourlyRate().let { if (it > 0) it.toString() else "" }) }
     var licenseNumber by remember { mutableStateOf(UserPreferences.getLicenseNumber()) }
     var paymentInfo by remember { mutableStateOf(UserPreferences.getPaymentInfo()) }
+    var zelleHandle by remember { mutableStateOf(UserPreferences.getZelleHandle()) }
+    var venmoHandle by remember { mutableStateOf(UserPreferences.getVenmoHandle()) }
 
     val initialAddress = UserPreferences.getAddress()
     var addressStreet by remember { mutableStateOf(initialAddress["street"] ?: "") }
@@ -147,7 +149,21 @@ fun ProfileScreen(
                 label = "Payment Info",
                 value = paymentInfo,
                 onValueChange = { paymentInfo = it },
-                placeholder = "Zelle, Venmo, check, etc."
+                placeholder = "Notes for clients (check, bank transfer, etc.)"
+            )
+
+            ProfileEditField(
+                label = "Zelle (email or phone)",
+                value = zelleHandle,
+                onValueChange = { zelleHandle = it },
+                placeholder = "you@example.com"
+            )
+
+            ProfileEditField(
+                label = "Venmo @handle",
+                value = venmoHandle,
+                onValueChange = { venmoHandle = it },
+                placeholder = "your-venmo-username"
             )
 
             ConsoleSeparator()
@@ -209,6 +225,8 @@ fun ProfileScreen(
                         hourlyRate.toDoubleOrNull()?.let { UserPreferences.setHourlyRate(it) }
                         UserPreferences.setLicenseNumber(licenseNumber)
                         UserPreferences.setPaymentInfo(paymentInfo)
+                        UserPreferences.setZelleHandle(zelleHandle)
+                        UserPreferences.setVenmoHandle(venmoHandle)
                         UserPreferences.saveAddress(
                             addressStreet, addressCity, addressState, addressZip,
                             addressCountry.ifBlank { "US" }

@@ -38,6 +38,8 @@ object UserPreferences {
     private const val KEY_HOURLY_RATE = "hourly_rate"
     private const val KEY_LICENSE_NUMBER = "license_number"
     private const val KEY_PAYMENT_INFO = "payment_info"
+    private const val KEY_ZELLE_HANDLE = "zelle_handle"
+    private const val KEY_VENMO_HANDLE = "venmo_handle"
     private const val KEY_PRIMARY_TRADE = "primary_trade"
     private const val KEY_SECONDARY_TRADES = "secondary_trades"
     private const val KEY_OPENROUTER_API_KEY = "openrouter_api_key"
@@ -224,6 +226,18 @@ object UserPreferences {
 
     fun setPaymentInfo(info: String) {
         prefs?.edit()?.putString(KEY_PAYMENT_INFO, info.trim())?.apply()
+    }
+
+    /** Zelle recipient — email or phone number registered with the user's bank. */
+    fun getZelleHandle(): String = prefs?.getString(KEY_ZELLE_HANDLE, "") ?: ""
+    fun setZelleHandle(handle: String) {
+        prefs?.edit()?.putString(KEY_ZELLE_HANDLE, handle.trim())?.apply()
+    }
+
+    /** Venmo username (the @handle, without the leading @). */
+    fun getVenmoHandle(): String = prefs?.getString(KEY_VENMO_HANDLE, "") ?: ""
+    fun setVenmoHandle(handle: String) {
+        prefs?.edit()?.putString(KEY_VENMO_HANDLE, handle.trimStart('@').trim())?.apply()
     }
 
     /**
