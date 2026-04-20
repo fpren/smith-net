@@ -176,9 +176,15 @@ object BoundaryEngine {
         ChatManager.connect()
         Log.i(TAG, "🌐 Auto-connecting to local chat backend")
         
-        // Connect to Supabase Realtime for GLOBAL chat (works anywhere in the world)
-        com.guildofsmiths.trademesh.service.SupabaseChat.connect()
-        Log.i(TAG, "🌍 Connecting to Supabase Realtime for global chat")
+        // Legacy: Supabase Realtime for global chat. Disabled by default —
+        // the Hetzner relay (ChatManager above) now covers this path via WS.
+        // Flip SUPABASE_ENABLED in app/build.gradle.kts to re-enable.
+        if (com.guildofsmiths.trademesh.BuildConfig.SUPABASE_ENABLED) {
+            com.guildofsmiths.trademesh.service.SupabaseChat.connect()
+            Log.i(TAG, "🌍 Connecting to Supabase Realtime for global chat")
+        } else {
+            Log.i(TAG, "Supabase Realtime disabled (BuildConfig.SUPABASE_ENABLED=false)")
+        }
     }
     
     /**
@@ -275,8 +281,8 @@ object BoundaryEngine {
         }
         
         // Also forward via Supabase for global reach (auto-bridges mesh → online)
-        // This ensures mesh messages get uploaded to the cloud even without gateway mode
-        if (_isOnline.value) {
+        // Gated on SUPABASE_ENABLED; Hetzner relay via ChatManager is the default path now.
+        if (_isOnline.value && com.guildofsmiths.trademesh.BuildConfig.SUPABASE_ENABLED) {
             Log.d(TAG, "🌉 Auto-bridging mesh message to Supabase: ${message.content.take(20)}")
             com.guildofsmiths.trademesh.service.SupabaseChat.sendMessage(message)
         }
@@ -554,10 +560,12 @@ object BoundaryEngine {
      */
     private fun routeViaChat(message: Message) {
         Log.d(TAG, "Routing via chat: ${message.id.take(8)}...")
-        // Use Supabase for global chat (works anywhere with internet)
-        com.guildofsmiths.trademesh.service.SupabaseChat.sendMessage(message)
-        // Also send via local ChatManager for backward compatibility
+        // Primary path: Hetzner relay via ChatManager (WS).
         ChatManager.sendMessage(message)
+        // Optional legacy mirror to Supabase Realtime, gated by BuildConfig flag.
+        if (com.guildofsmiths.trademesh.BuildConfig.SUPABASE_ENABLED) {
+            com.guildofsmiths.trademesh.service.SupabaseChat.sendMessage(message)
+        }
     }
     
     // Track recently injected message IDs to avoid re-forwarding our own broadcasts
@@ -684,9 +692,11 @@ object BoundaryEngine {
             
             // Send to local backend
             ChatManager.sendMessage(chatMessage)
-            
-            // Also send to Supabase for global reach
-            com.guildofsmiths.trademesh.service.SupabaseChat.sendMessage(chatMessage)
+
+            // Optional legacy mirror to Supabase Realtime, gated by BuildConfig flag.
+            if (com.guildofsmiths.trademesh.BuildConfig.SUPABASE_ENABLED) {
+                com.guildofsmiths.trademesh.service.SupabaseChat.sendMessage(chatMessage)
+            }
             
             syncedIds.add(message.id)
             Log.d(TAG, "   ↑ Uploaded: ${message.content.take(30)}")

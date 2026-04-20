@@ -28,6 +28,10 @@ android {
         // (HTTPS, auto-renewed cert, reachable from any network). Fallback is the Mac Mini on LAN.
         buildConfigField("String", "BACKEND_URL_PRIMARY", "\"https://ubuntu-8gb-ash-1.tail2523e7.ts.net\"")
         buildConfigField("String", "BACKEND_URL_FALLBACK", "\"http://192.168.8.169:3000\"")
+
+        // Kill switch for legacy Supabase Realtime path. Default OFF — relay is Hetzner/Postgres now.
+        // Flip to true only if you explicitly want the old global-chat path active.
+        buildConfigField("boolean", "SUPABASE_ENABLED", "false")
         
         // Native build configuration for llama.cpp
         externalNativeBuild {
