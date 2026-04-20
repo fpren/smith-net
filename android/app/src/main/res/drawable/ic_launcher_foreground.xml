@@ -4,9 +4,9 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Background circle -->
+    <!-- Background circle — GOS gold accent -->
     <path
-        android:fillColor="#58A6FF"
+        android:fillColor="#9A6F2E"
         android:pathData="M54,54m-40,0a40,40 0,1 1,80 0a40,40 0,1 1,-80 0"/>
     <!-- Mesh icon - center node -->
     <path
