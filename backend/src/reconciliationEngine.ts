@@ -1,6 +1,5 @@
 import { UnifiedMessage, VectorClockState, TransportType } from './types';
 import { compare, merge } from './vectorClock';
-import { supabase } from './supabase';
 import { pg, isPgEnabled } from './db';
 
 export interface ReconciliationRequest {
@@ -16,29 +15,16 @@ export interface ReconciliationResponse {
 }
 
 export async function reconcile(req: ReconciliationRequest): Promise<ReconciliationResponse> {
-  let serverMessages: any[] = [];
-
-  if (isPgEnabled() && pg) {
-    const { rows } = await pg.query(
-      `SELECT id, channel_id, sender_id, sender_name, content, timestamp,
-              vector_clock, transport_type, media_type, media_url,
-              ai_generated, ai_model
-         FROM message_bus_messages
-        WHERE channel_id = $1
-        ORDER BY timestamp ASC`,
-      [req.channelId]
-    );
-    serverMessages = rows;
-  } else {
-    if (!supabase) throw new Error('[Reconcile] No persistence backend available');
-    const { data, error } = await supabase
-      .from('message_bus_messages')
-      .select('*')
-      .eq('channel_id', req.channelId)
-      .order('timestamp', { ascending: true });
-    if (error) throw error;
-    serverMessages = data || [];
-  }
+  if (!isPgEnabled() || !pg) throw new Error('[Reconcile] Postgres not initialized');
+  const { rows: serverMessages } = await pg.query(
+    `SELECT id, channel_id, sender_id, sender_name, content, timestamp,
+            vector_clock, transport_type, media_type, media_url,
+            ai_generated, ai_model
+       FROM message_bus_messages
+      WHERE channel_id = $1
+      ORDER BY timestamp ASC`,
+    [req.channelId]
+  );
 
   const serverIds = new Set(serverMessages.map((m: any) => m.id));
   const clientIds = new Set(req.localMessageIds);
@@ -83,61 +69,34 @@ export async function reconcile(req: ReconciliationRequest): Promise<Reconciliat
 
 export async function acceptClientMessages(messages: UnifiedMessage[]): Promise<void> {
   if (messages.length === 0) return;
-
-  if (isPgEnabled() && pg) {
-    // Individual upserts keep the code simple; volume per call is small.
-    for (const m of messages) {
-      await pg.query(
-        `INSERT INTO message_bus_messages
-           (id, channel_id, sender_id, sender_name, content, timestamp,
-            vector_clock, transport_type, media_type, media_url,
-            ai_generated, ai_model, synced_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,$12,NOW())
-         ON CONFLICT (id) DO UPDATE SET
-           content = EXCLUDED.content,
-           vector_clock = EXCLUDED.vector_clock,
-           synced_at = NOW()`,
-        [
-          m.id,
-          m.channelId,
-          m.senderId,
-          m.senderName,
-          m.content,
-          m.timestamp,
-          JSON.stringify(m.vectorClock),
-          m.transportType,
-          m.mediaType || 'TEXT',
-          m.mediaUrl || null,
-          m.aiGenerated || false,
-          m.aiModel || null,
-        ]
-      );
-    }
-    return;
+  if (!isPgEnabled() || !pg) throw new Error('[Reconcile] Postgres not initialized');
+  for (const m of messages) {
+    await pg.query(
+      `INSERT INTO message_bus_messages
+         (id, channel_id, sender_id, sender_name, content, timestamp,
+          vector_clock, transport_type, media_type, media_url,
+          ai_generated, ai_model, synced_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,$12,NOW())
+       ON CONFLICT (id) DO UPDATE SET
+         content = EXCLUDED.content,
+         vector_clock = EXCLUDED.vector_clock,
+         synced_at = NOW()`,
+      [
+        m.id,
+        m.channelId,
+        m.senderId,
+        m.senderName,
+        m.content,
+        m.timestamp,
+        JSON.stringify(m.vectorClock),
+        m.transportType,
+        m.mediaType || 'TEXT',
+        m.mediaUrl || null,
+        m.aiGenerated || false,
+        m.aiModel || null,
+      ]
+    );
   }
-
-  if (!supabase) throw new Error('[Reconcile] No persistence backend available');
-  const rows = messages.map(m => ({
-    id: m.id,
-    channel_id: m.channelId,
-    sender_id: m.senderId,
-    sender_name: m.senderName,
-    content: m.content,
-    timestamp: new Date(m.timestamp).toISOString(),
-    vector_clock: m.vectorClock,
-    transport_type: m.transportType,
-    media_type: m.mediaType || 'TEXT',
-    media_url: m.mediaUrl,
-    ai_generated: m.aiGenerated || false,
-    ai_model: m.aiModel,
-    synced_at: new Date().toISOString(),
-  }));
-
-  const { error } = await supabase
-    .from('message_bus_messages')
-    .upsert(rows, { onConflict: 'id' });
-
-  if (error) throw error;
 }
 
 export function sortByCausalOrder(messages: UnifiedMessage[]): UnifiedMessage[] {
