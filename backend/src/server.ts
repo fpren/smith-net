@@ -225,6 +225,23 @@ wsHandler.initialize(wss);
 // Initialize channel registry with defaults
 channelRegistry.initialize();
 
+// Rehydrate channels from Postgres so they survive restarts.
+// Non-blocking: we kick it off, the server starts listening in parallel.
+(async () => {
+  try {
+    const { pg, isPgEnabled } = await import('./db');
+    if (!isPgEnabled() || !pg) return;
+    const { rows } = await pg.query(
+      `SELECT id, name, type, creator_id, created_at, is_archived, is_deleted
+         FROM channels
+        WHERE is_deleted = FALSE OR is_deleted IS NULL`
+    );
+    channelRegistry.rehydrate(rows);
+  } catch (err) {
+    console.warn('[Startup] Channel rehydrate skipped:', (err as Error).message);
+  }
+})();
+
 // Start server
 server.listen(PORT, () => {
   console.log('════════════════════════════════════════');
