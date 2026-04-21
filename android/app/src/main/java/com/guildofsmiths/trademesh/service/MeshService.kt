@@ -982,15 +982,18 @@ class MeshService : Service() {
             return
         }
         
-        // Stop any existing advertising first
+        // Stop any existing advertising first, then wait briefly for the BLE
+        // stack to actually release it — starting immediately races with the
+        // in-flight stop and triggers ADVERTISE_FAILED_ALREADY_STARTED.
         if (isAdvertising) {
             Log.d(TAG, "   Stopping previous advertisement...")
             stopAdvertising()
+            handler.postDelayed({
+                startLegacyAdvertising(advertiser, payload, message)
+            }, 200)
+        } else {
+            startLegacyAdvertising(advertiser, payload, message)
         }
-        
-        // Always use legacy advertising - extended ads not reliably supported on most devices
-        // BLE 4.x hardware limits service data to ~20 bytes (10 chars after headers)
-        startLegacyAdvertising(advertiser, payload, message)
     }
     
     @Suppress("DEPRECATION")
@@ -1149,7 +1152,15 @@ class MeshService : Service() {
             Log.e(TAG, "════════════════════════════════════════")
             Log.e(TAG, "❌ ADVERTISE FAILED: $errorMsg (code $errorCode)")
             Log.e(TAG, "════════════════════════════════════════")
-            
+
+            // ALREADY_STARTED means our isAdvertising flag fell out of sync with the
+            // BLE stack (e.g. relay retry fired mid-cycle). Force a stop and let the
+            // outbound queue drain on the next tick.
+            if (errorCode == ADVERTISE_FAILED_ALREADY_STARTED) {
+                isAdvertising = true  // force stopAdvertising to actually run
+                stopAdvertising()
+            }
+
             // Retry next message after delay
             handler.postDelayed({ processOutboundQueue() }, 2000)
         }
