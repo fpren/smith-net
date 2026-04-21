@@ -44,6 +44,7 @@ object UserPreferences {
     private const val KEY_SECONDARY_TRADES = "secondary_trades"
     private const val KEY_OPENROUTER_API_KEY = "openrouter_api_key"
     private const val KEY_AI_SUPERVISOR_MODE = "ai_supervisor_mode"
+    private const val KEY_MESH_SOLO_OVERRIDE = "mesh_solo_override"
 
     private var prefs: SharedPreferences? = null
     
@@ -550,6 +551,22 @@ object UserPreferences {
         prefs?.edit()?.clear()?.apply()
         cachedUserId = null
         cachedUserName = null
+    }
+
+    /** True if a solo user has explicitly flipped the mesh toggle on. */
+    fun getMeshSoloOverride(): Boolean =
+        prefs?.getBoolean(KEY_MESH_SOLO_OVERRIDE, false) ?: false
+
+    fun setMeshSoloOverride(enabled: Boolean) {
+        prefs?.edit()?.putBoolean(KEY_MESH_SOLO_OVERRIDE, enabled)?.apply()
+    }
+
+    /**
+     * Policy: run mesh when the user has a team (foreman/GC/admin etc.), or
+     * when a solo user has explicitly enabled it for nearby-peer use.
+     */
+    fun shouldRunMesh(): Boolean {
+        return RoleContext.hasTeam() || getMeshSoloOverride()
     }
 }
 

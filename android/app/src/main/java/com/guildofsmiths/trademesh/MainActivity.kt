@@ -1143,6 +1143,10 @@ class MainActivity : ComponentActivity() {
      * Start the mesh service as a foreground service.
      */
     private fun startMeshService() {
+        if (!com.guildofsmiths.trademesh.data.UserPreferences.shouldRunMesh()) {
+            Log.i(TAG, "Skipping MeshService start — work mode is solo without override")
+            return
+        }
         Log.i(TAG, "Starting MeshService")
         val serviceIntent = Intent(this, MeshService::class.java)
 

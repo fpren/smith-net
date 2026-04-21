@@ -200,10 +200,19 @@ class MeshService : Service() {
         Log.i(TAG, "🚀 MeshService onCreate")
         Log.i(TAG, "   UUID: $MESH_SERVICE_UUID")
         Log.i(TAG, "════════════════════════════════════════")
-        
+
+        // Must call startForeground immediately even if we'll stop — Android
+        // requires it for any service started with startForegroundService().
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, createNotification())
-        
+
+        if (!com.guildofsmiths.trademesh.data.UserPreferences.shouldRunMesh()) {
+            Log.i(TAG, "🛑 Mesh disabled for this work mode (solo, no override). Exiting.")
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return
+        }
+
         initializeBluetooth()
         BoundaryEngine.registerMeshService(this)
         
