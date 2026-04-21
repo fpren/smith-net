@@ -68,6 +68,10 @@ apiRouter.post('/channels', (req: Request, res: Response) => {
   // Broadcast channel creation
   wsHandler.broadcastChannelEvent('channel_created', channel);
 
+  // Pick up members already connected so they receive DMs/private channels
+  // without needing to reconnect.
+  wsHandler.refreshAllSubscriptions();
+
   res.status(201).json(channel);
 });
 
