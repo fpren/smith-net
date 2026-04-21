@@ -199,6 +199,16 @@ object ChatManager {
                     // Pull anything missed while we were disconnected (relay cold start,
                     // or app was force-stopped while peers kept messaging online).
                     com.guildofsmiths.trademesh.engine.BoundaryEngine.reconcileOnAuth()
+                    // Auto-register as mesh relay if we have BLE — the server will
+                    // forward online messages to us so we can re-advertise for
+                    // nearby mesh-only peers.
+                    registerAsMeshRelay()
+                }
+
+                "inject_message" -> {
+                    // Server is asking us (a registered relay) to rebroadcast this
+                    // message to nearby BLE peers.
+                    payload?.let { handleInjectMessage(it) }
                 }
                 
                 "message" -> {
@@ -258,6 +268,59 @@ object ChatManager {
         }
     }
     
+    /**
+     * Opportunistically upgrade this WS client to a mesh relay once the
+     * MeshService is up and BLE advertising is available. Server then
+     * forwards 'inject_message' frames for us to re-advertise.
+     */
+    private fun registerAsMeshRelay() {
+        val meshRunning = com.guildofsmiths.trademesh.engine.BoundaryEngine.isMeshAvailable()
+        if (!meshRunning) {
+            Log.d(TAG, "Skipping relay registration - MeshService not running")
+            return
+        }
+        val relayId = UserPreferences.getUserId().ifBlank { return }
+        val payload = JSONObject().apply {
+            put("type", "gateway_connect")
+            put("payload", JSONObject().apply {
+                put("relayId", relayId)
+                put("name", UserPreferences.getUserName() ?: "phone-relay")
+                put("capabilities", org.json.JSONArray(listOf("ble")))
+            })
+            put("timestamp", System.currentTimeMillis())
+        }
+        webSocket?.send(payload.toString())
+        Log.i(TAG, "🔌 Registered as mesh relay: $relayId")
+    }
+
+    /**
+     * Server is telling us to re-advertise a message over BLE so mesh-only
+     * peers can pick it up. Build a Message and hand it to BoundaryEngine.
+     */
+    private fun handleInjectMessage(payload: JSONObject) {
+        try {
+            val senderId = payload.optString("senderId")
+            val myUserId = UserPreferences.getUserId()
+            // Don't re-advertise our own outgoing message — we already broadcast it.
+            if (senderId == myUserId) return
+            val channelId = payload.optString("channelId").ifBlank { "general" }
+            val normalizedChannelId = if (channelId.contains("-")) "general" else channelId
+            val msg = com.guildofsmiths.trademesh.data.Message(
+                id = payload.getString("id"),
+                channelId = normalizedChannelId,
+                senderId = senderId,
+                senderName = payload.optString("senderName"),
+                content = payload.optString("content"),
+                timestamp = payload.optLong("timestamp", System.currentTimeMillis()),
+                isMeshOrigin = false
+            )
+            Log.i(TAG, "📡 Relay: re-advertising ${msg.id.take(8)} via BLE")
+            com.guildofsmiths.trademesh.engine.BoundaryEngine.relayToMesh(msg)
+        } catch (e: Exception) {
+            Log.e(TAG, "handleInjectMessage failed", e)
+        }
+    }
+
     /**
      * Handle incoming message from WebSocket
      */

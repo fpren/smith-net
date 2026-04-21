@@ -106,6 +106,17 @@ object BoundaryEngine {
      * Register the mesh service for message routing.
      * Called by MeshService on startup.
      */
+    fun isMeshAvailable(): Boolean = meshService != null
+
+    /**
+     * Re-broadcast a message received from the server onto the BLE mesh so
+     * nearby mesh-only peers can pick it up. Sender's phone thus acts as a
+     * gateway relay between the Hetzner-side users and offline BLE users.
+     */
+    fun relayToMesh(message: Message) {
+        meshService?.broadcastMessage(message) ?: Log.w(TAG, "relayToMesh: no MeshService")
+    }
+
     fun registerMeshService(service: MeshService) {
         meshService = service
         _isMeshConnected.value = true
