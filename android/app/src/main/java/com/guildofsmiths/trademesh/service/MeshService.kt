@@ -220,7 +220,24 @@ class MeshService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.i(TAG, "▶️ MeshService onStartCommand - starting scan")
         startScanning()
-        return START_STICKY
+        // Re-deliver intent if Android kills us under memory pressure
+        return START_REDELIVER_INTENT
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        Log.w(TAG, "⚠️ Task removed (app swiped); re-scheduling MeshService via alarm")
+        val restart = Intent(applicationContext, MeshService::class.java)
+        val pi = PendingIntent.getForegroundService(
+            this, 0, restart,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        val am = getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+        am.setExactAndAllowWhileIdle(
+            android.app.AlarmManager.ELAPSED_REALTIME_WAKEUP,
+            android.os.SystemClock.elapsedRealtime() + 2_000,
+            pi
+        )
+        super.onTaskRemoved(rootIntent)
     }
     
     override fun onDestroy() {
@@ -253,7 +270,7 @@ class MeshService : Service() {
         val channel = NotificationChannel(
             CHANNEL_ID,
             "Mesh Service",
-            NotificationManager.IMPORTANCE_LOW
+            NotificationManager.IMPORTANCE_DEFAULT
         ).apply {
             description = "BLE mesh communication service"
             setShowBadge(false)
