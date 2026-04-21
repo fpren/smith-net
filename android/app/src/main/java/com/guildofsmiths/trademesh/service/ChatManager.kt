@@ -315,10 +315,17 @@ object ChatManager {
     fun sendMessage(message: Message, callback: ((Boolean) -> Unit)? = null) {
         Log.i(TAG, "📤 ONLINE SEND: [${message.id.take(8)}] content=\"${message.content.take(50)}\"")
         
-        val userId = UserPreferences.getUserId() ?: "unknown"
-        val userName = UserPreferences.getUserName() ?: "Unknown"
-        
+        val userId = UserPreferences.getUserId().ifBlank { "unknown" }
+        val userName = UserPreferences.getUserName()?.ifBlank { null } ?: "Unknown"
+
+        if (userId == "unknown" || userId == "system") {
+            Log.e(TAG, "❌ Refusing to send - invalid userId '$userId'. Re-onboard.")
+            callback?.invoke(false)
+            return
+        }
+
         val json = JSONObject().apply {
+            put("id", message.id)
             put("channelId", message.channelId)
             put("content", message.content)
         }

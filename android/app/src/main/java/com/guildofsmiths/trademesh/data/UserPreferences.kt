@@ -57,9 +57,9 @@ object UserPreferences {
      */
     fun init(context: Context) {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        
-        // Generate user ID if not exists
-        if (getUserId().isEmpty()) {
+
+        val current = getUserId()
+        if (current.isBlank() || current == "system" || current == "unknown") {
             val newId = UUID.randomUUID().toString().take(8)
             prefs?.edit()?.putString(KEY_USER_ID, newId)?.apply()
             cachedUserId = newId

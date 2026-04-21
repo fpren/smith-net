@@ -320,12 +320,16 @@ apiRouter.delete('/messages/:messageId', (req: Request, res: Response) => {
  *    (so mesh-only users underground can receive it)
  */
 apiRouter.post('/messages/inject', (req: Request, res: Response) => {
-  let { channelId, content, meshOnly } = req.body as InjectMessageRequest & { meshOnly?: boolean };
-  const senderId = req.headers['x-user-id'] as string || 'system';
-  const senderName = req.headers['x-user-name'] as string || 'System';
+  let { channelId, content, meshOnly, id: clientId } = req.body as InjectMessageRequest & { meshOnly?: boolean; id?: string };
+  const rawSenderId = (req.headers['x-user-id'] as string | undefined)?.trim();
+  const senderId = rawSenderId && rawSenderId !== 'system' ? rawSenderId : 'system';
+  const senderName = (req.headers['x-user-name'] as string) || 'System';
 
   if (!channelId || !content) {
     return res.status(400).json({ error: 'channelId and content required' });
+  }
+  if (!rawSenderId) {
+    return res.status(400).json({ error: 'X-User-Id header required' });
   }
 
   // Resolve channel name to UUID if needed (phones send "general", we need UUID)
@@ -351,7 +355,10 @@ apiRouter.post('/messages/inject', (req: Request, res: Response) => {
     senderId,
     senderName,
     content,
-    origin
+    origin,
+    undefined,
+    undefined,
+    clientId
   );
 
   // Broadcast to online clients

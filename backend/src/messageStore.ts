@@ -24,10 +24,14 @@ class MessageStore {
     content: string,
     origin: MessageOrigin,
     recipientId?: string,
-    recipientName?: string
+    recipientName?: string,
+    id?: string
   ): Message {
+    if (id && this.messages.has(id)) {
+      return this.messages.get(id)!;
+    }
     const message: Message = {
-      id: uuidv4(),
+      id: id || uuidv4(),
       channelId,
       senderId,
       senderName,
