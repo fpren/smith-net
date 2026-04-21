@@ -12,6 +12,7 @@ import { messageStore } from './messageStore';
 import { presenceManager } from './presenceManager';
 import { gatewayManager } from './gatewayManager';
 import { wsHandler } from './wsHandler';
+import { createMessage, publish } from './messageBus';
 import { reportAssembler } from './reportAssembler';
 import { reportRenderer } from './reportRenderer';
 import { reportOutput } from './reportOutput';
@@ -363,6 +364,14 @@ apiRouter.post('/messages/inject', (req: Request, res: Response) => {
 
   // Broadcast to online clients
   wsHandler.broadcastToChannel(channelId, message);
+
+  // Persist to MessageBus so offline clients can reconcile on reconnect
+  try {
+    const unified = createMessage(channelId, senderId, senderName, content, 'ip', message.id);
+    publish(unified);
+  } catch (err) {
+    console.warn('[Inject] messageBus publish failed:', (err as Error).message);
+  }
 
   // Automatically inject into mesh if relay available
   // This ensures mesh-only users (underground) always receive messages

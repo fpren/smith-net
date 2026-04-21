@@ -670,7 +670,23 @@ object BoundaryEngine {
         lastConnectivityState = shouldUseMesh(context)
         _isOnline.value = isOnlineNow
     }
-    
+
+    /**
+     * Pull missing messages on fresh WS auth. Covers cold-start where
+     * lastConnectivityState is null so onConnectivityRestored never fires.
+     */
+    fun reconcileOnAuth() {
+        reconciliationEngine?.let { engine ->
+            val channelIds = channelMembership.values.toList().ifEmpty { listOf("general") }
+            messageBusScope.launch {
+                for (channelId in channelIds) {
+                    try { engine.reconcileChannel(channelId) }
+                    catch (e: Exception) { Log.w(TAG, "reconcileOnAuth failed for $channelId", e) }
+                }
+            }
+        }
+    }
+
     /**
      * Sync all pending mesh messages to chat backend.
      * Preserves message ordering and attribution.

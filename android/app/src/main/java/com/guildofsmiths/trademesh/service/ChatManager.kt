@@ -196,6 +196,9 @@ object ChatManager {
                     Log.d(TAG, "✅ Authenticated with backend")
                     isAuthenticated = true
                     _connectionMode.value = ConnectionMode.ONLINE
+                    // Pull anything missed while we were disconnected (relay cold start,
+                    // or app was force-stopped while peers kept messaging online).
+                    com.guildofsmiths.trademesh.engine.BoundaryEngine.reconcileOnAuth()
                 }
                 
                 "message" -> {
