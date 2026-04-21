@@ -106,15 +106,29 @@ class MessageBusRepository(context: Context) {
     }
 
     suspend fun insertRemoteMessages(messages: List<UnifiedMessage>) {
-        val entities = messages
-            .filter { !seenIds.contains(it.id) }
-            .map { msg ->
-                seenIds.add(msg.id)
-                localClock = localClock.merge(msg.vectorClock)
-                UnifiedMessageEntity.from(msg.copy(syncedToRemote = true))
-            }
+        val newMessages = messages.filter { !seenIds.contains(it.id) }
+        val entities = newMessages.map { msg ->
+            seenIds.add(msg.id)
+            localClock = localClock.merge(msg.vectorClock)
+            UnifiedMessageEntity.from(msg.copy(syncedToRemote = true))
+        }
         dao.insertAll(entities)
         if (entities.isNotEmpty()) persistClock()
+
+        // Surface in the UI-facing MessageRepository so reconciled messages appear in chats.
+        for (msg in newMessages) {
+            MessageRepository.addMessage(
+                Message(
+                    id = msg.id,
+                    channelId = msg.channelId,
+                    senderId = msg.senderId,
+                    senderName = msg.senderName,
+                    content = msg.content,
+                    timestamp = msg.timestamp,
+                    isMeshOrigin = msg.transportType == TransportType.BLE
+                )
+            )
+        }
     }
 
     fun getLocalClock(): VectorClock = localClock
