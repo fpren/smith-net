@@ -13,7 +13,10 @@ data class Colleague(
     val trade: String,
     val note: String,
     val addedAt: Long,
-    val lastMessagedAt: Long? = null
+    val lastMessagedAt: Long? = null,
+    val smithnetUserId: String? = null,
+    val publicId: String? = null,
+    val source: String = "manual",
 )
 
 /**
@@ -44,7 +47,10 @@ object ColleagueRepository {
                     trade = obj.optString("trade", ""),
                     note = obj.optString("note", ""),
                     addedAt = obj.optLong("addedAt", 0L),
-                    lastMessagedAt = if (obj.has("lastMessagedAt")) obj.optLong("lastMessagedAt") else null
+                    lastMessagedAt = if (obj.has("lastMessagedAt")) obj.optLong("lastMessagedAt") else null,
+                    smithnetUserId = obj.optString("smithnetUserId", "").ifBlank { null },
+                    publicId = obj.optString("publicId", "").ifBlank { null },
+                    source = obj.optString("source", "manual"),
                 )
             }
         } catch (_: Exception) {
@@ -61,7 +67,33 @@ object ColleagueRepository {
             phone = phone.trim(),
             trade = trade.trim(),
             note = note.trim(),
-            addedAt = System.currentTimeMillis()
+            addedAt = System.currentTimeMillis(),
+            source = "manual",
+        )
+        val all = getAll().toMutableList()
+        all.add(colleague)
+        save(all)
+        return colleague
+    }
+
+    /**
+     * Add a colleague from a SmithNet profile we pulled from the directory.
+     * If a record for this user already exists, return the existing one.
+     * Source is one of "team" (tapped from org list) or "search" (from lookup).
+     */
+    fun addFromProfile(profile: ProfileRow, source: String): Colleague {
+        val existing = getAll().firstOrNull { it.smithnetUserId == profile.id }
+        if (existing != null) return existing
+        val colleague = Colleague(
+            id = UUID.randomUUID().toString().take(8),
+            name = profile.display_name.trim(),
+            phone = "",
+            trade = profile.trade.orEmpty().trim(),
+            note = "",
+            addedAt = System.currentTimeMillis(),
+            smithnetUserId = profile.id,
+            publicId = profile.public_id,
+            source = source,
         )
         val all = getAll().toMutableList()
         all.add(colleague)
@@ -108,6 +140,9 @@ object ColleagueRepository {
                 put("note", c.note)
                 put("addedAt", c.addedAt)
                 c.lastMessagedAt?.let { put("lastMessagedAt", it) }
+                c.smithnetUserId?.let { put("smithnetUserId", it) }
+                c.publicId?.let { put("publicId", it) }
+                put("source", c.source)
             })
         }
         prefs?.edit()?.putString(PREFS_KEY, array.toString())?.apply()

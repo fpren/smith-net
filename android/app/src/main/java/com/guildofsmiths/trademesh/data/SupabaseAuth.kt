@@ -383,7 +383,10 @@ object SupabaseAuth {
                     role = it.role,
                     trade = it.trade,
                     hourlyRate = it.hourly_rate ?: 85.0,
-                    isOffline = false
+                    isOffline = false,
+                    publicId = it.public_id,
+                    discoverability = it.discoverability,
+                    orgId = it.org_id,
                 )
             }
         } catch (e: Exception) {
@@ -392,6 +395,30 @@ object SupabaseAuth {
         }
     }
     
+    /**
+     * Update the current user's discoverability level.
+     * Valid values: "nobody", "team", "anyone".
+     */
+    suspend fun updateDiscoverability(level: String): AuthResult = withContext(Dispatchers.IO) {
+        val client = _client
+            ?: return@withContext AuthResult(success = false, error = "Not connected to server")
+        val userId = _currentUser.value?.id
+            ?: return@withContext AuthResult(success = false, error = "Not signed in")
+        if (level !in setOf("nobody", "team", "anyone")) {
+            return@withContext AuthResult(success = false, error = "Invalid privacy level")
+        }
+        try {
+            client.from("profiles").update(DiscoverabilityUpdate(discoverability = level)) {
+                filter { eq("id", userId) }
+            }
+            _currentUser.value = _currentUser.value?.copy(discoverability = level)
+            AuthResult(success = true)
+        } catch (e: Exception) {
+            Log.w(TAG, "updateDiscoverability failed: ${e.message}")
+            AuthResult(success = false, error = parseError(e))
+        }
+    }
+
     // ══════════════════════════════════════════════════════════════════════
     // HELPERS
     // ══════════════════════════════════════════════════════════════════════
@@ -518,7 +545,10 @@ data class UserProfile(
     val role: String = "solo",
     val trade: String? = null,
     val hourlyRate: Double = 85.0,
-    val isOffline: Boolean = false
+    val isOffline: Boolean = false,
+    val publicId: String? = null,
+    val discoverability: String = "team",
+    val orgId: String? = null,
 )
 
 @Serializable
@@ -528,7 +558,10 @@ data class ProfileRow(
     val display_name: String,
     val role: String = "solo",
     val trade: String? = null,
-    val hourly_rate: Double? = null
+    val hourly_rate: Double? = null,
+    val public_id: String? = null,
+    val discoverability: String = "team",
+    val org_id: String? = null,
 )
 
 @Serializable
@@ -537,4 +570,9 @@ data class ProfileInsert(
     val email: String,
     val display_name: String,
     val role: String = "solo"
+)
+
+@Serializable
+data class DiscoverabilityUpdate(
+    val discoverability: String,
 )

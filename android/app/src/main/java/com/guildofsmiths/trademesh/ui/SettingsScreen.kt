@@ -34,7 +34,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.ai.AIRouter
@@ -129,7 +131,16 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(16.dp))
             ConsoleSeparator()
             Spacer(modifier = Modifier.height(12.dp))
-            
+
+            // ════════════════════════════════════════════════════════════════
+            // PRIVACY — discoverability + SmithNet ID
+            // ════════════════════════════════════════════════════════════════
+            PrivacySection()
+
+            Spacer(modifier = Modifier.height(16.dp))
+            ConsoleSeparator()
+            Spacer(modifier = Modifier.height(12.dp))
+
             // ════════════════════════════════════════════════════════════════
             // WORK MODE
             // ════════════════════════════════════════════════════════════════
@@ -313,7 +324,86 @@ fun SettingsScreen(
             // ════════════════════════════════════════════════════════════════
             Text(text = "ACCOUNT", style = ConsoleTheme.captionBold)
             Spacer(modifier = Modifier.height(8.dp))
-            
+
+            // ════════════════════════════════════════════════════════════════
+            // LOCATION SHARING (GPS · clock-in validation · lost & found)
+            // ════════════════════════════════════════════════════════════════
+            val locState by com.guildofsmiths.trademesh.data.LocationSharingPreferences.state.collectAsState()
+            Text(
+                text = "LOCATION SHARING",
+                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .clickable { com.guildofsmiths.trademesh.data.LocationSharingPreferences.setEnabled(!locState.enabled) }
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = if (locState.enabled) "[✓]" else "[ ]", style = ConsoleTheme.bodyBold)
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Share my location while clocked in", style = ConsoleTheme.body)
+                    Text(
+                        "Powers clock-in geofence validation and Lost & Found.",
+                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            // Cadence picker
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                com.guildofsmiths.trademesh.data.LocationSharingPreferences.Cadence.entries.forEach { cad ->
+                    val sel = cad == locState.cadence
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(if (sel) ConsoleTheme.accent else ConsoleTheme.surface, androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
+                            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.12f), androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
+                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
+                            .clickable { com.guildofsmiths.trademesh.data.LocationSharingPreferences.setCadence(cad) }
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val short = when (cad) {
+                            com.guildofsmiths.trademesh.data.LocationSharingPreferences.Cadence.FAST -> "60s"
+                            com.guildofsmiths.trademesh.data.LocationSharingPreferences.Cadence.MEDIUM -> "5min"
+                            com.guildofsmiths.trademesh.data.LocationSharingPreferences.Cadence.MANUAL -> "Manual"
+                        }
+                        Text(short, style = ConsoleTheme.caption.copy(color = if (sel) androidx.compose.ui.graphics.Color.White else ConsoleTheme.textMuted))
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            // Forget my trail
+            val forgetScope = rememberCoroutineScope()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .clickable {
+                        forgetScope.launch {
+                            com.guildofsmiths.trademesh.data.LocationTrailRepository.forgetTrail(UserPreferences.getUserId())
+                        }
+                    }
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "[x]", style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.error))
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Forget my trail", style = ConsoleTheme.body)
+                    Text(
+                        "Deletes all GPS points stored on this device for your user ID.",
+                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                    )
+                }
+                Text(text = ">", style = ConsoleTheme.body)
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+
             // Sign Out Button
             val signOutScope = rememberCoroutineScope()
             Row(
@@ -365,6 +455,108 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// PRIVACY — discoverability + SmithNet ID
+// ════════════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun PrivacySection() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val clipboard = LocalClipboardManager.current
+    val user by SupabaseAuth.currentUser.collectAsState()
+    val offline = SupabaseAuth.isOfflineMode()
+
+    var level by remember(user?.discoverability) {
+        mutableStateOf(user?.discoverability ?: "team")
+    }
+
+    Text(text = "PRIVACY", style = ConsoleTheme.captionBold)
+    Spacer(modifier = Modifier.height(10.dp))
+
+    val publicId = user?.publicId
+    val formattedId = publicId?.let { formatPublicId(it) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(ConsoleTheme.surface)
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text("Your SmithNet ID", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+            Text(
+                text = formattedId ?: if (offline) "— (sign in to see)" else "—",
+                style = ConsoleTheme.bodyBold
+            )
+        }
+        if (formattedId != null) {
+            Text(
+                text = "[Copy]",
+                style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                modifier = Modifier
+                    .clickable {
+                        clipboard.setText(AnnotatedString(formattedId))
+                        Toast.makeText(context, "ID copied", Toast.LENGTH_SHORT).show()
+                    }
+                    .padding(8.dp)
+            )
+        }
+    }
+
+    Spacer(modifier = Modifier.height(12.dp))
+    Text("Who can find me:", style = ConsoleTheme.body)
+    Spacer(modifier = Modifier.height(6.dp))
+
+    listOf(
+        "nobody" to "Nobody — I won't appear in any search",
+        "team" to "Team only — only people in my org",
+        "anyone" to "Anyone — anyone with the app"
+    ).forEach { (value, label) ->
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = !offline && user != null) {
+                    val prior = level
+                    level = value
+                    scope.launch {
+                        val result = SupabaseAuth.updateDiscoverability(value)
+                        if (!result.success) {
+                            level = prior
+                            Toast.makeText(
+                                context,
+                                result.error ?: "Privacy update failed",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                }
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (level == value) "(•)" else "( )",
+                style = ConsoleTheme.body,
+                modifier = Modifier.width(28.dp)
+            )
+            Text(label, style = ConsoleTheme.bodySmall)
+        }
+    }
+
+    if (offline) {
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            "Offline — privacy changes sync when you reconnect.",
+            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+        )
+    }
+}
+
+private fun formatPublicId(raw: String): String {
+    val clean = raw.replace("-", "").uppercase()
+    return if (clean.length >= 8) "${clean.substring(0, 4)}-${clean.substring(4, 8)}" else clean
 }
 
 // ════════════════════════════════════════════════════════════════════════════

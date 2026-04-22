@@ -26,9 +26,13 @@ import com.guildofsmiths.trademesh.data.Colleague
 import com.guildofsmiths.trademesh.data.ColleagueRepository
 import com.guildofsmiths.trademesh.data.Peer
 import com.guildofsmiths.trademesh.data.PeerRepository
+import com.guildofsmiths.trademesh.data.ProfileDirectoryRepository
+import com.guildofsmiths.trademesh.data.ProfileRow
+import com.guildofsmiths.trademesh.data.SupabaseAuth
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
 import com.guildofsmiths.trademesh.ui.jobboard.Job
+import kotlinx.coroutines.delay
 
 /**
  * NewConversationScreen — contact picker for starting new conversations.
@@ -212,6 +216,11 @@ fun NewConversationScreen(
             onDismiss = { showAddColleagueDialog = false },
             onAdd = { name, phone, trade, note ->
                 val colleague = ColleagueRepository.add(name, phone, trade, note)
+                showAddColleagueDialog = false
+                startColleagueDM(colleague, onConversationStart)
+            },
+            onAddFromProfile = { profile, source ->
+                val colleague = ColleagueRepository.addFromProfile(profile, source)
                 showAddColleagueDialog = false
                 startColleagueDM(colleague, onConversationStart)
             }
@@ -451,23 +460,106 @@ private fun AddClientDialog(
 @Composable
 private fun AddColleagueDialog(
     onDismiss: () -> Unit,
-    onAdd: (name: String, phone: String, trade: String, note: String) -> Unit
+    onAdd: (name: String, phone: String, trade: String, note: String) -> Unit,
+    onAddFromProfile: (profile: ProfileRow, source: String) -> Unit
 ) {
+    val offline = SupabaseAuth.isOfflineMode()
+    val hasOrg = SupabaseAuth.currentUser.value?.orgId != null
+
+    var query by remember { mutableStateOf("") }
+    var manualExpanded by remember { mutableStateOf(offline) }
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var trade by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
+
+    var teammates by remember { mutableStateOf<List<ProfileRow>>(emptyList()) }
+    var results by remember { mutableStateOf<List<ProfileRow>>(emptyList()) }
+    var searching by remember { mutableStateOf(false) }
+
+    // Load teammates once when dialog opens (if we have an org and we're online).
+    LaunchedEffect(Unit) {
+        if (!offline && hasOrg) {
+            teammates = ProfileDirectoryRepository.teammates()
+        }
+    }
+
+    // Debounced search on query changes.
+    LaunchedEffect(query) {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) {
+            results = emptyList()
+            searching = false
+            return@LaunchedEffect
+        }
+        if (offline) return@LaunchedEffect
+        searching = true
+        delay(300)
+        results = ProfileDirectoryRepository.search(trimmed)
+        searching = false
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = ConsoleTheme.surface,
         title = { Text("ADD COLLEAGUE", style = ConsoleTheme.captionBold) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                DialogField("Name *", name) { name = it }
-                DialogField("Phone", phone) { phone = it }
-                DialogField("Trade", trade) { trade = it }
-                DialogField("Note", note) { note = it }
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                DialogField(
+                    label = if (offline) "Offline — use manual entry below" else "Search name or SmithNet ID",
+                    value = query,
+                    onValueChange = { if (!offline) query = it }
+                )
+
+                if (offline) {
+                    Text(
+                        text = "Search unavailable offline.",
+                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                } else if (query.isBlank() && hasOrg) {
+                    if (teammates.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("YOUR TEAM (${teammates.size})", style = ConsoleTheme.captionBold)
+                        teammates.forEach { p ->
+                            ProfileRowItem(p) { onAddFromProfile(p, "team") }
+                        }
+                    }
+                } else if (query.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    when {
+                        searching -> Text("Searching...", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                        results.isEmpty() -> Text(
+                            "No users found. They may have privacy on.",
+                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                        )
+                        else -> {
+                            Text("SEARCH RESULTS (${results.size})", style = ConsoleTheme.captionBold)
+                            results.forEach { p ->
+                                ProfileRowItem(p) { onAddFromProfile(p, "search") }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = if (manualExpanded) "── or enter manually ──" else "[+ Enter details manually]",
+                    style = ConsoleTheme.action.copy(fontSize = 11.sp),
+                    modifier = Modifier
+                        .clickable { manualExpanded = !manualExpanded }
+                        .padding(vertical = 4.dp)
+                )
+
+                if (manualExpanded) {
+                    DialogField("Name *", name) { name = it }
+                    DialogField("Phone", phone) { phone = it }
+                    DialogField("Trade", trade) { trade = it }
+                    DialogField("Note", note) { note = it }
+                }
             }
         },
         confirmButton = {
@@ -475,7 +567,9 @@ private fun AddColleagueDialog(
                 text = "[OK] ADD",
                 style = ConsoleTheme.action,
                 modifier = Modifier
-                    .clickable(enabled = name.trim().length >= 2) { onAdd(name, phone, trade, note) }
+                    .clickable(enabled = manualExpanded && name.trim().length >= 2) {
+                        onAdd(name, phone, trade, note)
+                    }
                     .padding(8.dp)
             )
         },
@@ -489,6 +583,29 @@ private fun AddColleagueDialog(
             )
         }
     )
+}
+
+@Composable
+private fun ProfileRowItem(profile: ProfileRow, onAdd: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onAdd)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(profile.display_name, style = ConsoleTheme.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val subtitle = listOfNotNull(
+                profile.trade?.takeIf { it.isNotBlank() },
+                profile.public_id?.takeIf { it.isNotBlank() }?.let { "ID $it" }
+            ).joinToString(" · ")
+            if (subtitle.isNotEmpty()) {
+                Text(subtitle, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+            }
+        }
+        Text("[+ Add]", style = ConsoleTheme.action.copy(fontSize = 11.sp))
+    }
 }
 
 @Composable
