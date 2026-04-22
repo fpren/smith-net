@@ -29,8 +29,6 @@ import com.guildofsmiths.trademesh.data.RoleContext
 import com.guildofsmiths.trademesh.data.Permission
 import com.guildofsmiths.trademesh.data.BeaconRepository
 import com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel
-import com.guildofsmiths.trademesh.service.ChatManager
-import com.guildofsmiths.trademesh.service.ConnectionMode
 
 // ════════════════════════════════════════════════════════════════════
 // DASHBOARD SCREEN — Role-Adaptive Command Surface
@@ -74,7 +72,6 @@ fun DashboardScreen(
 
     val activeJobs by viewModel.jobs.collectAsState()
     val isClockedIn by viewModel.isClockedIn
-    val connectionMode by ChatManager.connectionMode.collectAsState()
     val activeEntryInfo = remember(isClockedIn) { viewModel.getActiveEntryInfo() }
 
     // Update AI with latest jobs when they change
@@ -183,11 +180,6 @@ fun DashboardScreen(
                             ) {
                                 val clockBg = if (isClockedIn) ConsoleTheme.success.copy(alpha = 0.10f) else ConsoleTheme.surface
                                 val clockColor = if (isClockedIn) ConsoleTheme.success else ConsoleTheme.textMuted
-                                val connLabel = when (connectionMode) {
-                                    ConnectionMode.ONLINE  -> "online"
-                                    ConnectionMode.MESH    -> "mesh"
-                                    ConnectionMode.OFFLINE -> "offline"
-                                }
                                 val clockLabel = if (isClockedIn) {
                                     val elapsed = if (activeEntryInfo.second > 0) {
                                         val mins = (System.currentTimeMillis() - activeEntryInfo.second) / 60_000
@@ -198,7 +190,7 @@ fun DashboardScreen(
                                     val jobPart = if (jobName.isNotBlank()) " · $jobName" else ""
                                     "● ON CLOCK $elapsed$jobPart"
                                 } else {
-                                    "○ OFF CLOCK · $connLabel"
+                                    "○ OFF CLOCK"
                                 }
 
                                 Box(

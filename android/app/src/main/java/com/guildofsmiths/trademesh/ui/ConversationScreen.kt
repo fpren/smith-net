@@ -183,16 +183,9 @@ fun ConversationScreen(
                     )
                 }
             }
-            
-            // Online/Offline indicator
-            Text(
-                text = if (isOnline) "ONLINE" else "MESH",
-                style = ConsoleTheme.captionBold.copy(
-                    color = if (isOnline) ConsoleTheme.success else ConsoleTheme.textMuted
-                )
-            )
+
         }
-        
+
         ConsoleSeparator()
 
         ConnectionStatusBar(connectionMode)

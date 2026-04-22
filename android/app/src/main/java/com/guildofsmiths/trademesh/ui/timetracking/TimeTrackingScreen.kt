@@ -138,22 +138,13 @@ fun TimeTrackingScreen(
 
             if (isClockedIn) {
                 // Active timer with seconds
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        text = String.format("%02d:%02d", hours, minutes),
-                        style = ConsoleTheme.brand.copy(
-                            fontSize = 52.sp,
-                            color = ConsoleTheme.text
-                        )
+                Text(
+                    text = String.format("%02d:%02d:%02d", hours, minutes, seconds),
+                    style = ConsoleTheme.brand.copy(
+                        fontSize = 52.sp,
+                        color = ConsoleTheme.text
                     )
-                    Text(
-                        text = String.format(":%02d", seconds),
-                        style = ConsoleTheme.brand.copy(
-                            fontSize = 42.sp,
-                            color = ConsoleTheme.text
-                        )
-                    )
-                }
+                )
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 
