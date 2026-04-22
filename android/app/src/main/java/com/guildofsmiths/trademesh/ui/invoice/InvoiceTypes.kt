@@ -671,7 +671,7 @@ object InvoiceFormatter {
     private fun formatSoloInvoice(invoice: Invoice): String {
         val sb = StringBuilder()
         
-        sb.appendLine("GUILD OF SMITHS INVOICE – ADVANCED (AI Supervisor Report Attached)")
+        sb.appendLine("GUILD OF SMITHS INVOICE – ADVANCED (SmithAI Report Attached)")
         sb.appendLine("──────────────────────────────────────────────────────────────")
         sb.appendLine()
         sb.appendLine("Invoice #       : ${invoice.invoiceNumber}")
@@ -701,7 +701,7 @@ object InvoiceFormatter {
         sb.appendLine()
         
         // AI Supervisor Report
-        sb.appendLine("AI Supervisor Report (Generated ${shortDateFormat.format(Date())})")
+        sb.appendLine("SmithAI Report (Generated ${shortDateFormat.format(Date())})")
         sb.appendLine("──────────────────────────────────────────────────────────────")
         if (invoice.workWindow.isNotEmpty()) {
             sb.appendLine("• Job executed within scheduled window: ${invoice.workWindow}")

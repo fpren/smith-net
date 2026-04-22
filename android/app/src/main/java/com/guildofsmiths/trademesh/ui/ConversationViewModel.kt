@@ -342,7 +342,7 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
                                 beaconId = message.beaconId,
                                 channelId = message.channelId,
                                 senderId = "ai-assistant",
-                                senderName = "Smith AI",
+                                senderName = "SmithAI",
                                 content = response.text,
                                 timestamp = System.currentTimeMillis(),
                                 aiGenerated = true,

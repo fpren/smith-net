@@ -433,7 +433,7 @@ object AISupervisor {
             if (apiKey.isNotBlank() && activeJobs.size > 1) {
                 val response = OpenRouterClient.chat(
                     systemPrompt = AIPrompts.SYSTEM,
-                    userMessage = AIPrompts.checkIn(activeJobs),
+                    userMessage = AIPrompts.checkIn(activeJobs, getMode()),
                     maxTokens = 150
                 )
                 if (response != null) {
@@ -558,7 +558,20 @@ object AISupervisor {
 
         if (isClockedIn && clockInTime > 0) {
             val hoursWorked = (now - clockInTime) / 3_600_000.0
-            val minutesWorked = (now - clockInTime) / 60_000
+
+            val activeEntry = parseActiveEntry()
+            val activeJobTitle = activeEntry?.first
+
+            // Current-job status — "here's what you're working on"
+            if (hoursWorked >= 0.5) {
+                val where = activeJobTitle?.let { "on $it" } ?: "on the clock"
+                val duration = formatDuration(hoursWorked)
+                insights.add(AIInsight(
+                    type = InsightType.CHECKIN,
+                    title = "Working $where",
+                    body = "You've been $where for $duration. I'm tracking your time and watching the inbox."
+                ))
+            }
 
             // Working 4+ hours without break — lunch reminder
             if (hoursWorked >= 4.0 && hoursWorked < 4.5) {
@@ -586,9 +599,40 @@ object AISupervisor {
                     body = "You're at ${String.format("%.1f", hoursWorked)}h today — that's overtime. Make sure to bill accordingly."
                 ))
             }
+        } else {
+            // Not clocked in — nudge solo user with the most actionable open job
+            val nextJob = cachedJobs
+                .filter { it.stage != JobStage.CLOSED && it.stage != JobStage.INVOICE }
+                .minByOrNull { it.createdAt }
+            if (nextJob != null) {
+                insights.add(AIInsight(
+                    type = InsightType.CHECKIN,
+                    title = "Ready when you are, $userName",
+                    body = "Next up: ${nextJob.clientName ?: nextJob.title}. Clock in when you're on site and I'll start tracking."
+                ))
+            }
         }
 
         return insights
+    }
+
+    private fun parseActiveEntry(): Pair<String?, Long>? {
+        val json = UserPreferences.getActiveTimeEntry() ?: return null
+        return try {
+            val obj = org.json.JSONObject(json)
+            val title = obj.optString("jobTitle", "").takeIf { it.isNotBlank() }
+            val inTime = obj.optLong("clockInTime", 0L)
+            Pair(title, inTime)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun formatDuration(hours: Double): String {
+        if (hours < 1.0) return "${(hours * 60).toInt()}m"
+        val h = hours.toInt()
+        val m = ((hours - h) * 60).toInt()
+        return if (m == 0) "${h}h" else "${h}h ${m}m"
     }
 
     // ════════════════════════════════════════════════════════════════════

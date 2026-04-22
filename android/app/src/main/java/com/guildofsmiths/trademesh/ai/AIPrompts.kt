@@ -12,7 +12,7 @@ object AIPrompts {
     val SYSTEM: String get() {
         val isSolo = com.guildofsmiths.trademesh.data.RoleContext.isSolo()
         return if (isSolo) {
-            """You are SmithAI, the autonomous AI supervisor for a solo tradesperson using SmithNet. You RUN the operation. You are not an assistant that asks permission — you are the supervisor managing the business while the user works.
+            """You are SmithAI, the autonomous supervisor for a solo tradesperson using SmithNet. You RUN the operation. You are not an assistant that asks permission — you are the supervisor managing the business while the user works.
 
 YOUR ROLE:
 - You autonomously handle client communications — respond to inquiries, send updates, follow up on overdue items
@@ -20,6 +20,10 @@ YOUR ROLE:
 - You manage scheduling, dispatch, materials tracking, and job coordination on your own
 - You proactively flag issues, send reminders, and keep operations running smoothly
 - You act as if the user is unavailable (sick, busy on a job) and you're keeping the business running
+
+YOUR VISIBILITY:
+- Per-job expenses (labor, materials, other), due dates, schedule, and outstanding receivables
+- Use this context when flagging issues — cite real numbers, not guesses
 
 PERMISSION REQUIRED (always ask first):
 - Sending invoices or payment requests
@@ -35,13 +39,17 @@ NEVER ASK PERMISSION FOR:
 
 Be direct, practical, and brief. No fluff. Speak like a experienced supervisor — you own the operation."""
         } else {
-            """You are SmithAI, the autonomous AI supervisor for a construction team using SmithNet. You RUN the operation — monitoring crew, jobs, and communications. You act independently to keep things moving.
+            """You are SmithAI, the autonomous supervisor for a construction team using SmithNet. You RUN the operation — monitoring crew, jobs, and communications. You act independently to keep things moving.
 
 YOUR ROLE:
 - You monitor crew status, breaks, overtime, and check-ins autonomously
 - You respond to client and dispatch communications on behalf of the team
 - You flag issues, reassign tasks, and coordinate operations proactively
 - You manage the operation as if the foreman is busy on-site and can't check the phone
+
+YOUR VISIBILITY:
+- Per-job expenses (labor, materials, other), due dates, crew on site, and outstanding receivables
+- Use this context when flagging issues — cite real numbers, not guesses
 
 PERMISSION REQUIRED (always ask first):
 - Invoice/payment approvals
@@ -50,6 +58,85 @@ PERMISSION REQUIRED (always ask first):
 
 Be direct, practical, and brief. No fluff. Speak like an experienced foreman — you own the operation."""
         }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // CONTEXT BUILDERS — shared helpers
+    // ════════════════════════════════════════════════════════════════════
+
+    private fun laborCostFor(job: Job, since: Long, until: Long): Double {
+        val mins = com.guildofsmiths.trademesh.data.TimeEntryRepository
+            .getMinutesForJob(job.id, job.title, since, until)
+        return (mins / 60.0) * job.hourlyRate
+    }
+
+    private fun jobExpenseLine(job: Job): String {
+        val monthStart = run {
+            val cal = java.util.Calendar.getInstance()
+            cal.set(java.util.Calendar.DAY_OF_MONTH, 1)
+            cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+            cal.set(java.util.Calendar.MINUTE, 0); cal.set(java.util.Calendar.SECOND, 0)
+            cal.timeInMillis
+        }
+        val labor = laborCostFor(job, monthStart, System.currentTimeMillis())
+        val materials = job.materials.sumOf { it.totalCost }
+        val other = job.expenses.filter { it.category !in listOf("labor", "material") }.sumOf { it.totalCost }
+        val total = labor + materials + other
+        val budget = job.materials.sumOf { it.quantity * it.unitCost }
+        val pct = if (budget > 0) (total / budget * 100).toInt() else 0
+        return "Expenses: $%.0f labor + $%.0f materials + $%.0f other = $%.0f (%d%% of $%.0f budget)".format(
+            labor, materials, other, total, pct, budget
+        )
+    }
+
+    private fun dueDateLabel(dueDate: Long?): String {
+        if (dueDate == null) return "No due date"
+        val daysOut = ((dueDate - System.currentTimeMillis()) / 86_400_000).toInt()
+        val fmt = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+        val label = fmt.format(java.util.Date(dueDate))
+        return when {
+            daysOut < 0 -> "Due $label (${-daysOut}d overdue)"
+            daysOut == 0 -> "Due today ($label)"
+            else -> "Due $label (${daysOut}d out)"
+        }
+    }
+
+    private fun scheduleSummary(jobs: List<Job>): String {
+        val now = System.currentTimeMillis()
+        val startOfToday = run {
+            val cal = java.util.Calendar.getInstance()
+            cal.set(java.util.Calendar.HOUR_OF_DAY, 0); cal.set(java.util.Calendar.MINUTE, 0)
+            cal.set(java.util.Calendar.SECOND, 0); cal.set(java.util.Calendar.MILLISECOND, 0)
+            cal.timeInMillis
+        }
+        val endOfToday = startOfToday + 86_400_000
+        val endOfWeek = startOfToday + 7 * 86_400_000
+
+        val active = jobs.filter { it.stage != JobStage.CLOSED }
+        val dueToday = active.filter { it.dueDate != null && it.dueDate in startOfToday..endOfToday }
+        val dueThisWeek = active.filter { it.dueDate != null && it.dueDate in now..endOfWeek }
+        val unscheduled = active.filter { it.dueDate == null }
+
+        val today = if (dueToday.isEmpty()) "Today: no jobs due"
+            else "Today: ${dueToday.size} due (${dueToday.joinToString(", ") { it.clientName ?: it.title }})"
+        val week = "This week: ${dueThisWeek.size} due"
+        val open = if (unscheduled.isEmpty()) null
+            else "Unscheduled: ${unscheduled.size} (${unscheduled.joinToString(", ") { it.clientName ?: it.title }})"
+
+        return listOfNotNull(today, week, open).joinToString("\n")
+    }
+
+    private fun outstandingSummary(jobs: List<Job>): String {
+        val outstanding = jobs.filter { it.stage == JobStage.INVOICE }
+        if (outstanding.isEmpty()) return "Outstanding: $0 (no invoices awaiting payment)"
+        val total = outstanding.sumOf {
+            it.materials.sumOf { m -> m.totalCost } + (it.hourlyRate * 8)
+        }
+        return "Outstanding: $%.0f across %d invoices (%s)".format(
+            total,
+            outstanding.size,
+            outstanding.joinToString(", ") { it.clientName ?: it.title }
+        )
     }
 
     /**
@@ -67,17 +154,25 @@ Be direct, practical, and brief. No fluff. Speak like an experienced foreman —
 Client: ${job.clientName ?: "Unknown"}
 Site: ${job.clientAddress}
 Stage: ${job.stage.displayName}
+${dueDateLabel(job.dueDate)}
 Days active: $daysSinceCreated (last update: ${daysSinceUpdate}d ago)
 Materials: $checkedMaterials/$totalMaterials checked (${"$%.0f".format(materialsSpent)}/${"$%.0f".format(materialsBudget)})
+${jobExpenseLine(job)}
 Crew size: ${job.crewSize}
 Hourly rate: $${job.hourlyRate}/hr"""
     }
 
     /**
-     * Flag concerns across all active jobs.
+     * Flag concerns across all active jobs. Context volume scales by mode:
+     * - "auto": full payload (expenses per job, schedule, outstanding)
+     * - "semi-auto": per-job expense %, due date; no outstanding block
+     * - anything else: treat as semi-auto
      */
-    fun checkIn(jobs: List<Job>): String {
-        val jobLines = jobs.filter { it.stage != JobStage.CLOSED }.map { job ->
+    fun checkIn(jobs: List<Job>, mode: String = "semi-auto"): String {
+        val isAuto = mode == "auto"
+        val active = jobs.filter { it.stage != JobStage.CLOSED }
+
+        val jobLines = active.map { job ->
             val daysSinceUpdate = ((System.currentTimeMillis() - job.updatedAt) / 86_400_000).toInt()
             val checkedMaterials = job.materials.count { it.checked }
             val totalMaterials = job.materials.size
@@ -85,18 +180,22 @@ Hourly rate: $${job.hourlyRate}/hr"""
             val materialsSpent = job.materials.filter { it.checked }.sumOf { it.totalCost }
             val budgetPct = if (materialsBudget > 0) (materialsSpent / materialsBudget * 100).toInt() else 0
 
-            "- ${job.clientName ?: job.title}: ${job.stage.displayName}, updated ${daysSinceUpdate}d ago, materials $checkedMaterials/$totalMaterials (${budgetPct}% budget used)"
+            val base = "- ${job.clientName ?: job.title}: ${job.stage.displayName}, ${dueDateLabel(job.dueDate)}, updated ${daysSinceUpdate}d ago, materials $checkedMaterials/$totalMaterials (${budgetPct}% budget)"
+            if (isAuto) "$base\n  ${jobExpenseLine(job)}" else base
         }.joinToString("\n")
+
+        val scheduleBlock = if (isAuto) "\n\nSchedule:\n${scheduleSummary(jobs)}" else ""
+        val outstandingBlock = if (isAuto) "\n\n${outstandingSummary(jobs)}" else ""
 
         val isSolo = com.guildofsmiths.trademesh.data.RoleContext.isSolo()
         val prompt = if (isSolo) {
-            "Review your active jobs and flag anything that needs your attention. Only flag real issues — jobs with no progress in 2+ days, budget concerns (80%+ materials spent), or missing materials. Max 3 bullet points. If everything looks fine, say so."
+            "Review your active jobs and flag anything that needs your attention. Only flag real issues — jobs with no progress in 2+ days, budget concerns (80%+ spent or materials missing), overdue or imminently-due work, or outstanding receivables worth chasing. Max 3 bullet points. If everything looks fine, say so."
         } else {
-            "Review these active jobs and flag anything that needs attention. Only flag real issues — stale jobs (no update 2+ days), budget concerns (80%+ spent), or missing materials. Max 3 bullet points. If everything looks fine, say so."
+            "Review these active jobs and flag anything that needs attention. Only flag real issues — stale jobs (no update 2+ days), budget concerns (80%+ spent), missing materials, overdue work, or outstanding receivables. Max 3 bullet points. If everything looks fine, say so."
         }
         return """$prompt
 
-$jobLines"""
+$jobLines$scheduleBlock$outstandingBlock"""
     }
 
     /**

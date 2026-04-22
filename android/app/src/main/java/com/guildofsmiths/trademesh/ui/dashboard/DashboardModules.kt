@@ -1055,7 +1055,7 @@ fun AIInboxModule() {
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("(◈)", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.accent))
-                Text("AI INSIGHTS", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+                Text("SMITHAI", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
             }
             if (isProcessing) {
                 Text("analyzing...", style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent))
