@@ -23,7 +23,14 @@ data class CrewPresenceInfo(
     val phone: String? = null,
     val lastSeen: Long = System.currentTimeMillis(),
     val taskDescription: String? = null,
-    val taskProgress: Int? = null  // 0-100
+    val taskProgress: Int? = null,  // 0-100
+    // Live GPS location — null when sharing is off or no fix yet.
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val accuracyMeters: Float? = null,
+    val lastLocationUpdate: Long? = null,
+    val locationSharingEnabled: Boolean = true,
+    val batteryPct: Int? = null
 )
 
 /**
@@ -39,14 +46,17 @@ object CrewPresenceRepository {
         seedMockCrew()
     }
 
-    fun getActiveCount(): Int = _crew.value.count { it.status == ClockStatus.ON_CLOCK }
-    fun getTotalCount(): Int = _crew.value.size
+    private fun crewList(): List<CrewPresenceInfo> =
+        if (com.guildofsmiths.trademesh.data.RoleContext.isSolo()) emptyList() else _crew.value
+
+    fun getActiveCount(): Int = crewList().count { it.status == ClockStatus.ON_CLOCK }
+    fun getTotalCount(): Int = crewList().size
 
     fun getCrewAtSite(site: String): List<CrewPresenceInfo> =
-        _crew.value.filter { it.currentSite?.equals(site, ignoreCase = true) == true }
+        crewList().filter { it.currentSite?.equals(site, ignoreCase = true) == true }
 
     fun getCrewBySite(): Map<String, List<CrewPresenceInfo>> =
-        _crew.value
+        crewList()
             .filter { it.currentSite != null }
             .groupBy { it.currentSite!! }
 
@@ -63,22 +73,22 @@ object CrewPresenceRepository {
                 lastSeen = System.currentTimeMillis()
             )
         ) else emptyList()
-        return aiEntry + _crew.value
+        return aiEntry + crewList()
     }
 
-    fun getCrew(): List<CrewPresenceInfo> = _crew.value
+    fun getCrew(): List<CrewPresenceInfo> = crewList()
 
-    fun getCrewById(id: String): CrewPresenceInfo? = _crew.value.find { it.id == id }
+    fun getCrewById(id: String): CrewPresenceInfo? = crewList().find { it.id == id }
 
-    fun getCrewByUserId(userId: String): CrewPresenceInfo? = _crew.value.find { it.userId == userId }
+    fun getCrewByUserId(userId: String): CrewPresenceInfo? = crewList().find { it.userId == userId }
 
-    fun getCrewByName(name: String): CrewPresenceInfo? = _crew.value.find { it.name == name }
+    fun getCrewByName(name: String): CrewPresenceInfo? = crewList().find { it.name == name }
 
     fun getOnClockCrew(): List<CrewPresenceInfo> =
-        _crew.value.filter { it.status == ClockStatus.ON_CLOCK }
+        crewList().filter { it.status == ClockStatus.ON_CLOCK }
 
     fun getOffClockCrew(): List<CrewPresenceInfo> =
-        _crew.value.filter { it.status != ClockStatus.ON_CLOCK }
+        crewList().filter { it.status != ClockStatus.ON_CLOCK }
 
     private fun seedMockCrew() {
         val now = System.currentTimeMillis()
@@ -154,5 +164,43 @@ object CrewPresenceRepository {
                 taskProgress = 80
             )
         )
+    }
+
+    /**
+     * Upsert a live location fix for [userId]. Called by LocationService locally
+     * and by the mesh beacon receiver for remote crew.
+     */
+    fun upsertLocation(
+        userId: String,
+        latitude: Double,
+        longitude: Double,
+        accuracyMeters: Float?,
+        timestamp: Long = System.currentTimeMillis(),
+        batteryPct: Int? = null
+    ) {
+        val list = _crew.value.toMutableList()
+        val idx = list.indexOfFirst { it.userId == userId }
+        if (idx >= 0) {
+            list[idx] = list[idx].copy(
+                latitude = latitude,
+                longitude = longitude,
+                accuracyMeters = accuracyMeters,
+                lastLocationUpdate = timestamp,
+                batteryPct = batteryPct ?: list[idx].batteryPct,
+                lastSeen = timestamp
+            )
+            _crew.value = list
+        }
+    }
+
+    /** Turn on/off location sharing for [userId] — affects how the crew sees them on the map. */
+    fun setLocationSharing(userId: String, enabled: Boolean) {
+        _crew.value = _crew.value.map {
+            if (it.userId == userId) it.copy(
+                locationSharingEnabled = enabled,
+                latitude = if (enabled) it.latitude else null,
+                longitude = if (enabled) it.longitude else null
+            ) else it
+        }
     }
 }

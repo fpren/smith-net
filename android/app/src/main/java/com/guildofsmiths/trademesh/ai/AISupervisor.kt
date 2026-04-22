@@ -88,6 +88,63 @@ object AISupervisor {
 
     fun getMode(): String = UserPreferences.getAISupervisorMode()
 
+    /**
+     * Best-effort price estimate for an expense line. Offline-first — uses a
+     * rough heuristic based on category, unit, and description keywords.
+     * Returns null if no confident guess is available; callers should leave
+     * the field blank in that case.
+     *
+     * This is intentionally a simple heuristic today. It can be swapped for
+     * the on-device Llama module (see android/app/src/main/cpp/llama_jni.cpp)
+     * once the supervisor has a text-generation pipeline wired up.
+     */
+    fun estimateItemPrice(
+        description: String,
+        categoryId: String,
+        unit: String,
+        vendor: String = ""
+    ): Double? {
+        if (getMode() == "off") return null
+        val d = description.lowercase()
+        val cat = categoryId.lowercase()
+
+        // Category-based defaults (rough US contractor ballpark, late-2020s pricing).
+        val base: Double? = when (cat) {
+            "fuel"             -> 3.85           // $/gal
+            "mileage"          -> 0.67           // $/mi (IRS std)
+            "disposal"         -> 40.0           // $/ticket
+            "permit_fee"       -> 150.0          // typical small residential permit
+            "equipment_rental" -> 75.0           // $/day small tool
+            "tool_charge"      -> 25.0           // $/hr of tool use
+            "subcontractor"    -> 500.0          // $/lot — wildly variable, just a placeholder
+            "callback"         -> 75.0           // $/hr revisit
+            "material" -> when {
+                Regex("\\b(romex|14/2|12/2|10/2|wire|cable)\\b").containsMatchIn(d) -> 75.0
+                Regex("\\b(breaker|panel|200a|100a)\\b").containsMatchIn(d)        -> 200.0
+                Regex("\\b(outlet|receptacle|switch)\\b").containsMatchIn(d)       -> 4.0
+                Regex("\\b(pipe|conduit|emt|pvc)\\b").containsMatchIn(d)           -> 12.0
+                Regex("\\b(fitting|coupling|elbow)\\b").containsMatchIn(d)         -> 3.0
+                Regex("\\b(drywall|sheetrock)\\b").containsMatchIn(d)              -> 15.0
+                Regex("\\b(paint|primer)\\b").containsMatchIn(d)                   -> 45.0
+                Regex("\\b(2x4|2x6|lumber|stud)\\b").containsMatchIn(d)            -> 6.0
+                Regex("\\b(screw|nail|fastener)\\b").containsMatchIn(d)            -> 8.0
+                else -> null
+            }
+            "labor" -> null  // labor rate comes from Job.hourlyRate, not estimation
+            else -> null
+        }
+
+        // Unit sanity adjustment: if we guessed a per-unit price but the row
+        // says "lot" or "job", bump by 10x so a 100ft spool of Romex doesn't
+        // get priced at a single foot.
+        return base?.let {
+            when (unit.lowercase()) {
+                "lot", "job", "roll", "box", "case" -> it * 10
+                else -> it
+            }
+        }
+    }
+
     fun isEnabled(): Boolean = getMode() != "off"
 
     // ════════════════════════════════════════════════════════════════════
@@ -506,7 +563,7 @@ object AISupervisor {
             // Working 4+ hours without break — lunch reminder
             if (hoursWorked >= 4.0 && hoursWorked < 4.5) {
                 insights.add(AIInsight(
-                    type = InsightType.CREW,
+                    type = InsightType.CHECKIN,
                     title = "Lunch break",
                     body = "You've been on the clock for ${String.format("%.0f", hoursWorked)}h. Time to take a lunch break — I'll keep an eye on things."
                 ))
@@ -515,7 +572,7 @@ object AISupervisor {
             // Working 8+ hours — end of day reminder
             if (hoursWorked >= 8.0 && hoursWorked < 8.5) {
                 insights.add(AIInsight(
-                    type = InsightType.CREW,
+                    type = InsightType.CHECKIN,
                     title = "End of day",
                     body = "You've been working ${String.format("%.1f", hoursWorked)}h today. Consider wrapping up — I'll handle any client messages that come in."
                 ))
@@ -768,6 +825,13 @@ object AISupervisor {
     // ════════════════════════════════════════════════════════════════════
 
     private fun deliverInsight(insight: AIInsight) {
+        // Hard guard: solo users have no crew, so never deliver crew insights
+        // (even if a generator somewhere leaks one through).
+        if (insight.type == InsightType.CREW &&
+            com.guildofsmiths.trademesh.data.RoleContext.isSolo()) {
+            return
+        }
+
         val mode = getMode()
         if (mode == "auto") {
             // Don't duplicate — check by title + type
