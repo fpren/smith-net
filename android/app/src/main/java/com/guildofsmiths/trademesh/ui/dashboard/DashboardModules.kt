@@ -1228,41 +1228,43 @@ fun getQuickActions(
     onComm: () -> Unit,
     onJobBoard: () -> Unit,
     onDispatch: () -> Unit = {},
+    onExpenses: () -> Unit = {},
+    onMap: () -> Unit = {},
 ): List<QuickActionItem> = when (role) {
     com.guildofsmiths.trademesh.data.UserRole.SOLO -> listOf(
         QuickActionItem("[Report]", onReport),
         QuickActionItem("[Supply]", onSupply),
-        QuickActionItem("[Archive]", onArchive),
         QuickActionItem("[Clients]", onClients),
+        QuickActionItem("[Archive]", onArchive),
     )
     com.guildofsmiths.trademesh.data.UserRole.TEAM_MEMBER -> listOf(
-        QuickActionItem("[Clock In]", onClockIn),
-        QuickActionItem("[Messages]", onComm),
-        QuickActionItem("[Supply]", onSupply),
         QuickActionItem("[Report]", onReport),
+        QuickActionItem("[Supply]", onSupply),
+        QuickActionItem("[Archive]", onArchive),
+        QuickActionItem("[Map]", onMap),
     )
     com.guildofsmiths.trademesh.data.UserRole.TEAM_LEAD -> listOf(
-        QuickActionItem("[Crew]", onComm),
+        QuickActionItem("[Report]", onReport),
+        QuickActionItem("[Supply]", onSupply),
+        QuickActionItem("[Clients]", onClients),
+        QuickActionItem("[Archive]", onArchive),
+    )
+    com.guildofsmiths.trademesh.data.UserRole.FOREMAN -> listOf(
+        QuickActionItem("[Jobs]", onJobBoard),
         QuickActionItem("[Report]", onReport),
         QuickActionItem("[Supply]", onSupply),
         QuickActionItem("[Clients]", onClients),
     )
-    com.guildofsmiths.trademesh.data.UserRole.FOREMAN -> listOf(
-        QuickActionItem("[Dispatch]", onDispatch),
-        QuickActionItem("[Crew]", onComm),
-        QuickActionItem("[Report]", onReport),
-        QuickActionItem("[Supply]", onSupply),
-    )
     com.guildofsmiths.trademesh.data.UserRole.GENERAL_CONTRACTOR -> listOf(
-        QuickActionItem("[Sites]", onJobBoard),
-        QuickActionItem("[Subs]", onClients),
+        QuickActionItem("[Dispatch]", onDispatch),
         QuickActionItem("[Report]", onReport),
-        QuickActionItem("[Contracts]", onArchive),
+        QuickActionItem("[Clients]", onClients),
+        QuickActionItem("[Archive]", onArchive),
     )
     else -> listOf(
         QuickActionItem("[Report]", onReport),
         QuickActionItem("[Supply]", onSupply),
-        QuickActionItem("[Archive]", onArchive),
         QuickActionItem("[Clients]", onClients),
+        QuickActionItem("[Archive]", onArchive),
     )
 }

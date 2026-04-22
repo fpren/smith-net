@@ -53,6 +53,9 @@ val ROLE_PERMISSIONS: Map<UserRole, Set<Permission>> = mapOf(
         Permission.SEND_MEDIA,
         Permission.USE_MESH,
         Permission.MANAGE_JOBS,
+        Permission.VIEW_FINANCIALS,
+        Permission.VIEW_REPORTS,
+        Permission.VIEW_ALL_JOBS,
     ),
     UserRole.TEAM_MEMBER to setOf(
         Permission.SEND_MESSAGE,

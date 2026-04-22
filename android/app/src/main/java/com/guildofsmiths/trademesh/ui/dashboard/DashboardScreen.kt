@@ -53,6 +53,7 @@ fun DashboardScreen(
     onSupply: () -> Unit = {},
     onClients: () -> Unit = {},
     onMap: () -> Unit = {},
+    onExpenses: () -> Unit = {},
     viewModel: DashboardViewModel = viewModel()
 ) {
     LaunchedEffect(jobs) {
@@ -132,6 +133,8 @@ fun DashboardScreen(
         onComm = onComm,
         onJobBoard = onJobBoard,
         onDispatch = onDispatch,
+        onExpenses = onExpenses,
+        onMap = onMap,
     )
 
     Column(
