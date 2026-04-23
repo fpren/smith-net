@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
@@ -57,6 +58,7 @@ import com.guildofsmiths.trademesh.data.ChannelType
 import com.guildofsmiths.trademesh.data.DeliveryStatus
 import com.guildofsmiths.trademesh.data.MediaType
 import com.guildofsmiths.trademesh.data.Message
+import com.guildofsmiths.trademesh.data.MessageRepository
 import com.guildofsmiths.trademesh.data.Peer
 import com.guildofsmiths.trademesh.data.PeerRepository
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
@@ -144,6 +146,10 @@ fun ConversationScreen(
     
     // Check if this is a DM channel
     val isDmChannel = channel?.id?.startsWith("dm_") == true
+
+    // Channel-options overflow menu + clear confirmation
+    var menuExpanded by remember { mutableStateOf(false) }
+    var showClearDialog by remember { mutableStateOf(false) }
     
     Column(
         modifier = modifier
@@ -193,6 +199,34 @@ fun ConversationScreen(
                 }
             }
 
+            if (channel != null) {
+                Box {
+                    Text(
+                        text = "⋯",
+                        style = ConsoleTheme.title.copy(color = ConsoleTheme.textMuted),
+                        modifier = Modifier
+                            .clickable { menuExpanded = true }
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = "Clear messages (this device)",
+                                    style = ConsoleTheme.bodySmall
+                                )
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                showClearDialog = true
+                            }
+                        )
+                    }
+                }
+            }
         }
 
         ConsoleSeparator()
@@ -700,6 +734,47 @@ fun ConversationScreen(
                 )
             }
         }
+    }
+
+    if (showClearDialog && channel != null) {
+        val channelLabel = if (channel.type == ChannelType.DM) "this DM" else "#${channel.name}"
+        AlertDialog(
+            onDismissRequest = { showClearDialog = false },
+            title = {
+                Text(
+                    text = "Clear messages on this device?",
+                    style = ConsoleTheme.bodyBold
+                )
+            },
+            text = {
+                Text(
+                    text = "Removes every message in $channelLabel from this device. Cloud history stays. New messages will still arrive.",
+                    style = ConsoleTheme.bodySmall
+                )
+            },
+            confirmButton = {
+                Text(
+                    text = "[CLEAR]",
+                    style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                    modifier = Modifier
+                        .clickable {
+                            MessageRepository.clearChannel(channel.beaconId, channel.id)
+                            showClearDialog = false
+                        }
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                )
+            },
+            dismissButton = {
+                Text(
+                    text = "[CANCEL]",
+                    style = ConsoleTheme.action,
+                    modifier = Modifier
+                        .clickable { showClearDialog = false }
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                )
+            },
+            containerColor = ConsoleTheme.surface
+        )
     }
 }
 
