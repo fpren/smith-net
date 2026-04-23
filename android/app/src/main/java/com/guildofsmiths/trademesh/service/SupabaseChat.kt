@@ -10,10 +10,15 @@ import com.guildofsmiths.trademesh.data.SupabaseAuth
 import com.guildofsmiths.trademesh.data.UserPreferences
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.realtime.RealtimeChannel
+import io.github.jan.supabase.realtime.broadcastFlow
 import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
 import io.github.jan.supabase.realtime.PostgresAction
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import io.github.jan.supabase.storage.storage
 import io.github.jan.supabase.storage.upload
 import android.content.Context
@@ -144,7 +149,92 @@ object SupabaseChat {
         val createdAt: Long,
         val persistence: String = "persistent"
     )
-    
+
+    // ════════════════════════════════════════════════════════════════════
+    // EPHEMERAL BROADCAST (Bitchat-style, no cloud row)
+    // ════════════════════════════════════════════════════════════════════
+
+    /** On-the-wire payload for ephemeral broadcasts. Kept minimal on purpose — */
+    /** ephemeral channels don't support media or rich metadata yet.           */
+    @kotlinx.serialization.Serializable
+    private data class EphemeralPayload(
+        val channelId: String,
+        val messageId: String,
+        val senderId: String,
+        val senderName: String,
+        val content: String,
+        val timestamp: Long,
+        val beaconId: String = "default"
+    )
+
+    private const val EPHEMERAL_TOPIC = "ephemeral-broadcast"
+    private const val EPHEMERAL_EVENT = "msg"
+    private var ephemeralChannel: RealtimeChannel? = null
+    private val ephemeralJson = Json { ignoreUnknownKeys = true }
+
+    /**
+     * Join the shared ephemeral broadcast topic. Called once during setupChannels.
+     * All ephemeral messages for every channel flow through this one Realtime topic;
+     * per-message routing happens off the channelId inside the payload.
+     */
+    private suspend fun setupEphemeralChannel(client: io.github.jan.supabase.SupabaseClient) {
+        if (ephemeralChannel != null) return
+        try {
+            val ch = client.realtime.channel(EPHEMERAL_TOPIC)
+            ephemeralChannel = ch
+
+            val myId = UserPreferences.getUserId()
+            ch.broadcastFlow<EphemeralPayload>(event = EPHEMERAL_EVENT)
+                .onEach { payload ->
+                    // Skip our own echo — we already added the message locally on send.
+                    if (payload.senderId == myId) return@onEach
+                    val msg = Message(
+                        id = payload.messageId,
+                        beaconId = payload.beaconId,
+                        channelId = payload.channelId,
+                        senderId = payload.senderId,
+                        senderName = payload.senderName,
+                        content = payload.content,
+                        timestamp = payload.timestamp
+                    )
+                    MessageRepository.addMessage(msg)
+                }
+                .launchIn(scope)
+
+            ch.subscribe(blockUntilSubscribed = true)
+            Log.i(TAG, "🌊 Ephemeral broadcast channel subscribed")
+        } catch (e: Exception) {
+            Log.w(TAG, "setupEphemeralChannel failed: ${e.message}")
+            ephemeralChannel = null
+        }
+    }
+
+    /**
+     * Fan out a message to every subscriber currently joined to the ephemeral topic.
+     * No DB write, no persistence — if the recipient isn't connected, they never see it.
+     */
+    suspend fun broadcastEphemeral(message: Message) {
+        val client = SupabaseAuth.client ?: return
+        setupEphemeralChannel(client)
+        val ch = ephemeralChannel ?: return
+        try {
+            val payload = EphemeralPayload(
+                channelId = message.channelId,
+                messageId = message.id,
+                senderId = message.senderId,
+                senderName = message.senderName,
+                content = message.content,
+                timestamp = message.timestamp,
+                beaconId = message.beaconId.ifEmpty { "default" }
+            )
+            val jsonObj = ephemeralJson.encodeToJsonElement(EphemeralPayload.serializer(), payload) as JsonObject
+            ch.broadcast(EPHEMERAL_EVENT, jsonObj)
+            Log.d(TAG, "🌊 Ephemeral broadcast sent: ${message.id.take(8)} → #${message.channelId}")
+        } catch (e: Exception) {
+            Log.w(TAG, "broadcastEphemeral failed: ${e.message}")
+        }
+    }
+
     // ════════════════════════════════════════════════════════════════════
     // CONNECTION
     // ════════════════════════════════════════════════════════════════════
@@ -337,7 +427,10 @@ object SupabaseChat {
                 
                 // Load current online users
                 loadOnlineUsers()
-                
+
+                // Join the ephemeral broadcast topic for Bitchat-style channels
+                setupEphemeralChannel(client)
+
             } catch (e: Exception) {
             Log.e(TAG, "Failed to setup channels", e)
         }
@@ -361,6 +454,8 @@ object SupabaseChat {
                 // Unsubscribe from channels
                 messagesChannel?.unsubscribe()
                 presenceChannel?.unsubscribe()
+                ephemeralChannel?.unsubscribe()
+                ephemeralChannel = null
                 
                 messagesChannel = null
                 presenceChannel = null

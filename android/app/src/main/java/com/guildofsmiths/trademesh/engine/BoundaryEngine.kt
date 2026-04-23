@@ -567,9 +567,26 @@ object BoundaryEngine {
     
     /**
      * Route message via IP chat path.
-     * Uses Supabase Realtime for global connectivity.
+     * PERSISTENT channels: WS relay + Supabase insert (history preserved).
+     * EPHEMERAL channels: Supabase Realtime broadcast only — no cloud row, no
+     * relay persistence. If a subscriber isn't connected right now, they miss it.
      */
     private fun routeViaChat(message: Message) {
+        val channel = com.guildofsmiths.trademesh.data.BeaconRepository
+            .getChannel("default", message.channelId)
+        val isEphemeral = channel?.persistence ==
+            com.guildofsmiths.trademesh.data.ChannelPersistence.EPHEMERAL
+
+        if (isEphemeral) {
+            Log.d(TAG, "Routing via ephemeral broadcast: ${message.id.take(8)}...")
+            if (com.guildofsmiths.trademesh.BuildConfig.SUPABASE_ENABLED) {
+                messageBusScope.launch {
+                    com.guildofsmiths.trademesh.service.SupabaseChat.broadcastEphemeral(message)
+                }
+            }
+            return
+        }
+
         Log.d(TAG, "Routing via chat: ${message.id.take(8)}...")
         // Primary path: Hetzner relay via ChatManager (WS).
         ChatManager.sendMessage(message)
@@ -661,10 +678,14 @@ object BoundaryEngine {
             syncMeshMessagesToChat()
             syncQueuedMedia(context)
 
-            // Trigger MessageBus reconciliation for all active channels
+            // Trigger MessageBus reconciliation for all active channels.
+            // Ephemeral channels are skipped — there's nothing on the server to pull.
             reconciliationEngine?.let { engine ->
-                val activeChannelIds = channelMembership.values.toList()
-                Log.i(TAG, "Reconciling ${activeChannelIds.size} channels via MessageBus")
+                val activeChannelIds = channelMembership.values.toList().filter { id ->
+                    val ch = com.guildofsmiths.trademesh.data.BeaconRepository.getChannel("default", id)
+                    ch?.persistence != com.guildofsmiths.trademesh.data.ChannelPersistence.EPHEMERAL
+                }
+                Log.i(TAG, "Reconciling ${activeChannelIds.size} persistent channels via MessageBus")
                 messageBusScope.launch {
                     for (channelId in activeChannelIds) {
                         try {
@@ -689,6 +710,10 @@ object BoundaryEngine {
     fun reconcileOnAuth() {
         reconciliationEngine?.let { engine ->
             val channelIds = channelMembership.values.toList().ifEmpty { listOf("general") }
+                .filter { id ->
+                    val ch = com.guildofsmiths.trademesh.data.BeaconRepository.getChannel("default", id)
+                    ch?.persistence != com.guildofsmiths.trademesh.data.ChannelPersistence.EPHEMERAL
+                }
             messageBusScope.launch {
                 for (channelId in channelIds) {
                     try { engine.reconcileChannel(channelId) }
