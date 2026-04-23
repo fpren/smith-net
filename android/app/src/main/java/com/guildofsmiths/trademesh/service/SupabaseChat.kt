@@ -1105,11 +1105,13 @@ object SupabaseChat {
             available.forEach { ch ->
                 Log.d(TAG, "   - #${ch.name} (${ch.id})")
 
-                // Check if channel already exists locally
-                if (com.guildofsmiths.trademesh.data.BeaconRepository.getChannel("default", ch.id) == null) {
-                    // Add to local repository
+                // Any server-side row named "general" maps to the canonical local id,
+                // so UUID-keyed duplicates collapse into a single #general.
+                val localId = if (ch.name.equals("general", ignoreCase = true)) "general" else ch.id
+
+                if (com.guildofsmiths.trademesh.data.BeaconRepository.getChannel("default", localId) == null) {
                     val localChannel = com.guildofsmiths.trademesh.data.Channel(
-                        id = ch.id,
+                        id = localId,
                         beaconId = "default",
                         name = ch.name,
                         type = when (ch.type) {
@@ -1123,8 +1125,7 @@ object SupabaseChat {
                     com.guildofsmiths.trademesh.data.BeaconRepository.addChannel("default", localChannel)
                     Log.i(TAG, "   ✅ Added Supabase channel locally: #${ch.name}")
 
-                    // Also join the channel for message routing
-                    com.guildofsmiths.trademesh.engine.BoundaryEngine.joinChannel(ch.id)
+                    com.guildofsmiths.trademesh.engine.BoundaryEngine.joinChannel(localId)
                 }
             }
 

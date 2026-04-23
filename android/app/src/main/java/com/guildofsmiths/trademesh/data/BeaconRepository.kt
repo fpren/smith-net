@@ -65,18 +65,27 @@ object BeaconRepository {
                 type = ChannelType.BROADCAST
             ))
             
+            var droppedDuplicateGenerals = 0
             for (i in 0 until channelsArray.length()) {
                 val channelJson = channelsArray.getJSONObject(i)
                 val channelId = channelJson.getString("id")
-                
+                val channelName = channelJson.getString("name")
+
                 // Skip general (already added) and deleted channels
                 if (channelId == "general") continue
                 if (channelJson.optBoolean("isDeleted", false)) continue
-                
+
+                // Drop stale duplicates: any row named "general" with a non-canonical id
+                // came from an older sync path that keyed on the server's UUID.
+                if (channelName.equals("general", ignoreCase = true)) {
+                    droppedDuplicateGenerals++
+                    continue
+                }
+
                 val channel = Channel(
                     id = channelId,
                     beaconId = channelJson.optString("beaconId", "default"),
-                    name = channelJson.getString("name"),
+                    name = channelName,
                     type = ChannelType.valueOf(channelJson.optString("type", "GROUP").uppercase()),
                     creatorId = channelJson.optString("creatorId", ""),
                     createdAt = channelJson.optLong("createdAt", System.currentTimeMillis()),
@@ -85,6 +94,9 @@ object BeaconRepository {
                 )
                 loadedChannels.add(channel)
                 Log.d(TAG, "   Loaded channel: #${channel.name} (${channel.id})")
+            }
+            if (droppedDuplicateGenerals > 0) {
+                Log.i(TAG, "🧹 Swept $droppedDuplicateGenerals duplicate #general row(s) from storage")
             }
             
             // Update beacons with loaded channels
@@ -99,7 +111,10 @@ object BeaconRepository {
             )
             
             Log.i(TAG, "📂 Loaded ${loadedChannels.size} channels from storage")
-            
+
+            // Persist the sweep so duplicates don't reappear on next load.
+            if (droppedDuplicateGenerals > 0) saveChannels()
+
         } catch (e: Exception) {
             Log.e(TAG, "Failed to load saved channels", e)
         }
