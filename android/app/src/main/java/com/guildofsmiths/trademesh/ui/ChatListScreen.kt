@@ -59,6 +59,7 @@ import com.guildofsmiths.trademesh.data.ColleagueRepository
 import com.guildofsmiths.trademesh.data.PeerRepository
 import com.guildofsmiths.trademesh.data.SupabaseAuth
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
+import com.guildofsmiths.trademesh.service.SupabaseChat
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -89,7 +90,11 @@ fun ChatListScreen(
 ) {
     val beacons by BeaconRepository.beacons.collectAsState()
     val isMeshConnected by BoundaryEngine.isMeshConnected.collectAsState()
-    val isOnline by BoundaryEngine.isOnline.collectAsState()
+    val isNetOnline by BoundaryEngine.isOnline.collectAsState()
+    val isChatConnected by SupabaseChat.isConnected.collectAsState()
+    // Either signal counts as online — chat-level connectivity is the ground truth
+    // the user cares about; Android's NET_CAPABILITY_INTERNET can lag or miss events.
+    val isOnline = isNetOnline || isChatConnected
     val currentUser by SupabaseAuth.currentUser.collectAsState()
     val currentUserId = currentUser?.id ?: ""
     val scope = rememberCoroutineScope()
