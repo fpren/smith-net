@@ -2,11 +2,15 @@ package com.guildofsmiths.trademesh.ui
 
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +20,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,22 +28,27 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.guildofsmiths.trademesh.data.BeaconRepository
@@ -47,10 +57,13 @@ import com.guildofsmiths.trademesh.data.ChannelType
 import com.guildofsmiths.trademesh.data.ClientRepository
 import com.guildofsmiths.trademesh.data.ColleagueRepository
 import com.guildofsmiths.trademesh.data.PeerRepository
+import com.guildofsmiths.trademesh.data.SupabaseAuth
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 
 // ═════════════════════════════════════════════════════════════════════
 // CONTACT ROLE — categorizes each conversation
@@ -77,7 +90,11 @@ fun ChatListScreen(
     val beacons by BeaconRepository.beacons.collectAsState()
     val isMeshConnected by BoundaryEngine.isMeshConnected.collectAsState()
     val isOnline by BoundaryEngine.isOnline.collectAsState()
+    val currentUser by SupabaseAuth.currentUser.collectAsState()
+    val currentUserId = currentUser?.id ?: ""
+    val scope = rememberCoroutineScope()
     var selectedTab by remember { mutableStateOf(CommTab.ALL) }
+    var channelToDelete by remember { mutableStateOf<Pair<String, Channel>?>(null) }
 
     // Flatten all visible channels across all beacons, sorted by most recent message
     val allChannels: List<Pair<String, Channel>> = remember(beacons) {
@@ -206,11 +223,16 @@ fun ChatListScreen(
                         filteredChannels,
                         key = { (beaconId, ch, _) -> "$beaconId:${ch.id}" }
                     ) { (beaconId, channel, _) ->
-                        ChatRow(
+                        SwipeableChatRow(
                             channel = channel,
+                            isOwner = channel.isOwner(currentUserId),
+                            isArchived = channel.isArchived,
                             isTyping = typingState[channel.id] == true,
                             isMeshConnected = isMeshConnected,
-                            onClick = { onChannelClick(beaconId, channel.id) }
+                            onClick = { onChannelClick(beaconId, channel.id) },
+                            onArchive = { BeaconRepository.archiveChannel(beaconId, channel.id, currentUserId) },
+                            onUnarchive = { BeaconRepository.unarchiveChannel(beaconId, channel.id, currentUserId) },
+                            onDelete = { channelToDelete = beaconId to channel }
                         )
                         ConsoleSeparator()
                     }
@@ -218,6 +240,59 @@ fun ChatListScreen(
             }
         }
     }
+
+    channelToDelete?.let { (beaconId, channel) ->
+        DeleteChatDialog(
+            channel = channel,
+            onConfirm = {
+                scope.launch {
+                    BeaconRepository.deleteChannel(beaconId, channel.id, currentUserId)
+                    BoundaryEngine.broadcastChannelDeletion(channel.id, channel.name)
+                }
+                channelToDelete = null
+            },
+            onDismiss = { channelToDelete = null }
+        )
+    }
+}
+
+@Composable
+private fun DeleteChatDialog(
+    channel: Channel,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val isDm = channel.type == ChannelType.DM
+    val title = if (isDm) "Hide DM?" else "Delete #${channel.name}?"
+    val body = if (isDm) {
+        "Hides this DM from your list. The other participant keeps their copy."
+    } else {
+        "Deletes the channel and all its messages. This cannot be undone."
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title, style = ConsoleTheme.bodyBold) },
+        text = { Text(body, style = ConsoleTheme.bodySmall) },
+        confirmButton = {
+            Text(
+                text = if (isDm) "[HIDE]" else "[DELETE]",
+                style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                modifier = Modifier
+                    .clickable(onClick = onConfirm)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            )
+        },
+        dismissButton = {
+            Text(
+                text = "[CANCEL]",
+                style = ConsoleTheme.action,
+                modifier = Modifier
+                    .clickable(onClick = onDismiss)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            )
+        },
+        containerColor = ConsoleTheme.surface
+    )
 }
 
 // ═════════════════════════════════════════════════════════════════════
@@ -461,6 +536,103 @@ private fun MeshBar(peerCount: Int, onClick: () -> Unit) {
 // ═════════════════════════════════════════════════════════════════════
 // CHAT ROW
 // ═════════════════════════════════════════════════════════════════════
+
+/**
+ * Wraps ChatRow in a horizontal swipe gesture. Swipe right reveals DELETE,
+ * swipe left reveals ARCHIVE/RESTORE. `#general` has no swipe (system channel).
+ * DELETE is suppressed for non-owners on non-DM channels (only owners + DM peers
+ * can dismiss a conversation). ARCHIVE always available — it's local-only.
+ */
+@Composable
+private fun SwipeableChatRow(
+    channel: Channel,
+    isOwner: Boolean,
+    isArchived: Boolean,
+    isTyping: Boolean,
+    isMeshConnected: Boolean,
+    onClick: () -> Unit,
+    onArchive: () -> Unit,
+    onUnarchive: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val canSwipe = channel.id != "general"
+    val canDelete = channel.type == ChannelType.DM || isOwner
+
+    var offsetX by remember { mutableFloatStateOf(0f) }
+    val swipeThreshold = with(LocalDensity.current) { 80.dp.toPx() }
+    val animatedOffset by animateFloatAsState(targetValue = offsetX, label = "chatSwipeOffset")
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        if (canSwipe) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+                    .background(ConsoleTheme.surface),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .then(if (canDelete) Modifier.clickable(onClick = onDelete) else Modifier)
+                        .padding(horizontal = 20.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    if (canDelete) {
+                        Text(
+                            text = if (channel.type == ChannelType.DM) "HIDE" else "DELETE",
+                            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textDim)
+                        )
+                    }
+                }
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable(onClick = if (isArchived) onUnarchive else onArchive)
+                        .padding(horizontal = 20.dp),
+                    contentAlignment = Alignment.CenterEnd
+                ) {
+                    Text(
+                        text = if (isArchived) "RESTORE" else "ARCHIVE",
+                        style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textDim)
+                    )
+                }
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset { IntOffset(animatedOffset.roundToInt(), 0) }
+                .background(ConsoleTheme.background)
+                .then(
+                    if (canSwipe) {
+                        Modifier.draggable(
+                            orientation = Orientation.Horizontal,
+                            state = rememberDraggableState { delta ->
+                                offsetX = (offsetX + delta).coerceIn(-swipeThreshold, swipeThreshold)
+                            },
+                            onDragStopped = {
+                                when {
+                                    offsetX > swipeThreshold * 0.6f && canDelete -> onDelete()
+                                    offsetX < -swipeThreshold * 0.6f ->
+                                        if (isArchived) onUnarchive() else onArchive()
+                                }
+                                offsetX = 0f
+                            }
+                        )
+                    } else Modifier
+                )
+        ) {
+            ChatRow(
+                channel = channel,
+                isTyping = isTyping,
+                isMeshConnected = isMeshConnected,
+                onClick = onClick
+            )
+        }
+    }
+}
 
 @Composable
 private fun ChatRow(
