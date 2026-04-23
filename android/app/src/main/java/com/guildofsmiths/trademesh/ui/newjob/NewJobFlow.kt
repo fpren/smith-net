@@ -35,6 +35,7 @@ data class NewJobData(
     val clientPhone: String,
     val clientAddress: String,
     val description: String,
+    val trade: String,
     val taskDescriptions: List<String>,
     val equipmentList: List<String>,
     val materials: List<Material>,
@@ -65,6 +66,7 @@ fun NewJobFlow(
 
     // Step 2 — Scope
     var description by remember { mutableStateOf("") }
+    var selectedTrade by remember { mutableStateOf(UserPreferences.getPrimaryTrade()) }
 
     // Step 3 — What's Needed
     var tasks by remember { mutableStateOf(listOf("")) }
@@ -133,9 +135,12 @@ fun NewJobFlow(
                 )
                 2 -> StepScope(
                     description = description,
-                    onDescriptionChange = { description = it }
+                    onDescriptionChange = { description = it },
+                    selectedTrade = selectedTrade,
+                    onTradeSelected = { selectedTrade = it }
                 )
                 3 -> StepResources(
+                    trade = selectedTrade,
                     tasks = tasks,
                     equipment = equipment,
                     materials = materials,
@@ -198,6 +203,7 @@ fun NewJobFlow(
                                         clientPhone = clientPhone.trim(),
                                         clientAddress = clientAddress.trim(),
                                         description = description.trim(),
+                                        trade = selectedTrade.trim(),
                                         taskDescriptions = cleanTasks,
                                         equipmentList = cleanEquipment,
                                         materials = cleanMaterials,
@@ -365,13 +371,24 @@ private fun StepClient(
 @Composable
 private fun StepScope(
     description: String,
-    onDescriptionChange: (String) -> Unit
+    onDescriptionChange: (String) -> Unit,
+    selectedTrade: String,
+    onTradeSelected: (String) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        item {
+            SectionLabel("TRADE")
+        }
+        item {
+            com.guildofsmiths.trademesh.ui.components.TradePickerField(
+                selected = selectedTrade,
+                onTradeSelected = onTradeSelected
+            )
+        }
         item {
             SectionLabel("SCOPE OF WORK")
         }
@@ -416,6 +433,7 @@ private fun StepScope(
 
 @Composable
 private fun StepResources(
+    trade: String,
     tasks: List<String>,
     equipment: List<String>,
     materials: List<Material>,
@@ -427,7 +445,9 @@ private fun StepResources(
     onCrewSizeChange: (Int) -> Unit,
     onToggleSuggestions: () -> Unit
 ) {
-    val tradeDefaults = TradeDefaults.getForTrade(UserPreferences.getOccupation())
+    val tradeDefaults = TradeDefaults.getForTrade(
+        trade.ifBlank { UserPreferences.getOccupation() }
+    )
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
