@@ -337,15 +337,25 @@ fun SettingsScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(if (locState.enabled) ConsoleTheme.surface else ConsoleTheme.background)
                     .clickable { com.guildofsmiths.trademesh.data.LocationSharingPreferences.setEnabled(!locState.enabled) }
-                    .padding(12.dp),
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = if (locState.enabled) "[✓]" else "[ ]", style = ConsoleTheme.bodyBold)
+                Text(
+                    text = if (locState.enabled) "((●))" else "((○))",
+                    style = ConsoleTheme.bodySmall.copy(
+                        color = if (locState.enabled) ConsoleTheme.accent else ConsoleTheme.textMuted
+                    )
+                )
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Share my location while clocked in", style = ConsoleTheme.body)
+                    Text(
+                        text = "Share my location while clocked in",
+                        style = ConsoleTheme.bodySmall.copy(
+                            color = if (locState.enabled) ConsoleTheme.accent else ConsoleTheme.text
+                        )
+                    )
                     Text(
                         "Powers clock-in geofence validation and Lost & Found.",
                         style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
@@ -507,18 +517,24 @@ private fun PrivacySection() {
     }
 
     Spacer(modifier = Modifier.height(12.dp))
-    Text("Who can find me:", style = ConsoleTheme.body)
+    Text("WHO CAN FIND ME", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
     Spacer(modifier = Modifier.height(6.dp))
 
-    listOf(
-        "nobody" to "Nobody — I won't appear in any search",
-        "team" to "Team only — only people in my org",
-        "anyone" to "Anyone — anyone with the app"
-    ).forEach { (value, label) ->
+    val options = listOf(
+        Triple("nobody", "Nobody", "I won't appear in any search."),
+        Triple("team", "Team only", "Only people in my organization can find me."),
+        Triple("anyone", "Anyone", "Anyone with the app can find me by name or ID.")
+    )
+
+    options.forEach { (value, title, description) ->
+        val isSelected = level == value
+        val canTap = !offline && user != null
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(enabled = !offline && user != null) {
+                .background(if (isSelected) ConsoleTheme.surface else ConsoleTheme.background)
+                .clickable(enabled = canTap) {
                     val prior = level
                     level = value
                     scope.launch {
@@ -533,15 +549,28 @@ private fun PrivacySection() {
                         }
                     }
                 }
-                .padding(vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = if (level == value) "(•)" else "( )",
-                style = ConsoleTheme.body,
-                modifier = Modifier.width(28.dp)
+                text = if (isSelected) "((●))" else "((○))",
+                style = ConsoleTheme.bodySmall.copy(
+                    color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.textMuted
+                )
             )
-            Text(label, style = ConsoleTheme.bodySmall)
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = ConsoleTheme.bodySmall.copy(
+                        color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.text
+                    )
+                )
+                Text(
+                    text = description,
+                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                )
+            }
         }
     }
 
