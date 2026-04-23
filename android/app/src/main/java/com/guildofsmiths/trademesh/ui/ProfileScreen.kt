@@ -19,6 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.SupabaseAuth
 import com.guildofsmiths.trademesh.data.UserPreferences
+import com.guildofsmiths.trademesh.ui.components.TradePickerField
 import kotlinx.coroutines.launch
 
 @Composable
@@ -33,6 +34,7 @@ fun ProfileScreen(
 
     var displayName by remember { mutableStateOf(UserPreferences.getUserName()) }
     var selectedOccupation by remember { mutableStateOf(UserPreferences.getOccupation()) }
+    var selectedTrade by remember { mutableStateOf(UserPreferences.getPrimaryTrade()) }
     var selectedExperience by remember { mutableStateOf(UserPreferences.getExperienceLevel()) }
     var businessName by remember { mutableStateOf(UserPreferences.getBusinessName()) }
     var hourlyRate by remember { mutableStateOf(UserPreferences.getHourlyRate().let { if (it > 0) it.toString() else "" }) }
@@ -48,15 +50,6 @@ fun ProfileScreen(
     var addressZip by remember { mutableStateOf(initialAddress["zipPostal"] ?: "") }
     var addressCountry by remember { mutableStateOf(initialAddress["country"]?.ifBlank { "US" } ?: "US") }
 
-    val occupations = listOf(
-        "Electrician" to Occupation.ELECTRICIAN,
-        "HVAC" to Occupation.HVAC,
-        "Plumber" to Occupation.PLUMBER,
-        "Carpenter" to Occupation.CARPENTER,
-        "General Labor" to Occupation.GENERAL_LABOR,
-        "Other" to Occupation.OTHER
-    )
-
     val experiences = listOf(
         "Apprentice" to ExperienceLevel.APPRENTICE,
         "Journeyman" to ExperienceLevel.JOURNEYMAN,
@@ -64,10 +57,6 @@ fun ProfileScreen(
         "Contractor" to ExperienceLevel.CONTRACTOR,
         "Not Applicable" to ExperienceLevel.NOT_APPLICABLE
     )
-
-    val currentOccupation = try {
-        selectedOccupation?.let { Occupation.valueOf(it) }
-    } catch (e: Exception) { null }
 
     val currentExperience = try {
         selectedExperience?.let { ExperienceLevel.valueOf(it) }
@@ -112,11 +101,15 @@ fun ProfileScreen(
             // ── TRADE ──
             SectionLabel("TRADE")
 
-            ProfileDropdown(
-                label = "Occupation",
-                current = currentOccupation?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "Select",
-                options = occupations.map { it.first },
-                onSelect = { index -> selectedOccupation = occupations[index].second.name }
+            TradePickerField(
+                selected = selectedTrade,
+                onTradeSelected = { trade ->
+                    selectedTrade = trade
+                    // Backward-compat: also map the free-text trade to the coarse
+                    // Occupation enum so downstream lookups (TradeDefaults, etc.)
+                    // still resolve sensibly.
+                    selectedOccupation = mapTradeToOccupation(trade).name
+                }
             )
 
             ProfileDropdown(
@@ -220,6 +213,7 @@ fun ProfileScreen(
                     .clickable {
                         UserPreferences.setUserName(displayName)
                         selectedOccupation?.let { UserPreferences.saveOccupation(it) }
+                        if (selectedTrade.isNotBlank()) UserPreferences.setPrimaryTrade(selectedTrade)
                         selectedExperience?.let { UserPreferences.saveExperienceLevel(it) }
                         UserPreferences.saveBusinessName(businessName)
                         hourlyRate.toDoubleOrNull()?.let { UserPreferences.setHourlyRate(it) }
@@ -334,4 +328,18 @@ private fun ProfileDropdown(
             }
         }
     }
+}
+
+/**
+ * Collapse a free-text trade name onto the coarse-grained Occupation enum so
+ * downstream TradeDefaults/permission logic still has something to match on.
+ * Mirrors the mapping used in OnboardingScreen.
+ */
+private fun mapTradeToOccupation(trade: String): Occupation = when {
+    trade.contains("Electr", ignoreCase = true) -> Occupation.ELECTRICIAN
+    trade.contains("HVAC", ignoreCase = true) || trade.contains("Heating", ignoreCase = true) -> Occupation.HVAC
+    trade.contains("Plumb", ignoreCase = true) -> Occupation.PLUMBER
+    trade.contains("Carpen", ignoreCase = true) || trade.contains("Framing", ignoreCase = true) -> Occupation.CARPENTER
+    trade.contains("Labor", ignoreCase = true) -> Occupation.GENERAL_LABOR
+    else -> Occupation.OTHER
 }
