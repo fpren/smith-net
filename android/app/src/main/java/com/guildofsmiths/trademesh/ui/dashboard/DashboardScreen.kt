@@ -395,7 +395,9 @@ fun DashboardScreen(
                     }
 
                     DashboardModule.GETTING_STARTED -> {
-                        if (!viewModel.hasAnyJobs()) {
+                        val needsProfile = !com.guildofsmiths.trademesh.data.UserPreferences.isOnboardingDataComplete()
+                        val needsJob = !viewModel.hasAnyJobs() && RoleContext.can(Permission.MANAGE_JOBS)
+                        if (needsProfile || needsJob) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -405,11 +407,8 @@ fun DashboardScreen(
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 Text("GETTING STARTED", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
-                                GettingStartedRow("[Set up profile]", onProfile)
-                                if (RoleContext.can(Permission.MANAGE_JOBS)) {
-                                    GettingStartedRow("[Create first job]", onNewJob)
-                                }
-                                GettingStartedRow("[Explore Comm]", onComm)
+                                if (needsProfile) GettingStartedRow("[Set up profile]", onProfile)
+                                if (needsJob) GettingStartedRow("[Create first job]", onNewJob)
                             }
                         }
                     }
