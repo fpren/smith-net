@@ -2,7 +2,9 @@ package com.guildofsmiths.trademesh.ui
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
@@ -211,18 +213,26 @@ fun ConversationScreen(
                     DropdownMenu(
                         expanded = menuExpanded,
                         onDismissRequest = { menuExpanded = false },
+                        modifier = Modifier
+                            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+                            .border(
+                                0.5.dp,
+                                ConsoleTheme.text.copy(alpha = 0.12f),
+                                RoundedCornerShape(4.dp)
+                            )
                     ) {
                         DropdownMenuItem(
                             text = {
                                 Text(
                                     text = "Clear messages (this device)",
-                                    style = ConsoleTheme.bodySmall
+                                    style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text)
                                 )
                             },
                             onClick = {
                                 menuExpanded = false
                                 showClearDialog = true
-                            }
+                            },
+                            modifier = Modifier.background(ConsoleTheme.surface)
                         )
                     }
                 }
@@ -264,24 +274,32 @@ fun ConversationScreen(
                     
                     DropdownMenu(
                         expanded = showPeerSelector,
-                        onDismissRequest = { showPeerSelector = false }
+                        onDismissRequest = { showPeerSelector = false },
+                        modifier = Modifier
+                            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+                            .border(
+                                0.5.dp,
+                                ConsoleTheme.text.copy(alpha = 0.12f),
+                                RoundedCornerShape(4.dp)
+                            )
                     ) {
                         DropdownMenuItem(
                             text = {
-                                Text("everyone (group)", style = ConsoleTheme.body)
+                                Text("everyone (group)", style = ConsoleTheme.body.copy(color = ConsoleTheme.text))
                             },
                             onClick = {
                                 selectedPeer = null
                                 showPeerSelector = false
-                            }
+                            },
+                            modifier = Modifier.background(ConsoleTheme.surface)
                         )
-                        
+
                         if (activePeers.isNotEmpty()) {
                             activePeers.forEach { peer ->
                                 DropdownMenuItem(
                                     text = {
                                         Column {
-                                            Text(peer.userName, style = ConsoleTheme.body)
+                                            Text(peer.userName, style = ConsoleTheme.body.copy(color = ConsoleTheme.text))
                                             Text(
                                                 "${peer.rssi} dBm · ${peer.lastSeenAgo()}",
                                                 style = ConsoleTheme.caption
@@ -291,7 +309,8 @@ fun ConversationScreen(
                                     onClick = {
                                         selectedPeer = peer
                                         showPeerSelector = false
-                                    }
+                                    },
+                                    modifier = Modifier.background(ConsoleTheme.surface)
                                 )
                             }
                         }
@@ -577,11 +596,16 @@ fun ConversationScreen(
                         onClick = { showAttachMenu = !showAttachMenu }
                     )
                     
-                    // Borderless transparent popup menu
                     androidx.compose.material3.DropdownMenu(
                         expanded = showAttachMenu,
                         onDismissRequest = { showAttachMenu = false },
-                        modifier = Modifier.background(ConsoleTheme.background)
+                        modifier = Modifier
+                            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+                            .border(
+                                0.5.dp,
+                                ConsoleTheme.text.copy(alpha = 0.12f),
+                                RoundedCornerShape(4.dp)
+                            )
                     ) {
                         // Photo option with pixel camera
                         Row(
