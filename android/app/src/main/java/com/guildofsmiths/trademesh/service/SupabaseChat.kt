@@ -128,6 +128,9 @@ object SupabaseChat {
         val is_archived: Boolean = false,
         val is_deleted: Boolean = false
     )
+
+    @Serializable
+    private data class ChannelDeleteFlag(val is_deleted: Boolean = true)
     
     /**
      * Represents a channel available to join from the dashboard
@@ -1073,7 +1076,28 @@ object SupabaseChat {
             callback(null, e)
         }
     }
-    
+
+    /**
+     * Soft-delete a channel on Supabase. Messages cascade via FK ON DELETE CASCADE
+     * when the row is hard-deleted; for soft-delete we rely on the is_deleted flag
+     * to hide the row from fetchAvailableChannels. Offline callers: the failure is
+     * logged but not queued — the local tombstone is authoritative for this device.
+     */
+    suspend fun deleteChannelRemote(channelId: String): Boolean {
+        val client = SupabaseAuth.client ?: return false
+        return try {
+            client.from("channels").update(ChannelDeleteFlag(is_deleted = true)) {
+                filter { eq("id", channelId) }
+            }
+            _availableChannels.value = _availableChannels.value.filter { it.id != channelId }
+            Log.i(TAG, "🗑️ Channel soft-deleted on Supabase: $channelId")
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "deleteChannelRemote failed for $channelId: ${e.message}")
+            false
+        }
+    }
+
     /**
      * Fetch available channels from Supabase (created by dashboard)
      * Also adds them to the local BeaconRepository so they appear in the channel list

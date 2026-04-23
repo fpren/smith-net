@@ -101,9 +101,10 @@ fun ChannelListScreen(
             channelName = channelToDelete!!.name,
             onConfirm = {
                 val deletedChannel = channelToDelete!!
-                BeaconRepository.deleteChannel(beaconId, deletedChannel.id, currentUserId)
-                // Broadcast deletion to peers so they remove it too
-                BoundaryEngine.broadcastChannelDeletion(deletedChannel.id, deletedChannel.name)
+                scope.launch {
+                    BeaconRepository.deleteChannel(beaconId, deletedChannel.id, currentUserId)
+                    BoundaryEngine.broadcastChannelDeletion(deletedChannel.id, deletedChannel.name)
+                }
                 channelToDelete = null
             },
             onDismiss = { channelToDelete = null }
