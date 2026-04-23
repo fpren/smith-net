@@ -30,6 +30,7 @@ import android.os.Handler
 import android.os.Looper
 import com.guildofsmiths.trademesh.data.BeaconRepository
 import com.guildofsmiths.trademesh.data.Channel
+import com.guildofsmiths.trademesh.data.ChannelPersistence
 import com.guildofsmiths.trademesh.data.ChannelType
 import com.guildofsmiths.trademesh.data.ChannelVisibility
 import com.guildofsmiths.trademesh.data.UserPreferences
@@ -58,6 +59,8 @@ fun CreateChannelScreen(
     var channelType by remember { mutableStateOf(ChannelType.GROUP) }
     var channelVisibility by remember { mutableStateOf(ChannelVisibility.PUBLIC) }
     var requiresApproval by remember { mutableStateOf(false) }
+    // Default OFF (ephemeral) — messages only reach members connected at send time.
+    var keepHistory by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
     Column(
@@ -206,6 +209,36 @@ fun CreateChannelScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(text = "HISTORY", style = ConsoleTheme.captionBold)
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.clickable { keepHistory = !keepHistory }
+            ) {
+                Text(
+                    text = if (keepHistory) "☑" else "☐",
+                    style = ConsoleTheme.body,
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+                Column {
+                    Text(
+                        text = "Keep history on the server",
+                        style = ConsoleTheme.bodySmall
+                    )
+                    Text(
+                        text = if (keepHistory) {
+                            "Anyone joining later sees past messages"
+                        } else {
+                            "Ephemeral — messages reach only members connected at send time"
+                        },
+                        style = ConsoleTheme.caption
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(32.dp))
 
             if (channelName.trim().length >= 2) {
@@ -222,9 +255,11 @@ fun CreateChannelScreen(
                                     errorMessage = "Creating channel..."
 
                                     // Create in Supabase for global availability
+                                    val persistenceStr = if (keepHistory) "persistent" else "ephemeral"
+                                    val persistenceEnum = if (keepHistory) ChannelPersistence.PERSISTENT else ChannelPersistence.EPHEMERAL
                                     CoroutineScope(Dispatchers.IO).launch {
                                         // For now, create as public in Supabase (visibility is enforced locally)
-                                        SupabaseChat.createChannel(name, channelType.name.lowercase(), creatorId) { supabaseChannel, supabaseError ->
+                                        SupabaseChat.createChannel(name, channelType.name.lowercase(), creatorId, persistenceStr) { supabaseChannel, supabaseError ->
                                             // Always run UI updates on main thread
                                             mainHandler.post {
                                                 if (supabaseError != null) {
@@ -237,7 +272,7 @@ fun CreateChannelScreen(
                                                                 Log.e("CreateChannel", "Backend creation also failed", backendError)
                                                                 // Final fallback: create locally only
                                                                 errorMessage = "Offline - created locally only"
-                                                                createChannelLocally(name, channelType, channelVisibility, requiresApproval, beaconId, creatorId, onChannelCreated)
+                                                                createChannelLocally(name, channelType, channelVisibility, requiresApproval, persistenceEnum, beaconId, creatorId, onChannelCreated)
                                                             } else if (backendChannel != null) {
                                                                 val backendChannelId = backendChannel.getString("id")
                                                                 val channel = Channel(
@@ -247,7 +282,8 @@ fun CreateChannelScreen(
                                                                     type = channelType,
                                                                     visibility = channelVisibility,
                                                                     requiresApproval = requiresApproval,
-                                                                    creatorId = creatorId
+                                                                    creatorId = creatorId,
+                                                                    persistence = persistenceEnum
                                                                 )
                                                                 BeaconRepository.addChannel(beaconId, channel)
                                                                 BoundaryEngine.joinChannel(backendChannelId)
@@ -268,7 +304,8 @@ fun CreateChannelScreen(
                                                         type = channelType,
                                                         visibility = channelVisibility,
                                                         requiresApproval = requiresApproval,
-                                                        creatorId = creatorId
+                                                        creatorId = creatorId,
+                                                        persistence = persistenceEnum
                                                     )
                                                     BeaconRepository.addChannel(beaconId, channel)
                                                     BoundaryEngine.joinChannel(supabaseChannel.id)
@@ -300,6 +337,7 @@ private fun createChannelLocally(
     channelType: ChannelType,
     visibility: ChannelVisibility,
     requiresApproval: Boolean,
+    persistence: ChannelPersistence,
     beaconId: String,
     creatorId: String,
     onChannelCreated: (Channel) -> Unit
@@ -309,7 +347,8 @@ private fun createChannelLocally(
         beaconId = beaconId,
         creatorId = creatorId,
         visibility = visibility,
-        requiresApproval = requiresApproval
+        requiresApproval = requiresApproval,
+        persistence = persistence
     )
     BeaconRepository.addChannel(beaconId, channel)
     BoundaryEngine.joinChannel(name)

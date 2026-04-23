@@ -231,7 +231,10 @@ fun ConversationScreen(
 
         ConsoleSeparator()
 
-        ConnectionStatusBar(connectionMode)
+        ConnectionStatusBar(
+            mode = connectionMode,
+            isEphemeral = channel?.persistence == com.guildofsmiths.trademesh.data.ChannelPersistence.EPHEMERAL
+        )
 
         // DM selector bar - only show for non-DM channels
         if (!isDmChannel && (selectedPeer != null || activePeers.isNotEmpty())) {
@@ -1233,12 +1236,13 @@ private fun AudioLevelBars(
 }
 
 @Composable
-private fun ConnectionStatusBar(mode: ConnectionMode) {
-    val (color, label, detail) = when (mode) {
+private fun ConnectionStatusBar(mode: ConnectionMode, isEphemeral: Boolean = false) {
+    val (color, label, baseDetail) = when (mode) {
         ConnectionMode.ONLINE -> Triple(Color(0xFF9A6F2E), "[ONLINE ●]", "ws://connected")
         ConnectionMode.MESH -> Triple(Color(0xFF5A8C76), "[MESH ●]", "peers nearby")
         ConnectionMode.OFFLINE -> Triple(Color(0xFF8C3A3A), "[OFFLINE ●]", "queued")
     }
+    val detail = if (isEphemeral) "ephemeral · $baseDetail" else baseDetail
 
     Row(
         modifier = Modifier
