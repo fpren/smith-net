@@ -284,15 +284,28 @@ object BoundaryEngine {
     /**
      * Forward a mesh message to the gateway (backend).
      * Called when a mesh message is received and gateway is connected.
+     * Ephemeral channels bridge via Realtime broadcast (no cloud row);
+     * persistent channels bridge via the WS relay + Supabase insert as before.
      */
     fun forwardToGateway(message: Message) {
-        // Forward via Gateway WebSocket if connected
+        val channel = com.guildofsmiths.trademesh.data.BeaconRepository
+            .getChannel("default", message.channelId)
+        val isEphemeral = channel?.persistence ==
+            com.guildofsmiths.trademesh.data.ChannelPersistence.EPHEMERAL
+
+        if (isEphemeral) {
+            if (_isOnline.value && com.guildofsmiths.trademesh.BuildConfig.SUPABASE_ENABLED) {
+                Log.d(TAG, "🌉 Auto-bridging ephemeral mesh message: ${message.content.take(20)}")
+                messageBusScope.launch {
+                    com.guildofsmiths.trademesh.service.SupabaseChat.broadcastEphemeral(message)
+                }
+            }
+            return
+        }
+
         if (GatewayClient.isConnected()) {
             GatewayClient.forwardMeshMessage(message)
         }
-        
-        // Also forward via Supabase for global reach (auto-bridges mesh → online)
-        // Gated on SUPABASE_ENABLED; Hetzner relay via ChatManager is the default path now.
         if (_isOnline.value && com.guildofsmiths.trademesh.BuildConfig.SUPABASE_ENABLED) {
             Log.d(TAG, "🌉 Auto-bridging mesh message to Supabase: ${message.content.take(20)}")
             com.guildofsmiths.trademesh.service.SupabaseChat.sendMessage(message)
@@ -725,8 +738,11 @@ object BoundaryEngine {
 
     /**
      * Sync all pending mesh messages to chat backend.
-     * Preserves message ordering and attribution.
-     * Messages are uploaded to BOTH local backend AND Supabase for global reach.
+     * PERSISTENT channels: upload to WS relay + Supabase messages table
+     *   so remote peers receive the history (the original "bubble up" intent).
+     * EPHEMERAL channels: bridge to Realtime broadcast only — no cloud row, no
+     *   relay persistence. Respects the no-cloud-copy promise even for mesh-
+     *   originated messages that reach a gateway-capable device.
      */
     private fun syncMeshMessagesToChat() {
         val pendingMessages = MessageRepository.getPendingSyncMessages()
@@ -734,29 +750,37 @@ object BoundaryEngine {
             Log.d(TAG, "No pending mesh messages to sync")
             return
         }
-        
+
         Log.i(TAG, "🌊 Syncing ${pendingMessages.size} mesh messages to cloud (bobbling up!)")
-        
+
         val syncedIds = mutableSetOf<String>()
         for (message in pendingMessages.sortedBy { it.timestamp }) {
-            // Re-send via chat path, preserving original metadata
             val chatMessage = message.copy(isMeshOrigin = false)
-            
-            // Send to local backend
-            ChatManager.sendMessage(chatMessage)
+            val channel = com.guildofsmiths.trademesh.data.BeaconRepository
+                .getChannel("default", message.channelId)
+            val isEphemeral = channel?.persistence ==
+                com.guildofsmiths.trademesh.data.ChannelPersistence.EPHEMERAL
 
-            // Optional legacy mirror to Supabase Realtime, gated by BuildConfig flag.
-            if (com.guildofsmiths.trademesh.BuildConfig.SUPABASE_ENABLED) {
-                com.guildofsmiths.trademesh.service.SupabaseChat.sendMessage(chatMessage)
+            if (isEphemeral) {
+                if (com.guildofsmiths.trademesh.BuildConfig.SUPABASE_ENABLED) {
+                    messageBusScope.launch {
+                        com.guildofsmiths.trademesh.service.SupabaseChat.broadcastEphemeral(chatMessage)
+                    }
+                }
+                Log.d(TAG, "   ↑ Ephemeral bridge: ${message.content.take(30)}")
+            } else {
+                ChatManager.sendMessage(chatMessage)
+                if (com.guildofsmiths.trademesh.BuildConfig.SUPABASE_ENABLED) {
+                    com.guildofsmiths.trademesh.service.SupabaseChat.sendMessage(chatMessage)
+                }
+                Log.d(TAG, "   ↑ Uploaded: ${message.content.take(30)}")
             }
-            
+
             syncedIds.add(message.id)
-            Log.d(TAG, "   ↑ Uploaded: ${message.content.take(30)}")
         }
-        
-        // Mark as synced to prevent re-sync
+
         MessageRepository.markAsSynced(syncedIds)
-        Log.i(TAG, "✅ Mesh sync completed: ${syncedIds.size} messages uploaded to cloud")
+        Log.i(TAG, "✅ Mesh sync completed: ${syncedIds.size} messages bridged")
     }
     
     /**
