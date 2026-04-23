@@ -72,7 +72,10 @@ data class Channel(
     val isDeleted: Boolean = false,   // Tombstone - shows "[deleted]" message
     val unreadCount: Int = 0,
     val lastMessagePreview: String? = null,
-    val lastMessageTime: Long? = null
+    val lastMessageTime: Long? = null,
+    // PERSISTENT: messages are stored server-side; history available to late joiners.
+    // EPHEMERAL: messages fan out to currently-connected subscribers only, no cloud copy.
+    val persistence: ChannelPersistence = ChannelPersistence.PERSISTENT
 ) {
     /**
      * Check if a user is the owner/creator of this channel.
@@ -233,7 +236,8 @@ data class Channel(
             creatorId: String,
             visibility: ChannelVisibility = ChannelVisibility.PUBLIC,
             members: List<String> = emptyList(),
-            requiresApproval: Boolean = false
+            requiresApproval: Boolean = false,
+            persistence: ChannelPersistence = ChannelPersistence.EPHEMERAL
         ): Channel {
             return Channel(
                 beaconId = beaconId,
@@ -242,13 +246,14 @@ data class Channel(
                 visibility = visibility,
                 creatorId = creatorId,
                 members = if (members.isEmpty()) listOf(creatorId) else members,
-                requiresApproval = requiresApproval
+                requiresApproval = requiresApproval,
+                persistence = persistence
             )
         }
-        
+
         /**
          * Create a DM channel between two users.
-         * The initiator (myUserId) is considered the creator for management purposes.
+         * DMs default to EPHEMERAL — no cloud log for two-person threads.
          */
         fun createDM(otherUserId: String, otherUserName: String, beaconId: String, myUserId: String): Channel {
             return Channel(
@@ -256,8 +261,9 @@ data class Channel(
                 beaconId = beaconId,
                 name = otherUserName,
                 type = ChannelType.DM,
-                creatorId = myUserId,  // Initiator owns the DM
-                members = listOf(myUserId, otherUserId)
+                creatorId = myUserId,
+                members = listOf(myUserId, otherUserId),
+                persistence = ChannelPersistence.EPHEMERAL
             )
         }
     }
@@ -279,6 +285,23 @@ enum class ChannelVisibility {
     PUBLIC,      // Anyone can join and see
     PRIVATE,     // Invite-only, admin approval required
     RESTRICTED   // Only specific users can access
+}
+
+/**
+ * How channel messages persist across the online tier.
+ *
+ * PERSISTENT — messages are inserted into Supabase `messages` table. Late
+ * joiners and reconnecting clients reconcile the history. Appropriate for
+ * #general, job-record channels, anything needing an audit trail.
+ *
+ * EPHEMERAL — messages fan out via Supabase Realtime broadcast to whoever
+ * is connected right now. No cloud row. If you weren't subscribed when it
+ * was sent, it's gone. Each subscriber's device keeps its own local copy.
+ * This mirrors Bitchat's mesh semantics applied to the online tier.
+ */
+enum class ChannelPersistence {
+    PERSISTENT,
+    EPHEMERAL
 }
 
 /**

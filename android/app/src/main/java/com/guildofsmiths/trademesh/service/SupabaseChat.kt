@@ -126,12 +126,13 @@ object SupabaseChat {
         val creator_id: String,
         val created_at: Long = System.currentTimeMillis(),
         val is_archived: Boolean = false,
-        val is_deleted: Boolean = false
+        val is_deleted: Boolean = false,
+        val persistence: String = "persistent"
     )
 
     @Serializable
     private data class ChannelDeleteFlag(val is_deleted: Boolean = true)
-    
+
     /**
      * Represents a channel available to join from the dashboard
      */
@@ -140,7 +141,8 @@ object SupabaseChat {
         val name: String,
         val type: String,
         val creatorId: String,
-        val createdAt: Long
+        val createdAt: Long,
+        val persistence: String = "persistent"
     )
     
     // ════════════════════════════════════════════════════════════════════
@@ -1033,6 +1035,7 @@ object SupabaseChat {
         name: String,
         type: String,
         creatorId: String,
+        persistence: String = "persistent",
         callback: (AvailableChannel?, Exception?) -> Unit
     ) {
         val client = SupabaseAuth.client
@@ -1040,7 +1043,7 @@ object SupabaseChat {
             callback(null, Exception("Supabase not connected"))
             return
         }
-        
+
         try {
             val channelId = UUID.randomUUID().toString()
             val channelRow = ChannelRow(
@@ -1050,20 +1053,21 @@ object SupabaseChat {
                 creator_id = creatorId,
                 created_at = System.currentTimeMillis(),
                 is_archived = false,
-                is_deleted = false
+                is_deleted = false,
+                persistence = persistence
             )
-            
-            // Insert into Supabase
+
             client.from("channels").insert(channelRow)
-            
-            Log.i(TAG, "✅ Channel created in Supabase: #$name ($channelId)")
-            
+
+            Log.i(TAG, "✅ Channel created in Supabase: #$name ($channelId) [$persistence]")
+
             val available = AvailableChannel(
                 id = channelId,
                 name = name,
                 type = type,
                 creatorId = creatorId,
-                createdAt = channelRow.created_at
+                createdAt = channelRow.created_at,
+                persistence = persistence
             )
             
             // Update local state
@@ -1118,7 +1122,8 @@ object SupabaseChat {
                         name = row.name,
                         type = row.type,
                         creatorId = row.creator_id,
-                        createdAt = row.created_at
+                        createdAt = row.created_at,
+                        persistence = row.persistence
                     )
                 }
 
@@ -1143,6 +1148,11 @@ object SupabaseChat {
                             "group" -> com.guildofsmiths.trademesh.data.ChannelType.GROUP
                             "dm" -> com.guildofsmiths.trademesh.data.ChannelType.DM
                             else -> com.guildofsmiths.trademesh.data.ChannelType.GROUP
+                        },
+                        persistence = if (ch.persistence.equals("ephemeral", ignoreCase = true)) {
+                            com.guildofsmiths.trademesh.data.ChannelPersistence.EPHEMERAL
+                        } else {
+                            com.guildofsmiths.trademesh.data.ChannelPersistence.PERSISTENT
                         }
                     )
 

@@ -90,7 +90,10 @@ object BeaconRepository {
                     creatorId = channelJson.optString("creatorId", ""),
                     createdAt = channelJson.optLong("createdAt", System.currentTimeMillis()),
                     isArchived = channelJson.optBoolean("isArchived", false),
-                    isDeleted = false
+                    isDeleted = false,
+                    persistence = runCatching {
+                        ChannelPersistence.valueOf(channelJson.optString("persistence", "PERSISTENT").uppercase())
+                    }.getOrDefault(ChannelPersistence.PERSISTENT)
                 )
                 loadedChannels.add(channel)
                 Log.d(TAG, "   Loaded channel: #${channel.name} (${channel.id})")
@@ -142,6 +145,7 @@ object BeaconRepository {
                     put("createdAt", channel.createdAt)
                     put("isArchived", channel.isArchived)
                     put("isDeleted", channel.isDeleted)
+                    put("persistence", channel.persistence.name)
                 }
                 channelsArray.put(channelJson)
             }
@@ -296,9 +300,10 @@ object BeaconRepository {
         creatorId: String,
         visibility: ChannelVisibility = ChannelVisibility.PUBLIC,
         members: List<String> = emptyList(),
-        requiresApproval: Boolean = false
+        requiresApproval: Boolean = false,
+        persistence: ChannelPersistence = ChannelPersistence.EPHEMERAL
     ): Channel {
-        val channel = Channel.createGroup(name, beaconId, creatorId, visibility, members, requiresApproval)
+        val channel = Channel.createGroup(name, beaconId, creatorId, visibility, members, requiresApproval, persistence)
         addChannel(beaconId, channel)
         return channel
     }
