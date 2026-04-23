@@ -1,6 +1,7 @@
 package com.guildofsmiths.trademesh.service
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -30,6 +31,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.ParcelUuid
 import android.util.Log
+import androidx.annotation.RequiresPermission
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import com.guildofsmiths.trademesh.R
@@ -715,12 +717,7 @@ class MeshService : Service() {
             .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
             .setReportDelay(0) // Immediate reporting
         
-        // On API 26+, explicitly enable ALL PHYs but keep legacy=true to receive both types
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            scanSettingsBuilder.setPhy(ScanSettings.PHY_LE_ALL_SUPPORTED)
-            // Note: setLegacy(true) is the default - receives legacy ads
-            // Extended ads are received automatically when PHY_LE_ALL_SUPPORTED is set
-        }
+        scanSettingsBuilder.setPhy(ScanSettings.PHY_LE_ALL_SUPPORTED)
         
         val scanSettings = scanSettingsBuilder.build()
         
@@ -1030,12 +1027,8 @@ class MeshService : Service() {
     
     private var currentAdvertisingSet: AdvertisingSet? = null
     
+    @RequiresPermission(Manifest.permission.BLUETOOTH_ADVERTISE)
     private fun startExtendedAdvertising(advertiser: BluetoothLeAdvertiser, payload: ByteArray, message: Message) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            startLegacyAdvertising(advertiser, payload, message)
-            return
-        }
-        
         try {
             val parameters = AdvertisingSetParameters.Builder()
                 .setLegacyMode(false) // Use extended advertising
@@ -1089,17 +1082,16 @@ class MeshService : Service() {
         }
     }
     
+    @SuppressLint("MissingPermission")
     private fun stopExtendedAdvertising() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            currentAdvertisingSet?.let { set ->
-                try {
-                    bleAdvertiser?.stopAdvertisingSet(object : AdvertisingSetCallback() {})
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error stopping extended advertising: ${e.message}")
-                }
+        currentAdvertisingSet?.let { _ ->
+            try {
+                bleAdvertiser?.stopAdvertisingSet(object : AdvertisingSetCallback() {})
+            } catch (e: Exception) {
+                Log.e(TAG, "Error stopping extended advertising: ${e.message}")
             }
-            currentAdvertisingSet = null
         }
+        currentAdvertisingSet = null
         isAdvertising = false
         processOutboundQueue()
     }
@@ -1226,6 +1218,7 @@ class MeshService : Service() {
         broadcastPayloadDirect(payload)
     }
 
+    @SuppressLint("MissingPermission")
     private fun broadcastPayloadDirect(payload: ByteArray) {
         if (!checkBlePermissions()) return
         

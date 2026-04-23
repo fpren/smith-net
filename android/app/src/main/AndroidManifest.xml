@@ -67,7 +67,6 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="@string/app_name"
             android:theme="@style/Theme.TradeMesh"
             android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize">

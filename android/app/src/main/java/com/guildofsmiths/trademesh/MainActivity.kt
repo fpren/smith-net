@@ -1102,6 +1102,7 @@ class MainActivity : ComponentActivity() {
     /**
      * Check and request required BLE permissions.
      */
+    @Suppress("InlinedApi")
     private fun checkAndRequestPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             // Android 12+ requires BLUETOOTH_SCAN, BLUETOOTH_ADVERTISE, BLUETOOTH_CONNECT
@@ -1149,12 +1150,7 @@ class MainActivity : ComponentActivity() {
         }
         Log.i(TAG, "Starting MeshService")
         val serviceIntent = Intent(this, MeshService::class.java)
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
-        } else {
-            startService(serviceIntent)
-        }
+        startForegroundService(serviceIntent)
     }
 
     /**

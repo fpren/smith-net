@@ -464,7 +464,8 @@ private fun AddColleagueDialog(
     onAddFromProfile: (profile: ProfileRow, source: String) -> Unit
 ) {
     val offline = SupabaseAuth.isOfflineMode()
-    val hasOrg = SupabaseAuth.currentUser.value?.orgId != null
+    val currentUser by SupabaseAuth.currentUser.collectAsState()
+    val hasOrg = currentUser?.orgId != null
 
     var query by remember { mutableStateOf("") }
     var manualExpanded by remember { mutableStateOf(offline) }

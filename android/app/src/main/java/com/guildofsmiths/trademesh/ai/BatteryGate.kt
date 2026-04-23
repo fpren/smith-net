@@ -78,9 +78,7 @@ object BatteryGate {
             addAction(Intent.ACTION_BATTERY_CHANGED)
             addAction(Intent.ACTION_POWER_CONNECTED)
             addAction(Intent.ACTION_POWER_DISCONNECTED)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                addAction(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED)
-            }
+            addAction(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED)
         }
         
         // Get initial state
@@ -250,11 +248,7 @@ object BatteryGate {
         
         val temperature = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) / 10 // Convert to Celsius
         
-        val isPowerSaveMode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            powerManager?.isPowerSaveMode ?: false
-        } else {
-            false
-        }
+        val isPowerSaveMode = powerManager?.isPowerSaveMode ?: false
         
         val thermalStatus = getThermalStatus(temperature)
         

@@ -38,34 +38,30 @@ object NotificationHelper {
      * Call this from Application.onCreate()
      */
     fun initialize(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            
-            // Message notifications channel
-            val messageChannel = NotificationChannel(
-                CHANNEL_ID_MESSAGES,
-                CHANNEL_NAME_MESSAGES,
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "New message notifications"
-                enableVibration(true)
-                setShowBadge(true)
-            }
-            notificationManager.createNotificationChannel(messageChannel)
-            
-            // Mesh activity channel (lower priority)
-            val meshChannel = NotificationChannel(
-                CHANNEL_ID_MESH,
-                CHANNEL_NAME_MESH,
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "BLE mesh activity notifications"
-                setShowBadge(false)
-            }
-            notificationManager.createNotificationChannel(meshChannel)
-            
-            Log.d(TAG, "Notification channels created")
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        val messageChannel = NotificationChannel(
+            CHANNEL_ID_MESSAGES,
+            CHANNEL_NAME_MESSAGES,
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "New message notifications"
+            enableVibration(true)
+            setShowBadge(true)
         }
+        notificationManager.createNotificationChannel(messageChannel)
+
+        val meshChannel = NotificationChannel(
+            CHANNEL_ID_MESH,
+            CHANNEL_NAME_MESH,
+            NotificationManager.IMPORTANCE_LOW
+        ).apply {
+            description = "BLE mesh activity notifications"
+            setShowBadge(false)
+        }
+        notificationManager.createNotificationChannel(meshChannel)
+
+        Log.d(TAG, "Notification channels created")
     }
     
     /**
