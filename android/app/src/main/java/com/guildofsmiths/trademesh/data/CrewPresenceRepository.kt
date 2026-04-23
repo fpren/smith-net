@@ -43,7 +43,9 @@ object CrewPresenceRepository {
     val crew: StateFlow<List<CrewPresenceInfo>> = _crew.asStateFlow()
 
     init {
-        seedMockCrew()
+        if (BuildFlags.SEED_DEMO_DATA) {
+            seedMockCrew()
+        }
     }
 
     private fun crewList(): List<CrewPresenceInfo> =

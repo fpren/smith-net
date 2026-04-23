@@ -59,7 +59,9 @@ class JobBoardViewModel : ViewModel() {
 
     init {
         loadJobs()
-        seedDemoJobsIfEmpty()
+        if (com.guildofsmiths.trademesh.data.BuildFlags.SEED_DEMO_DATA) {
+            seedDemoJobsIfEmpty()
+        }
         // Wire AISupervisor callback to store daily logs
         com.guildofsmiths.trademesh.ai.AISupervisor.onDailyLogGenerated = { jobId, log ->
             addDailyLog(jobId, log)

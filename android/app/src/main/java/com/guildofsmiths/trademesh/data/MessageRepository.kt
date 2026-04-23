@@ -61,8 +61,8 @@ object MessageRepository {
             _allMessages.value = messages.sortedBy { it.timestamp }
             seenMessageIds.addAll(messages.map { it.id })
 
-            // Seed mock roofing conversation if DB is empty
-            if (messages.isEmpty()) {
+            // Seed mock roofing conversation if DB is empty (demo builds only)
+            if (messages.isEmpty() && BuildFlags.SEED_DEMO_DATA) {
                 seedMockRoofingConversation()
             }
         }
