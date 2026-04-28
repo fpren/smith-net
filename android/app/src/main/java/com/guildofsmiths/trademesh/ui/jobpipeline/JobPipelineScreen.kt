@@ -83,9 +83,12 @@ fun JobPipelineScreen(
         )
     }
 
-    // Generate invoice when requested (reacts to detail level changes)
-    val invoice = remember(job, showInvoice, invoiceDetailLevel) {
-        if (!showInvoice) null
+    // Generate invoice when requested (reacts to detail level changes).
+    // Keep invoice computed whenever job or detail level changes so both the
+    // dialog AND the rich preview sheet can reference it independently.
+    var showRichPreview by remember { mutableStateOf(false) }
+    val invoice = remember(job, showInvoice, showRichPreview, invoiceDetailLevel) {
+        if (!showInvoice && !showRichPreview) null
         else InvoiceGenerator.generateFromJob(
             job = job,
             timeEntries = timeEntries,
@@ -152,8 +155,11 @@ fun JobPipelineScreen(
         )
     }
 
-    // Invoice preview dialog
+    // Invoice preview dialog + rich PREVIEW & SHARE bottom sheet
     if (showInvoice && invoice != null) {
+        val bolText = remember(job, timeEntries) {
+            com.guildofsmiths.trademesh.ui.expenses.BolFormatter.formatAsText(job, timeEntries)
+        }
         InvoicePreviewDialog(
             invoice = invoice,
             onDismiss = { showInvoice = false },
@@ -164,7 +170,28 @@ fun JobPipelineScreen(
                     putExtra(Intent.EXTRA_TEXT, invoiceText)
                 }
                 context.startActivity(Intent.createChooser(shareIntent, "Share Invoice"))
+            },
+            bolText = bolText,
+            onShareBol = { bol ->
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_SUBJECT, "BOL — ${job.clientName ?: job.title}")
+                    putExtra(Intent.EXTRA_TEXT, bol)
+                }
+                context.startActivity(Intent.createChooser(shareIntent, "Share BOL"))
+            },
+            onPreviewRendered = {
+                showInvoice = false
+                showRichPreview = true
             }
+        )
+    }
+    if (showRichPreview && invoice != null) {
+        com.guildofsmiths.trademesh.ui.expenses.InvoicePreviewBottomSheet(
+            invoice = invoice,
+            job = job,
+            timeEntries = timeEntries,
+            onDismiss = { showRichPreview = false }
         )
     }
 

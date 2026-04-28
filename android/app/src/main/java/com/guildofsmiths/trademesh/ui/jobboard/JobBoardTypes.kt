@@ -27,11 +27,12 @@ data class Job(
     val tags: List<String> = emptyList(),
     // Additional fields
     val toolsNeeded: String = "",
-    val expenses: String = "",
+    val expensesNote: String = "",
     val crewSize: Int = 1,
     val crew: List<CrewMember> = emptyList(),
     // Workflow fields
     val materials: List<Material> = emptyList(),
+    val expenses: List<JobExpense> = emptyList(),
     val workLog: List<WorkLogEntry> = emptyList(),
     // Scheduling fields
     val estimatedStartDate: Long? = null,
@@ -62,7 +63,15 @@ data class Job(
     val depositCollected: Double = 0.0,
     val depositNote: String? = null,
     // Proposal — estimated labor hours used for proposal generation
-    val estimatedHours: Double = 0.0
+    val estimatedHours: Double = 0.0,
+    // Per-job override for which legal preset groups appear on the BOL footer.
+    // BOTH is the default — the preview sheet smart-resolves from client + vendor origins.
+    val legalFooterScope: LegalFooterScope = LegalFooterScope.BOTH,
+    // Geofence center for clock-in validation. Lazy-geocoded from clientAddress
+    // on first open; may be manually overridden in the job form.
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val geofenceRadiusMeters: Int = 75
 )
 
 data class CrewMember(
@@ -84,6 +93,65 @@ data class Material(
     val totalCost: Double = 0.0,
     val vendor: String = "",
     val receiptPhoto: String? = null
+)
+
+// ════════════════════════════════════════════════════════════════════
+// EXPENSES — BOL-style itemized per-job expenses
+// ════════════════════════════════════════════════════════════════════
+
+/**
+ * A single expense line on a job. Category is a stable slug resolved via
+ * ExpenseCategoryRepository so users can add/rename/hide their own.
+ */
+data class JobExpense(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val category: String,                 // stable slug: "material", "permit_fee", "fuel", user-custom…
+    val description: String,
+    val quantity: Double = 1.0,
+    val unit: String = "ea",              // ea, ft, lot, hr, mi, gal, day, lb, box
+    val unitCost: Double = 0.0,
+    val vendor: String = "",              // or sub name / permit authority / fuel station
+    val referenceNumber: String? = null,  // permit#, receipt#, sub invoice#, BOL#
+    val receiptPhoto: String? = null,
+    val incurredAt: Long = System.currentTimeMillis(),
+    val hazardous: Boolean = false,       // BOL HM flag
+    val freightTerm: FreightTerm = FreightTerm.NA,
+    val notes: String? = null,
+    val aiEstimated: Boolean = false      // true when unitCost was auto-filled by SmithAI
+) {
+    val totalCost: Double get() = quantity * unitCost
+}
+
+enum class FreightTerm(val displayName: String) {
+    PREPAID("Prepaid"),
+    COLLECT("Collect"),
+    THIRD_PARTY("3rd Party"),
+    NA("N/A")
+}
+
+/**
+ * Scope of legal clauses rendered on a BOL's footer. Set per-job at authoring
+ * time; the share-preview can override for a single send.
+ * - DOMESTIC: only US_DOMESTIC + US_STATES groups (US-only engagements)
+ * - INTERNATIONAL: only INTL_COMMERCIAL + INTERNATIONAL_CARRIAGE (cross-border)
+ * - BOTH: every enabled group — default, smart-resolves from client + vendor
+ *   nationality when BOTH is set
+ */
+enum class LegalFooterScope { DOMESTIC, INTERNATIONAL, BOTH }
+
+/**
+ * User-customizable category definition. Persisted by ExpenseCategoryRepository.
+ * id is the stable slug stored on JobExpense.category; displayName/shortCode/colorHex
+ * are shown in the UI.
+ */
+data class ExpenseCategoryDef(
+    val id: String,
+    val displayName: String,
+    val shortCode: String,
+    val colorHex: String = "#8C6B2A",
+    val hidden: Boolean = false,
+    val builtIn: Boolean = false,
+    val sortOrder: Int = 0
 )
 
 // Work log entry

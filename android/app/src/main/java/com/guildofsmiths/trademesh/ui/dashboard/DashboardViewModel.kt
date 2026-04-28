@@ -1,6 +1,7 @@
 package com.guildofsmiths.trademesh.ui.dashboard
 
 import androidx.lifecycle.ViewModel
+import com.guildofsmiths.trademesh.data.TimeEntryRepository
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.JobStage
@@ -45,9 +46,19 @@ class DashboardViewModel : ViewModel() {
 
     fun getActiveJobCount(): Int = _jobs.value.count { it.stage != JobStage.CLOSED }
 
+    /**
+     * Outstanding $ across jobs in INVOICE stage = materials cost + real
+     * labor cost (actual minutes worked × hourlyRate). Replaces the old
+     * hardcoded 8h × rate assumption that ignored the time tracker.
+     */
     fun getOutstandingTotal(): Double = _jobs.value
         .filter { it.stage == JobStage.INVOICE }
-        .sumOf { it.materials.sumOf { m -> m.totalCost } + (it.hourlyRate * 8) }
+        .sumOf { job ->
+            val laborMin = TimeEntryRepository.getEntriesForJob(job.id, job.title)
+                .filter { it.clockOutTime != null }
+                .sumOf { it.durationMinutes ?: 0 }
+            job.materials.sumOf { m -> m.totalCost } + (laborMin / 60.0 * job.hourlyRate)
+        }
 
     fun getBusinessName(): String {
         val biz = UserPreferences.getBusinessName()
@@ -94,9 +105,53 @@ class DashboardViewModel : ViewModel() {
 
     fun getEarnedThisMonth(): Double {
         val monthStart = getMonthStart()
+        val monthEnd = monthStart + 31L * 86_400_000L
         return _allJobs
             .filter { it.stage == JobStage.CLOSED && it.updatedAt >= monthStart }
-            .sumOf { it.materials.sumOf { m -> m.totalCost } + (it.hourlyRate * 8) }
+            .sumOf { job ->
+                val laborMin = TimeEntryRepository
+                    .getMinutesForJob(job.id, job.title, monthStart, monthEnd)
+                job.materials.sumOf { m -> m.totalCost } + (laborMin / 60.0 * job.hourlyRate)
+            }
+    }
+
+    /**
+     * Cumulative billable across every job (any stage) — real hours worked
+     * × hourlyRate + materials. Reflects "what's been spent on labor +
+     * supplies" from the contractor's POV, not gated by invoice/closed
+     * status. Lets the dashboard show progress even before the user
+     * formally advances jobs to INVOICE/CLOSED.
+     */
+    fun getSpentToDate(): Double = _allJobs.sumOf { job ->
+        val laborMin = TimeEntryRepository.getEntriesForJob(job.id, job.title)
+            .filter { it.clockOutTime != null }
+            .sumOf { it.durationMinutes ?: 0 }
+        job.materials.sumOf { m -> m.totalCost } + (laborMin / 60.0 * job.hourlyRate)
+    }
+
+    /** Total clocked-in minutes across all jobs (completed entries). */
+    fun getMinutesWorkedToDate(): Int = _allJobs.sumOf { job ->
+        TimeEntryRepository.getEntriesForJob(job.id, job.title)
+            .filter { it.clockOutTime != null }
+            .sumOf { it.durationMinutes ?: 0 }
+    }
+
+    /**
+     * Minutes clocked-in *today*, including the active session's portion that
+     * falls inside today's calendar window. Cross-midnight sessions only
+     * contribute their post-midnight minutes — matches the OnClock screen.
+     */
+    fun getMinutesWorkedToday(): Int {
+        val todayStart = getTodayStart()
+        val now = System.currentTimeMillis()
+        return _allJobs.sumOf { job ->
+            TimeEntryRepository.getEntriesForJob(job.id, job.title).sumOf { e ->
+                val start = maxOf(e.clockInTime, todayStart)
+                val end = e.clockOutTime ?: now
+                if (end <= todayStart) 0
+                else ((end - start) / 60_000L).toInt().coerceAtLeast(0)
+            }
+        }
     }
 
     // ── Schedule helpers ──────────────────────────────────────────
@@ -185,12 +240,14 @@ class DashboardViewModel : ViewModel() {
         val events = mutableListOf<ActivityEvent>()
         val timeFormat = java.text.SimpleDateFormat("h:mma", java.util.Locale.US)
 
-        // Job stage changes (jobs updated today)
-        _allJobs.filter { it.updatedAt >= todayStart }.forEach { job ->
+        // Job stage changes (jobs updated today). IN_PROGRESS is intentionally
+        // skipped: clock-in already surfaces in the dashboard clock pill and
+        // JOBS panel, so a duplicate "Started · <client>" line in TODAY would
+        // just rename the active job a third time.
+        _allJobs.filter { it.updatedAt >= todayStart && it.stage != JobStage.IN_PROGRESS }.forEach { job ->
             val time = timeFormat.format(java.util.Date(job.updatedAt)).lowercase()
             val name = job.clientName ?: job.title
             val desc = when (job.stage) {
-                JobStage.IN_PROGRESS -> "${job.stage.icon} Started · $name · $time"
                 JobStage.REVIEW -> "${job.stage.icon} Marked complete · $name · $time"
                 JobStage.INVOICE -> "${job.stage.icon} Invoice generated · $name · $time"
                 JobStage.CLOSED -> "${job.stage.icon} Closed · $name · $time"

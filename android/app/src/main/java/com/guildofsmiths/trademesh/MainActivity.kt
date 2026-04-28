@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -253,6 +254,150 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val navController = rememberNavController()
 
+                    // Start / stop the GPS foreground service when clock state changes.
+                    // Uses a shared TimeTrackingViewModel so every screen sees the same
+                    // clock-in flag. No-op if the user disabled location sharing in Settings
+                    // or hasn't granted the runtime permission yet.
+                    val ttvm: com.guildofsmiths.trademesh.ui.timetracking.TimeTrackingViewModel = viewModel(viewModelStoreOwner = this@MainActivity)
+                    val isClockedInFlag by ttvm.isClockedIn.collectAsState()
+                    val appContext = this@MainActivity.applicationContext
+                    LaunchedEffect(isClockedInFlag) {
+                        if (isClockedInFlag) {
+                            com.guildofsmiths.trademesh.service.LocationService.start(appContext)
+                        } else {
+                            com.guildofsmiths.trademesh.service.LocationService.stop(appContext)
+                        }
+                    }
+
+                    // Activity-scoped Job Board VM — shared across composables so
+                    // the migration here writes to the same instance the rest of
+                    // the app reads from.
+                    val sharedJobVm: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel =
+                        viewModel(viewModelStoreOwner = this@MainActivity)
+
+                    // Wire ttvm to auto-create a Job whenever the user clocks
+                    // in with a free-text title. Returns the new jobId so the
+                    // TimeEntry is tagged correctly from the start (no more
+                    // jobId="" orphans that miss financial rollups).
+                    LaunchedEffect(Unit) {
+                        ttvm.onResolveJobIdForFreeText = { title ->
+                            val existing = sharedJobVm.jobs.value.firstOrNull { j ->
+                                ((j.clientName ?: j.title).trim().equals(title, ignoreCase = true))
+                            }
+                            if (existing != null) existing.id
+                            else {
+                                val before = sharedJobVm.jobs.value
+                                sharedJobVm.createJob(
+                                    title = title,
+                                    clientName = title,
+                                    hourlyRate = UserPreferences.getHourlyRate(),
+                                    stage = com.guildofsmiths.trademesh.ui.jobboard.JobStage.LEAD
+                                )
+                                sharedJobVm.jobs.value
+                                    .firstOrNull { it.id !in before.map { b -> b.id } }
+                                    ?.id
+                            }
+                        }
+                    }
+
+                    // One-time backfill: promote free-text time entries to real
+                    // Jobs so financials, clients, and the Job Board all line up
+                    // with the hours actually worked. Gated by a SharedPreferences
+                    // flag so it runs at most once per install.
+                    LaunchedEffect(Unit) {
+                        if (UserPreferences.isFreeTextBackfillDone()) return@LaunchedEffect
+                        // Wait a beat so both VMs finish their restorePersistedState.
+                        kotlinx.coroutines.delay(500)
+                        val titleToJobId = mutableMapOf<String, String>()
+                        val existingJobs = sharedJobVm.jobs.value
+                        val existingTitles = existingJobs.associateBy { (it.clientName ?: it.title).trim().lowercase() }
+                        val freeTextEntries = com.guildofsmiths.trademesh.data.TimeEntryRepository.entries.value
+                            .filter { it.jobId.isNullOrBlank() && !it.jobTitle.isNullOrBlank() }
+                        val titles = freeTextEntries.map { it.jobTitle!!.trim() }.distinct()
+                        if (titles.isEmpty()) {
+                            UserPreferences.setFreeTextBackfillDone()
+                            return@LaunchedEffect
+                        }
+                        val defaultRate = UserPreferences.getHourlyRate()
+                        for (title in titles) {
+                            val key = title.lowercase()
+                            val existing = existingTitles[key]
+                            if (existing != null) {
+                                titleToJobId[title] = existing.id
+                                continue
+                            }
+                            val before = sharedJobVm.jobs.value
+                            sharedJobVm.createJob(
+                                title = title,
+                                clientName = title,
+                                hourlyRate = defaultRate,
+                                stage = com.guildofsmiths.trademesh.ui.jobboard.JobStage.LEAD
+                            )
+                            val newJob = sharedJobVm.jobs.value.lastOrNull()
+                            if (newJob != null && newJob.id !in before.map { it.id }) {
+                                titleToJobId[title] = newJob.id
+                            }
+                        }
+                        ttvm.relinkEntriesByTitle(titleToJobId)
+                        android.util.Log.i("Backfill", "promoted ${titleToJobId.size} free-text titles to Jobs")
+                        UserPreferences.setFreeTextBackfillDone()
+                    }
+
+                    // Lifecycle backfill (v2): align each Job's status/stage/
+                    // updatedAt with its actual TimeEntry history. A Job with
+                    // completed entries but no active session is DONE/CLOSED
+                    // at the latest clock-out; a Job with an active session is
+                    // IN_PROGRESS. Skips Jobs the user manually advanced past
+                    // CLOSED to avoid clobbering deliberate state.
+                    LaunchedEffect(Unit) {
+                        if (UserPreferences.isLifecycleBackfillDone()) return@LaunchedEffect
+                        kotlinx.coroutines.delay(800)
+                        var fixes = 0
+                        sharedJobVm.jobs.value.forEach { job ->
+                            val entries = com.guildofsmiths.trademesh.data.TimeEntryRepository
+                                .getEntriesForJob(job.id, job.title)
+                            if (entries.isEmpty()) return@forEach
+                            val firstIn = entries.minOfOrNull { it.clockInTime }
+                            val activeEntry = entries.firstOrNull { it.clockOutTime == null }
+                            val lastOut = entries.mapNotNull { it.clockOutTime }.maxOrNull()
+                            // v3 also fires when status is DONE/IN_PROGRESS but
+                            // the createdAt is later than the earliest clockIn —
+                            // happens when v2 corrected status without aligning
+                            // createdAt.
+                            val needsCreatedAtFix = firstIn != null && job.createdAt > firstIn
+                            when {
+                                activeEntry != null &&
+                                    (job.status == com.guildofsmiths.trademesh.ui.jobboard.JobStatus.TODO ||
+                                        needsCreatedAtFix) -> {
+                                    sharedJobVm.updateJobLifecycle(
+                                        jobId = job.id,
+                                        status = com.guildofsmiths.trademesh.ui.jobboard.JobStatus.IN_PROGRESS,
+                                        stage = com.guildofsmiths.trademesh.ui.jobboard.JobStage.IN_PROGRESS,
+                                        createdAt = firstIn,
+                                        updatedAt = activeEntry.clockInTime,
+                                        completedAt = null
+                                    )
+                                    fixes++
+                                }
+                                activeEntry == null && lastOut != null &&
+                                    (job.status == com.guildofsmiths.trademesh.ui.jobboard.JobStatus.TODO ||
+                                        job.status == com.guildofsmiths.trademesh.ui.jobboard.JobStatus.DONE && needsCreatedAtFix) -> {
+                                    sharedJobVm.updateJobLifecycle(
+                                        jobId = job.id,
+                                        status = com.guildofsmiths.trademesh.ui.jobboard.JobStatus.DONE,
+                                        stage = com.guildofsmiths.trademesh.ui.jobboard.JobStage.CLOSED,
+                                        createdAt = firstIn,
+                                        updatedAt = lastOut,
+                                        completedAt = lastOut
+                                    )
+                                    fixes++
+                                }
+                            }
+                        }
+                        android.util.Log.i("Backfill", "lifecycle corrected $fixes Job(s)")
+                        UserPreferences.setLifecycleBackfillDone()
+                    }
+
                     // Determine start destination - auth first, then onboarding
                     // Priority: Not logged in → Auth, Logged in but no onboarding → Onboarding, Complete → Dashboard
                     val startDestination = when {
@@ -278,7 +423,7 @@ class MainActivity : ComponentActivity() {
                         NavRoutes.CLIENTS, NavRoutes.CHAT_LIST,
                         NavRoutes.SETTINGS, NavRoutes.PROFILE,
                         NavRoutes.MAP, NavRoutes.DISPATCH,
-                        NavRoutes.PLAN
+                        NavRoutes.PLAN, NavRoutes.EXPENSES
                     )
 
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -364,7 +509,7 @@ class MainActivity : ComponentActivity() {
                                 initializeCommunication()
                             }
 
-                            val jobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel()
+                            val jobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel(viewModelStoreOwner = this@MainActivity)
                             val jobs by jobViewModel.jobs.collectAsState()
 
                             com.guildofsmiths.trademesh.ui.dashboard.DashboardScreen(
@@ -420,6 +565,9 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onMap = {
                                     navController.navigate(NavRoutes.MAP)
+                                },
+                                onExpenses = {
+                                    navController.navigate(NavRoutes.EXPENSES)
                                 }
                             )
                         }
@@ -430,7 +578,7 @@ class MainActivity : ComponentActivity() {
                             arguments = listOf(navArgument("jobId") { type = NavType.StringType })
                         ) { backStackEntry ->
                             val jobId = backStackEntry.arguments?.getString("jobId") ?: return@composable
-                            val jobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel()
+                            val jobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel(viewModelStoreOwner = this@MainActivity)
                             val jobs by jobViewModel.jobs.collectAsState()
                             val job = jobs.find { it.id == jobId }
 
@@ -473,7 +621,7 @@ class MainActivity : ComponentActivity() {
 
                         // New Job guided flow
                         composable(NavRoutes.NEW_JOB) {
-                            val jobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel()
+                            val jobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel(viewModelStoreOwner = this@MainActivity)
                             val allJobsForPicker by jobViewModel.jobs.collectAsState()
 
                             com.guildofsmiths.trademesh.ui.newjob.NewJobFlow(
@@ -489,7 +637,8 @@ class MainActivity : ComponentActivity() {
                                         clientPhone = newJob.clientPhone,
                                         clientAddress = newJob.clientAddress,
                                         hourlyRate = com.guildofsmiths.trademesh.data.UserPreferences.getHourlyRate(),
-                                        equipmentList = newJob.equipmentList
+                                        equipmentList = newJob.equipmentList,
+                                        taskDescriptions = newJob.taskDescriptions
                                     )
                                     navController.popBackStack()
                                 }
@@ -551,7 +700,7 @@ class MainActivity : ComponentActivity() {
                         // New conversation screen (contact picker)
                         composable(NavRoutes.NEW_CONVERSATION) {
                             val jobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel =
-                                androidx.lifecycle.viewmodel.compose.viewModel()
+                                androidx.lifecycle.viewmodel.compose.viewModel(viewModelStoreOwner = this@MainActivity)
                             val allJobs by jobViewModel.jobs.collectAsState()
                             NewConversationScreen(
                                 allJobs = allJobs,
@@ -599,9 +748,40 @@ class MainActivity : ComponentActivity() {
                         
                         // C-11: Job Board
                         composable(NavRoutes.JOB_BOARD) {
+                            val jobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel(viewModelStoreOwner = this@MainActivity)
+                            val activeEntry by ttvm.activeEntry.collectAsState()
+                            val isClockedIn by ttvm.isClockedIn.collectAsState()
                             JobBoardScreen(
+                                viewModel = jobViewModel,
                                 onNavigateBack = {
                                     navController.popBackStack()
+                                },
+                                currentlyClockedIn = isClockedIn,
+                                currentClockedInJobId = activeEntry?.jobId?.takeIf { it.isNotBlank() },
+                                currentClockedInJobTitle = activeEntry?.jobTitle,
+                                currentClockedInTaskId = activeEntry?.taskId?.takeIf { it.isNotBlank() },
+                                onClockIn = { jobId, jobTitle, taskId ->
+                                    // Direct clock-in: only fires when JobBoardScreen
+                                    // determined the user is OFF the clock.
+                                    ttvm.clockIn(
+                                        jobId = jobId,
+                                        jobTitle = jobTitle,
+                                        taskId = taskId,
+                                        entryType = com.guildofsmiths.trademesh.ui.timetracking.EntryType.REGULAR
+                                    )
+                                },
+                                onSwitchClock = { jobId, jobTitle, taskId ->
+                                    // Atomic clock-out + clock-in. Old job's stage
+                                    // is sticky — we never regress it here.
+                                    if (ttvm.isClockedIn.value) {
+                                        ttvm.clockOut()
+                                    }
+                                    ttvm.clockIn(
+                                        jobId = jobId,
+                                        jobTitle = jobTitle,
+                                        taskId = taskId,
+                                        entryType = com.guildofsmiths.trademesh.ui.timetracking.EntryType.REGULAR
+                                    )
                                 }
                             )
                         }
@@ -617,7 +797,9 @@ class MainActivity : ComponentActivity() {
 
                         // C-13: Archive
                         composable(NavRoutes.ARCHIVE) {
+                            val jobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel(viewModelStoreOwner = this@MainActivity)
                             ArchiveScreen(
+                                viewModel = jobViewModel,
                                 onNavigateBack = {
                                     navController.popBackStack()
                                 },
@@ -629,7 +811,7 @@ class MainActivity : ComponentActivity() {
 
                         // Supply screen
                         composable(NavRoutes.SUPPLY) {
-                            val supplyJobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel()
+                            val supplyJobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel(viewModelStoreOwner = this@MainActivity)
                             val allJobs by supplyJobViewModel.jobs.collectAsState()
                             com.guildofsmiths.trademesh.ui.supply.SupplyScreen(
                                 allJobs = allJobs,
@@ -648,13 +830,83 @@ class MainActivity : ComponentActivity() {
 
                         // Report screen
                         composable(NavRoutes.REPORT) {
-                            val reportJobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel()
+                            val reportJobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel(viewModelStoreOwner = this@MainActivity)
                             val allJobs by reportJobViewModel.jobs.collectAsState()
                             com.guildofsmiths.trademesh.ui.report.ReportScreen(
                                 allJobs = allJobs,
                                 onJobClick = { jobId ->
                                     navController.navigate(NavRoutes.jobPipeline(jobId))
                                 },
+                                onOpenJobExpenses = { jobId ->
+                                    navController.navigate(NavRoutes.jobExpenses(jobId))
+                                },
+                                onOpenExpenses = {
+                                    navController.navigate(NavRoutes.EXPENSES)
+                                },
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+
+                        // Top-level Expenses page (By Job / Ledger / Timeline / BOL Table)
+                        composable(NavRoutes.EXPENSES) {
+                            val vm: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel(viewModelStoreOwner = this@MainActivity)
+                            com.guildofsmiths.trademesh.ui.expenses.ExpensesScreen(
+                                viewModel = vm,
+                                onBack = { navController.popBackStack() },
+                                onOpenJobExpenses = { jobId ->
+                                    navController.navigate(NavRoutes.jobExpenses(jobId))
+                                },
+                                onOpenCategoryManager = {
+                                    navController.navigate(NavRoutes.EXPENSE_CATEGORIES)
+                                },
+                                onOpenCsvImport = {
+                                    navController.navigate(NavRoutes.EXPENSE_CSV_IMPORT)
+                                },
+                                onOpenLegalSettings = {
+                                    navController.navigate(NavRoutes.BOL_LEGAL_SETTINGS)
+                                }
+                            )
+                        }
+
+                        // Per-job BOL (Bill of Work & Expenses) detail
+                        composable(NavRoutes.JOB_EXPENSES) { backStackEntry ->
+                            val jobId = backStackEntry.arguments?.getString("jobId") ?: ""
+                            val vm: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel(viewModelStoreOwner = this@MainActivity)
+                            com.guildofsmiths.trademesh.ui.expenses.JobExpenseDetailScreen(
+                                jobId = jobId,
+                                viewModel = vm,
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+
+                        // Category manager
+                        composable(NavRoutes.EXPENSE_CATEGORIES) {
+                            com.guildofsmiths.trademesh.ui.expenses.CategoryManagerScreen(
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+
+                        // CSV importer
+                        composable(NavRoutes.EXPENSE_CSV_IMPORT) {
+                            val vm: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel(viewModelStoreOwner = this@MainActivity)
+                            com.guildofsmiths.trademesh.ui.expenses.ExpenseCsvImportScreen(
+                                viewModel = vm,
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+
+                        // BOL legal-terms settings
+                        composable(NavRoutes.BOL_LEGAL_SETTINGS) {
+                            com.guildofsmiths.trademesh.ui.expenses.BolLegalSettingsScreen(
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+
+                        // Lost & Found — GPS breadcrumb for a crew member
+                        composable(NavRoutes.LOST_AND_FOUND) { backStackEntry ->
+                            val userId = backStackEntry.arguments?.getString("userId") ?: return@composable
+                            com.guildofsmiths.trademesh.ui.map.LostAndFoundScreen(
+                                targetUserId = android.net.Uri.decode(userId),
                                 onBack = { navController.popBackStack() }
                             )
                         }
@@ -670,7 +922,9 @@ class MainActivity : ComponentActivity() {
 
                         // Crew Map
                         composable(NavRoutes.MAP) {
+                            val jobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel(viewModelStoreOwner = this@MainActivity)
                             com.guildofsmiths.trademesh.ui.map.MapScreen(
+                                jobViewModel = jobViewModel,
                                 onBack = { navController.popBackStack() },
                                 onJobClick = { jobId ->
                                     navController.navigate(NavRoutes.jobPipeline(jobId))
@@ -694,7 +948,9 @@ class MainActivity : ComponentActivity() {
 
                         // Dispatch screen — crew-to-task assignments
                         composable(NavRoutes.DISPATCH) {
+                            val jobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel(viewModelStoreOwner = this@MainActivity)
                             com.guildofsmiths.trademesh.ui.dispatch.DispatchScreen(
+                                viewModel = jobViewModel,
                                 onBack = { navController.popBackStack() },
                                 onJobClick = { jobId ->
                                     navController.navigate(NavRoutes.jobPipeline(jobId))
@@ -718,7 +974,7 @@ class MainActivity : ComponentActivity() {
 
                         // Clients list
                         composable(NavRoutes.CLIENTS) {
-                            val clientJobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel()
+                            val clientJobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel(viewModelStoreOwner = this@MainActivity)
                             val allJobs by clientJobViewModel.jobs.collectAsState()
                             ClientsScreen(
                                 allJobs = allJobs,
@@ -737,7 +993,7 @@ class MainActivity : ComponentActivity() {
                             val clientName = android.net.Uri.decode(
                                 backStackEntry.arguments?.getString("clientName") ?: ""
                             )
-                            val detailJobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel()
+                            val detailJobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel(viewModelStoreOwner = this@MainActivity)
                             val allJobs by detailJobViewModel.jobs.collectAsState()
                             ClientDetailScreen(
                                 clientName = clientName,
@@ -1110,7 +1366,11 @@ class MainActivity : ComponentActivity() {
                 Manifest.permission.BLUETOOTH_SCAN,
                 Manifest.permission.BLUETOOTH_ADVERTISE,
                 Manifest.permission.BLUETOOTH_CONNECT,
-                Manifest.permission.POST_NOTIFICATIONS
+                Manifest.permission.POST_NOTIFICATIONS,
+                // GPS for clock-in validation + lost & found. Coarse is enough to run
+                // the foreground service; user can elevate to fine from system Settings.
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
             )
             
             val missingPermissions = requiredPermissions.filter {

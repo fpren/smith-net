@@ -18,6 +18,10 @@ data class TimeEntry(
     val durationMinutes: Int? = null,
     val jobId: String? = null,
     val jobTitle: String? = null,
+    // Task this entry tags. Set when the user starts a specific task on a
+    // job (▶ in the job dialog) so labor minutes can roll up per task as
+    // well as per job.
+    val taskId: String? = null,
     val projectId: String? = null,
     val location: String? = null,
     val entryType: EntryType = EntryType.REGULAR,
@@ -25,7 +29,13 @@ data class TimeEntry(
     val createdAt: Long,
     val immutableHash: String,
     val notes: List<TimeNote> = emptyList(),
-    val status: EntryStatus = EntryStatus.COMPLETED
+    val status: EntryStatus = EntryStatus.COMPLETED,
+    // GPS coordinates captured at clock-in, when location sharing is on.
+    // Populated when source == GEOFENCE or when a manual clock-in had a fix.
+    val entryLatitude: Double? = null,
+    val entryLongitude: Double? = null,
+    val entryAccuracyMeters: Float? = null,
+    val distanceFromSiteMeters: Int? = null
 )
 
 enum class EntryType(val displayName: String, val icon: String) {

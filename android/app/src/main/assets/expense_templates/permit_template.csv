@@ -1,0 +1,3 @@
+date,job,category,description,qty,unit,unit_cost,vendor,ref_no,hazardous,freight_term,notes
+2026-04-19,Matos roof,permit_fee,Electrical permit,1,ea,185.00,NYC DOB,NYC-EL-24-8821,false,NA,
+2026-04-19,Matos roof,permit_fee,Plumbing permit,1,ea,150.00,NYC DOB,NYC-PL-24-6611,false,NA,

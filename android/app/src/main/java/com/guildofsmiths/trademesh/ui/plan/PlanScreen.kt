@@ -125,7 +125,7 @@ fun PlanScreen(
                 IntentRepository.createIntent(
                     scopeStatement = scopeStatement,
                     parties = parties,
-                    createdBy = "local-user",
+                    createdBy = UserPreferences.getUserId(),
                     taskDescriptions = tasks,
                     equipmentNeeded = equipment,
                     suppliesNeeded = supplies,

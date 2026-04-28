@@ -343,33 +343,38 @@ object GeofenceManager {
     // AUTO CLOCK IN/OUT
     // ════════════════════════════════════════════════════════════════════
     
+    /**
+     * Callback invoked when the device enters a job-site geofence and has dwelt
+     * for the grace window. Wire this from a lifecycle-aware component (e.g.
+     * the UI or a tick-tock worker) that can build a `TimeEntry` with
+     * `source = EntrySource.GEOFENCE`. Kept as a field (not a hardcoded
+     * integration) so the manager stays decoupled from TimeTrackingViewModel.
+     */
+    var onAutoClockIn: ((geofenceName: String, jobId: String?, latitude: Double, longitude: Double) -> Unit)? = null
+    var onAutoClockOut: ((geofenceName: String, jobId: String?) -> Unit)? = null
+
     private fun triggerAutoClockIn(geofence: Geofence) {
         Log.i(TAG, "╔═══════════════════════════════════════╗")
         Log.i(TAG, "║  AUTO CLOCK IN @ ${geofence.name}")
         Log.i(TAG, "╚═══════════════════════════════════════╝")
-        
         scope.launch {
             try {
-                // Log the event - integrate with time tracking API
                 Log.i(TAG, "Clock in event: jobId=${geofence.jobId}, location=${geofence.name}")
-                
-                // TODO: Integrate with time tracking backend when ready
+                onAutoClockIn?.invoke(geofence.name, geofence.jobId, geofence.latitude, geofence.longitude)
             } catch (e: Exception) {
                 Log.e(TAG, "Auto clock-in failed: ${e.message}")
             }
         }
     }
-    
+
     private fun triggerAutoClockOut(geofence: Geofence) {
         Log.i(TAG, "╔═══════════════════════════════════════╗")
         Log.i(TAG, "║  AUTO CLOCK OUT @ ${geofence.name}")
         Log.i(TAG, "╚═══════════════════════════════════════╝")
-        
         scope.launch {
             try {
                 Log.i(TAG, "Clock out event: location=${geofence.name}")
-                
-                // TODO: Integrate with time tracking backend when ready
+                onAutoClockOut?.invoke(geofence.name, geofence.jobId)
             } catch (e: Exception) {
                 Log.e(TAG, "Auto clock-out failed: ${e.message}")
             }

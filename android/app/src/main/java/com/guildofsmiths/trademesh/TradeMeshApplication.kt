@@ -9,6 +9,10 @@ import com.guildofsmiths.trademesh.ai.ResponseCache
 import com.guildofsmiths.trademesh.data.BeaconRepository
 import com.guildofsmiths.trademesh.data.ClientRepository
 import com.guildofsmiths.trademesh.data.ColleagueRepository
+import com.guildofsmiths.trademesh.data.BolLegalPreferences
+import com.guildofsmiths.trademesh.data.ExpenseCategoryRepository
+import com.guildofsmiths.trademesh.data.LocationSharingPreferences
+import com.guildofsmiths.trademesh.data.LocationTrailRepository
 import com.guildofsmiths.trademesh.data.IntentRepository
 import com.guildofsmiths.trademesh.data.IdentityResolver
 import com.guildofsmiths.trademesh.data.MessageRepository
@@ -62,6 +66,16 @@ class TradeMeshApplication : Application() {
 
         // Initialize colleague/crew contacts repository
         ColleagueRepository.init(this)
+
+        // Initialize expense category repository (ships built-in defaults on first launch)
+        ExpenseCategoryRepository.init(this)
+
+        // Initialize BOL legal-terms preferences (default: US UCC/Pomerene enabled)
+        BolLegalPreferences.init(this)
+
+        // Location sharing prefs + trail store for clock-in validation + lost & found
+        LocationSharingPreferences.init(this)
+        LocationTrailRepository.init(this)
 
         // Initialize message repository (with Room database)
         MessageRepository.init(this)

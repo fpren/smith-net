@@ -53,11 +53,27 @@ object AmbientEventHub {
             )
         }
 
-    // Time entry events
-    val timeEntryCreatedFlow: Flow<TimeEntryEvent> = flow {
-        // This would connect to TimeTrackingViewModel's state
-        // For now, emit mock events - replace with real integration
-        // emit(TimeEntryEvent(clockIn = true, jobId = "job123"))
+    // Time entry events — fed by TimeTrackingViewModel.clockIn / clockOut.
+    private val _timeEntryCreatedFlow = MutableSharedFlow<TimeEntryEvent>(
+        replay = 1,
+        extraBufferCapacity = 8
+    )
+    val timeEntryCreatedFlow: SharedFlow<TimeEntryEvent> = _timeEntryCreatedFlow.asSharedFlow()
+
+    fun emitClockEvent(
+        clockIn: Boolean,
+        clockOut: Boolean = false,
+        jobId: String? = null,
+        entryType: String? = null
+    ) {
+        _timeEntryCreatedFlow.tryEmit(
+            TimeEntryEvent(
+                clockIn = clockIn,
+                clockOut = clockOut,
+                jobId = jobId,
+                entryType = entryType
+            )
+        )
     }
 
     // Job/checklist events

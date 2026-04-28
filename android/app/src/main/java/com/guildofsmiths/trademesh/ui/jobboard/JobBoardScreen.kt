@@ -39,7 +39,21 @@ import kotlin.math.roundToInt
 @Composable
 fun JobBoardScreen(
     onNavigateBack: () -> Unit,
-    viewModel: JobBoardViewModel = viewModel()
+    viewModel: JobBoardViewModel = viewModel(),
+    /** Invoked when the user taps START WORKING (job-level) or ▶ on a task
+     *  row. Caller should clock the user in with the supplied IDs. */
+    onClockIn: (jobId: String, jobTitle: String, taskId: String?) -> Unit = { _, _, _ -> },
+    /** Active clock entry context — supplied by caller from
+     *  TimeTrackingViewModel.activeEntry. Used to decide whether to swap
+     *  silently, prompt for confirmation, or no-op when the user starts
+     *  another job/task. */
+    currentlyClockedIn: Boolean = false,
+    currentClockedInJobId: String? = null,
+    currentClockedInJobTitle: String? = null,
+    currentClockedInTaskId: String? = null,
+    /** Called when the user confirms a clock-switch (clock-out current then
+     *  clock-in new). The old job's stage is not regressed by the caller. */
+    onSwitchClock: (jobId: String, jobTitle: String, taskId: String?) -> Unit = { _, _, _ -> }
 ) {
     val jobs by viewModel.jobs.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -47,6 +61,7 @@ fun JobBoardScreen(
     val selectedJob by viewModel.selectedJob.collectAsState()
     val tasks by viewModel.tasks.collectAsState()
     val generatedInvoice by viewModel.generatedInvoice.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     // Check for pending intent from proposal
     val pendingIntent by com.guildofsmiths.trademesh.data.IntentRepository.pendingIntentForJob.collectAsState()
@@ -229,7 +244,25 @@ fun JobBoardScreen(
                 com.guildofsmiths.trademesh.data.IntentRepository.clearPendingIntentForJob()
             },
             onCreate = { title, desc, priority, expenses, crewSize, crew, materials, startDate, endDate ->
-                viewModel.createJob(title, desc, priority, "", expenses, crewSize, crew, materials, startDate, endDate)
+                // Re-read the pending intent at click time (the captured `intent` may be
+                // stale if a recomposition raced with the tap).
+                val sourceIntent = com.guildofsmiths.trademesh.data.IntentRepository
+                    .pendingIntentForJob.value ?: intent
+                viewModel.createJob(
+                    title = title,
+                    description = desc,
+                    priority = priority,
+                    expensesNote = expenses,
+                    crewSize = crewSize,
+                    crew = crew,
+                    materials = materials,
+                    estimatedStartDate = startDate,
+                    estimatedEndDate = endDate,
+                    clientName = sourceIntent?.parties?.firstOrNull(),
+                    equipmentList = sourceIntent?.equipmentNeeded ?: emptyList(),
+                    taskDescriptions = sourceIntent?.taskDescriptions ?: emptyList(),
+                    proposalId = sourceIntent?.intentId
+                )
                 showCreateDialog = false
                 com.guildofsmiths.trademesh.data.IntentRepository.clearPendingIntentForJob()
             },
@@ -240,26 +273,123 @@ fun JobBoardScreen(
         )
     }
 
+    // Pending switch-clock prompt (cross-job switch). Resolved by user tap.
+    var pendingSwitch by remember { mutableStateOf<ClockSwitchRequest?>(null) }
+
     // Job Detail/Workflow Dialog
     selectedJob?.let { job ->
         JobWorkflowDialog(
             job = job,
             tasks = tasks,
             viewModel = viewModel,
-            onDismiss = { viewModel.selectJob(null) }
+            onDismiss = { viewModel.selectJob(null) },
+            startClock = { jobId, jobTitle, taskId, performStart ->
+                val activeJob = currentClockedInJobId
+                val activeTask = currentClockedInTaskId
+                when {
+                    !currentlyClockedIn -> {
+                        performStart()
+                        onClockIn(jobId, jobTitle, taskId)
+                    }
+                    activeJob == jobId && activeTask == taskId -> Unit
+                    activeJob == jobId && activeJob != null -> {
+                        performStart()
+                        onSwitchClock(jobId, jobTitle, taskId)
+                    }
+                    else -> {
+                        // Cross-job: defer performStart so [x] CANCEL leaves
+                        // task PENDING and old job's clock untouched.
+                        pendingSwitch = ClockSwitchRequest(
+                            jobId = jobId, jobTitle = jobTitle, taskId = taskId,
+                            oldJobTitle = activeJob?.let { id ->
+                                jobs.firstOrNull { it.id == id }?.let { j -> j.clientName ?: j.title }
+                            } ?: currentClockedInJobTitle ?: "general time",
+                            performStart = performStart
+                        )
+                    }
+                }
+            }
         )
     }
 
-    // Invoice Preview Dialog
+    pendingSwitch?.let { req ->
+        AlertDialog(
+            onDismissRequest = { pendingSwitch = null },
+            containerColor = ConsoleTheme.surface,
+            title = { Text("SWITCH CLOCK?", style = ConsoleTheme.header) },
+            text = {
+                Text(
+                    text = "You're on the clock for ${req.oldJobTitle}.\nClock out and start ${req.jobTitle}?",
+                    style = ConsoleTheme.body
+                )
+            },
+            confirmButton = {
+                Text(
+                    text = "[v] SWITCH",
+                    style = ConsoleTheme.action.copy(color = ConsoleTheme.success),
+                    modifier = Modifier
+                        .clickable {
+                            req.performStart()
+                            onSwitchClock(req.jobId, req.jobTitle, req.taskId)
+                            pendingSwitch = null
+                        }
+                        .padding(8.dp)
+                )
+            },
+            dismissButton = {
+                Text(
+                    text = "[x] CANCEL",
+                    style = ConsoleTheme.action,
+                    modifier = Modifier.clickable { pendingSwitch = null }.padding(8.dp)
+                )
+            }
+        )
+    }
+
+    // Invoice Preview Dialog + rich PREVIEW & SHARE bottom sheet
+    var showRichPreview by remember { mutableStateOf(false) }
     generatedInvoice?.let { invoice ->
+        val invoiceJob = jobs.firstOrNull { it.id == invoice.jobId }
+        val timeEntries by com.guildofsmiths.trademesh.data.TimeEntryRepository.entries.collectAsState()
+        val bolText = remember(invoiceJob, timeEntries) {
+            invoiceJob?.let { com.guildofsmiths.trademesh.ui.expenses.BolFormatter.formatAsText(it, timeEntries) }
+        }
         InvoicePreviewDialog(
             invoice = invoice,
             onDismiss = { viewModel.clearInvoice() },
             onShare = { text ->
-                // TODO: Implement share functionality
+                val share = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(android.content.Intent.EXTRA_SUBJECT, "Invoice ${invoice.invoiceNumber}")
+                    putExtra(android.content.Intent.EXTRA_TEXT, text)
+                }
+                context.startActivity(android.content.Intent.createChooser(share, "Share Invoice"))
                 viewModel.clearInvoice()
-            }
+            },
+            bolText = bolText,
+            onShareBol = { bol ->
+                val share = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(android.content.Intent.EXTRA_SUBJECT, "BOL — ${invoiceJob?.clientName ?: invoiceJob?.title}")
+                    putExtra(android.content.Intent.EXTRA_TEXT, bol)
+                }
+                context.startActivity(android.content.Intent.createChooser(share, "Share BOL"))
+            },
+            onPreviewRendered = if (invoiceJob != null) {
+                { showRichPreview = true }
+            } else null
         )
+        if (showRichPreview && invoiceJob != null) {
+            com.guildofsmiths.trademesh.ui.expenses.InvoicePreviewBottomSheet(
+                invoice = invoice,
+                job = invoiceJob,
+                timeEntries = timeEntries,
+                onDismiss = {
+                    showRichPreview = false
+                    viewModel.clearInvoice()
+                }
+            )
+        }
     }
 }
 
@@ -527,12 +657,28 @@ private fun SwipeableJobRow(
 // JOB WORKFLOW DIALOG - Shows details and controls advancement
 // ════════════════════════════════════════════════════════════════════
 
+private data class ClockSwitchRequest(
+    val jobId: String,
+    val jobTitle: String,
+    val taskId: String?,
+    val oldJobTitle: String,
+    /** Local mutations (startTask, moveJob) that should ONLY apply if the user
+     *  actually confirms the switch — otherwise we'd leave a task in
+     *  IN_PROGRESS while time is tagged elsewhere. */
+    val performStart: () -> Unit
+)
+
 @Composable
 private fun JobWorkflowDialog(
     job: Job,
     tasks: List<Task>,
     viewModel: JobBoardViewModel,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    /** Single entry point for "user wants to start working on this job/task".
+     *  performStart applies the local Job/Task mutations; the screen-level
+     *  router decides whether to invoke it eagerly or defer until the user
+     *  confirms a cross-job clock switch. */
+    startClock: (jobId: String, jobTitle: String, taskId: String?, performStart: () -> Unit) -> Unit = { _, _, _, _ -> }
 ) {
     var showAddTask by remember { mutableStateOf(false) }
     var newTaskTitle by remember { mutableStateOf("") }
@@ -601,9 +747,9 @@ private fun JobWorkflowDialog(
                     Text(text = job.description, style = ConsoleTheme.body)
                 }
 
-                if (job.expenses.isNotEmpty() && job.expenses.lowercase() != "n/a") {
-                    Text(text = "EXPENSES", style = ConsoleTheme.captionBold)
-                    Text(text = job.expenses, style = ConsoleTheme.body)
+                if (job.expensesNote.isNotEmpty() && job.expensesNote.lowercase() != "n/a") {
+                    Text(text = "EXPENSES (NOTE)", style = ConsoleTheme.captionBold)
+                    Text(text = job.expensesNote, style = ConsoleTheme.body)
                 }
 
                 if (job.crew.isNotEmpty()) {
@@ -704,21 +850,50 @@ private fun JobWorkflowDialog(
                 }
 
                 tasks.forEach { task ->
+                    // 3-state row: PENDING → IN_PROGRESS → DONE.
+                    //   [ ] PENDING       tap → startTask + onClockIn(this task)
+                    //   [▶] IN_PROGRESS   tap → completeTask (also clocks out
+                    //                     via the regular clock pill if user
+                    //                     wants — kept manual to avoid surprises)
+                    //   [X] DONE          tap → toggleTask reverts to PENDING
+                    val (label, color) = when (task.status) {
+                        TaskStatus.DONE -> "[X]" to ConsoleTheme.success
+                        TaskStatus.IN_PROGRESS -> "[▶]" to ConsoleTheme.accent
+                        else -> "[ ]" to ConsoleTheme.textMuted
+                    }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(ConsoleTheme.surface)
-                            .clickable { viewModel.toggleTask(task.id) }
+                            .clickable {
+                                when (task.status) {
+                                    TaskStatus.PENDING, TaskStatus.BLOCKED -> {
+                                        // Defer task IN_PROGRESS flip + sticky job
+                                        // stage flip until the screen-level router
+                                        // decides this clock action actually happens.
+                                        // Cross-job confirms run performStart only on
+                                        // [v] SWITCH; on [x] CANCEL nothing changes.
+                                        val performStart = {
+                                            viewModel.startTask(task.id)
+                                            if (job.status == JobStatus.TODO) {
+                                                viewModel.moveJob(job.id, JobStatus.IN_PROGRESS)
+                                            }
+                                        }
+                                        startClock(job.id, job.clientName ?: job.title, task.id, performStart)
+                                    }
+                                    // Marking DONE does NOT touch the clock or job stage.
+                                    // (Per design: ending a task ≠ finishing the job.)
+                                    TaskStatus.IN_PROGRESS -> viewModel.completeTask(task.id)
+                                    TaskStatus.DONE -> viewModel.toggleTask(task.id)
+                                }
+                            }
                             .padding(10.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = if (task.status == TaskStatus.DONE) "[X]" else "[  ]",
-                            style = ConsoleTheme.bodyBold.copy(
-                                color = if (task.status == TaskStatus.DONE) ConsoleTheme.success 
-                                        else ConsoleTheme.textMuted
-                            )
+                            text = label,
+                            style = ConsoleTheme.bodyBold.copy(color = color)
                         )
                         Text(text = task.title, style = ConsoleTheme.body, modifier = Modifier.weight(1f))
                     }
@@ -852,12 +1027,24 @@ private fun JobWorkflowDialog(
                 // ═══════════════════════════════════════════════════
                 when (job.status) {
                     JobStatus.TODO -> {
-                        // Can start working
+                        // Can start working — flips status AND clocks in.
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .background(ConsoleTheme.success.copy(alpha = 0.15f))
-                                .clickable { viewModel.moveJob(job.id, JobStatus.IN_PROGRESS) }
+                                .clickable {
+                                    // Job stage IS sticky and forward-only, so flipping
+                                    // TODO→IN_PROGRESS is fine to do eagerly. The deferred
+                                    // performStart here is a no-op for the job-level case
+                                    // — the moveJob call above is already idempotent and
+                                    // sticky.
+                                    val performStart = {
+                                        if (job.status == JobStatus.TODO) {
+                                            viewModel.moveJob(job.id, JobStatus.IN_PROGRESS)
+                                        }
+                                    }
+                                    startClock(job.id, job.clientName ?: job.title, null, performStart)
+                                }
                                 .padding(16.dp),
                             contentAlignment = Alignment.Center
                         ) {

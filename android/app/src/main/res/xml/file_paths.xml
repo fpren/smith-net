@@ -12,4 +12,7 @@
     
     <!-- External files (if needed) -->
     <external-files-path name="external" path="." />
+
+    <!-- Shared invoice / BOL documents written to cache for Intent.ACTION_SEND -->
+    <cache-path name="shared-docs" path="shared-docs/" />
 </paths>

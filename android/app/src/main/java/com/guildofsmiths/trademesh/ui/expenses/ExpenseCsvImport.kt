@@ -1,0 +1,358 @@
+package com.guildofsmiths.trademesh.ui.expenses
+
+import android.content.Context
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.guildofsmiths.trademesh.data.ExpenseCategoryRepository
+import com.guildofsmiths.trademesh.ui.ConsoleHeader
+import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.jobboard.FreightTerm
+import com.guildofsmiths.trademesh.ui.jobboard.Job
+import com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel
+import com.guildofsmiths.trademesh.ui.jobboard.JobExpense
+import java.io.BufferedReader
+import java.io.InputStreamReader
+
+@Composable
+fun ExpenseCsvImportScreen(
+    viewModel: JobBoardViewModel,
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    val jobs by viewModel.jobs.collectAsState()
+    val categories by ExpenseCategoryRepository.categories.collectAsState()
+
+    var parsedRows by remember { mutableStateOf<List<ParsedRow>>(emptyList()) }
+    var fileName by remember { mutableStateOf<String?>(null) }
+    var errors by remember { mutableStateOf<List<String>>(emptyList()) }
+
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri != null) {
+            fileName = uri.lastPathSegment
+            val (rows, errs) = parseCsv(context, uri, jobs)
+            parsedRows = rows
+            errors = errs
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize().background(ConsoleTheme.background)) {
+        ConsoleHeader(title = "IMPORT EXPENSES (CSV)", onBackClick = onBack)
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                "Expected columns: date, job, category, description, qty, unit, unit_cost, vendor, ref_no, hazardous, freight_term, notes. Extra columns are ignored; missing ones default.",
+                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(
+                    modifier = Modifier
+                        .background(ConsoleTheme.accent.copy(alpha = 0.14f), RoundedCornerShape(4.dp))
+                        .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable { picker.launch(arrayOf("text/csv", "text/*", "text/comma-separated-values", "application/vnd.ms-excel")) }
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                ) {
+                    Text("[Choose CSV file]", style = ConsoleTheme.action.copy(color = ConsoleTheme.accent))
+                }
+                Box(
+                    modifier = Modifier
+                        .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+                        .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable {
+                            copyTemplateToDownloads(context, "all_categories.csv")
+                            Toast.makeText(context, "Saved all_categories.csv to Downloads", Toast.LENGTH_SHORT).show()
+                        }
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                ) {
+                    Text("[Download template]", style = ConsoleTheme.action.copy(color = ConsoleTheme.text))
+                }
+            }
+
+            fileName?.let {
+                Text("File: $it", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+            }
+
+            if (errors.isNotEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(ConsoleTheme.error.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                        .padding(8.dp)
+                ) {
+                    errors.forEach { Text("• $it", style = ConsoleTheme.caption.copy(color = ConsoleTheme.error)) }
+                }
+            }
+
+            if (parsedRows.isNotEmpty()) {
+                val ok = parsedRows.count { it.status == ParseStatus.OK }
+                val warn = parsedRows.count { it.status != ParseStatus.OK }
+                Text(
+                    "Preview: $ok ready · $warn warning${if (warn != 1) "s" else ""}",
+                    style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text)
+                )
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+                        .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
+                        .padding(8.dp)
+                ) {
+                    Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+                        Column {
+                            parsedRows.forEach { r ->
+                                val color = when (r.status) {
+                                    ParseStatus.OK -> ConsoleTheme.text
+                                    ParseStatus.NO_JOB_MATCH -> ConsoleTheme.warning
+                                    ParseStatus.UNKNOWN_CATEGORY -> ConsoleTheme.warning
+                                    ParseStatus.INVALID -> ConsoleTheme.error
+                                }
+                                Row(modifier = Modifier.padding(vertical = 2.dp)) {
+                                    Text(r.statusTag, style = ConsoleTheme.caption.copy(color = color), modifier = Modifier.width(64.dp))
+                                    Text(r.jobLabel, style = ConsoleTheme.caption.copy(color = color), modifier = Modifier.width(120.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(r.categoryLabel, style = ConsoleTheme.caption.copy(color = color), modifier = Modifier.width(80.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(r.expense.description, style = ConsoleTheme.caption.copy(color = color), modifier = Modifier.width(140.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text("$${String.format("%.2f", r.expense.totalCost)}", style = ConsoleTheme.caption.copy(color = color), modifier = Modifier.width(70.dp))
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .background(ConsoleTheme.accent.copy(alpha = 0.14f), RoundedCornerShape(4.dp))
+                            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable {
+                                var imported = 0
+                                var skipped = 0
+                                parsedRows.forEach { r ->
+                                    if (r.status == ParseStatus.INVALID || r.matchedJobId == null) {
+                                        skipped++
+                                        return@forEach
+                                    }
+                                    // Auto-create unknown category on import
+                                    if (r.status == ParseStatus.UNKNOWN_CATEGORY) {
+                                        val existing = ExpenseCategoryRepository.get(r.rawCategory.lowercase().replace(' ', '_'))
+                                        if (existing == null) {
+                                            ExpenseCategoryRepository.add(r.rawCategory, "[?]")
+                                        }
+                                    }
+                                    viewModel.addExpense(r.matchedJobId, r.expense)
+                                    imported++
+                                }
+                                Toast.makeText(context, "Imported $imported · skipped $skipped", Toast.LENGTH_LONG).show()
+                                parsedRows = emptyList()
+                                fileName = null
+                            }
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                    ) {
+                        Text("[Import ${parsedRows.count { it.matchedJobId != null && it.status != ParseStatus.INVALID }} rows]",
+                            style = ConsoleTheme.action.copy(color = ConsoleTheme.accent))
+                    }
+                    Box(
+                        modifier = Modifier
+                            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+                            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable { parsedRows = emptyList(); fileName = null; errors = emptyList() }
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                    ) {
+                        Text("[clear]", style = ConsoleTheme.action.copy(color = ConsoleTheme.text))
+                    }
+                }
+            }
+        }
+    }
+}
+
+private enum class ParseStatus { OK, NO_JOB_MATCH, UNKNOWN_CATEGORY, INVALID }
+
+private data class ParsedRow(
+    val status: ParseStatus,
+    val statusTag: String,
+    val jobLabel: String,
+    val categoryLabel: String,
+    val rawCategory: String,
+    val matchedJobId: String?,
+    val expense: JobExpense
+)
+
+private fun parseCsv(context: Context, uri: Uri, jobs: List<Job>): Pair<List<ParsedRow>, List<String>> {
+    val errors = mutableListOf<String>()
+    val rows = mutableListOf<ParsedRow>()
+    try {
+        context.contentResolver.openInputStream(uri)?.use { stream ->
+            BufferedReader(InputStreamReader(stream)).use { reader ->
+                val headerLine = reader.readLine() ?: return emptyList<ParsedRow>() to listOf("Empty file")
+                val headers = splitCsv(headerLine).map { it.trim().lowercase() }
+                fun colIdx(vararg names: String): Int = names.firstNotNullOfOrNull { headers.indexOf(it).takeIf { i -> i >= 0 } } ?: -1
+                val iDate = colIdx("date")
+                val iJob = colIdx("job", "job_title", "job_name")
+                val iCat = colIdx("category")
+                val iDesc = colIdx("description", "desc")
+                val iQty = colIdx("qty", "quantity")
+                val iUnit = colIdx("unit")
+                val iRate = colIdx("unit_cost", "rate", "price")
+                val iVendor = colIdx("vendor")
+                val iRef = colIdx("ref_no", "reference", "receipt_no")
+                val iHm = colIdx("hazardous", "hm")
+                val iFreight = colIdx("freight_term")
+                val iNotes = colIdx("notes")
+
+                if (iDesc < 0) errors += "Missing required column: description"
+                if (iCat < 0) errors += "Missing required column: category"
+
+                val cats = com.guildofsmiths.trademesh.data.ExpenseCategoryRepository.categories.value
+
+                var line = reader.readLine()
+                var rowNum = 1
+                while (line != null) {
+                    rowNum++
+                    if (line.isBlank()) { line = reader.readLine(); continue }
+                    val parts = splitCsv(line)
+                    fun at(i: Int): String = if (i in parts.indices) parts[i].trim() else ""
+
+                    val desc = at(iDesc)
+                    val rawCat = at(iCat)
+                    val qty = at(iQty).toDoubleOrNull() ?: 1.0
+                    val unit = at(iUnit).ifBlank { "ea" }
+                    val rate = at(iRate).toDoubleOrNull() ?: 0.0
+                    val vendor = at(iVendor)
+                    val ref = at(iRef).ifBlank { null }
+                    val hm = at(iHm).equals("true", ignoreCase = true) || at(iHm) == "1"
+                    val freight = runCatching { FreightTerm.valueOf(at(iFreight).uppercase().ifBlank { "NA" }) }.getOrDefault(FreightTerm.NA)
+                    val notes = at(iNotes).ifBlank { null }
+                    val dateMs = parseDateMs(at(iDate))
+                    val rawJob = at(iJob)
+
+                    // Match category
+                    val catMatch = cats.firstOrNull {
+                        it.id.equals(rawCat, ignoreCase = true) ||
+                            it.displayName.equals(rawCat, ignoreCase = true) ||
+                            it.id == rawCat.lowercase().replace(' ', '_')
+                    }
+                    // Match job (fuzzy)
+                    val jobMatch = jobs.firstOrNull { j ->
+                        rawJob.isNotBlank() && (
+                            j.title.equals(rawJob, ignoreCase = true) ||
+                                (j.clientName?.equals(rawJob, ignoreCase = true) == true) ||
+                                j.title.lowercase().contains(rawJob.lowercase()) ||
+                                (j.clientName?.lowercase()?.contains(rawJob.lowercase()) == true)
+                        )
+                    }
+
+                    val status = when {
+                        desc.isBlank() -> ParseStatus.INVALID
+                        jobMatch == null -> ParseStatus.NO_JOB_MATCH
+                        catMatch == null -> ParseStatus.UNKNOWN_CATEGORY
+                        else -> ParseStatus.OK
+                    }
+                    val tag = when (status) {
+                        ParseStatus.OK -> "row$rowNum ✓"
+                        ParseStatus.NO_JOB_MATCH -> "row$rowNum !job"
+                        ParseStatus.UNKNOWN_CATEGORY -> "row$rowNum !cat"
+                        ParseStatus.INVALID -> "row$rowNum ✗"
+                    }
+                    val exp = JobExpense(
+                        category = catMatch?.id ?: rawCat.lowercase().replace(Regex("[^a-z0-9]+"), "_"),
+                        description = desc,
+                        quantity = qty,
+                        unit = unit,
+                        unitCost = rate,
+                        vendor = vendor,
+                        referenceNumber = ref,
+                        hazardous = hm,
+                        freightTerm = freight,
+                        notes = notes,
+                        incurredAt = dateMs ?: System.currentTimeMillis()
+                    )
+                    rows += ParsedRow(
+                        status = status,
+                        statusTag = tag,
+                        jobLabel = jobMatch?.let { it.clientName ?: it.title } ?: (if (rawJob.isBlank()) "(unassigned)" else rawJob),
+                        categoryLabel = catMatch?.displayName ?: rawCat,
+                        rawCategory = rawCat,
+                        matchedJobId = jobMatch?.id,
+                        expense = exp
+                    )
+                    line = reader.readLine()
+                }
+            }
+        }
+    } catch (t: Throwable) {
+        errors += "Parse error: ${t.message}"
+    }
+    return rows to errors
+}
+
+private fun parseDateMs(s: String): Long? {
+    if (s.isBlank()) return null
+    return try {
+        java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).parse(s)?.time
+    } catch (_: Throwable) { null }
+}
+
+/** Minimal CSV splitter supporting double-quoted fields with commas. */
+private fun splitCsv(line: String): List<String> {
+    val out = mutableListOf<String>()
+    val sb = StringBuilder()
+    var inQuotes = false
+    var i = 0
+    while (i < line.length) {
+        val c = line[i]
+        when {
+            c == '"' && inQuotes && i + 1 < line.length && line[i + 1] == '"' -> { sb.append('"'); i++ }
+            c == '"' -> inQuotes = !inQuotes
+            c == ',' && !inQuotes -> { out += sb.toString(); sb.clear() }
+            else -> sb.append(c)
+        }
+        i++
+    }
+    out += sb.toString()
+    return out
+}
+
+/** Copy a bundled asset template into the app-external downloads dir. */
+private fun copyTemplateToDownloads(context: Context, name: String) {
+    try {
+        val assetIn = context.assets.open("expense_templates/$name")
+        val outFile = java.io.File(
+            context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS),
+            name
+        )
+        outFile.outputStream().use { out -> assetIn.copyTo(out) }
+        assetIn.close()
+    } catch (_: Throwable) {
+        // swallow — caller toasts success optimistically; a failure just means no file
+    }
+}

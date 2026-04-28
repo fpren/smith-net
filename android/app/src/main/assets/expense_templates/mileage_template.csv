@@ -1,0 +1,3 @@
+date,job,category,description,qty,unit,unit_cost,vendor,ref_no,hazardous,freight_term,notes
+2026-04-20,Lopez panel,mileage,Apr 20 site visit,42,mi,0.67,,,false,NA,
+2026-04-21,Guzman kitchen,mileage,Apr 21 delivery trip,28,mi,0.67,,,false,NA,

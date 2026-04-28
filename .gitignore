@@ -48,3 +48,11 @@ backend/dist/
 *.keystore
 *.jks
 google-services.json
+
+# Local tool caches
+.playwright-mcp/
+.superpowers/
+.claude/plans/
+
+# Runtime artifacts
+backend/audit/audit-*.jsonl

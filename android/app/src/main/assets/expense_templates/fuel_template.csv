@@ -1,0 +1,3 @@
+date,job,category,description,qty,unit,unit_cost,vendor,ref_no,hazardous,freight_term,notes
+2026-04-20,Lopez panel,fuel,Shell fuel receipt,12,gal,3.85,Shell,0032,false,NA,
+2026-04-21,Lopez panel,fuel,BP fuel receipt,10.5,gal,3.79,BP,4418,false,NA,

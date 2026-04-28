@@ -1,0 +1,3 @@
+date,job,category,description,qty,unit,unit_cost,vendor,ref_no,hazardous,freight_term,notes
+2026-04-21,Guzman kitchen,disposal,Dump ticket,1,ea,40.00,Transfer Station,44812,false,NA,
+2026-04-22,Matos roof,disposal,Roofing debris haul,1,lot,120.00,Transfer Station,44891,false,NA,

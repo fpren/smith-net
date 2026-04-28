@@ -23,9 +23,10 @@ object CueDetector {
     // PATTERNS
     // ════════════════════════════════════════════════════════════════════
     
-    // Explicit AI cues - case insensitive
+    // Explicit AI cues - case insensitive. Negative lookbehind prevents matching
+    // emails like "user@ai.com" where the @ is preceded by a word char or dot.
     private val AI_CUE_PATTERN = Pattern.compile(
-        """(?i)@(ai|assistant|helper|smith|smithy|ayuda|aide)""",
+        """(?i)(?<![\w.])@(ai|assistant|helper|smith|smithy|ayuda|aide)\b""",
         Pattern.CASE_INSENSITIVE
     )
     
@@ -35,15 +36,22 @@ object CueDetector {
         Pattern.CASE_INSENSITIVE
     )
     
-    // Task/checklist request patterns
+    // Task/checklist request patterns. Split: explicit list-y words → CHECKLIST,
+    // generic task words → TASK_HELP (or CHECKLIST in JOB_BOARD context).
+    private val CHECKLIST_PATTERN = Pattern.compile(
+        """(?i)\b(checklist|list|steps)\b""",
+        Pattern.CASE_INSENSITIVE
+    )
     private val TASK_PATTERN = Pattern.compile(
-        """(?i)(checklist|task|tasks|todo|to-do|list|steps|what\s+do\s+i\s+need)""",
+        """(?i)\b(task|tasks|todo|to-do)\b|what\s+do\s+i\s+need""",
         Pattern.CASE_INSENSITIVE
     )
     
-    // Confirmation request patterns  
+    // Confirmation request patterns. Word-bounded keywords prevent "check"
+    // matching inside "checklist" (which should route to CHECKLIST intent).
+    // The "?" forms can't use \b after \? since ? is non-word.
     private val CONFIRM_PATTERN = Pattern.compile(
-        """(?i)(confirm|verify|check|is\s+this\s+right|correct\?|good\?|ok\?)""",
+        """(?i)\b(confirm|verify|check)\b|\bis\s+this\s+right|\b(correct|good|ok)\?""",
         Pattern.CASE_INSENSITIVE
     )
     
@@ -73,7 +81,7 @@ object CueDetector {
     
     // Language detection character patterns
     private val CYRILLIC_PATTERN = Pattern.compile("[\\p{IsCyrillic}]")
-    private val CJK_PATTERN = Pattern.compile("[\\p{IsCJK}]|[\\u4e00-\\u9fff]")
+    private val CJK_PATTERN = Pattern.compile("[\\p{IsHan}\\p{IsHiragana}\\p{IsKatakana}\\p{IsHangul}]|[\\u4e00-\\u9fff]")
     private val ARABIC_PATTERN = Pattern.compile("[\\p{IsArabic}]")
     private val DEVANAGARI_PATTERN = Pattern.compile("[\\p{IsDevanagari}]")
     
@@ -224,13 +232,19 @@ object CueDetector {
     private fun determineIntent(query: String, context: MessageContext): AIIntent {
         return when {
             TRANSLATE_PATTERN.matcher(query).find() -> AIIntent.TRANSLATE
+            CHECKLIST_PATTERN.matcher(query).find() -> AIIntent.CHECKLIST
             CONFIRM_PATTERN.matcher(query).find() -> AIIntent.CONFIRM
             TASK_PATTERN.matcher(query).find() -> {
                 if (context == MessageContext.JOB_BOARD) AIIntent.CHECKLIST
                 else AIIntent.TASK_HELP
             }
             TIME_PATTERN.matcher(query).find() -> AIIntent.TIME_TRACKING
-            JOB_PATTERN.matcher(query).find() -> AIIntent.JOB_HELP
+            JOB_PATTERN.matcher(query).find() -> {
+                // In JOB_BOARD context, a job/material question is really a
+                // checklist request ("what materials?" → list me materials).
+                if (context == MessageContext.JOB_BOARD) AIIntent.CHECKLIST
+                else AIIntent.JOB_HELP
+            }
             query.endsWith("?") -> AIIntent.QUESTION
             else -> AIIntent.GENERAL
         }

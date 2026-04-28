@@ -1,0 +1,10 @@
+date,job,category,description,qty,unit,unit_cost,vendor,ref_no,hazardous,freight_term,notes
+2026-04-18,Guzman kitchen,material,14/2 Romex 250ft,1,ea,75.00,Home Depot,RCPT-3421,false,PREPAID,
+2026-04-19,Matos roof,subcontractor,Rivera Drywall,1,lot,500.00,Rivera Drywall,INV-882,false,NA,
+2026-04-19,Matos roof,permit_fee,Electrical permit,1,ea,185.00,NYC DOB,NYC-EL-24-8821,false,NA,
+2026-04-20,Lopez panel,fuel,Shell fuel receipt,12,gal,3.85,Shell,0032,false,NA,
+2026-04-20,Lopez panel,mileage,Apr 20 site visit,42,mi,0.67,,,false,NA,
+2026-04-21,Guzman kitchen,disposal,Dump ticket,1,ea,40.00,Transfer Station,44812,false,NA,
+2026-04-21,Guzman kitchen,equipment_rental,Scaffolding,2,day,75.00,United Rentals,UR-9901,false,NA,
+2026-04-21,Guzman kitchen,tool_charge,Breaker finder,1,day,25.00,,,false,NA,
+2026-04-22,Matos roof,callback,Fix leak at valley,2,hr,75.00,,,false,NA,

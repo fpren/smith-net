@@ -14,6 +14,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -155,12 +158,15 @@ fun TimeTrackingScreen(
                             text = "Started ${formatTime(entry.clockInTime)} - ${entry.entryType.displayName}",
                             style = ConsoleTheme.caption
                         )
-                        entry.jobTitle?.let { job ->
-                            Text(
-                                text = "@ $job",
-                                style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
-                            )
-                        }
+                        com.guildofsmiths.trademesh.data.TimeEntryRepository
+                            .resolveJobTitle(entry)
+                            ?.takeIf { it.isNotBlank() }
+                            ?.let { job ->
+                                Text(
+                                    text = "@ $job",
+                                    style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
+                                )
+                            }
                     }
                 }
             } else {
@@ -207,7 +213,9 @@ fun TimeTrackingScreen(
 
         ConsoleSeparator()
 
-        // Daily summary bar
+        // Daily summary — 8 hour-slots inside [ ] with half-hour resolution,
+        // overtime triangles trailing outside in red. Glyphs match the rest
+        // of the app's palette (■/▣/□ shades, ▲/△ priority triangles).
         dailySummary?.let { summary ->
             Row(
                 modifier = Modifier
@@ -218,21 +226,68 @@ fun TimeTrackingScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(text = "TODAY", style = ConsoleTheme.captionBold)
-                
-                val targetMinutes = 8 * 60
-                val progress = (summary.totalMinutes.toFloat() / targetMinutes).coerceIn(0f, 1f)
-                val bars = (progress * 10).toInt()
-                
+
+                // Compute today's cumulative minutes live: completed entries
+                // that overlap today's window + currently-active entry clamped
+                // at midnight. tickCount in the read makes it recompute every
+                // second while the clock is running, so a session that crossed
+                // midnight starts counting from 00:00 onward.
+                @Suppress("UNUSED_EXPRESSION") tickCount
+                val nowMs = System.currentTimeMillis()
+                val todayStart = run {
+                    val cal = java.util.Calendar.getInstance().apply {
+                        set(java.util.Calendar.HOUR_OF_DAY, 0)
+                        set(java.util.Calendar.MINUTE, 0)
+                        set(java.util.Calendar.SECOND, 0)
+                        set(java.util.Calendar.MILLISECOND, 0)
+                    }
+                    cal.timeInMillis
+                }
+                val activeTodayMin = activeEntry?.let { e ->
+                    if (e.clockOutTime != null) 0
+                    else ((nowMs - maxOf(e.clockInTime, todayStart)) / 60_000L).toInt().coerceAtLeast(0)
+                } ?: 0
+                val completedTodayMin = entries.sumOf { e ->
+                    val out = e.clockOutTime ?: return@sumOf 0
+                    if (out <= todayStart) 0
+                    else ((out - maxOf(e.clockInTime, todayStart)) / 60_000L).toInt().coerceAtLeast(0)
+                }
+                val totalMin = (completedTodayMin + activeTodayMin).coerceAtLeast(0)
+                val targetMin = 8 * 60
+                val halfSegs = (totalMin / 30).coerceAtLeast(0)
+                val shiftHalves = halfSegs.coerceAtMost(16)
+                val otHalves = (halfSegs - 16).coerceAtLeast(0)
+                val atTarget = totalMin >= targetMin
+                val shiftColor = if (atTarget) ConsoleTheme.success else ConsoleTheme.accent
+
+                // Wrap-around overlay: once past 8h, OT halves re-color slots
+                // left-to-right in red ON TOP of the sage shift fill. Same
+                // bracket frame either way.
+                val bar = buildAnnotatedString {
+                    withStyle(SpanStyle(color = ConsoleTheme.textMuted)) { append("[") }
+                    for (h in 0 until 8) {
+                        val otFull = (h * 2 + 2) <= otHalves
+                        val otHalf = !otFull && (h * 2 + 1) == otHalves
+                        val shiftFull = (h * 2 + 2) <= shiftHalves
+                        val shiftHalf = !shiftFull && (h * 2 + 1) == shiftHalves
+                        val (glyph, color) = when {
+                            otFull -> "■" to ConsoleTheme.error
+                            otHalf -> "▣" to ConsoleTheme.error
+                            shiftFull -> "■" to shiftColor
+                            shiftHalf -> "▣" to shiftColor
+                            else -> "□" to ConsoleTheme.textMuted
+                        }
+                        withStyle(SpanStyle(color = color)) { append(glyph) }
+                    }
+                    withStyle(SpanStyle(color = ConsoleTheme.textMuted)) { append("]") }
+                }
+                Text(text = bar, style = ConsoleTheme.body)
+
                 Text(
-                    text = "[" + "=".repeat(bars) + "-".repeat(10 - bars) + "]",
-                    style = ConsoleTheme.body.copy(
-                        color = if (progress >= 1f) ConsoleTheme.success else ConsoleTheme.textMuted
+                    text = "${formatDuration(totalMin)} / 8:00",
+                    style = ConsoleTheme.bodyBold.copy(
+                        color = if (atTarget) ConsoleTheme.error else ConsoleTheme.text
                     )
-                )
-                
-                Text(
-                    text = "${formatDuration(summary.totalMinutes)} / 8:00",
-                    style = ConsoleTheme.bodyBold
                 )
             }
             ConsoleSeparator()
@@ -492,11 +547,16 @@ fun TimeTrackingScreen(
                         text = "Duration: ${hours}h ${minutes}m",
                         style = ConsoleTheme.caption
                     )
-                    activeEntry?.jobTitle?.let { job ->
-                        Text(
-                            text = "Job: $job",
-                            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
-                        )
+                    activeEntry?.let { e ->
+                        com.guildofsmiths.trademesh.data.TimeEntryRepository
+                            .resolveJobTitle(e)
+                            ?.takeIf { it.isNotBlank() }
+                            ?.let { job ->
+                                Text(
+                                    text = "Job: $job",
+                                    style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
+                                )
+                            }
                     }
                 }
             },
@@ -674,13 +734,16 @@ private fun SwipeToDeleteEntry(
                         text = entry.entryType.displayName,
                         style = ConsoleTheme.caption
                     )
-                    // Show job if tagged
-                    entry.jobTitle?.let { job ->
-                        Text(
-                            text = "@ $job",
-                            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
-                        )
-                    }
+                    // Show job if tagged (resolved through Job for live employer renames)
+                    com.guildofsmiths.trademesh.data.TimeEntryRepository
+                        .resolveJobTitle(entry)
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { job ->
+                            Text(
+                                text = "@ $job",
+                                style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
+                            )
+                        }
                     // Show clock out reason if present
                     entry.notes.lastOrNull()?.text?.let { note ->
                         Text(

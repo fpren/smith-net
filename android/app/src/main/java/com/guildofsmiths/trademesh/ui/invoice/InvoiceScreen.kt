@@ -26,10 +26,15 @@ import java.util.*
 fun InvoicePreviewDialog(
     invoice: Invoice,
     onDismiss: () -> Unit,
-    onShare: (String) -> Unit = {}
+    onShare: (String) -> Unit = {},
+    bolText: String? = null,
+    onShareBol: (String) -> Unit = {},
+    onPreviewRendered: (() -> Unit)? = null
 ) {
     val dateFormat = remember { SimpleDateFormat("MMMM d, yyyy", Locale.US) }
     val shortDateFormat = remember { SimpleDateFormat("MMM d, yyyy", Locale.US) }
+    // Default to OFF — user must opt in to bundle the BOL with the invoice
+    var attachBol by remember { mutableStateOf(false) }
     
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -491,19 +496,56 @@ fun InvoicePreviewDialog(
             }
         },
         confirmButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(
-                    text = "[>] SHARE",
-                    style = ConsoleTheme.action,
-                    modifier = Modifier.clickable {
-                        onShare(InvoiceFormatter.formatAsText(invoice))
+            Column(horizontalAlignment = Alignment.End) {
+                if (bolText != null) {
+                    Row(
+                        modifier = Modifier.padding(bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(18.dp)
+                                .background(
+                                    if (attachBol) ConsoleTheme.accent else ConsoleTheme.surface
+                                )
+                                .clickable { attachBol = !attachBol },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (attachBol) {
+                                Text("✓", style = ConsoleTheme.caption.copy(color = androidx.compose.ui.graphics.Color.White))
+                            }
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = "Attach BOL to invoice",
+                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.text),
+                            modifier = Modifier.clickable { attachBol = !attachBol }
+                        )
                     }
-                )
-                Text(
-                    text = "[OK] DONE",
-                    style = ConsoleTheme.action.copy(color = ConsoleTheme.success),
-                    modifier = Modifier.clickable { onDismiss() }
-                )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (onPreviewRendered != null) {
+                        Text(
+                            text = "[>] PREVIEW & SHARE",
+                            style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                            modifier = Modifier.clickable { onPreviewRendered() }
+                        )
+                    }
+                    Text(
+                        text = "[>] TEXT",
+                        style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                        modifier = Modifier.clickable {
+                            val invoiceText = InvoiceFormatter.formatAsText(invoice)
+                            val payload = if (attachBol && bolText != null) invoiceText + "\n\n" + bolText else invoiceText
+                            onShare(payload)
+                        }
+                    )
+                    Text(
+                        text = "[OK] DONE",
+                        style = ConsoleTheme.action.copy(color = ConsoleTheme.success),
+                        modifier = Modifier.clickable { onDismiss() }
+                    )
+                }
             }
         },
         dismissButton = {}

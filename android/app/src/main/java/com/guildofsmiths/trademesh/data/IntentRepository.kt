@@ -4,6 +4,8 @@ import android.content.SharedPreferences
 import com.guildofsmiths.trademesh.ui.plan.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import org.json.JSONArray
+import org.json.JSONObject
 import java.util.UUID
 
 object IntentRepository {
@@ -31,6 +33,7 @@ object IntentRepository {
     fun init(prefs: SharedPreferences) {
         this.prefs = prefs
         serialCounter = prefs.getInt("intent_serial_counter", 0)
+        restorePersisted()
     }
 
     fun createIntent(
@@ -65,6 +68,7 @@ object IntentRepository {
 
         _intents.value = listOf(intent) + _intents.value
         _versions.value = listOf(version) + _versions.value
+        persist()
         return Pair(intent, version)
     }
 
@@ -74,7 +78,9 @@ object IntentRepository {
                 it.copy(status = IntentStatus.PROPOSED) else it
         }
         _versions.value = updated
-        return updated.any { it.id == versionId && it.status == IntentStatus.PROPOSED }
+        val ok = updated.any { it.id == versionId && it.status == IntentStatus.PROPOSED }
+        if (ok) persist()
+        return ok
     }
 
     fun confirmVersion(versionId: String, confirmerId: String): Boolean {
@@ -84,7 +90,9 @@ object IntentRepository {
                 it.copy(status = IntentStatus.CONFIRMED, confirmedAt = now, confirmedBy = confirmerId) else it
         }
         _versions.value = updated
-        return updated.any { it.id == versionId && it.status == IntentStatus.CONFIRMED }
+        val ok = updated.any { it.id == versionId && it.status == IntentStatus.CONFIRMED }
+        if (ok) persist()
+        return ok
     }
 
     fun createNewVersion(
@@ -123,6 +131,7 @@ object IntentRepository {
             else it
         }
 
+        persist()
         return newVersion
     }
 
@@ -140,5 +149,118 @@ object IntentRepository {
         prefs?.edit()?.putInt("intent_serial_counter", serialCounter)?.apply()
         val year = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
         return "INT-$year-${String.format("%03d", serialCounter)}"
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // PERSISTENCE
+    // ════════════════════════════════════════════════════════════════════
+
+    private fun persist() {
+        UserPreferences.saveIntents(intentsToJson(_intents.value).toString())
+        UserPreferences.saveIntentVersions(versionsToJson(_versions.value).toString())
+    }
+
+    private fun restorePersisted() {
+        val intentsJson = UserPreferences.getIntents()
+        if (intentsJson != null) {
+            try {
+                val arr = JSONArray(intentsJson)
+                val list = mutableListOf<IntentData>()
+                for (i in 0 until arr.length()) list += parseIntent(arr.getJSONObject(i))
+                if (list.isNotEmpty()) {
+                    _intents.value = list
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("IntentRepo", "restore intents failed", e)
+            }
+        }
+        val versionsJson = UserPreferences.getIntentVersions()
+        if (versionsJson != null) {
+            try {
+                val arr = JSONArray(versionsJson)
+                val list = mutableListOf<IntentVersionData>()
+                for (i in 0 until arr.length()) list += parseVersion(arr.getJSONObject(i))
+                if (list.isNotEmpty()) {
+                    _versions.value = list
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("IntentRepo", "restore versions failed", e)
+            }
+        }
+    }
+
+    private fun intentsToJson(intents: List<IntentData>): JSONArray {
+        val arr = JSONArray()
+        intents.forEach {
+            arr.put(JSONObject().apply {
+                put("id", it.id)
+                put("currentVersionId", it.currentVersionId)
+                put("createdBy", it.createdBy)
+                put("createdAt", it.createdAt)
+                put("updatedAt", it.updatedAt)
+            })
+        }
+        return arr
+    }
+
+    private fun parseIntent(json: JSONObject): IntentData = IntentData(
+        id = json.getString("id"),
+        currentVersionId = json.getString("currentVersionId"),
+        createdBy = json.optString("createdBy", ""),
+        createdAt = json.optLong("createdAt", 0L),
+        updatedAt = json.optLong("updatedAt", 0L)
+    )
+
+    private fun versionsToJson(versions: List<IntentVersionData>): JSONArray {
+        val arr = JSONArray()
+        versions.forEach { v ->
+            arr.put(JSONObject().apply {
+                put("id", v.id)
+                put("intentId", v.intentId)
+                put("versionNumber", v.versionNumber)
+                put("status", v.status.name)
+                put("scopeStatement", v.scopeStatement)
+                put("intendedJobIds", JSONArray().also { a -> v.intendedJobIds.forEach { a.put(it) } })
+                put("parties", JSONArray().also { a -> v.parties.forEach { a.put(it) } })
+                put("taskDescriptions", JSONArray().also { a -> v.taskDescriptions.forEach { a.put(it) } })
+                put("equipmentNeeded", JSONArray().also { a -> v.equipmentNeeded.forEach { a.put(it) } })
+                put("suppliesNeeded", JSONArray().also { a -> v.suppliesNeeded.forEach { a.put(it) } })
+                put("crewSize", v.crewSize)
+                if (v.confirmedAt != null) put("confirmedAt", v.confirmedAt)
+                if (v.confirmedBy != null) put("confirmedBy", v.confirmedBy)
+                if (v.supersededBy != null) put("supersededBy", v.supersededBy)
+                if (v.supersedes != null) put("supersedes", v.supersedes)
+                put("createdAt", v.createdAt)
+                put("autoGenerated", v.autoGenerated)
+            })
+        }
+        return arr
+    }
+
+    private fun parseVersion(json: JSONObject): IntentVersionData {
+        fun stringList(key: String): List<String> {
+            val a = json.optJSONArray(key) ?: return emptyList()
+            return (0 until a.length()).map { a.getString(it) }
+        }
+        return IntentVersionData(
+            id = json.getString("id"),
+            intentId = json.getString("intentId"),
+            versionNumber = json.optInt("versionNumber", 1),
+            status = runCatching { IntentStatus.valueOf(json.optString("status", "DRAFT")) }
+                .getOrDefault(IntentStatus.DRAFT),
+            scopeStatement = json.optString("scopeStatement", ""),
+            intendedJobIds = stringList("intendedJobIds"),
+            parties = stringList("parties"),
+            taskDescriptions = stringList("taskDescriptions"),
+            equipmentNeeded = stringList("equipmentNeeded"),
+            suppliesNeeded = stringList("suppliesNeeded"),
+            crewSize = json.optInt("crewSize", 1),
+            confirmedAt = if (json.has("confirmedAt")) json.getLong("confirmedAt") else null,
+            confirmedBy = if (json.has("confirmedBy")) json.getString("confirmedBy") else null,
+            supersededBy = if (json.has("supersededBy")) json.getString("supersededBy") else null,
+            supersedes = if (json.has("supersedes")) json.getString("supersedes") else null,
+            createdAt = json.optLong("createdAt", 0L),
+            autoGenerated = json.optBoolean("autoGenerated", false)
+        )
     }
 }

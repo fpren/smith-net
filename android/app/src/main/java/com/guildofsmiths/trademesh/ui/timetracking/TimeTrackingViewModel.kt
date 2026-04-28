@@ -29,6 +29,14 @@ class TimeTrackingViewModel : ViewModel() {
     private val client = OkHttpClient()
     private val baseUrl = "http://10.0.2.2:3002"
 
+    /**
+     * Hook the host (MainActivity) wires up so a clock-in with a free-text
+     * job title (no jobId) auto-creates a real Job and gets a jobId back.
+     * Returns null if the host opted out or the title is blank — in that
+     * case we keep the legacy free-text behavior.
+     */
+    var onResolveJobIdForFreeText: ((String) -> String?)? = null
+
     // ════════════════════════════════════════════════════════════════════
     // STATE
     // ════════════════════════════════════════════════════════════════════
@@ -122,6 +130,7 @@ class TimeTrackingViewModel : ViewModel() {
                 put("durationMinutes", entry.durationMinutes)
                 put("jobId", entry.jobId ?: "")
                 put("jobTitle", entry.jobTitle ?: "")
+                if (entry.taskId != null) put("taskId", entry.taskId)
                 put("entryType", entry.entryType.name)
                 put("source", entry.source.name)
                 put("createdAt", entry.createdAt)
@@ -140,6 +149,7 @@ class TimeTrackingViewModel : ViewModel() {
             put("clockInTime", entry.clockInTime)
             entry.jobId?.let { put("jobId", it) }
             entry.jobTitle?.let { put("jobTitle", it) }
+            entry.taskId?.let { put("taskId", it) }
             put("entryType", entry.entryType.name.lowercase())
             put("source", entry.source.name.lowercase())
             put("createdAt", entry.createdAt)
@@ -181,18 +191,58 @@ class TimeTrackingViewModel : ViewModel() {
         tryLoadStatusFromBackend()
     }
 
-    fun clockIn(jobId: String? = null, jobTitle: String? = null, entryType: EntryType = EntryType.REGULAR, note: String? = null) {
+    fun clockIn(
+        jobId: String? = null,
+        jobTitle: String? = null,
+        taskId: String? = null,
+        entryType: EntryType = EntryType.REGULAR,
+        note: String? = null,
+        // GPS — populated when the app has a recent fix. If lat/lng are provided
+        // and source == GEOFENCE, the entry represents a validated on-site clock-in.
+        latitude: Double? = null,
+        longitude: Double? = null,
+        accuracyMeters: Float? = null,
+        distanceFromSiteMeters: Int? = null,
+        source: EntrySource = EntrySource.MANUAL,
+        location: String? = null
+    ) {
         if (_isClockedIn.value) {
             _error.value = "Already clocked in"
             return
         }
 
         _isLoading.value = true
-        
+
+        // If the caller passed a free-text title with no jobId, ask the host
+        // to materialize a Job and use the resulting id. Keeps every new
+        // entry tied to a real Job so financials/clients roll up cleanly.
+        val resolvedJobId = jobId ?: run {
+            val title = jobTitle?.trim()
+            if (!title.isNullOrEmpty()) onResolveJobIdForFreeText?.invoke(title) else null
+        }
+
         val userId = UserPreferences.getUserId()
         val userName = UserPreferences.getUserName()
         val now = System.currentTimeMillis()
-        
+
+        val extraNotes = mutableListOf<TimeNote>()
+        if (note != null) extraNotes += TimeNote(
+            id = UUID.randomUUID().toString(),
+            text = note,
+            addedBy = userId,
+            addedAt = now,
+            type = "clock_in"
+        )
+        if (distanceFromSiteMeters != null && distanceFromSiteMeters > 0 && source == EntrySource.MANUAL) {
+            extraNotes += TimeNote(
+                id = UUID.randomUUID().toString(),
+                text = "Clocked in outside geofence (${distanceFromSiteMeters}m from site)",
+                addedBy = userId,
+                addedAt = now,
+                type = "geofence_override"
+            )
+        }
+
         val entry = TimeEntry(
             id = UUID.randomUUID().toString(),
             userId = userId,
@@ -200,22 +250,20 @@ class TimeTrackingViewModel : ViewModel() {
             clockInTime = now,
             clockOutTime = null,
             durationMinutes = null,
-            jobId = jobId,
+            jobId = resolvedJobId,
             jobTitle = jobTitle,
+            taskId = taskId,
+            location = location,
             entryType = entryType,
-            source = EntrySource.MANUAL,
+            source = source,
             createdAt = now,
             immutableHash = generateHash(userId, now),
-            notes = if (note != null) listOf(
-                TimeNote(
-                    id = UUID.randomUUID().toString(),
-                    text = note,
-                    addedBy = userId,
-                    addedAt = now,
-                    type = "clock_in"
-                )
-            ) else emptyList(),
-            status = EntryStatus.ACTIVE
+            notes = extraNotes,
+            status = EntryStatus.ACTIVE,
+            entryLatitude = latitude,
+            entryLongitude = longitude,
+            entryAccuracyMeters = accuracyMeters,
+            distanceFromSiteMeters = distanceFromSiteMeters
         )
 
         // Add to local storage
@@ -232,16 +280,24 @@ class TimeTrackingViewModel : ViewModel() {
         // Sync to shared repository for invoice generator
         TimeEntryRepository.addEntry(entry)
         _isLoading.value = false
-        
+
         // Save custom job name for future use
-        jobTitle?.let { 
+        jobTitle?.let {
             customJobs.add(it)
             _availableJobs.value = customJobs.toList()
         }
-        
+
         // Update entries list
         _entries.value = localEntries.toList()
-        
+
+        // Notify AmbientEventHub so AISupervisor can pick up the active job
+        // context without polling SharedPreferences.
+        com.guildofsmiths.trademesh.ai.AmbientEventHub.emitClockEvent(
+            clockIn = true,
+            jobId = resolvedJobId,
+            entryType = entryType.name
+        )
+
         // Try to sync to backend
         syncClockInToBackend(entry)
     }
@@ -308,6 +364,52 @@ class TimeTrackingViewModel : ViewModel() {
             android.util.Log.i("TimeTrackingVM", "Clock-out on job: ${completedEntry.jobTitle} — triggering daily log")
             com.guildofsmiths.trademesh.ai.AISupervisor.onClockOut(jobId, completedEntry.id)
         }
+
+        // Tell AmbientEventHub the active context is gone.
+        com.guildofsmiths.trademesh.ai.AmbientEventHub.emitClockEvent(
+            clockIn = false,
+            clockOut = true,
+            jobId = completedEntry.jobId,
+            entryType = completedEntry.entryType.name
+        )
+    }
+
+    /**
+     * Re-stamp time entries that have a free-text jobTitle but no jobId so
+     * they point at real Job entities. Used by the one-time backfill
+     * migration after promoting legacy free-text entries to Jobs, and also
+     * available for manual cleanups. Touches both localEntries and the
+     * shared TimeEntryRepository, persists, and refreshes the daily summary
+     * + active entry so the UI catches up.
+     */
+    fun relinkEntriesByTitle(titleToJobId: Map<String, String>) {
+        if (titleToJobId.isEmpty()) return
+        var changed = false
+        for (i in localEntries.indices) {
+            val e = localEntries[i]
+            val needs = e.jobId.isNullOrBlank() && !e.jobTitle.isNullOrBlank()
+            if (!needs) continue
+            val newId = titleToJobId[e.jobTitle] ?: continue
+            val updated = e.copy(jobId = newId)
+            localEntries[i] = updated
+            TimeEntryRepository.addEntry(updated)
+            changed = true
+        }
+        if (!changed) return
+
+        _entries.value = localEntries.toList()
+        _activeEntry.value?.let { active ->
+            if (active.jobId.isNullOrBlank()) {
+                val newId = titleToJobId[active.jobTitle]
+                if (newId != null) {
+                    val relinked = active.copy(jobId = newId)
+                    _activeEntry.value = relinked
+                    persistActiveEntry(relinked)
+                }
+            }
+        }
+        persistCompletedEntries()
+        updateDailySummary()
     }
 
     fun loadEntries(limit: Int = 10) {
@@ -585,6 +687,7 @@ class TimeTrackingViewModel : ViewModel() {
             durationMinutes = if (json.has("durationMinutes") && !json.isNull("durationMinutes")) json.optInt("durationMinutes") else null,
             jobId = if (json.has("jobId") && !json.isNull("jobId")) json.optString("jobId") else null,
             jobTitle = if (json.has("jobTitle") && !json.isNull("jobTitle")) json.optString("jobTitle") else null,
+            taskId = if (json.has("taskId") && !json.isNull("taskId")) json.optString("taskId") else null,
             projectId = if (json.has("projectId") && !json.isNull("projectId")) json.optString("projectId") else null,
             location = if (json.has("location") && !json.isNull("location")) json.optString("location") else null,
             entryType = try {

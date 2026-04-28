@@ -58,6 +58,9 @@ class JobBoardViewModel : ViewModel() {
     private val localTasks = mutableMapOf<String, MutableList<Task>>()
 
     init {
+        // Restore persisted jobs/tasks first so the dashboard isn't empty on
+        // restart. Backend sync (loadJobs) merges in any newer remote data.
+        restorePersistedState()
         loadJobs()
         if (com.guildofsmiths.trademesh.data.BuildFlags.SEED_DEMO_DATA) {
             seedDemoJobsIfEmpty()
@@ -66,7 +69,177 @@ class JobBoardViewModel : ViewModel() {
         com.guildofsmiths.trademesh.ai.AISupervisor.onDailyLogGenerated = { jobId, log ->
             addDailyLog(jobId, log)
         }
+        // Auto-persist on every job-list change. Tasks are mutated through
+        // the localTasks map directly; their writers call persistTasks()
+        // explicitly below.
+        viewModelScope.launch {
+            kotlinx.coroutines.flow.combine(_jobs, _archivedJobs) { _, _ -> Unit }.collect {
+                persistJobs()
+            }
+        }
     }
+
+    // ════════════════════════════════════════════════════════════════════
+    // PERSISTENCE
+    // Lightweight JSON snapshot of the fields needed to navigate jobs and
+    // their tasks across app restarts. Materials/expenses/photos/work-log
+    // are intentionally NOT persisted — they're either reload-from-backend
+    // or fine to be ephemeral. Called from every mutator below.
+    // ════════════════════════════════════════════════════════════════════
+
+    private fun restorePersistedState() {
+        val jobsJson = UserPreferences.getJobs()
+        if (jobsJson != null) {
+            try {
+                val arr = JSONArray(jobsJson)
+                val list = mutableListOf<Job>()
+                for (i in 0 until arr.length()) list += parsePersistedJob(arr.getJSONObject(i))
+                if (list.isNotEmpty()) {
+                    _jobs.value = list
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("JobBoardVM", "restore jobs failed", e)
+            }
+        }
+        val archivedJson = UserPreferences.getArchivedJobs()
+        if (archivedJson != null) {
+            try {
+                val arr = JSONArray(archivedJson)
+                val list = mutableListOf<Job>()
+                for (i in 0 until arr.length()) list += parsePersistedJob(arr.getJSONObject(i))
+                if (list.isNotEmpty()) {
+                    _archivedJobs.value = list
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("JobBoardVM", "restore archived jobs failed", e)
+            }
+        }
+        val tasksJson = UserPreferences.getLocalTasks()
+        if (tasksJson != null) {
+            try {
+                val obj = JSONObject(tasksJson)
+                obj.keys().forEach { jobId ->
+                    val arr = obj.getJSONArray(jobId)
+                    val tasks = mutableListOf<Task>()
+                    for (i in 0 until arr.length()) tasks += parsePersistedTask(arr.getJSONObject(i))
+                    if (tasks.isNotEmpty()) localTasks[jobId] = tasks
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("JobBoardVM", "restore tasks failed", e)
+            }
+        }
+        // Sync to shared repository so Time Clock job picker sees restored jobs.
+        syncToRepository()
+    }
+
+    private fun persistJobs() {
+        UserPreferences.saveJobs(jobsToJsonArray(_jobs.value).toString())
+        UserPreferences.saveArchivedJobs(jobsToJsonArray(_archivedJobs.value).toString())
+    }
+
+    private fun persistTasks() {
+        val root = JSONObject()
+        localTasks.forEach { (jobId, tasks) ->
+            val arr = JSONArray()
+            tasks.forEach { arr.put(taskToJson(it)) }
+            root.put(jobId, arr)
+        }
+        UserPreferences.saveLocalTasks(root.toString())
+    }
+
+    private fun jobsToJsonArray(jobs: List<Job>): JSONArray {
+        val arr = JSONArray()
+        jobs.forEach { arr.put(jobToJson(it)) }
+        return arr
+    }
+
+    private fun jobToJson(job: Job): JSONObject = JSONObject().apply {
+        put("id", job.id)
+        put("title", job.title)
+        put("description", job.description)
+        put("clientName", job.clientName ?: "")
+        put("clientPhone", job.clientPhone)
+        put("clientAddress", job.clientAddress)
+        put("status", job.status.name)
+        put("stage", job.stage.name)
+        put("priority", job.priority.name)
+        put("createdBy", job.createdBy)
+        put("createdAt", job.createdAt)
+        put("updatedAt", job.updatedAt)
+        put("toolsNeeded", job.toolsNeeded)
+        put("expensesNote", job.expensesNote)
+        put("crewSize", job.crewSize)
+        put("hourlyRate", job.hourlyRate)
+        put("isArchived", job.isArchived)
+        if (job.archivedAt != null) put("archivedAt", job.archivedAt)
+        if (job.archiveReason != null) put("archiveReason", job.archiveReason)
+        if (job.estimatedStartDate != null) put("estimatedStartDate", job.estimatedStartDate)
+        if (job.estimatedEndDate != null) put("estimatedEndDate", job.estimatedEndDate)
+        if (job.proposalId != null) put("proposalId", job.proposalId)
+        val eq = JSONArray()
+        job.equipmentList.forEach { eq.put(it) }
+        put("equipmentList", eq)
+    }
+
+    private fun parsePersistedJob(json: JSONObject): Job {
+        val equipment = mutableListOf<String>()
+        val eqArr = json.optJSONArray("equipmentList")
+        if (eqArr != null) for (i in 0 until eqArr.length()) equipment.add(eqArr.getString(i))
+        val clientName = json.optString("clientName", "")
+        return Job(
+            id = json.getString("id"),
+            title = json.optString("title", ""),
+            description = json.optString("description", ""),
+            clientName = clientName.ifBlank { null },
+            clientPhone = json.optString("clientPhone", ""),
+            clientAddress = json.optString("clientAddress", ""),
+            status = runCatching { JobStatus.valueOf(json.optString("status", "TODO")) }
+                .getOrDefault(JobStatus.TODO),
+            stage = runCatching { JobStage.valueOf(json.optString("stage", "LEAD")) }
+                .getOrDefault(JobStage.LEAD),
+            priority = runCatching { Priority.valueOf(json.optString("priority", "MEDIUM")) }
+                .getOrDefault(Priority.MEDIUM),
+            createdBy = json.optString("createdBy", ""),
+            createdAt = json.optLong("createdAt", System.currentTimeMillis()),
+            updatedAt = json.optLong("updatedAt", System.currentTimeMillis()),
+            toolsNeeded = json.optString("toolsNeeded", ""),
+            expensesNote = json.optString("expensesNote", ""),
+            crewSize = json.optInt("crewSize", 1),
+            hourlyRate = json.optDouble("hourlyRate", 0.0),
+            isArchived = json.optBoolean("isArchived", false),
+            archivedAt = if (json.has("archivedAt")) json.getLong("archivedAt") else null,
+            archiveReason = if (json.has("archiveReason")) json.getString("archiveReason") else null,
+            estimatedStartDate = if (json.has("estimatedStartDate")) json.getLong("estimatedStartDate") else null,
+            estimatedEndDate = if (json.has("estimatedEndDate")) json.getLong("estimatedEndDate") else null,
+            proposalId = if (json.has("proposalId")) json.getString("proposalId") else null,
+            equipmentList = equipment
+        )
+    }
+
+    private fun taskToJson(task: Task): JSONObject = JSONObject().apply {
+        put("id", task.id)
+        put("jobId", task.jobId)
+        put("title", task.title)
+        put("status", task.status.name)
+        put("createdBy", task.createdBy)
+        put("createdAt", task.createdAt)
+        put("updatedAt", task.updatedAt)
+        put("order", task.order)
+        if (task.completedAt != null) put("completedAt", task.completedAt)
+    }
+
+    private fun parsePersistedTask(json: JSONObject): Task = Task(
+        id = json.getString("id"),
+        jobId = json.getString("jobId"),
+        title = json.optString("title", ""),
+        status = runCatching { TaskStatus.valueOf(json.optString("status", "PENDING")) }
+            .getOrDefault(TaskStatus.PENDING),
+        createdBy = json.optString("createdBy", ""),
+        createdAt = json.optLong("createdAt", 0L),
+        updatedAt = json.optLong("updatedAt", 0L),
+        order = json.optInt("order", 0),
+        completedAt = if (json.has("completedAt")) json.getLong("completedAt") else null
+    )
 
     /**
      * Seeds demo jobs so the dashboard isn't empty on fresh install.
@@ -230,7 +403,7 @@ class JobBoardViewModel : ViewModel() {
         description: String = "",
         priority: Priority = Priority.MEDIUM,
         toolsNeeded: String = "",
-        expenses: String = "",
+        expensesNote: String = "",
         crewSize: Int = 1,
         crew: List<CrewMember> = emptyList(),
         materials: List<Material> = emptyList(),
@@ -241,7 +414,9 @@ class JobBoardViewModel : ViewModel() {
         clientAddress: String = "",
         hourlyRate: Double = 0.0,
         equipmentList: List<String> = emptyList(),
-        stage: JobStage = JobStage.LEAD
+        stage: JobStage = JobStage.LEAD,
+        taskDescriptions: List<String> = emptyList(),
+        proposalId: String? = null
     ) {
         val userId = UserPreferences.getUserId()
         val now = System.currentTimeMillis()
@@ -256,7 +431,7 @@ class JobBoardViewModel : ViewModel() {
             createdAt = now,
             updatedAt = now,
             toolsNeeded = toolsNeeded,
-            expenses = expenses,
+            expensesNote = expensesNote,
             crewSize = crewSize,
             crew = crew,
             materials = materials,
@@ -267,15 +442,35 @@ class JobBoardViewModel : ViewModel() {
             clientAddress = clientAddress,
             hourlyRate = hourlyRate,
             equipmentList = equipmentList,
-            stage = stage
+            stage = stage,
+            proposalId = proposalId
         )
 
         // Add to local list immediately
         _jobs.value = _jobs.value + newJob
-        
+
+        // Seed tasks from proposal/wizard so they appear on the Job Board
+        val cleanTasks = taskDescriptions.map { it.trim() }.filter { it.isNotBlank() }
+        if (cleanTasks.isNotEmpty()) {
+            val seeded = cleanTasks.mapIndexed { index, title ->
+                Task(
+                    id = UUID.randomUUID().toString(),
+                    jobId = newJob.id,
+                    title = title,
+                    status = TaskStatus.PENDING,
+                    createdBy = userId,
+                    createdAt = now,
+                    updatedAt = now,
+                    order = index
+                )
+            }
+            localTasks[newJob.id] = seeded.toMutableList()
+            persistTasks()
+        }
+
         // Sync to shared repository for Time Clock
         syncToRepository()
-        
+
         // Try to sync to backend
         syncJobToBackend(newJob)
     }
@@ -340,6 +535,33 @@ class JobBoardViewModel : ViewModel() {
     fun deleteArchivedJob(jobId: String) {
         _archivedJobs.value = _archivedJobs.value.filter { it.id != jobId }
         localTasks.remove(jobId)
+        persistTasks()
+    }
+
+    /**
+     * Backfill helper: rewrite a job's lifecycle fields (status / stage /
+     * updatedAt / completedAt) without going through the stage-machine.
+     * Used by the one-time lifecycle migration to align Job timestamps
+     * with the actual TimeEntry history (e.g. work that happened yesterday
+     * but was created via a free-text clock-in today).
+     */
+    fun updateJobLifecycle(
+        jobId: String,
+        status: JobStatus,
+        stage: JobStage,
+        createdAt: Long? = null,
+        updatedAt: Long,
+        completedAt: Long?
+    ) {
+        _jobs.value = _jobs.value.map { job ->
+            if (job.id == jobId) job.copy(
+                status = status,
+                stage = stage,
+                createdAt = createdAt ?: job.createdAt,
+                updatedAt = updatedAt,
+                completedAt = completedAt ?: job.completedAt
+            ) else job
+        }
     }
     
     fun addRelatedMessages(jobId: String, messageIds: List<String>, channelId: String?) {
@@ -479,11 +701,14 @@ class JobBoardViewModel : ViewModel() {
         _selectedJob.value = _jobs.value.find { it.id == jobId }
     }
 
-    // Toggle task done state
+    /**
+     * Toggle task between PENDING and DONE. Used as the legacy 2-state
+     * checkbox path; the 3-state UI prefers startTask/completeTask.
+     */
     fun toggleTask(taskId: String) {
         val jobId = _selectedJob.value?.id ?: return
         val tasks = localTasks[jobId] ?: return
-        
+
         val updatedTasks = tasks.map { task ->
             if (task.id == taskId) {
                 task.copy(
@@ -493,9 +718,52 @@ class JobBoardViewModel : ViewModel() {
                 )
             } else task
         }
-        
+
         localTasks[jobId] = updatedTasks.toMutableList()
         _tasks.value = updatedTasks
+        persistTasks()
+    }
+
+    /**
+     * Mark a task IN_PROGRESS. Auto-pauses any other IN_PROGRESS task on
+     * the same job so at most one task is active at a time.
+     */
+    fun startTask(taskId: String) {
+        val jobId = _selectedJob.value?.id ?: return
+        val tasks = localTasks[jobId] ?: return
+        val now = System.currentTimeMillis()
+
+        val updatedTasks = tasks.map { task ->
+            when {
+                task.id == taskId -> task.copy(status = TaskStatus.IN_PROGRESS, updatedAt = now)
+                task.status == TaskStatus.IN_PROGRESS ->
+                    task.copy(status = TaskStatus.PENDING, updatedAt = now)
+                else -> task
+            }
+        }
+        localTasks[jobId] = updatedTasks.toMutableList()
+        _tasks.value = updatedTasks
+        persistTasks()
+    }
+
+    /** Mark a task DONE without affecting other tasks. */
+    fun completeTask(taskId: String) {
+        val jobId = _selectedJob.value?.id ?: return
+        val tasks = localTasks[jobId] ?: return
+        val now = System.currentTimeMillis()
+
+        val updatedTasks = tasks.map { task ->
+            if (task.id == taskId) {
+                task.copy(
+                    status = TaskStatus.DONE,
+                    completedAt = now,
+                    updatedAt = now
+                )
+            } else task
+        }
+        localTasks[jobId] = updatedTasks.toMutableList()
+        _tasks.value = updatedTasks
+        persistTasks()
     }
 
     // Add work log entry
@@ -588,6 +856,77 @@ class JobBoardViewModel : ViewModel() {
     }
 
     // ════════════════════════════════════════════════════════════════════
+    // JOB EXPENSES (BOL-style line items)
+    // ════════════════════════════════════════════════════════════════════
+
+    fun addExpense(jobId: String, expense: JobExpense) {
+        _jobs.value = _jobs.value.map { job ->
+            if (job.id == jobId) {
+                job.copy(
+                    expenses = job.expenses + expense,
+                    updatedAt = System.currentTimeMillis()
+                )
+            } else job
+        }
+        _selectedJob.value = _jobs.value.find { it.id == jobId }
+        syncToRepository()
+    }
+
+    fun updateExpense(jobId: String, expenseId: String, mutate: (JobExpense) -> JobExpense) {
+        _jobs.value = _jobs.value.map { job ->
+            if (job.id == jobId) {
+                job.copy(
+                    expenses = job.expenses.map { if (it.id == expenseId) mutate(it) else it },
+                    updatedAt = System.currentTimeMillis()
+                )
+            } else job
+        }
+        _selectedJob.value = _jobs.value.find { it.id == jobId }
+        syncToRepository()
+    }
+
+    fun deleteExpense(jobId: String, expenseId: String) {
+        _jobs.value = _jobs.value.map { job ->
+            if (job.id == jobId) {
+                job.copy(
+                    expenses = job.expenses.filter { it.id != expenseId },
+                    updatedAt = System.currentTimeMillis()
+                )
+            } else job
+        }
+        _selectedJob.value = _jobs.value.find { it.id == jobId }
+        syncToRepository()
+    }
+
+    fun addExpenses(jobId: String, expenses: List<JobExpense>) {
+        if (expenses.isEmpty()) return
+        _jobs.value = _jobs.value.map { job ->
+            if (job.id == jobId) {
+                job.copy(
+                    expenses = job.expenses + expenses,
+                    updatedAt = System.currentTimeMillis()
+                )
+            } else job
+        }
+        _selectedJob.value = _jobs.value.find { it.id == jobId }
+        syncToRepository()
+    }
+
+    fun updateDeposit(jobId: String, amount: Double, note: String?) {
+        _jobs.value = _jobs.value.map { job ->
+            if (job.id == jobId) {
+                job.copy(
+                    depositCollected = amount,
+                    depositNote = note,
+                    updatedAt = System.currentTimeMillis()
+                )
+            } else job
+        }
+        _selectedJob.value = _jobs.value.find { it.id == jobId }
+        syncToRepository()
+    }
+
+    // ════════════════════════════════════════════════════════════════════
     // INVOICE GENERATION
     // ════════════════════════════════════════════════════════════════════
 
@@ -605,7 +944,8 @@ class JobBoardViewModel : ViewModel() {
                 job = job,
                 timeEntries = timeEntries,
                 providerName = userName,
-                providerTrade = "Tradesperson – Guild of Smiths"
+                providerTrade = "Tradesperson – Guild of Smiths",
+                hourlyRate = if (job.hourlyRate > 0) job.hourlyRate else 85.0
             )
             
             _generatedInvoice.value = invoice
@@ -724,7 +1064,8 @@ class JobBoardViewModel : ViewModel() {
                             }
                         }
                         localTasks[jobId] = local
-                        
+                        persistTasks()
+
                         if (_selectedJob.value?.id == jobId) {
                             _tasks.value = local
                         }
@@ -752,7 +1093,8 @@ class JobBoardViewModel : ViewModel() {
         // Add locally
         val tasks = localTasks.getOrPut(jobId) { mutableListOf() }
         tasks.add(newTask)
-        
+        persistTasks()
+
         if (_selectedJob.value?.id == jobId) {
             _tasks.value = tasks.toList()
         }

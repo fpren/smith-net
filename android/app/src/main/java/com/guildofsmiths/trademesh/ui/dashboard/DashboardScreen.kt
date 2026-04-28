@@ -17,7 +17,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.jobboard.Job
@@ -75,6 +77,16 @@ fun DashboardScreen(
     val isClockedIn by viewModel.isClockedIn
     val activeEntryInfo = remember(isClockedIn) { viewModel.getActiveEntryInfo() }
 
+    // Live clock tick: drives recomposition every second while clocked in
+    // so the dashboard's "ON CLOCK Xh Ym Zs" pill updates in real time.
+    var nowMs by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(isClockedIn) {
+        while (isClockedIn) {
+            nowMs = System.currentTimeMillis()
+            kotlinx.coroutines.delay(1000)
+        }
+    }
+
     // Update AI with latest jobs when they change
     LaunchedEffect(activeJobs) {
         AISupervisor.updateJobs(activeJobs)
@@ -84,7 +96,8 @@ fun DashboardScreen(
 
     // Crew assignment dialog state
     var assigningJob by remember { mutableStateOf<com.guildofsmiths.trademesh.ui.jobboard.Job?>(null) }
-    val jobViewModel: JobBoardViewModel = viewModel()
+    val activityOwner = LocalContext.current as ViewModelStoreOwner
+    val jobViewModel: JobBoardViewModel = viewModel(viewModelStoreOwner = activityOwner)
 
     if (assigningJob != null) {
         CrewAssignDialog(
@@ -185,13 +198,14 @@ fun DashboardScreen(
                                 val clockColor = if (isClockedIn) ConsoleTheme.success else ConsoleTheme.textMuted
                                 val clockLabel = if (isClockedIn) {
                                     val elapsed = if (activeEntryInfo.second > 0) {
-                                        val mins = (System.currentTimeMillis() - activeEntryInfo.second) / 60_000
-                                        val h = mins / 60; val m = mins % 60
-                                        "${h}h ${m}m"
+                                        val secs = ((nowMs - activeEntryInfo.second) / 1000).coerceAtLeast(0)
+                                        val h = secs / 3600
+                                        val m = (secs % 3600) / 60
+                                        val s = secs % 60
+                                        if (h > 0) "${h}h ${m}m ${s}s"
+                                        else "${m}m ${s}s"
                                     } else ""
-                                    val jobName = activeEntryInfo.first?.take(15) ?: ""
-                                    val jobPart = if (jobName.isNotBlank()) " · $jobName" else ""
-                                    "● ON CLOCK $elapsed$jobPart"
+                                    "● ON CLOCK $elapsed"
                                 } else {
                                     "○ OFF CLOCK"
                                 }
@@ -418,8 +432,12 @@ fun DashboardScreen(
                         val totalCount = viewModel.getTotalThisMonth()
                         val earned = viewModel.getEarnedThisMonth()
                         val owed = viewModel.getOutstandingTotal()
+                        val spent = viewModel.getSpentToDate()
+                        val minutesWorked = viewModel.getMinutesWorkedToDate()
+                        @Suppress("UNUSED_EXPRESSION") nowMs
+                        val minutesToday = viewModel.getMinutesWorkedToday()
 
-                        if (completedCount > 0 || earned > 0) {
+                        if (completedCount > 0 || earned > 0 || spent > 0 || minutesToday > 0) {
                             val progress = if (totalCount > 0) completedCount.toFloat() / totalCount else 0f
                             Column(
                                 modifier = Modifier
@@ -449,6 +467,27 @@ fun DashboardScreen(
                                 }
                                 if (earned > 0 || owed > 0) {
                                     Text("$${String.format("%.0f", earned)} earned · $${String.format("%.0f", owed)} owed", style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent))
+                                }
+                                // Cumulative "spent" — labor hours × rate + materials
+                                // across every job, regardless of stage. Surfaces work
+                                // that hasn't been formally invoiced/closed yet.
+                                if (spent > 0 || minutesWorked > 0) {
+                                    val h = minutesWorked / 60
+                                    val m = minutesWorked % 60
+                                    val hoursLabel = if (h > 0) "${h}h ${m}m" else "${m}m"
+                                    Text(
+                                        "$${String.format("%.0f", spent)} spent · $hoursLabel worked",
+                                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.text)
+                                    )
+                                }
+                                if (minutesToday > 0) {
+                                    val h = minutesToday / 60
+                                    val m = minutesToday % 60
+                                    val todayLabel = if (h > 0) "${h}h ${m}m" else "${m}m"
+                                    Text(
+                                        "Today: $todayLabel",
+                                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.success)
+                                    )
                                 }
                             }
                         }

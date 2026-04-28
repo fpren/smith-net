@@ -9,8 +9,8 @@ import androidx.room.RoomDatabase
  * Room database for TradeMesh.
  */
 @Database(
-    entities = [MessageEntity::class, CordEntity::class, UnifiedMessageEntity::class],
-    version = 5,
+    entities = [MessageEntity::class, CordEntity::class, UnifiedMessageEntity::class, LocationPointEntity::class],
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -18,6 +18,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun messageDao(): MessageDao
     abstract fun cordDao(): CordDao
     abstract fun unifiedMessageDao(): UnifiedMessageDao
+    abstract fun locationPointDao(): LocationPointDao
 
     companion object {
         private const val DATABASE_NAME = "trademesh_db"

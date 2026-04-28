@@ -43,6 +43,17 @@ object NavRoutes {
     const val REPORT = "report"
     const val SUPPLY = "supply"
 
+    // EXPENSES (BOL-style)
+    const val EXPENSES = "expenses"
+    const val JOB_EXPENSES = "job_expenses/{jobId}"
+    const val EXPENSE_CATEGORIES = "expense_categories"
+    const val EXPENSE_CSV_IMPORT = "expense_csv_import"
+    const val BOL_LEGAL_SETTINGS = "bol_legal_settings"
+
+    // LOST & FOUND (GPS breadcrumb for a crew member)
+    const val LOST_AND_FOUND = "lost_and_found/{userId}"
+    fun lostAndFound(userId: String) = "lost_and_found/${android.net.Uri.encode(userId)}"
+
     // DISPATCH
     const val DISPATCH = "dispatch"
 
@@ -55,6 +66,7 @@ object NavRoutes {
 
     // HELPERS
     fun jobPipeline(jobId: String) = "job_pipeline/$jobId"
+    fun jobExpenses(jobId: String) = "job_expenses/$jobId"
     fun channelList(beaconId: String) = "channels/$beaconId"
     fun conversation(beaconId: String, channelId: String) = "conversation/$beaconId/$channelId"
     fun conversationDM(beaconId: String, channelId: String, peerId: String, peerName: String) =

@@ -16,6 +16,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.IntentRepository
+import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import kotlinx.coroutines.launch
 
@@ -364,7 +365,51 @@ fun IntentDetailDialog(
                 }
             }
         },
-        confirmButton = {},
+        confirmButton = {
+            when (version.status) {
+                IntentStatus.DRAFT -> {
+                    val enabled = version.canPropose()
+                    Text(
+                        text = "[>] PROPOSE",
+                        style = if (enabled) ConsoleTheme.action
+                            else ConsoleTheme.action.copy(color = ConsoleTheme.textDim),
+                        modifier = Modifier
+                            .clickable(enabled = enabled) {
+                                IntentRepository.proposeVersion(version.id)
+                                onDismiss()
+                            }
+                            .padding(8.dp)
+                    )
+                }
+                IntentStatus.PROPOSED -> {
+                    val enabled = version.canConfirm()
+                    Text(
+                        text = "[v] CONFIRM",
+                        style = if (enabled) ConsoleTheme.action
+                            else ConsoleTheme.action.copy(color = ConsoleTheme.textDim),
+                        modifier = Modifier
+                            .clickable(enabled = enabled) {
+                                IntentRepository.confirmVersion(version.id, UserPreferences.getUserId())
+                                onDismiss()
+                            }
+                            .padding(8.dp)
+                    )
+                }
+                IntentStatus.CONFIRMED -> {
+                    Text(
+                        text = "[+ JOB] CREATE JOB",
+                        style = ConsoleTheme.action,
+                        modifier = Modifier
+                            .clickable {
+                                onCreateJob(version)
+                                onDismiss()
+                            }
+                            .padding(8.dp)
+                    )
+                }
+                IntentStatus.SUPERSEDED -> Unit
+            }
+        },
         dismissButton = {
             Text(
                 text = "[x] CLOSE",
@@ -446,25 +491,6 @@ private fun DraftIntentUI(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         ProposalDetails(version)
-
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Ready to propose this intent?",
-            style = ConsoleTheme.body,
-            color = ConsoleTheme.text.copy(alpha = 0.7f)
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = "[>] PROPOSE",
-            style = if (version.canPropose()) ConsoleTheme.action
-                else ConsoleTheme.action.copy(color = ConsoleTheme.textDim),
-            modifier = Modifier
-                .clickable(enabled = version.canPropose()) {
-                    IntentRepository.proposeVersion(version.id)
-                    onDismiss()
-                }
-                .padding(vertical = 8.dp)
-        )
     }
 }
 
@@ -487,25 +513,6 @@ private fun ProposedIntentUI(
         Spacer(modifier = Modifier.height(4.dp))
 
         ProposalDetails(version)
-
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "All parties agree to this scope?",
-            style = ConsoleTheme.body,
-            color = ConsoleTheme.text.copy(alpha = 0.7f)
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = "[v] CONFIRM",
-            style = if (version.canConfirm()) ConsoleTheme.action
-                else ConsoleTheme.action.copy(color = ConsoleTheme.textDim),
-            modifier = Modifier
-                .clickable(enabled = version.canConfirm()) {
-                    IntentRepository.confirmVersion(version.id, "local-user")
-                    onDismiss()
-                }
-                .padding(vertical = 8.dp)
-        )
     }
 }
 
@@ -533,19 +540,6 @@ private fun ConfirmedIntentUI(
         if (version.confirmedBy != null) {
             IntentDetailSection(label = "Confirmed by", value = version.confirmedBy)
         }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Text(
-            text = "[+ JOB] CREATE JOB FROM PROPOSAL",
-            style = ConsoleTheme.action,
-            modifier = Modifier
-                .clickable {
-                    onCreateJob(version)
-                    onDismiss()
-                }
-                .padding(vertical = 8.dp)
-        )
     }
 }
 

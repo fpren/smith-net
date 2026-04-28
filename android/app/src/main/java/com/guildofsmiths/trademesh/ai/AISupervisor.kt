@@ -72,8 +72,17 @@ object AISupervisor {
 
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private var loopJob: kotlinx.coroutines.Job? = null
+    private var clockContextJob: kotlinx.coroutines.Job? = null
     private var lastObservation: Long = 0
     private var cachedJobs: List<Job> = emptyList()
+
+    // Active clock context, populated by AmbientEventHub clock events. Null when
+    // user is off the clock. Lets prompt-builders inject {jobId} without
+    // re-reading SharedPreferences on every call.
+    @Volatile private var activeJobId: String? = null
+    @Volatile private var activeEntryType: String? = null
+    fun getActiveJobId(): String? = activeJobId
+    fun getActiveEntryType(): String? = activeEntryType
 
     // Track which stage changes we've already processed
     private val processedStageChanges = mutableSetOf<String>() // "jobId-stage"
@@ -158,6 +167,26 @@ object AISupervisor {
     fun startLoop(jobs: List<Job>) {
         if (!isEnabled()) return
         cachedJobs = jobs
+
+        // Subscribe to clock events once. Survives loop stop/start.
+        if (clockContextJob?.isActive != true) {
+            clockContextJob = scope.launch {
+                AmbientEventHub.timeEntryCreatedFlow.collect { event ->
+                    when {
+                        event.clockOut -> {
+                            activeJobId = null
+                            activeEntryType = null
+                            Log.d(TAG, "context cleared (clock-out)")
+                        }
+                        event.clockIn -> {
+                            activeJobId = event.jobId
+                            activeEntryType = event.entryType
+                            Log.d(TAG, "context set: jobId=${event.jobId} type=${event.entryType}")
+                        }
+                    }
+                }
+            }
+        }
 
         if (loopJob?.isActive == true) return // already running
 

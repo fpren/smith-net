@@ -512,6 +512,76 @@ object UserPreferences {
     }
 
     // ════════════════════════════════════════════════════════════════════
+    // JOB BOARD STATE (persists across app restarts)
+    // ════════════════════════════════════════════════════════════════════
+
+    private const val KEY_JOBS_JSON = "jobs_json"
+    private const val KEY_ARCHIVED_JOBS_JSON = "archived_jobs_json"
+    private const val KEY_LOCAL_TASKS_JSON = "local_tasks_json"
+
+    fun saveJobs(json: String) {
+        prefs?.edit()?.putString(KEY_JOBS_JSON, json)?.apply()
+    }
+
+    fun getJobs(): String? = prefs?.getString(KEY_JOBS_JSON, null)
+
+    fun saveArchivedJobs(json: String) {
+        prefs?.edit()?.putString(KEY_ARCHIVED_JOBS_JSON, json)?.apply()
+    }
+
+    fun getArchivedJobs(): String? = prefs?.getString(KEY_ARCHIVED_JOBS_JSON, null)
+
+    fun saveLocalTasks(json: String) {
+        prefs?.edit()?.putString(KEY_LOCAL_TASKS_JSON, json)?.apply()
+    }
+
+    fun getLocalTasks(): String? = prefs?.getString(KEY_LOCAL_TASKS_JSON, null)
+
+    // ════════════════════════════════════════════════════════════════════
+    // PROPOSAL / INTENT STATE (persists across app restarts)
+    // ════════════════════════════════════════════════════════════════════
+
+    private const val KEY_INTENTS_JSON = "intents_json"
+    private const val KEY_INTENT_VERSIONS_JSON = "intent_versions_json"
+
+    fun saveIntents(json: String) {
+        prefs?.edit()?.putString(KEY_INTENTS_JSON, json)?.apply()
+    }
+
+    fun getIntents(): String? = prefs?.getString(KEY_INTENTS_JSON, null)
+
+    fun saveIntentVersions(json: String) {
+        prefs?.edit()?.putString(KEY_INTENT_VERSIONS_JSON, json)?.apply()
+    }
+
+    fun getIntentVersions(): String? = prefs?.getString(KEY_INTENT_VERSIONS_JSON, null)
+
+    // ════════════════════════════════════════════════════════════════════
+    // ONE-TIME MIGRATIONS
+    // ════════════════════════════════════════════════════════════════════
+
+    private const val KEY_FREE_TEXT_BACKFILL_DONE = "free_text_backfill_done_v1"
+
+    fun isFreeTextBackfillDone(): Boolean =
+        prefs?.getBoolean(KEY_FREE_TEXT_BACKFILL_DONE, false) ?: false
+
+    fun setFreeTextBackfillDone() {
+        prefs?.edit()?.putBoolean(KEY_FREE_TEXT_BACKFILL_DONE, true)?.apply()
+    }
+
+    // v3 — also aligns Job.createdAt with first TimeEntry's clockInTime so
+    // the row date reflects when work actually started, not when the Job
+    // entity was synthesized.
+    private const val KEY_LIFECYCLE_BACKFILL_DONE = "lifecycle_backfill_done_v3"
+
+    fun isLifecycleBackfillDone(): Boolean =
+        prefs?.getBoolean(KEY_LIFECYCLE_BACKFILL_DONE, false) ?: false
+
+    fun setLifecycleBackfillDone() {
+        prefs?.edit()?.putBoolean(KEY_LIFECYCLE_BACKFILL_DONE, true)?.apply()
+    }
+
+    // ════════════════════════════════════════════════════════════════════
     // CLOCK STATE (shared with AISupervisor for self-monitoring)
     // ════════════════════════════════════════════════════════════════════
 

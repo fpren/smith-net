@@ -1,0 +1,4 @@
+date,job,category,description,qty,unit,unit_cost,vendor,ref_no,hazardous,freight_term,notes
+2026-04-18,Guzman kitchen,material,14/2 Romex 250ft,1,ea,75.00,Home Depot,RCPT-3421,false,PREPAID,
+2026-04-18,Guzman kitchen,material,Breaker panel 200A,1,ea,310.00,Home Depot,RCPT-3422,false,PREPAID,
+2026-04-18,Guzman kitchen,material,15A receptacles,12,ea,2.85,Home Depot,RCPT-3423,false,PREPAID,
