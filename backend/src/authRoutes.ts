@@ -11,7 +11,7 @@ import {
   toPublicUser,
   authenticateToken,
   requirePermission,
-  requireRole,
+  validatePassword,
   AuthenticatedRequest,
   UserRole,
   Permission,
@@ -32,8 +32,11 @@ authRouter.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Email, password, and displayName are required' });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    // F1.3: enforce password floor at the route boundary so we can return a
+    // structured error code; userStore.createUser also re-validates as defense-in-depth.
+    const passwordCheck = validatePassword(password);
+    if (!passwordCheck.valid) {
+      return res.status(400).json({ error: passwordCheck.reason, code: 'weak_password' });
     }
 
     // Create user with default Solo role
@@ -65,19 +68,31 @@ authRouter.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    const user = await userStore.verifyPassword(email, password);
-    if (!user) {
+    const result = await userStore.verifyPassword(email, password);
+
+    if (!result.ok) {
+      if (result.reason === 'locked') {
+        auditLog.log(AuditAction.SECURITY_ALERT, 'unknown', {
+          event: 'login_blocked_locked',
+          email,
+        });
+        return res.status(429).json({
+          error: 'Account temporarily locked',
+          code: 'account_locked',
+          retry_after_minutes: result.retryMinutes,
+        });
+      }
       auditLog.log(AuditAction.USER_LOGIN_FAILED, 'unknown', { email });
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const tokens = generateTokens(user);
+    const tokens = generateTokens(result.user);
 
     // Audit log
-    auditLog.log(AuditAction.USER_LOGIN, user.id, { email });
+    auditLog.log(AuditAction.USER_LOGIN, result.user.id, { email });
 
     res.json({
-      user: toPublicUser(user),
+      user: toPublicUser(result.user),
       ...tokens,
     });
   } catch (e: any) {

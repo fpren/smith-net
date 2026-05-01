@@ -51,6 +51,38 @@ const JWT_EXPIRES_IN = '7d';
 const REFRESH_TOKEN_EXPIRES_IN = '30d';
 const SALT_ROUNDS = 10;
 
+// F1.3: password floor + per-account lockout policy.
+const MIN_PASSWORD_LENGTH = 8;
+const MAX_FAILED_LOGINS = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
+// Constant-time delay for the "no such user" path so attackers can't enumerate
+// emails by timing the difference between bcrypt-verify and a fast 401.
+const ENUMERATION_DELAY_MS = 200;
+
+export type PasswordValidationResult =
+  | { valid: true }
+  | { valid: false; reason: string };
+
+export function validatePassword(password: string): PasswordValidationResult {
+  if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
+    return { valid: false, reason: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` };
+  }
+  if (!/[a-zA-Z]/.test(password)) {
+    return { valid: false, reason: 'Password must contain at least one letter' };
+  }
+  if (!/[0-9]/.test(password)) {
+    return { valid: false, reason: 'Password must contain at least one digit' };
+  }
+  return { valid: true };
+}
+
+export type LoginResult =
+  | { ok: true; user: StoredUser }
+  | { ok: false; reason: 'invalid_credentials' }
+  | { ok: false; reason: 'locked'; retryMinutes: number };
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 // ════════════════════════════════════════════════════════════════════
 // C-02: ROLE DEFINITIONS
 // ════════════════════════════════════════════════════════════════════
@@ -172,6 +204,10 @@ export interface StoredUser {
   isActive: boolean;
   mfaEnabled: boolean;
   mfaSecret?: string;
+  // F1.3 lockout state. When userStore moves to Postgres, these map to
+  // failed_login_count INT NOT NULL DEFAULT 0 and locked_until TIMESTAMPTZ.
+  failedLoginCount?: number;
+  lockedUntil?: number; // epoch ms; absent = not locked
 }
 
 export interface PublicUser {
@@ -250,6 +286,13 @@ class UserStore {
       throw new Error('Email already registered');
     }
 
+    // F1.3: enforce password floor on new accounts. Existing users (incl. seeded
+    // admin) are grandfathered — only new password material runs the validator.
+    const validation = validatePassword(password);
+    if (!validation.valid) {
+      throw new Error(validation.reason);
+    }
+
     const id = uuidv4();
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
@@ -263,6 +306,7 @@ class UserStore {
       updatedAt: Date.now(),
       isActive: true,
       mfaEnabled: false,
+      failedLoginCount: 0,
     };
 
     this.users.set(id, user);
@@ -272,21 +316,46 @@ class UserStore {
     return user;
   }
 
-  async verifyPassword(email: string, password: string): Promise<StoredUser | null> {
+  /**
+   * F1.3: returns a discriminated result so the route can emit the right HTTP
+   * code (401 vs 429) and the lockout retry hint without leaking which arm
+   * tripped to the caller via timing.
+   */
+  async verifyPassword(email: string, password: string): Promise<LoginResult> {
     const userId = this.emailIndex.get(email.toLowerCase());
-    if (!userId) return null;
+    const user = userId ? this.users.get(userId) : undefined;
 
-    const user = this.users.get(userId);
-    if (!user || !user.isActive) return null;
+    // No-account path: spend the same time as a real bcrypt verify so the
+    // round-trip duration doesn't reveal whether the email exists.
+    if (!user || !user.isActive) {
+      await sleep(ENUMERATION_DELAY_MS);
+      return { ok: false, reason: 'invalid_credentials' };
+    }
+
+    // Lockout check — server-authoritative, no caching.
+    if (user.lockedUntil && user.lockedUntil > Date.now()) {
+      const retryMinutes = Math.max(1, Math.ceil((user.lockedUntil - Date.now()) / 60_000));
+      return { ok: false, reason: 'locked', retryMinutes };
+    }
 
     const isValid = await bcrypt.compare(password, user.passwordHash);
-    if (!isValid) return null;
+    if (!isValid) {
+      const next = (user.failedLoginCount ?? 0) + 1;
+      user.failedLoginCount = next;
+      if (next >= MAX_FAILED_LOGINS) {
+        user.lockedUntil = Date.now() + LOCKOUT_DURATION_MS;
+      }
+      this.users.set(user.id, user);
+      return { ok: false, reason: 'invalid_credentials' };
+    }
 
-    // Update last login
+    // Successful login — reset counter + clear any stale lock + update lastLogin.
     user.lastLoginAt = Date.now();
-    this.users.set(userId, user);
+    user.failedLoginCount = 0;
+    user.lockedUntil = undefined;
+    this.users.set(user.id, user);
 
-    return user;
+    return { ok: true, user };
   }
 
   getUserById(id: string): StoredUser | undefined {
