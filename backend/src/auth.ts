@@ -15,7 +15,38 @@ import { Request, Response, NextFunction } from 'express';
 // CONFIGURATION
 // ════════════════════════════════════════════════════════════════════
 
-const JWT_SECRET = process.env.JWT_SECRET || 'smith-net-dev-secret-change-in-production';
+// F1.2: hard-fail at boot if JWT_SECRET is missing, weak, or the dev fallback in prod.
+// Tokens minted with a guessable secret are forgeable, so we refuse to start rather than
+// silently issue insecure tokens. Dev still gets a usable fallback when NODE_ENV !== 'production'.
+const DEV_JWT_FALLBACK = 'smith-net-dev-secret-change-in-production';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
+function resolveJwtSecret(): string {
+  const fromEnv = process.env.JWT_SECRET;
+
+  if (!fromEnv) {
+    if (IS_PRODUCTION) {
+      throw new Error('[FATAL] JWT_SECRET env var is required in production. See docs/ops/SECRETS.md.');
+    }
+    console.warn('[Auth] JWT_SECRET unset — using dev fallback. NEVER deploy this way.');
+    return DEV_JWT_FALLBACK;
+  }
+
+  if (IS_PRODUCTION && fromEnv === DEV_JWT_FALLBACK) {
+    throw new Error('[FATAL] JWT_SECRET is set to the dev fallback in production. Generate a real secret (see docs/ops/SECRETS.md).');
+  }
+
+  if (fromEnv.length < 32) {
+    throw new Error(`[FATAL] JWT_SECRET must be at least 32 characters (got ${fromEnv.length}). See docs/ops/SECRETS.md.`);
+  }
+
+  return fromEnv;
+}
+
+const JWT_SECRET = resolveJwtSecret();
+// Refresh tokens get a separate secret when provided, so rotating the access secret
+// doesn't invalidate every active refresh token (and vice versa). Falls back to JWT_SECRET.
+const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || JWT_SECRET;
 const JWT_EXPIRES_IN = '7d';
 const REFRESH_TOKEN_EXPIRES_IN = '30d';
 const SALT_ROUNDS = 10;
@@ -315,7 +346,7 @@ export function generateTokens(user: StoredUser): AuthTokens {
   };
 
   const accessToken = jwt.sign(accessPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-  const refreshToken = jwt.sign(refreshPayload, JWT_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRES_IN });
+  const refreshToken = jwt.sign(refreshPayload, REFRESH_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRES_IN });
 
   // Store refresh token
   userStore.storeRefreshToken(refreshToken, user.id);
@@ -328,11 +359,17 @@ export function generateTokens(user: StoredUser): AuthTokens {
 }
 
 export function verifyToken(token: string): TokenPayload | null {
+  // Try the access secret first (the common case), then the refresh secret.
+  // When JWT_REFRESH_SECRET is unset both are the same constant, so this is a no-op cost.
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as TokenPayload;
-    return payload;
-  } catch (e) {
-    return null;
+    return jwt.verify(token, JWT_SECRET) as TokenPayload;
+  } catch {
+    if (REFRESH_SECRET === JWT_SECRET) return null;
+    try {
+      return jwt.verify(token, REFRESH_SECRET) as TokenPayload;
+    } catch {
+      return null;
+    }
   }
 }
 
