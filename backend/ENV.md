@@ -14,7 +14,7 @@ All values are read at startup; restart the service after changing them.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `PORT` | `3000` | HTTP + WS listen port |
+| `PORT` | `3030` | HTTP + WS listen port (changed from 3000 — see commit changing default to avoid local-dev conflicts) |
 | `HOST` | `0.0.0.0` | Listen interface |
 | `JWT_SECRET` | random per-boot | Used by legacy auth paths; set to a stable value if you rotate behind a reverse proxy |
 
@@ -38,7 +38,7 @@ systemctl restart smith-relay     # apply .env changes
 
 ## Tailscale Funnel
 
-Public HTTPS URL for the relay, configured once via `tailscale funnel --bg --set-path=/ http://localhost:3000`. Config persists in Tailscale prefs and is re-established on tailscaled boot.
+Public HTTPS URL for the relay, configured once via `tailscale funnel --bg --set-path=/ http://localhost:3030`. Config persists in Tailscale prefs and is re-established on tailscaled boot. (If your existing Hetzner funnel still points at `:3000`, leave it — the systemd unit pins `PORT=3000` in `.env`. The new `3030` default applies to local dev only.)
 
 Status: `tailscale funnel status`
 

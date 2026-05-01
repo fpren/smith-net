@@ -76,7 +76,7 @@ fun SettingsScreen(
     val isScanning by BoundaryEngine.isScanning.collectAsState()
     val isMeshConnected by BoundaryEngine.isMeshConnected.collectAsState()
     val isGatewayConnected by BoundaryEngine.isGatewayConnected.collectAsState()
-    var gatewayUrl by remember { mutableStateOf("ws://192.168.8.169:3000") }
+    var gatewayUrl by remember { mutableStateOf("ws://192.168.8.169:3030") }
     
     Column(
         modifier = modifier

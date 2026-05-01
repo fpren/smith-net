@@ -31,7 +31,7 @@ object AuthService {
     private const val KEY_TOKEN_EXPIRY = "token_expiry"
     
     private var prefs: SharedPreferences? = null
-    private var baseUrl: String = "http://10.0.2.2:3000" // Android emulator localhost
+    private var baseUrl: String = "http://10.0.2.2:3030" // Android emulator localhost
     
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)

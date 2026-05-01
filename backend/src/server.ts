@@ -28,7 +28,7 @@ import { llm } from './llmInterface';
 import { reconcile, acceptClientMessages } from './reconciliationEngine';
 import { invoiceLinkService } from './invoiceLinks';
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3030;
 
 // Create Express app
 const app = express();
@@ -253,7 +253,7 @@ app.get('/', (_req, res) => {
     endpoints: {
       auth: '/api/auth',
       api: '/api',
-      ws: 'ws://localhost:3000',
+      ws: `ws://localhost:${PORT}`,
     },
   });
 });

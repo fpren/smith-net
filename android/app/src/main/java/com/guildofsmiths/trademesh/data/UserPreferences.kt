@@ -140,7 +140,7 @@ object UserPreferences {
      * Get gateway URL.
      */
     fun getGatewayUrl(): String {
-        return prefs?.getString(KEY_GATEWAY_URL, "ws://192.168.8.169:3000") ?: "ws://192.168.8.169:3000"
+        return prefs?.getString(KEY_GATEWAY_URL, "ws://192.168.8.169:3030") ?: "ws://192.168.8.169:3030"
     }
     
     /**

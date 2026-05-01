@@ -28,7 +28,7 @@ class WebSocketClient {
       this.authReject = reject;
 
       // Always connect to backend WebSocket
-      const wsUrl = 'ws://localhost:3000';
+      const wsUrl = 'ws://localhost:3030';
       console.log('[WS] Connecting to:', wsUrl);
       
       this.ws = new WebSocket(wsUrl);
