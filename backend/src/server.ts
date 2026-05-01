@@ -34,10 +34,12 @@ const PORT = process.env.PORT || 3000;
 const app = express();
 
 // CORS - Allow requests from anywhere (mobile apps, web clients)
+// F1.1: removed legacy X-User-Id, X-User-Name from allowedHeaders. Identity = JWT only.
+// (CORS allowlist tightening to specific origins is F1.2's scope.)
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-User-Id', 'X-User-Name']
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
@@ -45,6 +47,18 @@ app.use(express.json());
 // Trust X-Forwarded-For when behind Tailscale Funnel / reverse proxy so rate limits
 // bucket by the originating IP, not the proxy's loopback address.
 app.set('trust proxy', 1);
+
+// F1.1 deprecation guard — log if any client still sends legacy X-User-Id / X-User-Name headers.
+// The headers are now ignored; identity comes from the JWT via authenticateToken middleware.
+// Keep this guard for one release window, then remove the headers from CORS allowedHeaders + delete this middleware.
+app.use((req, _res, next) => {
+  if (req.headers['x-user-id'] || req.headers['x-user-name']) {
+    console.warn('[deprecated-header]', req.method, req.path, 'received X-User-Id/X-User-Name; will be removed', {
+      ip: req.ip, ua: req.get('user-agent'),
+    });
+  }
+  next();
+});
 
 // Global rate limit on all /api/* traffic. 300 req/min/IP is plenty for a real client
 // and chokes off trivial abuse before it hits application logic.

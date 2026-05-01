@@ -36,8 +36,14 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { invoiceLinkService } from './invoiceLinks';
 import { wageDataService } from './wageData';
+import { authenticateToken, AuthenticatedRequest } from './auth';
 
 export const apiRouter = Router();
+
+// All /api/* routes below require a valid JWT.
+// Public routes (/api/auth/*, /api/admin/*, /api/health) are mounted BEFORE this router in server.ts.
+// Per F1.1 (PRD): replaces legacy `X-User-Id` header-based identity with JWT.
+apiRouter.use(authenticateToken);
 
 // ════════════════════════════════════════════════════════════════════
 // CHANNELS
@@ -53,8 +59,8 @@ apiRouter.post('/channels', (req: Request, res: Response) => {
     return res.status(400).json({ error: 'name and type required' });
   }
 
-  // Get creator from header (simplified auth)
-  const creatorId = req.headers['x-user-id'] as string || 'anonymous';
+  // F1.1: identity from JWT (authenticateToken middleware applied at router level).
+  const creatorId = (req as AuthenticatedRequest).user!.id;
 
   const channel = channelRegistry.create(
     name, 
@@ -79,11 +85,10 @@ apiRouter.post('/channels', (req: Request, res: Response) => {
  * List all channels
  */
 apiRouter.get('/channels', (req: Request, res: Response) => {
-  const userId = req.headers['x-user-id'] as string;
-  
-  const channels = userId 
-    ? channelRegistry.listForUser(userId)
-    : channelRegistry.list();
+  // F1.1: identity from JWT (authenticateToken middleware applied at router level).
+  // Always scope to authenticated user (no fallback to "list everything" anymore).
+  const userId = (req as AuthenticatedRequest).user!.id;
+  const channels = channelRegistry.listForUser(userId);
 
   res.json(channels);
 });
@@ -138,11 +143,8 @@ apiRouter.delete('/channels/:id', (req: Request, res: Response) => {
  */
 apiRouter.post('/channels/:id/access/request', (req: Request, res: Response) => {
   const channelId = req.params.id;
-  const userId = req.headers['x-user-id'] as string;
-
-  if (!userId) {
-    return res.status(401).json({ error: 'User ID required' });
-  }
+  // F1.1: identity from JWT.
+  const userId = (req as AuthenticatedRequest).user!.id;
 
   const success = channelRegistry.requestAccess(channelId, userId);
   
@@ -161,12 +163,9 @@ apiRouter.post('/channels/:id/access/request', (req: Request, res: Response) => 
  */
 apiRouter.post('/channels/:id/access/respond', (req: Request, res: Response) => {
   const channelId = req.params.id;
-  const managerId = req.headers['x-user-id'] as string;
+  // F1.1: identity from JWT.
+  const managerId = (req as AuthenticatedRequest).user!.id;
   const { requesterId, approve } = req.body as AccessResponsePayload;
-
-  if (!managerId) {
-    return res.status(401).json({ error: 'Manager ID required' });
-  }
 
   const success = channelRegistry.respondToAccessRequest(channelId, requesterId, managerId, approve);
   
@@ -185,12 +184,9 @@ apiRouter.post('/channels/:id/access/respond', (req: Request, res: Response) => 
  */
 apiRouter.post('/channels/:id/access/user', (req: Request, res: Response) => {
   const channelId = req.params.id;
-  const managerId = req.headers['x-user-id'] as string;
+  // F1.1: identity from JWT.
+  const managerId = (req as AuthenticatedRequest).user!.id;
   const { userId, allow } = req.body as UpdateChannelAccessPayload;
-
-  if (!managerId) {
-    return res.status(401).json({ error: 'Manager ID required' });
-  }
 
   const success = channelRegistry.updateUserAccess(channelId, userId, managerId, allow);
   
@@ -209,12 +205,9 @@ apiRouter.post('/channels/:id/access/user', (req: Request, res: Response) => {
  */
 apiRouter.post('/channels/:id/visibility', (req: Request, res: Response) => {
   const channelId = req.params.id;
-  const managerId = req.headers['x-user-id'] as string;
+  // F1.1: identity from JWT.
+  const managerId = (req as AuthenticatedRequest).user!.id;
   const { visibility, requiresApproval } = req.body as UpdateChannelVisibilityPayload;
-
-  if (!managerId) {
-    return res.status(401).json({ error: 'Manager ID required' });
-  }
 
   const success = channelRegistry.updateVisibility(channelId, managerId, visibility, requiresApproval);
   
@@ -233,11 +226,8 @@ apiRouter.post('/channels/:id/visibility', (req: Request, res: Response) => {
  */
 apiRouter.get('/channels/:id/access/status', (req: Request, res: Response) => {
   const channelId = req.params.id;
-  const userId = req.headers['x-user-id'] as string;
-
-  if (!userId) {
-    return res.status(401).json({ error: 'User ID required' });
-  }
+  // F1.1: identity from JWT.
+  const userId = (req as AuthenticatedRequest).user!.id;
 
   const status = channelRegistry.getAccessStatus(channelId, userId);
   res.json({ status });
@@ -248,7 +238,8 @@ apiRouter.get('/channels/:id/access/status', (req: Request, res: Response) => {
  */
 apiRouter.get('/channels/:id/access/pending', (req: Request, res: Response) => {
   const channelId = req.params.id;
-  const managerId = req.headers['x-user-id'] as string;
+  // F1.1: identity from JWT.
+  const managerId = (req as AuthenticatedRequest).user!.id;
 
   const channel = channelRegistry.get(channelId);
   
@@ -301,8 +292,9 @@ apiRouter.delete('/channels/:id/messages', (req: Request, res: Response) => {
  */
 apiRouter.delete('/messages/:messageId', (req: Request, res: Response) => {
   const { messageId } = req.params;
-  const requesterId = req.headers['x-user-id'] as string;
-  
+  // F1.1: identity from JWT.
+  const requesterId = (req as AuthenticatedRequest).user!.id;
+
   const deleted = messageStore.deleteMessage(messageId, requesterId);
   
   if (!deleted) {
@@ -326,15 +318,13 @@ apiRouter.delete('/messages/:messageId', (req: Request, res: Response) => {
  */
 apiRouter.post('/messages/inject', (req: Request, res: Response) => {
   let { channelId, content, meshOnly, id: clientId } = req.body as InjectMessageRequest & { meshOnly?: boolean; id?: string };
-  const rawSenderId = (req.headers['x-user-id'] as string | undefined)?.trim();
-  const senderId = rawSenderId && rawSenderId !== 'system' ? rawSenderId : 'system';
-  const senderName = (req.headers['x-user-name'] as string) || 'System';
+  // F1.1: identity from JWT (was X-User-Id + X-User-Name).
+  const auth = (req as AuthenticatedRequest).user!;
+  const senderId = auth.id;
+  const senderName = auth.displayName || auth.email || 'User';
 
   if (!channelId || !content) {
     return res.status(400).json({ error: 'channelId and content required' });
-  }
-  if (!rawSenderId) {
-    return res.status(400).json({ error: 'X-User-Id header required' });
   }
 
   // Resolve channel name to UUID if needed (phones send "general", we need UUID)
@@ -521,8 +511,10 @@ apiRouter.delete('/gateway/relays/:relayId', (req: Request, res: Response) => {
  */
 apiRouter.post('/gateway/inject', (req: Request, res: Response) => {
   const { channelId, content } = req.body;
-  const senderId = req.headers['x-user-id'] as string || 'system';
-  const senderName = req.headers['x-user-name'] as string || 'System';
+  // F1.1: identity from JWT (was X-User-Id + X-User-Name).
+  const auth = (req as AuthenticatedRequest).user!;
+  const senderId = auth.id;
+  const senderName = auth.displayName || auth.email || 'User';
 
   if (!channelId || !content) {
     return res.status(400).json({ error: 'channelId and content required' });
@@ -570,7 +562,8 @@ apiRouter.post('/engagements', (req: Request, res: Response) => {
     return res.status(400).json({ error: 'name and intent required' });
   }
 
-  const creatorId = req.headers['x-user-id'] as string || 'anonymous';
+  // F1.1: identity from JWT.
+  const creatorId = (req as AuthenticatedRequest).user!.id;
 
   const engagement: Engagement = {
     id: uuidv4(),
