@@ -35,14 +35,25 @@ const app = express();
 
 // CORS - allowlisted origins only.
 // F1.1: removed legacy X-User-Id / X-User-Name. F1.2: replaced `origin: '*'` with allowlist.
-// Mobile apps + curl send no Origin header and pass through. Browsers from non-allowlisted
-// origins get blocked. Update ALLOWED_ORIGINS when adding a new portal/staging domain.
-const ALLOWED_ORIGINS: RegExp[] = [
-  /^https:\/\/portal\.smithnet\.app$/,
-  /^https:\/\/smithnet\.app$/,
-  /^https:\/\/[a-z0-9-]+\.smithnet\.app$/, // staging subdomains
-  /^smithnet:\/\//,                         // Android custom-scheme deeplinks
-];
+//
+// Current clients:
+//   - Android app → Tailscale Funnel (native HTTP, no Origin header → allowed via `if (!origin)`)
+//   - Desktop portal → relative `/api` (served same-origin, no cross-origin call)
+//
+// No production browser origin exists yet. When a real portal domain is registered,
+// add it via the CORS_ALLOWED_ORIGINS env var (comma-separated) — no code deploy needed.
+const ALLOWED_ORIGINS: RegExp[] = [];
+
+// Env-driven allowlist: literal origins like "https://portal.example.com,https://staging.example.com"
+const envOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+for (const origin of envOrigins) {
+  // Escape regex metachars, anchor, push
+  const escaped = origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  ALLOWED_ORIGINS.push(new RegExp(`^${escaped}$`));
+}
 
 if (process.env.NODE_ENV !== 'production') {
   ALLOWED_ORIGINS.push(/^http:\/\/localhost(:\d+)?$/);

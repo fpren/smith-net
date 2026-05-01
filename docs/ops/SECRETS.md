@@ -10,6 +10,7 @@ Operational reference for the secrets the backend reads at boot. Owned by F1.2 (
 | `JWT_REFRESH_SECRET` | optional | random ≥32 chars | If unset, refresh tokens are signed with `JWT_SECRET` |
 | `DEFAULT_ADMIN_PASSWORD` | yes (prod) | password | Falls back to `admin123` if unset (dev only) |
 | `NODE_ENV` | yes | `production` \| `development` | Gates the JWT hard-fail and CORS allowlist |
+| `CORS_ALLOWED_ORIGINS` | optional | comma-separated origins | Browser origins allowed in prod. Empty by default — see CORS section below |
 
 ## Boot-time enforcement (F1.2)
 
@@ -72,3 +73,20 @@ Leave `JWT_SECRET` unset. The server boots with the dev fallback and prints:
 ```
 
 If the warning ever appears in production logs, treat it as a SEV-2: production was started without `NODE_ENV=production`, which means the F1.2 hard-fail was bypassed.
+
+## CORS allowlist
+
+Production `CORS_ALLOWED_ORIGINS` is **empty by default**. Current clients don't need it:
+
+- **Android app** uses native HTTP (no `Origin` header) → allowed via the `if (!origin)` path
+- **Desktop portal** uses relative `/api` paths (same-origin) → never triggers CORS
+
+If you later host a browser-based portal on a real domain, add it via env var (no code deploy):
+
+```ini
+CORS_ALLOWED_ORIGINS=https://portal.example.com,https://staging.example.com
+```
+
+Restart the backend; the new origin is allowlisted on next boot. Origins are matched as exact literal strings (regex-escaped + anchored).
+
+In `NODE_ENV=development`, `localhost`, `127.0.0.1`, and `192.168.x.x` are auto-allowed for local + LAN device dev.
