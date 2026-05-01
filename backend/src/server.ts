@@ -33,13 +33,33 @@ const PORT = process.env.PORT || 3000;
 // Create Express app
 const app = express();
 
-// CORS - Allow requests from anywhere (mobile apps, web clients)
-// F1.1: removed legacy X-User-Id, X-User-Name from allowedHeaders. Identity = JWT only.
-// (CORS allowlist tightening to specific origins is F1.2's scope.)
+// CORS - allowlisted origins only.
+// F1.1: removed legacy X-User-Id / X-User-Name. F1.2: replaced `origin: '*'` with allowlist.
+// Mobile apps + curl send no Origin header and pass through. Browsers from non-allowlisted
+// origins get blocked. Update ALLOWED_ORIGINS when adding a new portal/staging domain.
+const ALLOWED_ORIGINS: RegExp[] = [
+  /^https:\/\/portal\.smithnet\.app$/,
+  /^https:\/\/smithnet\.app$/,
+  /^https:\/\/[a-z0-9-]+\.smithnet\.app$/, // staging subdomains
+  /^smithnet:\/\//,                         // Android custom-scheme deeplinks
+];
+
+if (process.env.NODE_ENV !== 'production') {
+  ALLOWED_ORIGINS.push(/^http:\/\/localhost(:\d+)?$/);
+  ALLOWED_ORIGINS.push(/^http:\/\/127\.0\.0\.1(:\d+)?$/);
+  ALLOWED_ORIGINS.push(/^http:\/\/192\.168\.\d+\.\d+(:\d+)?$/); // device-on-LAN dev
+}
+
 app.use(cors({
-  origin: '*',
+  origin: (origin, cb) => {
+    // No Origin header → native app, server-to-server, or curl. Allow.
+    if (!origin) return cb(null, true);
+    if (ALLOWED_ORIGINS.some((r) => r.test(origin))) return cb(null, true);
+    console.warn('[cors] rejected origin', { origin });
+    return cb(new Error('CORS: origin not allowed'));
+  },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 app.use(express.json());
