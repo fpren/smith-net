@@ -11,6 +11,12 @@ Operational reference for the secrets the backend reads at boot. Owned by F1.2 (
 | `DEFAULT_ADMIN_PASSWORD` | yes (prod) | password | Falls back to `admin123` if unset (dev only) |
 | `NODE_ENV` | yes | `production` \| `development` | Gates the JWT hard-fail and CORS allowlist |
 | `CORS_ALLOWED_ORIGINS` | optional | comma-separated origins | Browser origins allowed in prod. Empty by default — see CORS section below |
+| `SMTP_USER` | yes (prod) | Gmail address | Gmail account used to send verification emails (F1.4). Without it, emails dry-run to console |
+| `SMTP_APP_PASSWORD` | yes (prod) | 16-char Gmail App Password | NOT the regular Gmail password. Generated at myaccount.google.com/apppasswords (requires 2FA) |
+| `SMTP_HOST` | optional | default `smtp.gmail.com` | Override for non-Gmail providers |
+| `SMTP_PORT` | optional | default `587` | 587 = STARTTLS (recommended). 465 = implicit TLS |
+| `MAIL_FROM` | optional | default `Smith Net <${SMTP_USER}>` | From-header. Gmail requires this match SMTP_USER (or be a verified alias) |
+| `PUBLIC_BASE_URL` | yes (prod) | `https://...` | Where verification links point. In prod set to the Tailscale Funnel hostname |
 
 ## Boot-time enforcement (F1.2)
 
@@ -90,3 +96,41 @@ CORS_ALLOWED_ORIGINS=https://portal.example.com,https://staging.example.com
 Restart the backend; the new origin is allowlisted on next boot. Origins are matched as exact literal strings (regex-escaped + anchored).
 
 In `NODE_ENV=development`, `localhost`, `127.0.0.1`, and `192.168.x.x` are auto-allowed for local + LAN device dev.
+
+## Gmail SMTP setup (F1.4)
+
+Smith Net uses Gmail SMTP for verification emails. Daily cap is ~500 sends — fine for early-stage; revisit when registrations climb past that.
+
+**One-time setup** on the Google account that will send mail (e.g. `innovatemobile@gmail.com`):
+
+1. Enable 2-Step Verification at <https://myaccount.google.com/security> (required to generate App Passwords)
+2. Visit <https://myaccount.google.com/apppasswords>
+3. App: "Mail", Device: "Other (Smith Net backend)"
+4. Copy the 16-character password it generates — you will not see it again
+
+**Backend env** (`/etc/smith-net/backend.env` on Hetzner):
+
+```ini
+SMTP_USER=innovatemobile@gmail.com
+SMTP_APP_PASSWORD=xxxxxxxxxxxxxxxx
+PUBLIC_BASE_URL=https://ubuntu-8gb-ash-1.tail2523e7.ts.net
+# MAIL_FROM defaults to "Smith Net <${SMTP_USER}>" — leave unset unless you need a custom From
+```
+
+Restart: `sudo systemctl restart smith-net-backend`. A successful boot logs:
+
+```
+[Email] SMTP live via smtp.gmail.com:587 as innovatemobile@gmail.com
+```
+
+If you leave `SMTP_USER` / `SMTP_APP_PASSWORD` unset (e.g., local dev), the backend logs:
+
+```
+[Email] SMTP unset — running in dry-run mode (verification links logged to console)
+```
+
+In dry-run mode, the verification link is printed to the backend log under `[email:dry-run]` — copy it from there to verify the account manually.
+
+**Branding caveat:** until a real `smithnet.app` domain is registered with SPF/DKIM/DMARC, recipients will see `innovatemobile@gmail.com` as the sender. This is expected; deliverability is fine because Gmail-to-anywhere is well-trusted, but the From address won't say "Smith Net" until DNS is set up.
+
+**App Password rotation:** revoke the old App Password at <https://myaccount.google.com/apppasswords>, generate a new one, update `SMTP_APP_PASSWORD`, restart. Old password stops working immediately.

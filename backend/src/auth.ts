@@ -8,6 +8,7 @@
 
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { Request, Response, NextFunction } from 'express';
 
@@ -82,6 +83,10 @@ export type LoginResult =
   | { ok: false; reason: 'locked'; retryMinutes: number };
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+// F1.4: email verification token TTL + resend throttle.
+export const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000; // 24h
+export const EMAIL_RESEND_COOLDOWN_MS = 60 * 1000; // 1 send per minute per account
 
 // ════════════════════════════════════════════════════════════════════
 // C-02: ROLE DEFINITIONS
@@ -208,6 +213,13 @@ export interface StoredUser {
   // failed_login_count INT NOT NULL DEFAULT 0 and locked_until TIMESTAMPTZ.
   failedLoginCount?: number;
   lockedUntil?: number; // epoch ms; absent = not locked
+  // F1.4 email verification state. Maps to:
+  // email_verified_at TIMESTAMPTZ, email_verification_token TEXT,
+  // email_verification_expires_at TIMESTAMPTZ, email_verification_last_sent_at TIMESTAMPTZ.
+  emailVerifiedAt?: number;
+  emailVerificationToken?: string;
+  emailVerificationExpiresAt?: number;
+  emailVerificationLastSentAt?: number;
 }
 
 export interface PublicUser {
@@ -217,6 +229,8 @@ export interface PublicUser {
   role: UserRole;
   organizationId?: string;
   permissions: Permission[];
+  // F1.4: clients use this to render the "verify your email" banner and gate UX.
+  emailVerified: boolean;
 }
 
 export interface TokenPayload {
@@ -264,6 +278,10 @@ class UserStore {
       updatedAt: Date.now(),
       isActive: true,
       mfaEnabled: false,
+      // F1.4: pre-existing accounts are grandfathered as verified — equivalent
+      // to the SQL backfill (UPDATE profiles SET email_verified_at = NOW() ...)
+      // when this code moves to Postgres.
+      emailVerifiedAt: Date.now(),
     };
 
     this.users.set(adminId, admin);
@@ -307,6 +325,9 @@ class UserStore {
       isActive: true,
       mfaEnabled: false,
       failedLoginCount: 0,
+      // F1.4: new accounts start unverified with a fresh 24h token.
+      emailVerificationToken: crypto.randomBytes(32).toString('hex'),
+      emailVerificationExpiresAt: Date.now() + EMAIL_VERIFICATION_TTL_MS,
     };
 
     this.users.set(id, user);
@@ -314,6 +335,62 @@ class UserStore {
 
     console.log(`[Auth] User created: ${email} (${role})`);
     return user;
+  }
+
+  /**
+   * F1.4: look up by verification token. Returns the user iff the token is
+   * present, exact-match, and not expired. Idempotent caller-wise — verifying
+   * twice is a no-op since the token is cleared on first success.
+   */
+  findByVerificationToken(token: string): StoredUser | undefined {
+    if (!token) return undefined;
+    for (const user of this.users.values()) {
+      if (user.emailVerificationToken === token && user.emailVerificationExpiresAt && user.emailVerificationExpiresAt > Date.now()) {
+        return user;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * F1.4: mark email verified, clear the token (single-use). No-op if already verified.
+   */
+  markEmailVerified(userId: string): StoredUser | undefined {
+    const user = this.users.get(userId);
+    if (!user) return undefined;
+    user.emailVerifiedAt = Date.now();
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpiresAt = undefined;
+    user.updatedAt = Date.now();
+    this.users.set(userId, user);
+    return user;
+  }
+
+  /**
+   * F1.4: regenerate a fresh token for resend. Returns null if the user is
+   * already verified (caller should treat as a no-op success — don't leak state).
+   */
+  regenerateVerificationToken(userId: string): string | null {
+    const user = this.users.get(userId);
+    if (!user) return null;
+    if (user.emailVerifiedAt) return null;
+    user.emailVerificationToken = crypto.randomBytes(32).toString('hex');
+    user.emailVerificationExpiresAt = Date.now() + EMAIL_VERIFICATION_TTL_MS;
+    user.emailVerificationLastSentAt = Date.now();
+    user.updatedAt = Date.now();
+    this.users.set(userId, user);
+    return user.emailVerificationToken;
+  }
+
+  /**
+   * F1.4: record that we sent a verification email. Called from the register
+   * path so the resend cooldown applies even to the initial send.
+   */
+  recordVerificationSendAttempt(userId: string): void {
+    const user = this.users.get(userId);
+    if (!user) return;
+    user.emailVerificationLastSentAt = Date.now();
+    this.users.set(userId, user);
   }
 
   /**
@@ -479,6 +556,7 @@ export function toPublicUser(user: StoredUser): PublicUser {
     role: user.role,
     organizationId: user.organizationId,
     permissions: getRolePermissions(user.role),
+    emailVerified: !!user.emailVerifiedAt,
   };
 }
 
@@ -536,6 +614,24 @@ export function optionalAuth(req: AuthenticatedRequest, res: Response, next: Nex
     }
   }
 
+  next();
+}
+
+/**
+ * F1.4: gate routes that should be reachable only by users with verified email.
+ * Apply downstream of authenticateToken. Currently exported for use by future
+ * routes (start-trial, invoice send, proposal send) — see F1.4 PRD §4.4.
+ */
+export function requireVerifiedEmail(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  if (!req.user.emailVerified) {
+    return res.status(403).json({
+      error: 'Email not verified',
+      code: 'email_not_verified',
+    });
+  }
   next();
 }
 
