@@ -12,6 +12,7 @@
 
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import { WebSocketServer } from 'ws';
 import http from 'http';
@@ -74,6 +75,7 @@ app.use(cors({
 }));
 
 app.use(express.json());
+app.use(cookieParser());
 
 // Trust X-Forwarded-For when behind Tailscale Funnel / reverse proxy so rate limits
 // bucket by the originating IP, not the proxy's loopback address.
