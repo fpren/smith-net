@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    background-color: theme('colors.console-bg');
+    color: theme('colors.console-text');
+    font-family: theme('fontFamily.mono');
+  }
+}
