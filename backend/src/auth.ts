@@ -575,7 +575,10 @@ export interface AuthenticatedRequest extends Request {
  */
 export function authenticateToken(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  const headerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  // Browser clients use the httpOnly cookie; Android uses the Bearer header. Either is fine.
+  const cookieToken = req.cookies?.smithnet_access || null;
+  const token = headerToken || cookieToken;
 
   if (!token) {
     return res.status(401).json({ error: 'No token provided' });
@@ -601,7 +604,9 @@ export function authenticateToken(req: AuthenticatedRequest, res: Response, next
  */
 export function optionalAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  const headerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  const cookieToken = req.cookies?.smithnet_access || null;
+  const token = headerToken || cookieToken;
 
   if (token) {
     const payload = verifyToken(token);
