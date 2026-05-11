@@ -536,6 +536,39 @@ export function refreshAccessToken(refreshToken: string): AuthTokens | null {
 }
 
 // ════════════════════════════════════════════════════════════════════
+// COOKIE HELPERS (for browser clients — operator console)
+// ════════════════════════════════════════════════════════════════════
+
+const ACCESS_COOKIE_NAME = 'smithnet_access';
+const REFRESH_COOKIE_NAME = 'smithnet_refresh';
+const ACCESS_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;   // 7d
+const REFRESH_COOKIE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30d
+
+export function setAuthCookies(res: Response, tokens: AuthTokens): void {
+  const baseOpts = {
+    httpOnly: true,
+    secure: IS_PRODUCTION,
+    sameSite: 'strict' as const,
+  };
+
+  res.cookie(ACCESS_COOKIE_NAME, tokens.accessToken, {
+    ...baseOpts,
+    path: '/api',
+    maxAge: ACCESS_COOKIE_MAX_AGE_MS,
+  });
+  res.cookie(REFRESH_COOKIE_NAME, tokens.refreshToken, {
+    ...baseOpts,
+    path: '/api/auth',
+    maxAge: REFRESH_COOKIE_MAX_AGE_MS,
+  });
+}
+
+export function clearAuthCookies(res: Response): void {
+  res.clearCookie(ACCESS_COOKIE_NAME, { path: '/api' });
+  res.clearCookie(REFRESH_COOKIE_NAME, { path: '/api/auth' });
+}
+
+// ════════════════════════════════════════════════════════════════════
 // PERMISSION HELPERS
 // ════════════════════════════════════════════════════════════════════
 

@@ -54,3 +54,27 @@ describe('Cookie-based authentication', () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe('setAuthCookies / clearAuthCookies', () => {
+  const app = buildApp();
+
+  it('login response sets httpOnly access + refresh cookies', async () => {
+    await userStore.createUser('login-cookie@example.com', 'password123', 'X', UserRole.FOREMAN);
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'login-cookie@example.com', password: 'password123' });
+    expect(res.status).toBe(200);
+    const cookies = (res.headers['set-cookie'] || []) as unknown as string[];
+    const accessCookie = cookies.find((c: string) => c.startsWith('smithnet_access='));
+    const refreshCookie = cookies.find((c: string) => c.startsWith('smithnet_refresh='));
+    expect(accessCookie).toBeDefined();
+    expect(refreshCookie).toBeDefined();
+    expect(accessCookie).toMatch(/HttpOnly/);
+    expect(accessCookie).toMatch(/SameSite=Strict/);
+    expect(refreshCookie).toMatch(/HttpOnly/);
+    // In test env NODE_ENV is not 'production' so cookies must not be marked Secure
+    // (would break dev over http://localhost). Guards against accidental hardcoding.
+    expect(accessCookie).not.toMatch(/; Secure/i);
+    expect(refreshCookie).not.toMatch(/; Secure/i);
+  });
+});

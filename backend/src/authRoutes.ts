@@ -18,6 +18,8 @@ import {
   UserRole,
   Permission,
   EMAIL_RESEND_COOLDOWN_MS,
+  setAuthCookies,
+  clearAuthCookies,
 } from './auth';
 import { auditLog, AuditAction } from './auditLog';
 import { sendEmail, isEmailLive } from './emailService';
@@ -154,6 +156,8 @@ authRouter.post('/login', async (req, res) => {
 
     // Audit log
     auditLog.log(AuditAction.USER_LOGIN, result.user.id, { email });
+
+    setAuthCookies(res, tokens);
 
     res.json({
       user: toPublicUser(result.user),
