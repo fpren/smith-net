@@ -111,6 +111,8 @@ authRouter.post('/register', async (req, res) => {
         .catch((err) => console.warn('[Auth] Verification email error (non-fatal):', err));
     }
 
+    setAuthCookies(res, tokens);
+
     res.status(201).json({
       user: toPublicUser(user),
       ...tokens,
@@ -185,6 +187,8 @@ authRouter.post('/refresh', (req, res) => {
     if (!tokens) {
       return res.status(401).json({ error: 'Invalid or expired refresh token' });
     }
+
+    setAuthCookies(res, tokens);
 
     res.json(tokens);
   } catch (e: any) {
@@ -309,6 +313,8 @@ authRouter.post('/logout', authenticateToken, (req: AuthenticatedRequest, res: R
   }
 
   auditLog.log(AuditAction.USER_LOGOUT, req.user!.id, {});
+
+  clearAuthCookies(res);
 
   res.json({ success: true });
 });

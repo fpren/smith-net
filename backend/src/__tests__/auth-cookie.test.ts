@@ -77,4 +77,39 @@ describe('setAuthCookies / clearAuthCookies', () => {
     expect(accessCookie).not.toMatch(/; Secure/i);
     expect(refreshCookie).not.toMatch(/; Secure/i);
   });
+
+  it('register response sets httpOnly cookies', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({ email: 'reg-cookie@example.com', password: 'password123', displayName: 'R' });
+    expect(res.status).toBe(201);
+    const cookies = (res.headers['set-cookie'] || []) as unknown as string[];
+    expect(cookies.find((c: string) => c.startsWith('smithnet_access='))).toBeDefined();
+    expect(cookies.find((c: string) => c.startsWith('smithnet_refresh='))).toBeDefined();
+  });
+
+  it('refresh response sets fresh httpOnly cookies', async () => {
+    const user = await userStore.createUser('refresh-c@example.com', 'password123', 'R', UserRole.FOREMAN);
+    const { refreshToken } = generateTokens(user);
+    const res = await request(app)
+      .post('/api/auth/refresh')
+      .send({ refreshToken });
+    expect(res.status).toBe(200);
+    const cookies = (res.headers['set-cookie'] || []) as unknown as string[];
+    expect(cookies.find((c: string) => c.startsWith('smithnet_access='))).toBeDefined();
+  });
+
+  it('logout clears auth cookies', async () => {
+    const user = await userStore.createUser('logout-c@example.com', 'password123', 'L', UserRole.FOREMAN);
+    const { accessToken, refreshToken } = generateTokens(user);
+    const res = await request(app)
+      .post('/api/auth/logout')
+      .set('Cookie', [`smithnet_access=${accessToken}`])
+      .send({ refreshToken });
+    expect(res.status).toBe(200);
+    const cookies = (res.headers['set-cookie'] || []) as unknown as string[];
+    // clearCookie emits Set-Cookie with Expires in the past
+    const cleared = cookies.find((c: string) => c.startsWith('smithnet_access=') && /Expires=/.test(c));
+    expect(cleared).toBeDefined();
+  });
 });
