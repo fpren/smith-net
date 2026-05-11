@@ -74,7 +74,11 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-app.use(express.json());
+// F1.5: explicit body limit. Express default is 100kb, which is fine for
+// every current endpoint; the explicit 512kb headroom covers proposal/invoice
+// payloads with embedded materials lists. Anything bigger is media — that
+// path uses multipart/form-data, not JSON, and is handled by mediaRouter.
+app.use(express.json({ limit: '512kb' }));
 app.use(cookieParser());
 
 // Trust X-Forwarded-For when behind Tailscale Funnel / reverse proxy so rate limits

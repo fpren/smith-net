@@ -23,6 +23,17 @@ import {
 } from './auth';
 import { auditLog, AuditAction } from './auditLog';
 import { sendEmail, isEmailLive } from './emailService';
+import { validateBody, validateQuery } from './middleware/validate';
+import {
+  RegisterBody,
+  LoginBody,
+  RefreshBody,
+  VerifyQuery,
+  ResendVerificationBody,
+  UpdateProfileBody,
+  LogoutBody,
+  UpdateUserRoleBody,
+} from './schemas/auth';
 
 // F1.4: where the user lands when they click the verify link in an email.
 // Defaults to the dev backend; in prod set PUBLIC_BASE_URL=<Tailscale Funnel URL>
@@ -80,22 +91,17 @@ export const authRouter = Router();
 // REGISTER
 // ════════════════════════════════════════════════════════════════════
 
-authRouter.post('/register', async (req, res) => {
+authRouter.post('/register', validateBody(RegisterBody), async (req, res) => {
   try {
-    const { email, password, displayName } = req.body;
+    // Body shape + email format already validated by zod; password POLICY
+    // (≥8, letter, digit) is a separate concern with its own error code.
+    const { email, password, displayName } = req.body as RegisterBody;
 
-    if (!email || !password || !displayName) {
-      return res.status(400).json({ error: 'Email, password, and displayName are required' });
-    }
-
-    // F1.3: enforce password floor at the route boundary so we can return a
-    // structured error code; userStore.createUser also re-validates as defense-in-depth.
     const passwordCheck = validatePassword(password);
     if (!passwordCheck.valid) {
       return res.status(400).json({ error: passwordCheck.reason, code: 'weak_password' });
     }
 
-    // Create user with default Solo role
     const user = await userStore.createUser(email, password, displayName, UserRole.SOLO);
     const tokens = generateTokens(user);
 
