@@ -2,7 +2,7 @@ import { HTMLAttributes, ReactNode } from 'react';
 import { twMerge } from 'tailwind-merge';
 import { clsx } from 'clsx';
 
-interface Props extends HTMLAttributes<HTMLDivElement> {
+interface Props extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
   title?: ReactNode;
 }
 

@@ -1,5 +1,5 @@
 // desktop/portal/src/console/hooks/useToast.ts
-import { useToastStore, ToastTone } from '../stores/toastStore';
+import { useToastStore } from '../stores/toastStore';
 
 const DEFAULT_DURATION = 4000;
 
