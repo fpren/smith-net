@@ -21,6 +21,7 @@ import fs from 'fs';
 import { apiRouter, proposalPublicRouter } from './api';
 import { authRouter } from './authRoutes';
 import adminRouter from './adminRoutes';
+import { jobsRouter } from './jobsRoutes';
 import { wsHandler } from './wsHandler';
 import { channelRegistry } from './channelRegistry';
 import { mediaRouter, IMAGES_DIR, VOICE_DIR, FILES_DIR, cleanupOldMedia } from './mediaHandler';
@@ -122,6 +123,9 @@ app.use('/api/auth', authLimiter, authRouter);
 
 // Mount Admin API
 app.use('/api/admin', adminRouter);
+
+// Mount Jobs API
+app.use('/api/jobs', jobsRouter);
 
 // Mount API
 app.use('/api', apiRouter);
