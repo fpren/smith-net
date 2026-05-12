@@ -120,3 +120,60 @@ describeDb('POST /api/jobs', () => {
     expect(res.status).toBe(400);
   });
 });
+
+describeDb('PATCH /api/jobs/:id', () => {
+  const app = buildApp();
+
+  it('updates title + location, leaves other fields untouched', async () => {
+    const f = await createForemanAndLogin('update');
+    const created = await request(app)
+      .post('/api/jobs')
+      .set('Authorization', `Bearer ${f.token}`)
+      .send({ title: 'orig', location: 'A' });
+    const jobId = created.body.job.id;
+
+    const res = await request(app)
+      .patch(`/api/jobs/${jobId}`)
+      .set('Authorization', `Bearer ${f.token}`)
+      .send({ title: 'updated', location: 'B' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.job.title).toBe('updated');
+    expect(res.body.job.location).toBe('B');
+    expect(res.body.job.status).toBe('planned');
+  });
+
+  it('returns 403 not_owner when another foreman patches', async () => {
+    const a = await createForemanAndLogin('update-a');
+    const b = await createForemanAndLogin('update-b');
+    const created = await request(app)
+      .post('/api/jobs')
+      .set('Authorization', `Bearer ${a.token}`)
+      .send({ title: 'a-job' });
+    const jobId = created.body.job.id;
+
+    const res = await request(app)
+      .patch(`/api/jobs/${jobId}`)
+      .set('Authorization', `Bearer ${b.token}`)
+      .send({ title: 'hijacked' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('not_owner');
+  });
+
+  it('rejects `status` in patch body (status has its own endpoint)', async () => {
+    const f = await createForemanAndLogin('update-no-status');
+    const created = await request(app)
+      .post('/api/jobs')
+      .set('Authorization', `Bearer ${f.token}`)
+      .send({ title: 'x' });
+    const jobId = created.body.job.id;
+
+    const res = await request(app)
+      .patch(`/api/jobs/${jobId}`)
+      .set('Authorization', `Bearer ${f.token}`)
+      .send({ status: 'complete' });
+
+    expect(res.status).toBe(400);
+  });
+});

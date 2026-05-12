@@ -5,7 +5,7 @@ import { requireConsoleTier } from './middleware/requireConsoleTier';
 import { requireJobOwner, JobOwnerRequest } from './middleware/requireJobOwner';
 import * as jobsService from './jobsService';
 import { validateBody } from './middleware/validate';
-import { CreateJobBody } from './schemas/jobs';
+import { CreateJobBody, UpdateJobBody } from './schemas/jobs';
 
 export const jobsRouter = Router();
 
@@ -60,6 +60,29 @@ jobsRouter.post('/', validateBody(CreateJobBody), async (req: AuthenticatedReque
   } catch (e: any) {
     console.error('[Jobs] create error:', e.message);
     res.status(500).json({ error: 'Failed to create job' });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════
+// PATCH /api/jobs/:id — partial update (NOT status — see /:id/status)
+// ════════════════════════════════════════════════════════════════════
+
+jobsRouter.patch('/:id', requireJobOwner, validateBody(UpdateJobBody), async (req: JobOwnerRequest, res: Response) => {
+  try {
+    const body = req.body as UpdateJobBody;
+    const job = await jobsService.update(req.job!.id, {
+      title: body.title,
+      description: body.description === null ? null as any : body.description,
+      scheduledAt: body.scheduledAt === null ? null as any : (body.scheduledAt ? new Date(body.scheduledAt) : undefined),
+      location: body.location === null ? null as any : body.location,
+    });
+    res.json({ job });
+  } catch (e: any) {
+    if (e instanceof jobsService.NotFoundError) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    console.error('[Jobs] update error:', e.message);
+    res.status(500).json({ error: 'Failed to update job' });
   }
 });
 

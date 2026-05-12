@@ -181,3 +181,43 @@ export async function create(input: CreateJobInput): Promise<Job> {
 
   return job;
 }
+
+export type UpdatePatch = Partial<Pick<Job, 'title' | 'description' | 'scheduledAt' | 'location'>>;
+
+export async function update(jobId: string, patch: UpdatePatch): Promise<Job> {
+  const db = requirePg();
+  const changedFields: string[] = [];
+  const sets: string[] = [];
+  const params: any[] = [];
+  let paramIdx = 1;
+
+  if (patch.title !== undefined) { sets.push(`title = $${paramIdx++}`); params.push(patch.title); changedFields.push('title'); }
+  if (patch.description !== undefined) { sets.push(`description = $${paramIdx++}`); params.push(patch.description); changedFields.push('description'); }
+  if (patch.scheduledAt !== undefined) { sets.push(`scheduled_at = $${paramIdx++}`); params.push(patch.scheduledAt); changedFields.push('scheduledAt'); }
+  if (patch.location !== undefined) { sets.push(`location = $${paramIdx++}`); params.push(patch.location); changedFields.push('location'); }
+
+  if (sets.length === 0) {
+    const existing = await getById(jobId);
+    if (!existing) throw new NotFoundError();
+    return existing;
+  }
+
+  sets.push(`updated_at = NOW()`);
+  params.push(jobId);
+
+  const { rows } = await db.query(
+    `UPDATE jobs SET ${sets.join(', ')} WHERE id = $${paramIdx} RETURNING *`,
+    params
+  );
+
+  if (rows.length === 0) throw new NotFoundError();
+  const job = mapJobRow(rows[0]);
+
+  auditLog.log(AuditAction.JOB_UPDATED, job.foremanId, {
+    jobId: job.id,
+    changedFields,
+    after: { title: job.title, description: job.description, scheduledAt: job.scheduledAt, location: job.location },
+  });
+
+  return job;
+}
