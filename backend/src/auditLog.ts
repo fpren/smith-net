@@ -34,7 +34,14 @@ export enum AuditAction {
   CHANNEL_CLEARED = 'channel.cleared',
   CHANNEL_MEMBER_ADDED = 'channel.member_added',
   CHANNEL_MEMBER_REMOVED = 'channel.member_removed',
-  
+
+  // Jobs
+  JOB_CREATED = 'job.created',
+  JOB_UPDATED = 'job.updated',
+  JOB_STATUS_CHANGED = 'job.status_changed',
+  JOB_CREW_ASSIGNED = 'job.crew_assigned',
+  JOB_CREW_UNASSIGNED = 'job.crew_unassigned',
+
   // Gateway / Mesh
   GATEWAY_CONNECTED = 'gateway.connected',
   GATEWAY_DISCONNECTED = 'gateway.disconnected',
