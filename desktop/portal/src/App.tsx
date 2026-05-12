@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Outlet } from 'react-router-dom';
 import Auth from './Auth';
 import AuthCallback from './AuthCallback';
 import Portal from './Portal';
@@ -7,7 +7,8 @@ import { LoginForm } from './console/auth/LoginForm';
 import { RegisterForm } from './console/auth/RegisterForm';
 import { RequireAuth } from './console/auth/RequireAuth';
 import { ConsoleShell } from './console/ConsoleShell';
-import { PlaceholderConsoleRoute } from './console/routes/PlaceholderConsoleRoute';
+import { JobsListRoute } from './console/routes/JobsListRoute';
+import { JobDetailRoute } from './console/routes/JobDetailRoute';
 
 /**
  * Guild of Smiths Web Portal
@@ -28,12 +29,14 @@ export default function App() {
         path="/console"
         element={
           <RequireAuth>
-            <ConsoleShell>
-              <PlaceholderConsoleRoute />
-            </ConsoleShell>
+            <ConsoleShell><Outlet /></ConsoleShell>
           </RequireAuth>
         }
-      />
+      >
+        <Route index element={<JobsListRoute />} />
+        <Route path="jobs" element={<JobsListRoute />} />
+        <Route path="jobs/:id" element={<JobDetailRoute />} />
+      </Route>
     </Routes>
   );
 }

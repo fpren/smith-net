@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { Badge } from './components/ui/Badge';
 import { Button } from './components/ui/Button';
 import { authClient } from './auth/authClient';
@@ -39,7 +39,17 @@ export function ConsoleShell({ children }: Props) {
       <div className="flex flex-1">
         <nav className="w-48 border-r border-console-border bg-console-surface p-4 text-sm text-console-text-muted">
           <div className="uppercase tracking-wide text-xs mb-2">Nav</div>
-          <div className="text-console-text-muted/60">{'(routes coming soon)'}</div>
+          <NavLink
+            to="/console/jobs"
+            className={({ isActive }) =>
+              `block px-2 py-1 ${isActive ? 'text-console-accent' : 'text-console-text hover:text-console-accent'}`
+            }
+          >
+            Jobs
+          </NavLink>
+          <div className="block px-2 py-1 text-console-text-muted/60 cursor-not-allowed" title="Coming soon">
+            Map
+          </div>
         </nav>
         <main className="flex-1 p-6">{children}</main>
       </div>
