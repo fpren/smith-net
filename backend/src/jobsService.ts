@@ -182,6 +182,29 @@ export async function create(input: CreateJobInput): Promise<Job> {
   return job;
 }
 
+export async function changeStatus(jobId: string, newStatus: JobStatus): Promise<Job> {
+  const db = requirePg();
+  const existing = await getById(jobId);
+  if (!existing) throw new NotFoundError();
+
+  assertValidTransition(existing.status, newStatus);
+
+  const { rows } = await db.query(
+    `UPDATE jobs SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+    [newStatus, jobId]
+  );
+
+  const job = mapJobRow(rows[0]);
+
+  auditLog.log(AuditAction.JOB_STATUS_CHANGED, job.foremanId, {
+    jobId: job.id,
+    from: existing.status,
+    to: newStatus,
+  });
+
+  return job;
+}
+
 export type UpdatePatch = Partial<Pick<Job, 'title' | 'description' | 'scheduledAt' | 'location'>>;
 
 export async function update(jobId: string, patch: UpdatePatch): Promise<Job> {

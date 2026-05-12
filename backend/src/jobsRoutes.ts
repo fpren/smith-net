@@ -5,7 +5,7 @@ import { requireConsoleTier } from './middleware/requireConsoleTier';
 import { requireJobOwner, JobOwnerRequest } from './middleware/requireJobOwner';
 import * as jobsService from './jobsService';
 import { validateBody } from './middleware/validate';
-import { CreateJobBody, UpdateJobBody } from './schemas/jobs';
+import { CreateJobBody, UpdateJobBody, StatusChangeBody } from './schemas/jobs';
 
 export const jobsRouter = Router();
 
@@ -60,6 +60,32 @@ jobsRouter.post('/', validateBody(CreateJobBody), async (req: AuthenticatedReque
   } catch (e: any) {
     console.error('[Jobs] create error:', e.message);
     res.status(500).json({ error: 'Failed to create job' });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════
+// PATCH /api/jobs/:id/status — status transitions
+// ════════════════════════════════════════════════════════════════════
+
+jobsRouter.patch('/:id/status', requireJobOwner, validateBody(StatusChangeBody), async (req: JobOwnerRequest, res: Response) => {
+  try {
+    const body = req.body as StatusChangeBody;
+    const job = await jobsService.changeStatus(req.job!.id, body.status);
+    res.json({ job });
+  } catch (e: any) {
+    if (e instanceof jobsService.InvalidTransitionError) {
+      return res.status(400).json({
+        error: e.message,
+        code: 'invalid_status_transition',
+        from: e.from,
+        to: e.to,
+      });
+    }
+    if (e instanceof jobsService.NotFoundError) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    console.error('[Jobs] status error:', e.message);
+    res.status(500).json({ error: 'Failed to change status' });
   }
 });
 

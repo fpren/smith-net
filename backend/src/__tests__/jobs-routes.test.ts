@@ -177,3 +177,61 @@ describeDb('PATCH /api/jobs/:id', () => {
     expect(res.status).toBe(400);
   });
 });
+
+describeDb('PATCH /api/jobs/:id/status', () => {
+  const app = buildApp();
+
+  it('allows planned -> in_progress', async () => {
+    const f = await createForemanAndLogin('status-start');
+    const created = await request(app)
+      .post('/api/jobs')
+      .set('Authorization', `Bearer ${f.token}`)
+      .send({ title: 'x' });
+    const jobId = created.body.job.id;
+
+    const res = await request(app)
+      .patch(`/api/jobs/${jobId}/status`)
+      .set('Authorization', `Bearer ${f.token}`)
+      .send({ status: 'in_progress' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.job.status).toBe('in_progress');
+  });
+
+  it('rejects complete -> planned with invalid_status_transition', async () => {
+    const f = await createForemanAndLogin('status-bad');
+    const created = await request(app)
+      .post('/api/jobs')
+      .set('Authorization', `Bearer ${f.token}`)
+      .send({ title: 'x' });
+    const jobId = created.body.job.id;
+    await request(app).patch(`/api/jobs/${jobId}/status`).set('Authorization', `Bearer ${f.token}`).send({ status: 'in_progress' });
+    await request(app).patch(`/api/jobs/${jobId}/status`).set('Authorization', `Bearer ${f.token}`).send({ status: 'complete' });
+
+    const res = await request(app)
+      .patch(`/api/jobs/${jobId}/status`)
+      .set('Authorization', `Bearer ${f.token}`)
+      .send({ status: 'planned' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('invalid_status_transition');
+    expect(res.body.from).toBe('complete');
+    expect(res.body.to).toBe('planned');
+  });
+
+  it('rejects unknown status value with zod 400', async () => {
+    const f = await createForemanAndLogin('status-unknown');
+    const created = await request(app)
+      .post('/api/jobs')
+      .set('Authorization', `Bearer ${f.token}`)
+      .send({ title: 'x' });
+
+    const res = await request(app)
+      .patch(`/api/jobs/${created.body.job.id}/status`)
+      .set('Authorization', `Bearer ${f.token}`)
+      .send({ status: 'in-orbit' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('validation');
+  });
+});
