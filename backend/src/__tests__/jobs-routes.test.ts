@@ -84,3 +84,39 @@ describeDb('GET /api/jobs/:id', () => {
     expect(res.status).toBe(404);
   });
 });
+
+describeDb('POST /api/jobs', () => {
+  const app = buildApp();
+
+  it('creates a job with status="planned" and foreman_id from req.user', async () => {
+    const f = await createForemanAndLogin('create');
+    const res = await request(app)
+      .post('/api/jobs')
+      .set('Authorization', `Bearer ${f.token}`)
+      .send({ title: 'Install panel', location: '123 Main St' });
+    expect(res.status).toBe(201);
+    expect(res.body.job.title).toBe('Install panel');
+    expect(res.body.job.location).toBe('123 Main St');
+    expect(res.body.job.status).toBe('planned');
+    expect(res.body.job.foremanId).toBe(f.id);
+    expect(res.body.job.id).toBeDefined();
+  });
+
+  it('rejects empty title with 400', async () => {
+    const f = await createForemanAndLogin('create-bad');
+    const res = await request(app)
+      .post('/api/jobs')
+      .set('Authorization', `Bearer ${f.token}`)
+      .send({ title: '' });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects extra fields (strict schema)', async () => {
+    const f = await createForemanAndLogin('create-strict');
+    const res = await request(app)
+      .post('/api/jobs')
+      .set('Authorization', `Bearer ${f.token}`)
+      .send({ title: 'x', foremanId: 'spoofed', status: 'complete' });
+    expect(res.status).toBe(400);
+  });
+});

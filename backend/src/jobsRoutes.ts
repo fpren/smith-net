@@ -4,6 +4,8 @@ import { authenticateToken, AuthenticatedRequest } from './auth';
 import { requireConsoleTier } from './middleware/requireConsoleTier';
 import { requireJobOwner, JobOwnerRequest } from './middleware/requireJobOwner';
 import * as jobsService from './jobsService';
+import { validateBody } from './middleware/validate';
+import { CreateJobBody } from './schemas/jobs';
 
 export const jobsRouter = Router();
 
@@ -35,6 +37,29 @@ jobsRouter.get('/:id', requireJobOwner, async (req: JobOwnerRequest, res: Respon
   } catch (e: any) {
     console.error('[Jobs] getOne error:', e.message);
     res.status(500).json({ error: 'Failed to load job' });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════
+// POST /api/jobs — create
+// ════════════════════════════════════════════════════════════════════
+
+jobsRouter.post('/', validateBody(CreateJobBody), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const body = req.body as CreateJobBody;
+    const job = await jobsService.create({
+      foremanId: req.user!.id,
+      title: body.title,
+      description: body.description,
+      scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : undefined,
+      location: body.location,
+      clientId: body.clientId,
+      engagementId: body.engagementId,
+    });
+    res.status(201).json({ job });
+  } catch (e: any) {
+    console.error('[Jobs] create error:', e.message);
+    res.status(500).json({ error: 'Failed to create job' });
   }
 });
 

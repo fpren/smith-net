@@ -6,6 +6,8 @@
 // Mutation operations call auditLog.log() before returning — see plan spec.
 
 import { pg, isPgEnabled } from './db';
+import { auditLog, AuditAction } from './auditLog';
+import { v4 as uuidv4 } from 'uuid';
 
 export type JobStatus = 'planned' | 'in_progress' | 'complete' | 'cancelled';
 
@@ -125,4 +127,57 @@ export async function listCrew(jobId: string): Promise<CrewAssignment[]> {
     [jobId]
   );
   return rows.map(mapCrewRow);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Mutate
+// ════════════════════════════════════════════════════════════════════
+
+export interface CreateJobInput {
+  foremanId: string;
+  title: string;
+  description?: string;
+  scheduledAt?: Date;
+  location?: string;
+  clientId?: string;
+  engagementId?: string;
+}
+
+export async function create(input: CreateJobInput): Promise<Job> {
+  const db = requirePg();
+  const id = uuidv4();
+  const now = new Date();
+
+  const { rows } = await db.query(
+    `INSERT INTO jobs
+       (id, foreman_id, client_id, engagement_id, title, description,
+        status, scheduled_at, location, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, 'planned', $7, $8, $9, $9)
+     RETURNING *`,
+    [
+      id,
+      input.foremanId,
+      input.clientId ?? null,
+      input.engagementId ?? null,
+      input.title,
+      input.description ?? null,
+      input.scheduledAt ?? null,
+      input.location ?? null,
+      now,
+    ]
+  );
+
+  const job = mapJobRow(rows[0]);
+
+  auditLog.log(AuditAction.JOB_CREATED, input.foremanId, {
+    jobId: job.id,
+    title: job.title,
+    status: job.status,
+    scheduledAt: job.scheduledAt,
+    location: job.location,
+    clientId: job.clientId,
+    engagementId: job.engagementId,
+  });
+
+  return job;
 }
