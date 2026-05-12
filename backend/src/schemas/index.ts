@@ -5,3 +5,4 @@
 
 export * as auth from './auth';
 export * as jobs from './jobs';
+export * as profiles from './profiles';

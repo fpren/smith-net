@@ -22,6 +22,7 @@ import { apiRouter, proposalPublicRouter } from './api';
 import { authRouter } from './authRoutes';
 import adminRouter from './adminRoutes';
 import { jobsRouter } from './jobsRoutes';
+import { profilesRouter } from './profilesRoutes';
 import { wsHandler } from './wsHandler';
 import { channelRegistry } from './channelRegistry';
 import { mediaRouter, IMAGES_DIR, VOICE_DIR, FILES_DIR, cleanupOldMedia } from './mediaHandler';
@@ -126,6 +127,9 @@ app.use('/api/admin', adminRouter);
 
 // Mount Jobs API
 app.use('/api/jobs', jobsRouter);
+
+// Mount Profiles API (read-only crew search for console)
+app.use('/api/profiles', profilesRouter);
 
 // Mount API
 app.use('/api', apiRouter);
