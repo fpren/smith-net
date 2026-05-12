@@ -235,3 +235,57 @@ describeDb('PATCH /api/jobs/:id/status', () => {
     expect(res.body.code).toBe('validation');
   });
 });
+
+describeDb('POST /api/jobs/:id/assign + DELETE /api/jobs/:id/assign/:profileId', () => {
+  const app = buildApp();
+
+  it('assigns crew member then lists them on GET', async () => {
+    const f = await createForemanAndLogin('assign-1');
+    const crew = await userStore.createUser(`crew-${Date.now()}@example.com`, 'password123', 'C', UserRole.TEAM_MEMBER);
+    const created = await request(app).post('/api/jobs').set('Authorization', `Bearer ${f.token}`).send({ title: 'x' });
+    const jobId = created.body.job.id;
+
+    const assign = await request(app)
+      .post(`/api/jobs/${jobId}/assign`)
+      .set('Authorization', `Bearer ${f.token}`)
+      .send({ profileId: crew.id, roleOnJob: 'lead' });
+    expect(assign.status).toBe(201);
+    expect(assign.body.assignment.profileId).toBe(crew.id);
+    expect(assign.body.assignment.roleOnJob).toBe('lead');
+
+    const fetched = await request(app).get(`/api/jobs/${jobId}`).set('Authorization', `Bearer ${f.token}`);
+    expect(fetched.status).toBe(200);
+    expect(fetched.body.crew).toHaveLength(1);
+    expect(fetched.body.crew[0].profileId).toBe(crew.id);
+  });
+
+  it('rejects duplicate assignment with 409 duplicate_assignment', async () => {
+    const f = await createForemanAndLogin('assign-dup');
+    const crew = await userStore.createUser(`crew-dup-${Date.now()}@example.com`, 'password123', 'C', UserRole.TEAM_MEMBER);
+    const created = await request(app).post('/api/jobs').set('Authorization', `Bearer ${f.token}`).send({ title: 'x' });
+    const jobId = created.body.job.id;
+
+    await request(app).post(`/api/jobs/${jobId}/assign`).set('Authorization', `Bearer ${f.token}`).send({ profileId: crew.id });
+    const dup = await request(app).post(`/api/jobs/${jobId}/assign`).set('Authorization', `Bearer ${f.token}`).send({ profileId: crew.id });
+
+    expect(dup.status).toBe(409);
+    expect(dup.body.code).toBe('duplicate_assignment');
+  });
+
+  it('unassigns with 204', async () => {
+    const f = await createForemanAndLogin('unassign');
+    const crew = await userStore.createUser(`crew-unassign-${Date.now()}@example.com`, 'password123', 'C', UserRole.TEAM_MEMBER);
+    const created = await request(app).post('/api/jobs').set('Authorization', `Bearer ${f.token}`).send({ title: 'x' });
+    const jobId = created.body.job.id;
+
+    await request(app).post(`/api/jobs/${jobId}/assign`).set('Authorization', `Bearer ${f.token}`).send({ profileId: crew.id });
+
+    const del = await request(app)
+      .delete(`/api/jobs/${jobId}/assign/${crew.id}`)
+      .set('Authorization', `Bearer ${f.token}`);
+    expect(del.status).toBe(204);
+
+    const fetched = await request(app).get(`/api/jobs/${jobId}`).set('Authorization', `Bearer ${f.token}`);
+    expect(fetched.body.crew).toHaveLength(0);
+  });
+});

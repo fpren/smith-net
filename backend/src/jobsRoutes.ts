@@ -5,7 +5,7 @@ import { requireConsoleTier } from './middleware/requireConsoleTier';
 import { requireJobOwner, JobOwnerRequest } from './middleware/requireJobOwner';
 import * as jobsService from './jobsService';
 import { validateBody } from './middleware/validate';
-import { CreateJobBody, UpdateJobBody, StatusChangeBody } from './schemas/jobs';
+import { CreateJobBody, UpdateJobBody, StatusChangeBody, AssignCrewBody } from './schemas/jobs';
 
 export const jobsRouter = Router();
 
@@ -109,6 +109,47 @@ jobsRouter.patch('/:id', requireJobOwner, validateBody(UpdateJobBody), async (re
     }
     console.error('[Jobs] update error:', e.message);
     res.status(500).json({ error: 'Failed to update job' });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════
+// POST /api/jobs/:id/assign — add crew member
+// ════════════════════════════════════════════════════════════════════
+
+jobsRouter.post('/:id/assign', requireJobOwner, validateBody(AssignCrewBody), async (req: JobOwnerRequest, res: Response) => {
+  try {
+    const body = req.body as AssignCrewBody;
+    const assignment = await jobsService.assignCrew(req.job!.id, body.profileId, body.roleOnJob);
+    res.status(201).json({ assignment });
+  } catch (e: any) {
+    if (e.code === 'duplicate_assignment') {
+      return res.status(409).json({ error: e.message, code: 'duplicate_assignment' });
+    }
+    if (e instanceof jobsService.NotFoundError) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    if (e.code === '23503') {
+      return res.status(400).json({ error: 'Unknown profile', code: 'unknown_profile' });
+    }
+    console.error('[Jobs] assign error:', e.message);
+    res.status(500).json({ error: 'Failed to assign crew' });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════
+// DELETE /api/jobs/:id/assign/:profileId — remove crew member
+// ════════════════════════════════════════════════════════════════════
+
+jobsRouter.delete('/:id/assign/:profileId', requireJobOwner, async (req: JobOwnerRequest, res: Response) => {
+  try {
+    await jobsService.unassignCrew(req.job!.id, req.params.profileId);
+    res.status(204).send();
+  } catch (e: any) {
+    if (e instanceof jobsService.NotFoundError) {
+      return res.status(404).json({ error: e.message });
+    }
+    console.error('[Jobs] unassign error:', e.message);
+    res.status(500).json({ error: 'Failed to unassign crew' });
   }
 });
 

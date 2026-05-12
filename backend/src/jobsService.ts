@@ -244,3 +244,57 @@ export async function update(jobId: string, patch: UpdatePatch): Promise<Job> {
 
   return job;
 }
+
+export async function assignCrew(
+  jobId: string,
+  profileId: string,
+  roleOnJob: 'crew' | 'lead' = 'crew'
+): Promise<CrewAssignment> {
+  const db = requirePg();
+  const job = await getById(jobId);
+  if (!job) throw new NotFoundError();
+
+  try {
+    const { rows } = await db.query(
+      `INSERT INTO job_crew (job_id, profile_id, role_on_job)
+       VALUES ($1, $2, $3) RETURNING *`,
+      [jobId, profileId, roleOnJob]
+    );
+    const assignment = mapCrewRow(rows[0]);
+
+    auditLog.log(AuditAction.JOB_CREW_ASSIGNED, job.foremanId, {
+      jobId,
+      profileId,
+      roleOnJob,
+    });
+
+    return assignment;
+  } catch (e: any) {
+    if (e.code === '23505') {
+      const err: any = new Error('Crew member already assigned');
+      err.code = 'duplicate_assignment';
+      throw err;
+    }
+    throw e;
+  }
+}
+
+export async function unassignCrew(jobId: string, profileId: string): Promise<void> {
+  const db = requirePg();
+  const job = await getById(jobId);
+  if (!job) throw new NotFoundError();
+
+  const { rowCount } = await db.query(
+    `DELETE FROM job_crew WHERE job_id = $1 AND profile_id = $2`,
+    [jobId, profileId]
+  );
+
+  if (rowCount === 0) {
+    throw new NotFoundError('Assignment not found');
+  }
+
+  auditLog.log(AuditAction.JOB_CREW_UNASSIGNED, job.foremanId, {
+    jobId,
+    profileId,
+  });
+}
