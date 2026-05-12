@@ -63,3 +63,80 @@ describe('requireConsoleTier', () => {
     expect(res.body.code).toBe('tier_required');
   });
 });
+
+import { requireJobOwner } from '../middleware/requireJobOwner';
+import * as jobsService from '../jobsService';
+
+describe('requireJobOwner', () => {
+  it('returns 404 when job does not exist', async () => {
+    jest.spyOn(jobsService, 'getById').mockResolvedValueOnce(null);
+
+    const app = express();
+    app.use(express.json());
+    const fakeAuth = (req: any, _res: any, next: any) => {
+      req.user = { id: 'foreman-1', role: 'foreman' };
+      next();
+    };
+    app.get('/api/jobs/:id/test', fakeAuth, requireJobOwner, (_req, res) => res.json({ ok: true }));
+
+    const res = await request(app).get('/api/jobs/nonexistent/test');
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 403 not_owner when foreman_id mismatches req.user.id', async () => {
+    jest.spyOn(jobsService, 'getById').mockResolvedValueOnce({
+      id: 'job-1',
+      foremanId: 'OTHER_FOREMAN',
+      clientId: null,
+      engagementId: null,
+      title: 'X',
+      description: null,
+      status: 'planned',
+      scheduledAt: null,
+      location: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const app = express();
+    app.use(express.json());
+    const fakeAuth = (req: any, _res: any, next: any) => {
+      req.user = { id: 'foreman-1', role: 'foreman' };
+      next();
+    };
+    app.get('/api/jobs/:id/test', fakeAuth, requireJobOwner, (_req, res) => res.json({ ok: true }));
+
+    const res = await request(app).get('/api/jobs/job-1/test');
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('not_owner');
+  });
+
+  it('attaches job to req and calls next when owner matches', async () => {
+    const job = {
+      id: 'job-2',
+      foremanId: 'foreman-1',
+      clientId: null,
+      engagementId: null,
+      title: 'mine',
+      description: null,
+      status: 'planned' as const,
+      scheduledAt: null,
+      location: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    jest.spyOn(jobsService, 'getById').mockResolvedValueOnce(job);
+
+    const app = express();
+    app.use(express.json());
+    const fakeAuth = (req: any, _res: any, next: any) => {
+      req.user = { id: 'foreman-1', role: 'foreman' };
+      next();
+    };
+    app.get('/api/jobs/:id/test', fakeAuth, requireJobOwner, (req: any, res) => res.json({ jobTitle: req.job.title }));
+
+    const res = await request(app).get('/api/jobs/job-2/test');
+    expect(res.status).toBe(200);
+    expect(res.body.jobTitle).toBe('mine');
+  });
+});
