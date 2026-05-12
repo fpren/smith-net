@@ -21,23 +21,44 @@ function buildApp() {
 }
 
 // Each test creates its own foreman with a unique email so the in-memory
-// userStore doesn't collide. Returns the access token.
+// userStore doesn't collide. ALSO inserts a matching row into the pg
+// `profiles` table so jobs.foreman_id FK constraint is satisfied.
+// Returns the access token.
 async function createForemanAndLogin(suffix: string): Promise<{ id: string; token: string }> {
-  const user = await userStore.createUser(
-    `foreman-jobs-${suffix}-${Date.now()}@example.com`,
-    'password123',
-    `Foreman ${suffix}`,
-    UserRole.FOREMAN
-  );
+  const email = `foreman-jobs-${suffix}-${Date.now()}@example.com`;
+  const user = await userStore.createUser(email, 'password123', `Foreman ${suffix}`, UserRole.FOREMAN);
+  if (isPgEnabled() && pg) {
+    await pg.query(
+      `INSERT INTO profiles (id, email, display_name, role) VALUES ($1, $2, $3, $4)
+       ON CONFLICT (id) DO NOTHING`,
+      [user.id, user.email, user.displayName, 'foreman']
+    );
+  }
   const { accessToken } = generateTokens(user);
   return { id: user.id, token: accessToken };
+}
+
+// Also expose a helper for creating crew members (TEAM_MEMBER) that get
+// mirrored into the profiles table — the assign tests need this for FK.
+async function createCrewProfile(suffix: string): Promise<{ id: string; email: string }> {
+  const email = `crew-${suffix}-${Date.now()}@example.com`;
+  const user = await userStore.createUser(email, 'password123', `Crew ${suffix}`, UserRole.TEAM_MEMBER);
+  if (isPgEnabled() && pg) {
+    await pg.query(
+      `INSERT INTO profiles (id, email, display_name, role) VALUES ($1, $2, $3, $4)
+       ON CONFLICT (id) DO NOTHING`,
+      [user.id, user.email, user.displayName, 'team']
+    );
+  }
+  return { id: user.id, email };
 }
 
 // Truncate the test data this suite produces so reruns are clean.
 afterEach(async () => {
   if (!isPgEnabled() || !pg) return;
   await pg.query(`DELETE FROM job_crew`);
-  await pg.query(`DELETE FROM jobs WHERE foreman_id LIKE 'foreman-jobs-%' OR foreman_id IN (SELECT id FROM profiles WHERE email LIKE 'foreman-jobs-%')`);
+  await pg.query(`DELETE FROM jobs`);
+  await pg.query(`DELETE FROM profiles WHERE email LIKE 'foreman-jobs-%' OR email LIKE 'crew-%'`);
 });
 
 describeDb('GET /api/jobs', () => {
@@ -241,7 +262,7 @@ describeDb('POST /api/jobs/:id/assign + DELETE /api/jobs/:id/assign/:profileId',
 
   it('assigns crew member then lists them on GET', async () => {
     const f = await createForemanAndLogin('assign-1');
-    const crew = await userStore.createUser(`crew-${Date.now()}@example.com`, 'password123', 'C', UserRole.TEAM_MEMBER);
+    const crew = await createCrewProfile('a1');
     const created = await request(app).post('/api/jobs').set('Authorization', `Bearer ${f.token}`).send({ title: 'x' });
     const jobId = created.body.job.id;
 
@@ -261,7 +282,7 @@ describeDb('POST /api/jobs/:id/assign + DELETE /api/jobs/:id/assign/:profileId',
 
   it('rejects duplicate assignment with 409 duplicate_assignment', async () => {
     const f = await createForemanAndLogin('assign-dup');
-    const crew = await userStore.createUser(`crew-dup-${Date.now()}@example.com`, 'password123', 'C', UserRole.TEAM_MEMBER);
+    const crew = await createCrewProfile('dup');
     const created = await request(app).post('/api/jobs').set('Authorization', `Bearer ${f.token}`).send({ title: 'x' });
     const jobId = created.body.job.id;
 
@@ -274,7 +295,7 @@ describeDb('POST /api/jobs/:id/assign + DELETE /api/jobs/:id/assign/:profileId',
 
   it('unassigns with 204', async () => {
     const f = await createForemanAndLogin('unassign');
-    const crew = await userStore.createUser(`crew-unassign-${Date.now()}@example.com`, 'password123', 'C', UserRole.TEAM_MEMBER);
+    const crew = await createCrewProfile('un');
     const created = await request(app).post('/api/jobs').set('Authorization', `Bearer ${f.token}`).send({ title: 'x' });
     const jobId = created.body.job.id;
 
