@@ -346,3 +346,7 @@ setInterval(cleanupOldMedia, 60 * 60 * 1000);
 
 // Schedule audit log cleanup daily
 setInterval(() => auditLog.cleanupOldEntries(), 24 * 60 * 60 * 1000);
+
+// Flush audit log buffer on process exit
+process.on('SIGTERM', () => { auditLog.flushNow(); });
+process.on('SIGINT', () => { auditLog.flushNow(); });

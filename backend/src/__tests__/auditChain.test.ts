@@ -24,7 +24,7 @@ function recomputeHash(entry: AuditEntry): string {
   return crypto.createHash('sha256').update(seed).digest('hex');
 }
 
-describeDb('auditLog chain validation', () => {
+describeDb('auditLog chain validation and JSONL minute-buffer', () => {
   beforeEach(cleanAudit);
   afterAll(async () => { await pg?.end(); });
 
@@ -54,5 +54,12 @@ describeDb('auditLog chain validation', () => {
       expect(rows.rows[i].hash).toBe(written[i].checksum);
       expect(rows.rows[i].prev_hash).toBe(written[i - 1]?.checksum ?? null);
     }
+  });
+
+  it('flushNow does not throw and the chain test still passes', async () => {
+    const before = await auditLog.log(AuditAction.USER_LOGIN, 'a', { test: 'buffer' });
+    expect(before.checksum).toBeTruthy();
+    // Manually trigger flush via the public flushNow shim.
+    expect(() => auditLog.flushNow()).not.toThrow();
   });
 });

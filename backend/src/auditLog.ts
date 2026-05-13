@@ -139,6 +139,8 @@ class AuditLogManager {
   private logFile: string;
   private entryCounter = 0;
   private policies: RetentionPolicy[] = DEFAULT_POLICIES;
+  private jsonlBuffer: AuditEntry[] = [];
+  private flushTimer: NodeJS.Timeout | null = null;
 
   constructor() {
     // Create audit directory
@@ -282,13 +284,40 @@ class AuditLogManager {
     return full;
   }
 
-  /** JSONL buffer placeholder — Task 4 will replace with 60s flush. */
+  /**
+   * Add entry to in-memory buffer. Lazily start a 60s flush timer on first write.
+   */
   private bufferJsonl(entry: AuditEntry): void {
-    try {
-      fs.appendFileSync(this.logFile, JSON.stringify(entry) + '\n');
-    } catch (e) {
-      console.error('[AuditLog] Failed to write JSONL backup:', e);
+    this.jsonlBuffer.push(entry);
+    if (!this.flushTimer) {
+      this.flushTimer = setInterval(() => this.flushJsonl(), 60 * 1000);
+      // Don't keep the process alive for the timer alone.
+      this.flushTimer.unref();
     }
+  }
+
+  /**
+   * Flush buffered entries to JSONL. Called by the interval timer and on shutdown.
+   */
+  private flushJsonl(): void {
+    if (this.jsonlBuffer.length === 0) return;
+    const drained = this.jsonlBuffer;
+    this.jsonlBuffer = [];
+    try {
+      const blob = drained.map((e) => JSON.stringify(e)).join('\n') + '\n';
+      fs.appendFileSync(this.logFile, blob);
+    } catch (e) {
+      console.error('[AuditLog] Failed to flush JSONL buffer:', e);
+      // Re-queue on failure — the next interval will retry.
+      this.jsonlBuffer.unshift(...drained);
+    }
+  }
+
+  /**
+   * Called on process shutdown so the buffer drains.
+   */
+  flushNow(): void {
+    this.flushJsonl();
   }
 
   /**
