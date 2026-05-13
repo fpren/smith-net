@@ -30,6 +30,8 @@ import { auditLog, AuditAction } from './auditLog';
 import { llm } from './llmInterface';
 import { reconcile, acceptClientMessages } from './reconciliationEngine';
 import { invoiceLinkService } from './invoiceLinks';
+import { v4 as uuidv4 } from 'uuid';
+import { withRequestContext } from './log';
 
 const PORT = process.env.PORT || 3030;
 
@@ -86,6 +88,18 @@ app.use(cookieParser());
 // Trust X-Forwarded-For when behind Tailscale Funnel / reverse proxy so rate limits
 // bucket by the originating IP, not the proxy's loopback address.
 app.set('trust proxy', 1);
+
+// Phase 2 Slice 2: structured-log request context. Every request gets a
+// req_id (echoed in response header). Routes inside the chain emit logs
+// with req_id/route bindings via requestLogger().
+app.use((req, res, next) => {
+  const req_id = (req.headers['x-request-id'] as string) || uuidv4();
+  res.setHeader('x-request-id', req_id);
+  const route = `${req.method} ${req.path}`;
+  // actor_id is unknown here — auth middleware can re-enter the context
+  // later. Phase 2 interim: req_id + route are the minimum viable.
+  withRequestContext({ req_id, route }, () => next());
+});
 
 // F1.1 deprecation guard — log if any client still sends legacy X-User-Id / X-User-Name headers.
 // The headers are now ignored; identity comes from the JWT via authenticateToken middleware.
