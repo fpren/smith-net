@@ -124,7 +124,6 @@ describeDb('usersService.verifyPassword — lockout', () => {
 
 describeDb('usersService refresh tokens', () => {
   beforeEach(cleanUsers);
-  afterAll(async () => { await pg?.end(); });
 
   it('storeRefreshToken + validateRefreshToken returns the userId', async () => {
     const email = `t9-${Date.now()}@example.com`;
@@ -141,5 +140,48 @@ describeDb('usersService refresh tokens', () => {
     await usersService.revokeRefreshToken('refresh-xyz');
     const found = await usersService.validateRefreshToken('refresh-xyz');
     expect(found).toBeUndefined();
+  });
+});
+
+describeDb('usersService email verification', () => {
+  beforeEach(cleanUsers);
+  afterAll(async () => { await pg?.end(); });
+
+  it('findByVerificationToken returns user when token valid and unexpired', async () => {
+    const email = `t11-${Date.now()}@example.com`;
+    const u = await usersService.createUser(email, 'password123', 'K', UserRole.SOLO);
+    expect(u.emailVerificationToken).toBeDefined();
+    const found = await usersService.findByVerificationToken(u.emailVerificationToken!);
+    expect(found?.id).toBe(u.id);
+  });
+
+  it('findByVerificationToken returns undefined for unknown token', async () => {
+    const found = await usersService.findByVerificationToken('nope');
+    expect(found).toBeUndefined();
+  });
+
+  it('markEmailVerified clears the token and sets emailVerifiedAt', async () => {
+    const email = `t12-${Date.now()}@example.com`;
+    const u = await usersService.createUser(email, 'password123', 'L', UserRole.SOLO);
+    const after = await usersService.markEmailVerified(u.id);
+    expect(after?.emailVerifiedAt).toBeDefined();
+    expect(after?.emailVerificationToken).toBeUndefined();
+  });
+
+  it('regenerateVerificationToken returns null for already-verified users', async () => {
+    const email = `t13-${Date.now()}@example.com`;
+    const u = await usersService.createUser(email, 'password123', 'M', UserRole.SOLO);
+    await usersService.markEmailVerified(u.id);
+    const tok = await usersService.regenerateVerificationToken(u.id);
+    expect(tok).toBeNull();
+  });
+
+  it('regenerateVerificationToken issues a fresh token for unverified users', async () => {
+    const email = `t14-${Date.now()}@example.com`;
+    const u = await usersService.createUser(email, 'password123', 'N', UserRole.SOLO);
+    const oldTok = u.emailVerificationToken;
+    const newTok = await usersService.regenerateVerificationToken(u.id);
+    expect(newTok).toBeTruthy();
+    expect(newTok).not.toBe(oldTok);
   });
 });

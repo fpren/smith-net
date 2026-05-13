@@ -210,6 +210,64 @@ class UsersService {
       [token]
     );
   }
+
+  async findByVerificationToken(token: string): Promise<StoredUser | undefined> {
+    if (!token) return undefined;
+    const db = requirePg();
+    const result = await db.query<UserRow>(
+      `SELECT * FROM users
+       WHERE email_verification_token = $1
+         AND email_verification_expires_at > NOW()`,
+      [token]
+    );
+    return result.rows[0] ? rowToUser(result.rows[0]) : undefined;
+  }
+
+  async markEmailVerified(userId: string): Promise<StoredUser | undefined> {
+    const db = requirePg();
+    const result = await db.query<UserRow>(
+      `UPDATE users
+       SET email_verified_at = NOW(),
+           email_verification_token = NULL,
+           email_verification_expires_at = NULL,
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [userId]
+    );
+    return result.rows[0] ? rowToUser(result.rows[0]) : undefined;
+  }
+
+  async regenerateVerificationToken(userId: string): Promise<string | null> {
+    const db = requirePg();
+    const existing = await this.getUserById(userId);
+    if (!existing) return null;
+    if (existing.emailVerifiedAt) return null;
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS);
+    await db.query(
+      `UPDATE users
+       SET email_verification_token = $2,
+           email_verification_expires_at = $3,
+           email_verification_last_sent_at = NOW(),
+           updated_at = NOW()
+       WHERE id = $1`,
+      [userId, token, expires]
+    );
+    return token;
+  }
+
+  async recordVerificationSendAttempt(userId: string): Promise<void> {
+    const db = requirePg();
+    await db.query(
+      `UPDATE users
+       SET email_verification_last_sent_at = NOW(),
+           updated_at = NOW()
+       WHERE id = $1`,
+      [userId]
+    );
+  }
 }
 
 export const usersService = new UsersService();
