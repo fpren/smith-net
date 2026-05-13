@@ -29,7 +29,7 @@ describe('GET /api/profiles', () => {
       'Solo',
       UserRole.SOLO
     );
-    const { accessToken } = generateTokens(user);
+    const { accessToken } = await generateTokens(user);
     const res = await request(app)
       .get('/api/profiles?q=admin')
       .set('Authorization', `Bearer ${accessToken}`);
@@ -44,7 +44,7 @@ describe('GET /api/profiles', () => {
       'F',
       UserRole.FOREMAN
     );
-    const { accessToken } = generateTokens(user);
+    const { accessToken } = await generateTokens(user);
     const res = await request(app)
       .get('/api/profiles')
       .set('Authorization', `Bearer ${accessToken}`);
@@ -59,7 +59,7 @@ describe('GET /api/profiles', () => {
       'F',
       UserRole.FOREMAN
     );
-    const { accessToken } = generateTokens(user);
+    const { accessToken } = await generateTokens(user);
     const res = await request(app)
       .get('/api/profiles?q=x')
       .set('Authorization', `Bearer ${accessToken}`);
@@ -80,7 +80,7 @@ describe('GET /api/profiles', () => {
       'F',
       UserRole.FOREMAN
     );
-    const { accessToken } = generateTokens(foreman);
+    const { accessToken } = await generateTokens(foreman);
     const res = await request(app)
       .get(`/api/profiles?q=target-search`)
       .set('Authorization', `Bearer ${accessToken}`);
@@ -106,7 +106,7 @@ describe('GET /api/profiles', () => {
       'F',
       UserRole.FOREMAN
     );
-    const { accessToken } = generateTokens(foreman);
+    const { accessToken } = await generateTokens(foreman);
     const res = await request(app)
       .get(`/api/profiles?q=Distinctive`)
       .set('Authorization', `Bearer ${accessToken}`);
@@ -125,7 +125,7 @@ describe('GET /api/profiles', () => {
     for (let i = 0; i < 25; i++) {
       await userStore.createUser(`${tag}-${i}@example.com`, 'password123', `Bulk ${i}`, UserRole.TEAM_MEMBER);
     }
-    const { accessToken } = generateTokens(foreman);
+    const { accessToken } = await generateTokens(foreman);
     const res = await request(app)
       .get(`/api/profiles?q=${tag}`)
       .set('Authorization', `Bearer ${accessToken}`);

@@ -51,11 +51,11 @@ describe('account lockout (F1.3)', () => {
     // Two wrong attempts then a correct one
     await userStore.verifyPassword(email, 'wrong-pw1');
     await userStore.verifyPassword(email, 'wrong-pw2');
-    expect(userStore.getUserById(user.id)?.failedLoginCount).toBe(2);
+    expect((await userStore.getUserById(user.id))?.failedLoginCount).toBe(2);
 
     const ok = await userStore.verifyPassword(email, 'Correct1');
     expect(ok.ok).toBe(true);
-    expect(userStore.getUserById(user.id)?.failedLoginCount).toBe(0);
+    expect((await userStore.getUserById(user.id))?.failedLoginCount).toBe(0);
   });
 
   it('AC-5: 5 wrong attempts triggers lockout, 6th returns reason=locked', async () => {
@@ -83,14 +83,16 @@ describe('account lockout (F1.3)', () => {
     const email = uniqueEmail();
     const user = await userStore.createUser(email, 'Correct1', 'Locker', UserRole.SOLO);
 
-    // Manually expire a lockout into the past — simulates the 15-min window passing
-    const stored = userStore.getUserById(user.id)!;
-    stored.lockedUntil = Date.now() - 1000;
-    stored.failedLoginCount = 5;
+    // Manually expire a lockout into the past — simulates the 15-min window passing.
+    // pg-backed store: persist via updateUser instead of mutating the returned object.
+    await userStore.updateUser(user.id, {
+      lockedUntil: Date.now() - 1000,
+      failedLoginCount: 5,
+    });
 
     const r = await userStore.verifyPassword(email, 'Correct1');
     expect(r.ok).toBe(true);
-    const after = userStore.getUserById(user.id)!;
+    const after = (await userStore.getUserById(user.id))!;
     expect(after.lockedUntil).toBeUndefined();
     expect(after.failedLoginCount).toBe(0);
   });

@@ -17,7 +17,7 @@ import express from 'express';
 import request from 'supertest';
 import { apiRouter } from '../api';
 import { authRouter } from '../authRoutes';
-import { generateTokens, UserRole } from '../auth';
+import { generateTokens, UserRole, userStore, StoredUser } from '../auth';
 
 function buildApp() {
   const app = express();
@@ -28,20 +28,18 @@ function buildApp() {
   return app;
 }
 
-const validUser = {
-  id: 'integration-test-user',
-  email: 'bob@example.com',
-  passwordHash: 'unused',
-  displayName: 'Bob',
-  role: UserRole.SOLO,
-  createdAt: Date.now(),
-  updatedAt: Date.now(),
-  isActive: true,
-  mfaEnabled: false,
-};
+// The user store is now Postgres-backed; the middleware looks up req.user
+// by id, so we have to insert a real row before minting JWTs against it.
+// Each suite run picks a fresh email so reruns don't collide.
+const TEST_EMAIL = `integration-test-${Date.now()}@example.com`;
+let validUser: StoredUser;
 
 describe('API auth integration (F1.1)', () => {
   const app = buildApp();
+
+  beforeAll(async () => {
+    validUser = await userStore.createUser(TEST_EMAIL, 'password123', 'Bob', UserRole.SOLO);
+  });
 
   describe('GET /api/channels', () => {
     it('AC-2: returns 401 without Authorization header', async () => {
@@ -55,7 +53,7 @@ describe('API auth integration (F1.1)', () => {
     });
 
     it('AC-4: returns 200 with valid JWT (and scopes to user)', async () => {
-      const tokens = generateTokens(validUser);
+      const tokens = await generateTokens(validUser);
       const res = await request(app)
         .get('/api/channels')
         .set('Authorization', `Bearer ${tokens.accessToken}`);
@@ -67,7 +65,7 @@ describe('API auth integration (F1.1)', () => {
 
   describe('POST /api/channels', () => {
     it('AC-5: creates channel with creator_id matching JWT subject', async () => {
-      const tokens = generateTokens(validUser);
+      const tokens = await generateTokens(validUser);
       const res = await request(app)
         .post('/api/channels')
         .set('Authorization', `Bearer ${tokens.accessToken}`)
@@ -94,7 +92,7 @@ describe('API auth integration (F1.1)', () => {
     });
 
     it('AC-6: X-User-Id header is IGNORED when valid Authorization is also present', async () => {
-      const tokens = generateTokens(validUser);
+      const tokens = await generateTokens(validUser);
       const res = await request(app)
         .post('/api/channels')
         .set('Authorization', `Bearer ${tokens.accessToken}`)

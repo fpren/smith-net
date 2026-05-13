@@ -10,10 +10,11 @@ export const profilesRouter = Router();
 
 profilesRouter.use(authenticateToken, requireConsoleTier);
 
-profilesRouter.get('/', validateQuery(ProfileQuery), (req: AuthenticatedRequest, res: Response) => {
+profilesRouter.get('/', validateQuery(ProfileQuery), async (req: AuthenticatedRequest, res: Response) => {
   const q = ((req.query as unknown) as ProfileQuery).q;
   const needle = q.toLowerCase();
-  const matches = userStore.getAllUsers()
+  const all = await userStore.getAllUsers();
+  const matches = all
     .filter((u) =>
       u.isActive &&
       (u.email.toLowerCase().includes(needle) || u.displayName.toLowerCase().includes(needle))

@@ -28,54 +28,54 @@ describe('email verification (F1.4)', () => {
     const u = await userStore.createUser(uniqueEmail('verify'), 'StrongP1', 'V', UserRole.SOLO);
     const token = u.emailVerificationToken!;
 
-    const found = userStore.findByVerificationToken(token);
+    const found = await userStore.findByVerificationToken(token);
     expect(found?.id).toBe(u.id);
 
-    userStore.markEmailVerified(u.id);
-    const after = userStore.getUserById(u.id)!;
+    await userStore.markEmailVerified(u.id);
+    const after = (await userStore.getUserById(u.id))!;
     expect(after.emailVerifiedAt).toBeGreaterThan(0);
     expect(after.emailVerificationToken).toBeUndefined();
 
     // AC-6: reusing the same token is rejected
-    expect(userStore.findByVerificationToken(token)).toBeUndefined();
+    expect(await userStore.findByVerificationToken(token)).toBeUndefined();
   });
 
   it('AC-5: expired token is rejected', async () => {
     const u = await userStore.createUser(uniqueEmail('expired'), 'StrongP1', 'E', UserRole.SOLO);
-    const stored = userStore.getUserById(u.id)!;
-    stored.emailVerificationExpiresAt = Date.now() - 1000;
-    expect(userStore.findByVerificationToken(u.emailVerificationToken!)).toBeUndefined();
+    // pg-backed: persist the back-dated expiry via updateUser.
+    await userStore.updateUser(u.id, { emailVerificationExpiresAt: Date.now() - 1000 });
+    expect(await userStore.findByVerificationToken(u.emailVerificationToken!)).toBeUndefined();
   });
 
-  it('garbage / empty tokens return undefined without throwing', () => {
-    expect(userStore.findByVerificationToken('garbage-not-a-token')).toBeUndefined();
-    expect(userStore.findByVerificationToken('')).toBeUndefined();
+  it('garbage / empty tokens return undefined without throwing', async () => {
+    expect(await userStore.findByVerificationToken('garbage-not-a-token')).toBeUndefined();
+    expect(await userStore.findByVerificationToken('')).toBeUndefined();
   });
 
   it('AC-9: regenerateVerificationToken issues a fresh token + bumps lastSentAt', async () => {
     const u = await userStore.createUser(uniqueEmail('regen'), 'StrongP1', 'R', UserRole.SOLO);
     const original = u.emailVerificationToken!;
 
-    const fresh = userStore.regenerateVerificationToken(u.id);
+    const fresh = await userStore.regenerateVerificationToken(u.id);
     expect(fresh).toBeDefined();
     expect(fresh).not.toBe(original);
 
-    const after = userStore.getUserById(u.id)!;
+    const after = (await userStore.getUserById(u.id))!;
     expect(after.emailVerificationLastSentAt).toBeGreaterThan(0);
     // Original token must no longer work
-    expect(userStore.findByVerificationToken(original)).toBeUndefined();
+    expect(await userStore.findByVerificationToken(original)).toBeUndefined();
     // New token works
-    expect(userStore.findByVerificationToken(fresh!)?.id).toBe(u.id);
+    expect((await userStore.findByVerificationToken(fresh!))?.id).toBe(u.id);
   });
 
   it('regenerateVerificationToken is a no-op for verified users (returns null)', async () => {
     const u = await userStore.createUser(uniqueEmail('verified'), 'StrongP1', 'X', UserRole.SOLO);
-    userStore.markEmailVerified(u.id);
-    expect(userStore.regenerateVerificationToken(u.id)).toBeNull();
+    await userStore.markEmailVerified(u.id);
+    expect(await userStore.regenerateVerificationToken(u.id)).toBeNull();
   });
 
-  it('AC-10: admin seed user is grandfathered as verified', () => {
-    const admin = userStore.getUserByEmail('admin@smithnet.local');
+  it('AC-10: admin seed user is grandfathered as verified', async () => {
+    const admin = await userStore.getUserByEmail('admin@smithnet.local');
     expect(admin).toBeDefined();
     expect(admin?.emailVerifiedAt).toBeGreaterThan(0);
   });
@@ -84,8 +84,8 @@ describe('email verification (F1.4)', () => {
     const u = await userStore.createUser(uniqueEmail('public'), 'StrongP1', 'P', UserRole.SOLO);
     const { toPublicUser } = await import('../auth');
     expect(toPublicUser(u).emailVerified).toBe(false);
-    userStore.markEmailVerified(u.id);
-    const reloaded = userStore.getUserById(u.id)!;
+    await userStore.markEmailVerified(u.id);
+    const reloaded = (await userStore.getUserById(u.id))!;
     expect(toPublicUser(reloaded).emailVerified).toBe(true);
   });
 

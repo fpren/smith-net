@@ -35,7 +35,7 @@ async function createForemanAndLogin(suffix: string): Promise<{ id: string; toke
       [user.id, user.email, user.displayName, 'foreman']
     );
   }
-  const { accessToken } = generateTokens(user);
+  const { accessToken } = await generateTokens(user);
   return { id: user.id, token: accessToken };
 }
 
@@ -86,7 +86,7 @@ describeDb('GET /api/jobs', () => {
       'Solo',
       UserRole.SOLO
     );
-    const { accessToken } = generateTokens(user);
+    const { accessToken } = await generateTokens(user);
     const res = await request(app)
       .get('/api/jobs')
       .set('Authorization', `Bearer ${accessToken}`);

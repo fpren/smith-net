@@ -28,7 +28,7 @@ async function createForeman(suffix: string) {
       [user.id, user.email, user.displayName, 'foreman']
     );
   }
-  return { id: user.id, token: generateTokens(user).accessToken };
+  return { id: user.id, token: (await generateTokens(user)).accessToken };
 }
 
 async function createCrew(suffix: string) {
@@ -60,7 +60,7 @@ describe('GET /api/profiles/crew — auth gates', () => {
 
   it('returns 403 tier_required for Solo user', async () => {
     const u = await userStore.createUser(`solo-roster-${Date.now()}@example.com`, 'password123', 'S', UserRole.SOLO);
-    const { accessToken } = generateTokens(u);
+    const { accessToken } = await generateTokens(u);
     const res = await request(app).get('/api/profiles/crew').set('Authorization', `Bearer ${accessToken}`);
     expect(res.status).toBe(403);
     expect(res.body.code).toBe('tier_required');

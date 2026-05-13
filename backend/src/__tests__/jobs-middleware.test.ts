@@ -26,7 +26,7 @@ describe('requireConsoleTier', () => {
 
   it('returns 403 tier_required for SOLO role', async () => {
     const u = await userStore.createUser('tier-solo@example.com', 'password123', 'S', UserRole.SOLO);
-    const { accessToken } = generateTokens(u);
+    const { accessToken } = await generateTokens(u);
     const res = await request(app).get('/api/protected').set('Authorization', `Bearer ${accessToken}`);
     expect(res.status).toBe(403);
     expect(res.body.code).toBe('tier_required');
@@ -35,7 +35,7 @@ describe('requireConsoleTier', () => {
 
   it('returns 200 for FOREMAN role', async () => {
     const u = await userStore.createUser('tier-foreman@example.com', 'password123', 'F', UserRole.FOREMAN);
-    const { accessToken } = generateTokens(u);
+    const { accessToken } = await generateTokens(u);
     const res = await request(app).get('/api/protected').set('Authorization', `Bearer ${accessToken}`);
     expect(res.status).toBe(200);
     expect(res.body.role).toBe('foreman');
@@ -43,21 +43,21 @@ describe('requireConsoleTier', () => {
 
   it('returns 200 for ENTERPRISE role', async () => {
     const u = await userStore.createUser('tier-ent@example.com', 'password123', 'E', UserRole.ENTERPRISE);
-    const { accessToken } = generateTokens(u);
+    const { accessToken } = await generateTokens(u);
     const res = await request(app).get('/api/protected').set('Authorization', `Bearer ${accessToken}`);
     expect(res.status).toBe(200);
   });
 
   it('returns 200 for ADMIN role', async () => {
     const u = await userStore.createUser('tier-admin@example.com', 'password123', 'A', UserRole.ADMIN);
-    const { accessToken } = generateTokens(u);
+    const { accessToken } = await generateTokens(u);
     const res = await request(app).get('/api/protected').set('Authorization', `Bearer ${accessToken}`);
     expect(res.status).toBe(200);
   });
 
   it('returns 403 tier_required for TEAM_LEAD role', async () => {
     const u = await userStore.createUser('tier-lead@example.com', 'password123', 'L', UserRole.TEAM_LEAD);
-    const { accessToken } = generateTokens(u);
+    const { accessToken } = await generateTokens(u);
     const res = await request(app).get('/api/protected').set('Authorization', `Bearer ${accessToken}`);
     expect(res.status).toBe(403);
     expect(res.body.code).toBe('tier_required');
@@ -94,6 +94,9 @@ describe('requireJobOwner', () => {
       status: 'planned',
       scheduledAt: null,
       location: null,
+      latitude: null,
+      longitude: null,
+      geocodedAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -122,6 +125,9 @@ describe('requireJobOwner', () => {
       status: 'planned' as const,
       scheduledAt: null,
       location: null,
+      latitude: null,
+      longitude: null,
+      geocodedAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

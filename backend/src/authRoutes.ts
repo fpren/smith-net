@@ -103,7 +103,7 @@ authRouter.post('/register', validateBody(RegisterBody), async (req, res) => {
     }
 
     const user = await userStore.createUser(email, password, displayName, UserRole.SOLO);
-    const tokens = generateTokens(user);
+    const tokens = await generateTokens(user);
 
     // Audit log
     auditLog.log(AuditAction.USER_REGISTER, user.id, { email });
@@ -112,7 +112,7 @@ authRouter.post('/register', validateBody(RegisterBody), async (req, res) => {
     // The token was generated inside createUser; mark the send-attempt timestamp
     // so the resend cooldown applies even to this initial send.
     if (user.emailVerificationToken) {
-      userStore.recordVerificationSendAttempt(user.id);
+      await userStore.recordVerificationSendAttempt(user.id);
       sendVerificationEmail(user.email, user.displayName, user.emailVerificationToken)
         .catch((err) => console.warn('[Auth] Verification email error (non-fatal):', err));
     }
@@ -160,7 +160,7 @@ authRouter.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const tokens = generateTokens(result.user);
+    const tokens = await generateTokens(result.user);
 
     // Audit log
     auditLog.log(AuditAction.USER_LOGIN, result.user.id, { email });
@@ -181,7 +181,7 @@ authRouter.post('/login', async (req, res) => {
 // REFRESH TOKEN
 // ════════════════════════════════════════════════════════════════════
 
-authRouter.post('/refresh', (req, res) => {
+authRouter.post('/refresh', async (req, res) => {
   try {
     const { refreshToken } = req.body;
 
@@ -189,7 +189,7 @@ authRouter.post('/refresh', (req, res) => {
       return res.status(400).json({ error: 'Refresh token is required' });
     }
 
-    const tokens = refreshAccessToken(refreshToken);
+    const tokens = await refreshAccessToken(refreshToken);
     if (!tokens) {
       return res.status(401).json({ error: 'Invalid or expired refresh token' });
     }
@@ -207,21 +207,21 @@ authRouter.post('/refresh', (req, res) => {
 // F1.4: VERIFY EMAIL (clicked from email; renders an HTML page)
 // ════════════════════════════════════════════════════════════════════
 
-authRouter.get('/verify', (req, res) => {
+authRouter.get('/verify', async (req, res) => {
   const token = typeof req.query.token === 'string' ? req.query.token : '';
 
   if (!token) {
     return renderVerifyFailed(res, 400, 'Missing verification token.');
   }
 
-  const user = userStore.findByVerificationToken(token);
+  const user = await userStore.findByVerificationToken(token);
   if (!user) {
     // Could be: expired, already-consumed, or never existed. We don't
     // distinguish — disclosing "already used" leaks that the email exists.
     return renderVerifyFailed(res, 400, 'This link is invalid or expired. Request a new one from the app.');
   }
 
-  userStore.markEmailVerified(user.id);
+  await userStore.markEmailVerified(user.id);
   auditLog.log(AuditAction.USER_PROFILE_UPDATE, user.id, { event: 'email_verified' });
 
   try {
@@ -239,7 +239,7 @@ authRouter.get('/verify', (req, res) => {
 
 authRouter.post('/resend-verification', authenticateToken, async (req: AuthenticatedRequest, res) => {
   const userId = req.user!.id;
-  const stored = userStore.getUserById(userId);
+  const stored = await userStore.getUserById(userId);
   if (!stored) return res.status(404).json({ error: 'User not found' });
 
   // Already verified? Treat as success no-op so we don't leak state.
@@ -261,7 +261,7 @@ authRouter.post('/resend-verification', authenticateToken, async (req: Authentic
     });
   }
 
-  const newToken = userStore.regenerateVerificationToken(userId);
+  const newToken = await userStore.regenerateVerificationToken(userId);
   if (!newToken) {
     // Race: verified between the early-return and now.
     return res.json({ ok: true, alreadyVerified: true });
@@ -285,7 +285,7 @@ authRouter.get('/me', authenticateToken, (req: AuthenticatedRequest, res: Respon
 // UPDATE PROFILE
 // ════════════════════════════════════════════════════════════════════
 
-authRouter.patch('/me', authenticateToken, (req: AuthenticatedRequest, res: Response) => {
+authRouter.patch('/me', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { displayName } = req.body;
     const userId = req.user!.id;
@@ -293,7 +293,7 @@ authRouter.patch('/me', authenticateToken, (req: AuthenticatedRequest, res: Resp
     const updates: any = {};
     if (displayName) updates.displayName = displayName;
 
-    const updated = userStore.updateUser(userId, updates);
+    const updated = await userStore.updateUser(userId, updates);
     if (!updated) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -311,11 +311,11 @@ authRouter.patch('/me', authenticateToken, (req: AuthenticatedRequest, res: Resp
 // LOGOUT (Revoke refresh token)
 // ════════════════════════════════════════════════════════════════════
 
-authRouter.post('/logout', authenticateToken, (req: AuthenticatedRequest, res: Response) => {
+authRouter.post('/logout', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   const { refreshToken } = req.body;
-  
+
   if (refreshToken) {
-    userStore.revokeRefreshToken(refreshToken);
+    await userStore.revokeRefreshToken(refreshToken);
   }
 
   auditLog.log(AuditAction.USER_LOGOUT, req.user!.id, {});
@@ -333,8 +333,8 @@ authRouter.get(
   '/users',
   authenticateToken,
   requirePermission(Permission.MANAGE_USERS),
-  (req: AuthenticatedRequest, res: Response) => {
-    const users = userStore.getAllUsers().map(toPublicUser);
+  async (req: AuthenticatedRequest, res: Response) => {
+    const users = (await userStore.getAllUsers()).map(toPublicUser);
     res.json({ users });
   }
 );
@@ -347,7 +347,7 @@ authRouter.patch(
   '/users/:userId/role',
   authenticateToken,
   requirePermission(Permission.MANAGE_ROLES),
-  (req: AuthenticatedRequest, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { userId } = req.params;
       const { role } = req.body;
@@ -361,7 +361,7 @@ authRouter.patch(
         return res.status(400).json({ error: 'Cannot change your own role' });
       }
 
-      const updated = userStore.updateUser(userId, { role });
+      const updated = await userStore.updateUser(userId, { role });
       if (!updated) {
         return res.status(404).json({ error: 'User not found' });
       }

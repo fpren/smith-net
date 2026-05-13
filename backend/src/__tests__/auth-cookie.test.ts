@@ -31,7 +31,7 @@ describe('Cookie-based authentication', () => {
       'Cookie Tester',
       UserRole.FOREMAN
     );
-    accessToken = generateTokens(user).accessToken;
+    accessToken = (await generateTokens(user)).accessToken;
   });
 
   it('accepts token from smithnet_access cookie when Authorization header is absent', async () => {
@@ -90,7 +90,7 @@ describe('setAuthCookies / clearAuthCookies', () => {
 
   it('refresh response sets fresh httpOnly cookies', async () => {
     const user = await userStore.createUser('refresh-c@example.com', 'password123', 'R', UserRole.FOREMAN);
-    const { refreshToken } = generateTokens(user);
+    const { refreshToken } = await generateTokens(user);
     const res = await request(app)
       .post('/api/auth/refresh')
       .send({ refreshToken });
@@ -101,7 +101,7 @@ describe('setAuthCookies / clearAuthCookies', () => {
 
   it('logout clears auth cookies', async () => {
     const user = await userStore.createUser('logout-c@example.com', 'password123', 'L', UserRole.FOREMAN);
-    const { accessToken, refreshToken } = generateTokens(user);
+    const { accessToken, refreshToken } = await generateTokens(user);
     const res = await request(app)
       .post('/api/auth/logout')
       .set('Cookie', [`smithnet_access=${accessToken}`])

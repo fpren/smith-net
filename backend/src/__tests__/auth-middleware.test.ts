@@ -11,7 +11,7 @@
  * (Project has no test infra yet; install required before first run.)
  */
 
-import { authenticateToken, generateTokens, AuthenticatedRequest, UserRole } from '../auth';
+import { authenticateToken, generateTokens, AuthenticatedRequest, UserRole, userStore, StoredUser } from '../auth';
 import type { Response, NextFunction } from 'express';
 
 function makeReq(authHeader?: string): AuthenticatedRequest {
@@ -28,59 +28,56 @@ function makeRes() {
 }
 
 describe('authenticateToken middleware (F1.1)', () => {
-  const validUser = {
-    id: 'test-user-uuid',
-    email: 'alice@example.com',
-    passwordHash: 'unused',
-    displayName: 'Alice',
-    role: UserRole.SOLO,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    isActive: true,
-    mfaEnabled: false,
-  };
+  // The user store is now Postgres-backed; the middleware looks up the user
+  // by id, so we have to insert a real row before minting JWTs against it.
+  const TEST_EMAIL = `mw-alice-${Date.now()}@example.com`;
+  let validUser: StoredUser;
 
-  it('AC-3: rejects with 401 when no Authorization header', () => {
+  beforeAll(async () => {
+    validUser = await userStore.createUser(TEST_EMAIL, 'password123', 'Alice', UserRole.SOLO);
+  });
+
+  it('AC-3: rejects with 401 when no Authorization header', async () => {
     const req = makeReq();
     const res = makeRes();
     const next = jest.fn() as NextFunction;
 
-    authenticateToken(req, res, next);
+    await authenticateToken(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(next).not.toHaveBeenCalled();
     expect(req.user).toBeUndefined();
   });
 
-  it('AC-3: rejects with 401 when Authorization header missing Bearer prefix', () => {
+  it('AC-3: rejects with 401 when Authorization header missing Bearer prefix', async () => {
     const req = makeReq('Basic abc123');
     const res = makeRes();
     const next = jest.fn() as NextFunction;
 
-    authenticateToken(req, res, next);
+    await authenticateToken(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('AC-3: rejects with 401 when Bearer token is invalid garbage', () => {
+  it('AC-3: rejects with 401 when Bearer token is invalid garbage', async () => {
     const req = makeReq('Bearer not.a.real.jwt');
     const res = makeRes();
     const next = jest.fn() as NextFunction;
 
-    authenticateToken(req, res, next);
+    await authenticateToken(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('AC-4: populates req.user when valid JWT provided', () => {
-    const tokens = generateTokens(validUser);
+  it('AC-4: populates req.user when valid JWT provided', async () => {
+    const tokens = await generateTokens(validUser);
     const req = makeReq(`Bearer ${tokens.accessToken}`);
     const res = makeRes();
     const next = jest.fn() as NextFunction;
 
-    authenticateToken(req, res, next);
+    await authenticateToken(req, res, next);
 
     expect(next).toHaveBeenCalled();
     expect(req.user).toBeDefined();

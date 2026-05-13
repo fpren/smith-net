@@ -7,9 +7,6 @@
  */
 
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
-import crypto from 'crypto';
-import { v4 as uuidv4 } from 'uuid';
 import { Request, Response, NextFunction } from 'express';
 
 // ════════════════════════════════════════════════════════════════════
@@ -81,8 +78,6 @@ export type LoginResult =
   | { ok: true; user: StoredUser }
   | { ok: false; reason: 'invalid_credentials' }
   | { ok: false; reason: 'locked'; retryMinutes: number };
-
-const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 // F1.4: email verification token TTL + resend throttle.
 export const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000; // 24h
@@ -247,236 +242,20 @@ export interface AuthTokens {
 }
 
 // ════════════════════════════════════════════════════════════════════
-// IN-MEMORY USER STORE (Replace with DB in production)
+// USER STORE — pg-backed via usersService (Phase 2 Slice 1)
 // ════════════════════════════════════════════════════════════════════
+// The original in-memory UserStore class moved to usersService.ts in
+// Phase 2 Slice 1. Existing callers continue to use `userStore.method()`
+// but every call is now async and hits Postgres.
 
-class UserStore {
-  private users: Map<string, StoredUser> = new Map();
-  private emailIndex: Map<string, string> = new Map(); // email -> id
-  private refreshTokens: Map<string, string> = new Map(); // token -> userId
-
-  constructor() {
-    // Create default admin user
-    this.createDefaultAdmin();
-  }
-
-  private async createDefaultAdmin() {
-    const adminId = 'admin-001';
-    // Prefer the DEFAULT_ADMIN_PASSWORD env var; fall back to a dev default only
-    // when it's unset (local dev convenience; production deployments must set it).
-    const rawPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'admin123';
-    const isDefault = !process.env.DEFAULT_ADMIN_PASSWORD;
-    const passwordHash = await bcrypt.hash(rawPassword, SALT_ROUNDS);
-
-    const admin: StoredUser = {
-      id: adminId,
-      email: 'admin@smithnet.local',
-      passwordHash,
-      displayName: 'System Admin',
-      role: UserRole.ADMIN,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      isActive: true,
-      mfaEnabled: false,
-      // F1.4: pre-existing accounts are grandfathered as verified — equivalent
-      // to the SQL backfill (UPDATE profiles SET email_verified_at = NOW() ...)
-      // when this code moves to Postgres.
-      emailVerifiedAt: Date.now(),
-    };
-
-    this.users.set(adminId, admin);
-    this.emailIndex.set(admin.email, adminId);
-    if (isDefault) {
-      console.warn('[Auth] Using built-in admin password — set DEFAULT_ADMIN_PASSWORD for production.');
-    } else {
-      console.log('[Auth] Default admin user created with DEFAULT_ADMIN_PASSWORD from env.');
-    }
-  }
-
-  async createUser(
-    email: string,
-    password: string,
-    displayName: string,
-    role: UserRole = UserRole.SOLO
-  ): Promise<StoredUser> {
-    // Check if email exists
-    if (this.emailIndex.has(email.toLowerCase())) {
-      throw new Error('Email already registered');
-    }
-
-    // F1.3: enforce password floor on new accounts. Existing users (incl. seeded
-    // admin) are grandfathered — only new password material runs the validator.
-    const validation = validatePassword(password);
-    if (!validation.valid) {
-      throw new Error(validation.reason);
-    }
-
-    const id = uuidv4();
-    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-
-    const user: StoredUser = {
-      id,
-      email: email.toLowerCase(),
-      passwordHash,
-      displayName,
-      role,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      isActive: true,
-      mfaEnabled: false,
-      failedLoginCount: 0,
-      // F1.4: new accounts start unverified with a fresh 24h token.
-      emailVerificationToken: crypto.randomBytes(32).toString('hex'),
-      emailVerificationExpiresAt: Date.now() + EMAIL_VERIFICATION_TTL_MS,
-    };
-
-    this.users.set(id, user);
-    this.emailIndex.set(email.toLowerCase(), id);
-
-    console.log(`[Auth] User created: ${email} (${role})`);
-    return user;
-  }
-
-  /**
-   * F1.4: look up by verification token. Returns the user iff the token is
-   * present, exact-match, and not expired. Idempotent caller-wise — verifying
-   * twice is a no-op since the token is cleared on first success.
-   */
-  findByVerificationToken(token: string): StoredUser | undefined {
-    if (!token) return undefined;
-    for (const user of this.users.values()) {
-      if (user.emailVerificationToken === token && user.emailVerificationExpiresAt && user.emailVerificationExpiresAt > Date.now()) {
-        return user;
-      }
-    }
-    return undefined;
-  }
-
-  /**
-   * F1.4: mark email verified, clear the token (single-use). No-op if already verified.
-   */
-  markEmailVerified(userId: string): StoredUser | undefined {
-    const user = this.users.get(userId);
-    if (!user) return undefined;
-    user.emailVerifiedAt = Date.now();
-    user.emailVerificationToken = undefined;
-    user.emailVerificationExpiresAt = undefined;
-    user.updatedAt = Date.now();
-    this.users.set(userId, user);
-    return user;
-  }
-
-  /**
-   * F1.4: regenerate a fresh token for resend. Returns null if the user is
-   * already verified (caller should treat as a no-op success — don't leak state).
-   */
-  regenerateVerificationToken(userId: string): string | null {
-    const user = this.users.get(userId);
-    if (!user) return null;
-    if (user.emailVerifiedAt) return null;
-    user.emailVerificationToken = crypto.randomBytes(32).toString('hex');
-    user.emailVerificationExpiresAt = Date.now() + EMAIL_VERIFICATION_TTL_MS;
-    user.emailVerificationLastSentAt = Date.now();
-    user.updatedAt = Date.now();
-    this.users.set(userId, user);
-    return user.emailVerificationToken;
-  }
-
-  /**
-   * F1.4: record that we sent a verification email. Called from the register
-   * path so the resend cooldown applies even to the initial send.
-   */
-  recordVerificationSendAttempt(userId: string): void {
-    const user = this.users.get(userId);
-    if (!user) return;
-    user.emailVerificationLastSentAt = Date.now();
-    this.users.set(userId, user);
-  }
-
-  /**
-   * F1.3: returns a discriminated result so the route can emit the right HTTP
-   * code (401 vs 429) and the lockout retry hint without leaking which arm
-   * tripped to the caller via timing.
-   */
-  async verifyPassword(email: string, password: string): Promise<LoginResult> {
-    const userId = this.emailIndex.get(email.toLowerCase());
-    const user = userId ? this.users.get(userId) : undefined;
-
-    // No-account path: spend the same time as a real bcrypt verify so the
-    // round-trip duration doesn't reveal whether the email exists.
-    if (!user || !user.isActive) {
-      await sleep(ENUMERATION_DELAY_MS);
-      return { ok: false, reason: 'invalid_credentials' };
-    }
-
-    // Lockout check — server-authoritative, no caching.
-    if (user.lockedUntil && user.lockedUntil > Date.now()) {
-      const retryMinutes = Math.max(1, Math.ceil((user.lockedUntil - Date.now()) / 60_000));
-      return { ok: false, reason: 'locked', retryMinutes };
-    }
-
-    const isValid = await bcrypt.compare(password, user.passwordHash);
-    if (!isValid) {
-      const next = (user.failedLoginCount ?? 0) + 1;
-      user.failedLoginCount = next;
-      if (next >= MAX_FAILED_LOGINS) {
-        user.lockedUntil = Date.now() + LOCKOUT_DURATION_MS;
-      }
-      this.users.set(user.id, user);
-      return { ok: false, reason: 'invalid_credentials' };
-    }
-
-    // Successful login — reset counter + clear any stale lock + update lastLogin.
-    user.lastLoginAt = Date.now();
-    user.failedLoginCount = 0;
-    user.lockedUntil = undefined;
-    this.users.set(user.id, user);
-
-    return { ok: true, user };
-  }
-
-  getUserById(id: string): StoredUser | undefined {
-    return this.users.get(id);
-  }
-
-  getUserByEmail(email: string): StoredUser | undefined {
-    const userId = this.emailIndex.get(email.toLowerCase());
-    return userId ? this.users.get(userId) : undefined;
-  }
-
-  updateUser(id: string, updates: Partial<StoredUser>): StoredUser | undefined {
-    const user = this.users.get(id);
-    if (!user) return undefined;
-
-    const updated = { ...user, ...updates, updatedAt: Date.now() };
-    this.users.set(id, updated);
-    return updated;
-  }
-
-  storeRefreshToken(token: string, userId: string) {
-    this.refreshTokens.set(token, userId);
-  }
-
-  validateRefreshToken(token: string): string | undefined {
-    return this.refreshTokens.get(token);
-  }
-
-  revokeRefreshToken(token: string) {
-    this.refreshTokens.delete(token);
-  }
-
-  getAllUsers(): StoredUser[] {
-    return Array.from(this.users.values());
-  }
-}
-
-export const userStore = new UserStore();
+import { usersService } from './usersService';
+export const userStore = usersService;
 
 // ════════════════════════════════════════════════════════════════════
 // TOKEN MANAGEMENT
 // ════════════════════════════════════════════════════════════════════
 
-export function generateTokens(user: StoredUser): AuthTokens {
+export async function generateTokens(user: StoredUser): Promise<AuthTokens> {
   const accessPayload: TokenPayload = {
     userId: user.id,
     email: user.email,
@@ -494,8 +273,8 @@ export function generateTokens(user: StoredUser): AuthTokens {
   const accessToken = jwt.sign(accessPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
   const refreshToken = jwt.sign(refreshPayload, REFRESH_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRES_IN });
 
-  // Store refresh token
-  userStore.storeRefreshToken(refreshToken, user.id);
+  // Store refresh token (now hits Postgres via usersService)
+  await userStore.storeRefreshToken(refreshToken, user.id);
 
   return {
     accessToken,
@@ -519,19 +298,19 @@ export function verifyToken(token: string): TokenPayload | null {
   }
 }
 
-export function refreshAccessToken(refreshToken: string): AuthTokens | null {
+export async function refreshAccessToken(refreshToken: string): Promise<AuthTokens | null> {
   const payload = verifyToken(refreshToken);
   if (!payload || payload.type !== 'refresh') return null;
 
   // Verify refresh token is still valid in store
-  const storedUserId = userStore.validateRefreshToken(refreshToken);
+  const storedUserId = await userStore.validateRefreshToken(refreshToken);
   if (storedUserId !== payload.userId) return null;
 
-  const user = userStore.getUserById(payload.userId);
+  const user = await userStore.getUserById(payload.userId);
   if (!user || !user.isActive) return null;
 
   // Revoke old refresh token and generate new ones
-  userStore.revokeRefreshToken(refreshToken);
+  await userStore.revokeRefreshToken(refreshToken);
   return generateTokens(user);
 }
 
@@ -606,7 +385,7 @@ export interface AuthenticatedRequest extends Request {
  * Middleware to authenticate JWT token.
  * Adds user to request if valid, otherwise returns 401.
  */
-export function authenticateToken(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+export async function authenticateToken(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   const headerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
   // Browser clients use the httpOnly cookie; Android uses the Bearer header. Either is fine.
@@ -622,7 +401,7 @@ export function authenticateToken(req: AuthenticatedRequest, res: Response, next
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 
-  const user = userStore.getUserById(payload.userId);
+  const user = await userStore.getUserById(payload.userId);
   if (!user || !user.isActive) {
     return res.status(401).json({ error: 'User not found or inactive' });
   }
@@ -635,7 +414,7 @@ export function authenticateToken(req: AuthenticatedRequest, res: Response, next
 /**
  * Middleware to optionally authenticate - doesn't fail if no token.
  */
-export function optionalAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+export async function optionalAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   const headerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
   const cookieToken = req.cookies?.smithnet_access || null;
@@ -644,7 +423,7 @@ export function optionalAuth(req: AuthenticatedRequest, res: Response, next: Nex
   if (token) {
     const payload = verifyToken(token);
     if (payload && payload.type === 'access') {
-      const user = userStore.getUserById(payload.userId);
+      const user = await userStore.getUserById(payload.userId);
       if (user && user.isActive) {
         req.user = toPublicUser(user);
         req.token = token;
