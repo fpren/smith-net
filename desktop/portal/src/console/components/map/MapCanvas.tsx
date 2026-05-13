@@ -32,6 +32,7 @@ export function MapCanvas({ jobs, visibleStatuses, onSelectJob }: Props) {
   // Init map once
   useEffect(() => {
     if (!containerRef.current) return;
+    let observer: ResizeObserver | null = null;
     try {
       const map = new maplibregl.Map({
         container: containerRef.current,
@@ -41,10 +42,22 @@ export function MapCanvas({ jobs, visibleStatuses, onSelectJob }: Props) {
       });
       map.addControl(new maplibregl.NavigationControl(), 'top-right');
       mapRef.current = map;
+      // MapLibre measures the container at construction; if the flex parent
+      // has wrong/zero size at that moment, all coordinate math is off (pins
+      // render off-screen). Force one resize after the layout pass via rAF,
+      // then keep a ResizeObserver for future size changes.
+      requestAnimationFrame(() => mapRef.current?.resize());
+      if (typeof ResizeObserver !== 'undefined' && containerRef.current) {
+        observer = new ResizeObserver(() => {
+          mapRef.current?.resize();
+        });
+        observer.observe(containerRef.current);
+      }
     } catch (e: any) {
       console.warn('[MapCanvas] init failed:', e.message);
     }
     return () => {
+      observer?.disconnect();
       mapRef.current?.remove();
       mapRef.current = null;
       markersRef.current.clear();
@@ -57,19 +70,12 @@ export function MapCanvas({ jobs, visibleStatuses, onSelectJob }: Props) {
     if (!map) return;
 
     const showable = jobs.filter(
-      (j) => {
-        const lat = (j as any).latitude;
-        const lng = (j as any).longitude;
-        return (
-          lat !== null &&
-          lat !== undefined &&
-          lng !== null &&
-          lng !== undefined &&
-          Number.isFinite(lat) &&
-          Number.isFinite(lng) &&
-          visibleStatuses.includes(j.status)
-        );
-      }
+      (j) =>
+        j.latitude !== null &&
+        j.longitude !== null &&
+        Number.isFinite(j.latitude) &&
+        Number.isFinite(j.longitude) &&
+        visibleStatuses.includes(j.status)
     );
 
     const wantIds = new Set(showable.map((j) => j.id));
@@ -84,30 +90,30 @@ export function MapCanvas({ jobs, visibleStatuses, onSelectJob }: Props) {
 
     // Add or update markers
     for (const j of showable) {
-      const lat = (j as any).latitude as number;
-      const lng = (j as any).longitude as number;
       const existing = markersRef.current.get(j.id);
       if (existing) {
-        existing.setLngLat([lng, lat]);
+        existing.setLngLat([j.longitude!, j.latitude!]);
         continue;
       }
       const el = createJobMarkerElement(j);
       el.addEventListener('click', () => onSelectJob(j.id));
       const marker = new maplibregl.Marker({ element: el })
-        .setLngLat([lng, lat])
+        .setLngLat([j.longitude!, j.latitude!])
         .addTo(map);
       markersRef.current.set(j.id, marker);
     }
 
-    // Fit bounds when we have pins
-    if (showable.length > 0 && markersRef.current.size === showable.length) {
+    // Position the camera. jumpTo for a single pin (deterministic), fitBounds
+    // for multiple (deferred to map 'idle' so the viewport is settled — fitBounds
+    // before the map has measured its container is unreliable).
+    if (showable.length === 1) {
+      map.jumpTo({ center: [showable[0].longitude!, showable[0].latitude!], zoom: 14 });
+    } else if (showable.length > 1) {
       const bounds = new maplibregl.LngLatBounds();
-      for (const j of showable) {
-        const lat = (j as any).latitude as number;
-        const lng = (j as any).longitude as number;
-        bounds.extend([lng, lat]);
-      }
-      map.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 0 });
+      for (const j of showable) bounds.extend([j.longitude!, j.latitude!]);
+      const run = () => map.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 0 });
+      if (map.loaded()) run();
+      else map.once('idle', run);
     }
   }, [jobs, visibleStatuses, onSelectJob]);
 
