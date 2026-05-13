@@ -419,48 +419,6 @@ class ChannelRegistry {
     }
     requestLogger().info({ event: 'channel_registry_initialized', count }, 'channel registry loaded from pg');
   }
-
-  /**
-   * Rehydrate the in-memory registry from rows loaded from Postgres.
-   * Preserves IDs so mesh hashes and client references remain stable.
-   * Safe to call multiple times — existing entries are overwritten.
-   */
-  rehydrate(rows: Array<{
-    id: string;
-    name: string;
-    type?: string;
-    creator_id?: string;
-    created_at?: number | string;
-    is_archived?: boolean;
-    is_deleted?: boolean;
-  }>): void {
-    let count = 0;
-    for (const row of rows) {
-      if (row.is_deleted) continue;
-      const id = row.id;
-      const meshHash = this.computeMeshHash(id);
-      const channel: Channel = {
-        id,
-        name: row.name,
-        type: (row.type as Channel['type']) || 'group',
-        visibility: 'public',
-        creatorId: row.creator_id || 'system',
-        createdAt: typeof row.created_at === 'number' ? row.created_at : Date.now(),
-        memberIds: [row.creator_id || 'system'],
-        allowedUsers: [],
-        blockedUsers: [],
-        pendingRequests: [],
-        requiresApproval: false,
-        isArchived: !!row.is_archived,
-        isDeleted: false,
-        meshHash,
-      };
-      this.channels.set(id, channel);
-      this.meshHashIndex.set(meshHash, id);
-      count++;
-    }
-    requestLogger().info({ event: 'channel_registry_rehydrated', count }, 'channel registry rehydrated from pg');
-  }
 }
 
 export const channelRegistry = new ChannelRegistry();

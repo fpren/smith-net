@@ -32,7 +32,7 @@ import { llm } from './llmInterface';
 import { reconcile, acceptClientMessages } from './reconciliationEngine';
 import { invoiceLinkService } from './invoiceLinks';
 import { v4 as uuidv4 } from 'uuid';
-import { withRequestContext } from './log';
+import { withRequestContext, requestLogger } from './log';
 
 const PORT = process.env.PORT || 3030;
 
@@ -302,25 +302,11 @@ setupWsServer(server, wss, (ws, identity) => {
   });
 });
 
-// Initialize channel registry with defaults
-channelRegistry.initialize();
-
-// Rehydrate channels from Postgres so they survive restarts.
-// Non-blocking: we kick it off, the server starts listening in parallel.
-(async () => {
-  try {
-    const { pg, isPgEnabled } = await import('./db');
-    if (!isPgEnabled() || !pg) return;
-    const { rows } = await pg.query(
-      `SELECT id, name, type, creator_id, created_at, is_archived, is_deleted
-         FROM channels
-        WHERE is_deleted = FALSE OR is_deleted IS NULL`
-    );
-    channelRegistry.rehydrate(rows);
-  } catch (err) {
-    console.warn('[Startup] Channel rehydrate skipped:', (err as Error).message);
-  }
-})();
+// Initialize channel registry (async — loads channels from pg).
+// Non-blocking on the server.listen path: errors surface via .catch.
+channelRegistry.initialize().catch((err) => {
+  requestLogger().error({ err, event: 'channel_registry_init_failed' }, 'channel registry init failed at boot');
+});
 
 // Start server
 server.listen(PORT, () => {
