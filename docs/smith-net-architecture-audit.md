@@ -71,7 +71,7 @@ Smith Net is a ~10k LOC Node/Express backend (42 modules under `backend/src/`) p
 
 Each row: what + why it bites + when it bites + fix + when to fix.
 
-### 1. `userStore` is in-memory; `jobs.foreman_id` FK references `profiles(id)`
+### 1. `userStore` is in-memory; `jobs.foreman_id` FK references `profiles(id)` [closed in slice 1, commit 91b835b]
 
 - **What.** `auth.ts` mints user ids in a Map. Production has no path that copies that id into `profiles`. Plan 2 tests use a helper to work around it.
 - **Why.** First time a real foreman tries to create a job, INSERT fails on FK; or worse, succeeds with a stub profile that has no name, splitting identity across two tables.
