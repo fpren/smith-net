@@ -208,4 +208,25 @@ export const handlers = [
       ].filter((p) => p.email.includes(q) || p.displayName.toLowerCase().includes(q.toLowerCase())),
     });
   }),
+
+  http.get('/api/profiles/crew', () => {
+    return HttpResponse.json({
+      crew: [
+        {
+          id: 'p-1',
+          email: 'alice@example.com',
+          displayName: 'Alice',
+          role: 'team',
+          activeJob: { id: 'j-1', title: 'Maple Ave', status: 'in_progress' },
+        },
+        {
+          id: 'p-2',
+          email: 'bob@example.com',
+          displayName: 'Bob',
+          role: 'lead',
+          activeJob: null,
+        },
+      ],
+    });
+  }),
 ];
