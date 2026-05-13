@@ -67,7 +67,6 @@ describeDb('usersService.getUserById / getUserByEmail', () => {
 
 describeDb('usersService.verifyPassword — happy path', () => {
   beforeEach(cleanUsers);
-  afterAll(async () => { await pg?.end(); });
 
   it('returns ok=true and resets failed counter on success', async () => {
     const email = `t6-${Date.now()}@example.com`;
@@ -98,5 +97,28 @@ describeDb('usersService.verifyPassword — happy path', () => {
     const elapsed = Date.now() - start;
     expect(result.ok).toBe(false);
     expect(elapsed).toBeGreaterThanOrEqual(190); // ENUMERATION_DELAY_MS = 200, allow 10ms jitter
+  });
+});
+
+describeDb('usersService.verifyPassword — lockout', () => {
+  beforeEach(cleanUsers);
+  afterAll(async () => { await pg?.end(); });
+
+  it('locks the account after 5 failed attempts', async () => {
+    const email = `t8-${Date.now()}@example.com`;
+    const created = await usersService.createUser(email, 'password123', 'H', UserRole.SOLO);
+    for (let i = 0; i < 5; i++) {
+      const r = await usersService.verifyPassword(email, 'wrong');
+      expect(r.ok).toBe(false);
+    }
+    const locked = await usersService.verifyPassword(email, 'password123');
+    expect(locked.ok).toBe(false);
+    if (!locked.ok) {
+      expect(locked.reason).toBe('locked');
+      expect((locked as { retryMinutes: number }).retryMinutes).toBeGreaterThan(0);
+    }
+    const fresh = await usersService.getUserById(created.id);
+    expect(fresh?.failedLoginCount).toBe(5);
+    expect(fresh?.lockedUntil).toBeGreaterThan(Date.now());
   });
 });

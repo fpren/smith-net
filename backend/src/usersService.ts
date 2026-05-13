@@ -150,7 +150,19 @@ class UsersService {
 
     const isValid = await bcrypt.compare(password, user.passwordHash);
     if (!isValid) {
-      // Failure counter handled in Task 5; this is just the happy-path scaffold.
+      const MAX_FAILED_LOGINS = 5;
+      const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
+      await db.query(
+        `UPDATE users
+         SET failed_login_count = failed_login_count + 1,
+             locked_until = CASE
+               WHEN failed_login_count + 1 >= $2 THEN NOW() + ($3::text || ' milliseconds')::interval
+               ELSE locked_until
+             END,
+             updated_at = NOW()
+         WHERE id = $1`,
+        [user.id, MAX_FAILED_LOGINS, String(LOCKOUT_DURATION_MS)]
+      );
       return { ok: false, reason: 'invalid_credentials' };
     }
 
