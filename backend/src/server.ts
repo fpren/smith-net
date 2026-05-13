@@ -294,7 +294,13 @@ const server = http.createServer(app);
 // on the HTTP upgrade and only then calls handleUpgrade.
 const wss = new WebSocketServer({ noServer: true });
 wsHandler.initialize(wss);
-setupWsServer(server, wss, (ws, identity) => wsHandler.onConnection(ws, identity));
+setupWsServer(server, wss, (ws, identity) => {
+  // onConnection is async but the wsAuth callback signature is void; surface any
+  // unexpected rejection so it doesn't get swallowed by the microtask queue.
+  wsHandler.onConnection(ws, identity).catch((err) => {
+    console.error('[wsHandler.onConnection] unhandled error:', err);
+  });
+});
 
 // Initialize channel registry with defaults
 channelRegistry.initialize();

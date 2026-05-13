@@ -184,7 +184,7 @@ class ChannelRegistry {
   /**
    * Request access to a private channel
    */
-  requestAccess(channelId: string, userId: string): boolean {
+  async requestAccess(channelId: string, userId: string): Promise<boolean> {
     const channel = this.channels.get(channelId);
     if (!channel) return false;
 
@@ -197,14 +197,15 @@ class ChannelRegistry {
     if (channel.visibility !== 'private' || !channel.requiresApproval) return false;
 
     channel.pendingRequests.push(userId);
-    console.log(`[ChannelRegistry] Access request: ${userId} for ${channel.name}`);
+    await this.persistChannel(channel);
+    requestLogger().info({ event: 'channel_access_requested', channelId: channel.id, channelName: channel.name, userId }, 'channel access requested');
     return true;
   }
 
   /**
    * Respond to access request (approve/deny)
    */
-  respondToAccessRequest(channelId: string, requesterId: string, managerId: string, approve: boolean): boolean {
+  async respondToAccessRequest(channelId: string, requesterId: string, managerId: string, approve: boolean): Promise<boolean> {
     const channel = this.channels.get(channelId);
     if (!channel) return false;
 
@@ -219,18 +220,19 @@ class ChannelRegistry {
       if (!channel.memberIds.includes(requesterId)) {
         channel.memberIds.push(requesterId);
       }
-      console.log(`[ChannelRegistry] Access approved: ${requesterId} for ${channel.name}`);
+      requestLogger().info({ event: 'channel_access_approved', channelId: channel.id, channelName: channel.name, requesterId, managerId }, 'channel access approved');
     } else {
-      console.log(`[ChannelRegistry] Access denied: ${requesterId} for ${channel.name}`);
+      requestLogger().info({ event: 'channel_access_denied', channelId: channel.id, channelName: channel.name, requesterId, managerId }, 'channel access denied');
     }
 
+    await this.persistChannel(channel);
     return true;
   }
 
   /**
    * Update user access (allow/block)
    */
-  updateUserAccess(channelId: string, userId: string, managerId: string, allow: boolean): boolean {
+  async updateUserAccess(channelId: string, userId: string, managerId: string, allow: boolean): Promise<boolean> {
     const channel = this.channels.get(channelId);
     if (!channel) return false;
 
@@ -243,7 +245,7 @@ class ChannelRegistry {
         channel.allowedUsers.push(userId);
       }
       channel.blockedUsers = channel.blockedUsers.filter(id => id !== userId);
-      console.log(`[ChannelRegistry] User allowed: ${userId} in ${channel.name}`);
+      requestLogger().info({ event: 'channel_user_allowed', channelId: channel.id, channelName: channel.name, userId, managerId }, 'channel user allowed');
     } else {
       // Add to blocked, remove from allowed/members
       if (!channel.blockedUsers.includes(userId)) {
@@ -251,16 +253,17 @@ class ChannelRegistry {
       }
       channel.allowedUsers = channel.allowedUsers.filter(id => id !== userId);
       channel.memberIds = channel.memberIds.filter(id => id !== userId);
-      console.log(`[ChannelRegistry] User blocked: ${userId} from ${channel.name}`);
+      requestLogger().info({ event: 'channel_user_blocked', channelId: channel.id, channelName: channel.name, userId, managerId }, 'channel user blocked');
     }
 
+    await this.persistChannel(channel);
     return true;
   }
 
   /**
    * Update channel visibility
    */
-  updateVisibility(channelId: string, managerId: string, visibility: ChannelVisibility, requiresApproval: boolean = false): boolean {
+  async updateVisibility(channelId: string, managerId: string, visibility: ChannelVisibility, requiresApproval: boolean = false): Promise<boolean> {
     const channel = this.channels.get(channelId);
     if (!channel) return false;
 
@@ -269,7 +272,8 @@ class ChannelRegistry {
 
     channel.visibility = visibility;
     channel.requiresApproval = requiresApproval;
-    console.log(`[ChannelRegistry] Visibility updated: ${channel.name} to ${visibility}`);
+    await this.persistChannel(channel);
+    requestLogger().info({ event: 'channel_visibility_updated', channelId: channel.id, channelName: channel.name, visibility, requiresApproval, managerId }, 'channel visibility updated');
     return true;
   }
 
@@ -292,14 +296,16 @@ class ChannelRegistry {
    * Subscribe user to all broadcast channels they should have access to
    * Returns list of channel IDs the user is now subscribed to
    */
-  subscribeUserToChannels(userId: string): string[] {
+  async subscribeUserToChannels(userId: string): Promise<string[]> {
     const channelIds: string[] = [];
+    const modified: Channel[] = [];
     for (const channel of this.channels.values()) {
       if (!channel.isDeleted && !channel.isArchived) {
         // For broadcast channels, auto-subscribe everyone
         if (channel.type === 'broadcast') {
           if (!channel.memberIds.includes(userId)) {
             channel.memberIds.push(userId);
+            modified.push(channel);
           }
           channelIds.push(channel.id);
         } else if (channel.memberIds.includes(userId)) {
@@ -307,49 +313,54 @@ class ChannelRegistry {
         }
       }
     }
+    for (const c of modified) await this.persistChannel(c);
     return channelIds;
   }
 
   /**
    * Update channel
    */
-  update(id: string, updates: Partial<Channel>): Channel | undefined {
+  async update(id: string, updates: Partial<Channel>): Promise<Channel | undefined> {
     const channel = this.channels.get(id);
     if (!channel) return undefined;
 
     const updated = { ...channel, ...updates };
     this.channels.set(id, updated);
+    await this.persistChannel(updated);
     return updated;
   }
 
   /**
    * Archive channel
    */
-  archive(id: string): boolean {
+  async archive(id: string): Promise<boolean> {
     const channel = this.channels.get(id);
     if (!channel) return false;
     channel.isArchived = true;
+    await this.persistChannel(channel);
     return true;
   }
 
   /**
    * Delete channel (soft delete)
    */
-  delete(id: string): boolean {
+  async delete(id: string): Promise<boolean> {
     const channel = this.channels.get(id);
     if (!channel) return false;
     channel.isDeleted = true;
+    await this.persistChannel(channel);
     return true;
   }
 
   /**
    * Add member to channel
    */
-  addMember(channelId: string, userId: string): boolean {
+  async addMember(channelId: string, userId: string): Promise<boolean> {
     const channel = this.channels.get(channelId);
     if (!channel) return false;
     if (!channel.memberIds.includes(userId)) {
       channel.memberIds.push(userId);
+      await this.persistChannel(channel);
     }
     return true;
   }
@@ -357,10 +368,14 @@ class ChannelRegistry {
   /**
    * Remove member from channel
    */
-  removeMember(channelId: string, userId: string): boolean {
+  async removeMember(channelId: string, userId: string): Promise<boolean> {
     const channel = this.channels.get(channelId);
     if (!channel) return false;
+    const before = channel.memberIds.length;
     channel.memberIds = channel.memberIds.filter(id => id !== userId);
+    if (channel.memberIds.length !== before) {
+      await this.persistChannel(channel);
+    }
     return true;
   }
 
@@ -444,7 +459,7 @@ class ChannelRegistry {
       this.meshHashIndex.set(meshHash, id);
       count++;
     }
-    console.log(`[ChannelRegistry] Rehydrated ${count} channel(s) from Postgres`);
+    requestLogger().info({ event: 'channel_registry_rehydrated', count }, 'channel registry rehydrated from pg');
   }
 }
 

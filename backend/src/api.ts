@@ -52,7 +52,7 @@ apiRouter.use(authenticateToken);
 /**
  * Create a new channel
  */
-apiRouter.post('/channels', (req: Request, res: Response) => {
+apiRouter.post('/channels', async (req: Request, res: Response) => {
   const { name, type, memberIds, visibility, requiresApproval } = req.body as CreateChannelRequest;
 
   if (!name || !type) {
@@ -62,10 +62,10 @@ apiRouter.post('/channels', (req: Request, res: Response) => {
   // F1.1: identity from JWT (authenticateToken middleware applied at router level).
   const creatorId = (req as AuthenticatedRequest).user!.id;
 
-  const channel = channelRegistry.create(
-    name, 
-    type, 
-    creatorId, 
+  const channel = await channelRegistry.create(
+    name,
+    type,
+    creatorId,
     memberIds,
     visibility || 'public',
     requiresApproval || false
@@ -76,7 +76,7 @@ apiRouter.post('/channels', (req: Request, res: Response) => {
 
   // Pick up members already connected so they receive DMs/private channels
   // without needing to reconnect.
-  wsHandler.refreshAllSubscriptions();
+  await wsHandler.refreshAllSubscriptions();
 
   res.status(201).json(channel);
 });
@@ -109,8 +109,8 @@ apiRouter.get('/channels/:id', (req: Request, res: Response) => {
 /**
  * Update channel
  */
-apiRouter.patch('/channels/:id', (req: Request, res: Response) => {
-  const channel = channelRegistry.update(req.params.id, req.body);
+apiRouter.patch('/channels/:id', async (req: Request, res: Response) => {
+  const channel = await channelRegistry.update(req.params.id, req.body);
   
   if (!channel) {
     return res.status(404).json({ error: 'Channel not found' });
@@ -123,8 +123,8 @@ apiRouter.patch('/channels/:id', (req: Request, res: Response) => {
 /**
  * Delete channel
  */
-apiRouter.delete('/channels/:id', (req: Request, res: Response) => {
-  const success = channelRegistry.delete(req.params.id);
+apiRouter.delete('/channels/:id', async (req: Request, res: Response) => {
+  const success = await channelRegistry.delete(req.params.id);
   
   if (!success) {
     return res.status(404).json({ error: 'Channel not found' });
@@ -141,12 +141,12 @@ apiRouter.delete('/channels/:id', (req: Request, res: Response) => {
 /**
  * Request access to a private channel
  */
-apiRouter.post('/channels/:id/access/request', (req: Request, res: Response) => {
+apiRouter.post('/channels/:id/access/request', async (req: Request, res: Response) => {
   const channelId = req.params.id;
   // F1.1: identity from JWT.
   const userId = (req as AuthenticatedRequest).user!.id;
 
-  const success = channelRegistry.requestAccess(channelId, userId);
+  const success = await channelRegistry.requestAccess(channelId, userId);
   
   if (!success) {
     return res.status(400).json({ error: 'Cannot request access to this channel' });
@@ -161,13 +161,13 @@ apiRouter.post('/channels/:id/access/request', (req: Request, res: Response) => 
 /**
  * Respond to access request (approve/deny)
  */
-apiRouter.post('/channels/:id/access/respond', (req: Request, res: Response) => {
+apiRouter.post('/channels/:id/access/respond', async (req: Request, res: Response) => {
   const channelId = req.params.id;
   // F1.1: identity from JWT.
   const managerId = (req as AuthenticatedRequest).user!.id;
   const { requesterId, approve } = req.body as AccessResponsePayload;
 
-  const success = channelRegistry.respondToAccessRequest(channelId, requesterId, managerId, approve);
+  const success = await channelRegistry.respondToAccessRequest(channelId, requesterId, managerId, approve);
   
   if (!success) {
     return res.status(403).json({ error: 'Not authorized to manage this channel' });
@@ -182,13 +182,13 @@ apiRouter.post('/channels/:id/access/respond', (req: Request, res: Response) => 
 /**
  * Update user access (allow/block)
  */
-apiRouter.post('/channels/:id/access/user', (req: Request, res: Response) => {
+apiRouter.post('/channels/:id/access/user', async (req: Request, res: Response) => {
   const channelId = req.params.id;
   // F1.1: identity from JWT.
   const managerId = (req as AuthenticatedRequest).user!.id;
   const { userId, allow } = req.body as UpdateChannelAccessPayload;
 
-  const success = channelRegistry.updateUserAccess(channelId, userId, managerId, allow);
+  const success = await channelRegistry.updateUserAccess(channelId, userId, managerId, allow);
   
   if (!success) {
     return res.status(403).json({ error: 'Not authorized to manage this channel' });
@@ -203,13 +203,13 @@ apiRouter.post('/channels/:id/access/user', (req: Request, res: Response) => {
 /**
  * Update channel visibility
  */
-apiRouter.post('/channels/:id/visibility', (req: Request, res: Response) => {
+apiRouter.post('/channels/:id/visibility', async (req: Request, res: Response) => {
   const channelId = req.params.id;
   // F1.1: identity from JWT.
   const managerId = (req as AuthenticatedRequest).user!.id;
   const { visibility, requiresApproval } = req.body as UpdateChannelVisibilityPayload;
 
-  const success = channelRegistry.updateVisibility(channelId, managerId, visibility, requiresApproval);
+  const success = await channelRegistry.updateVisibility(channelId, managerId, visibility, requiresApproval);
   
   if (!success) {
     return res.status(403).json({ error: 'Not authorized to manage this channel' });
@@ -1032,8 +1032,8 @@ apiRouter.get('/metrics', async (_req: Request, res: Response) => {
  * Force refresh all WebSocket client subscriptions
  * Call this after creating channels when clients were already connected
  */
-apiRouter.post('/refresh-subscriptions', (_req: Request, res: Response) => {
-  wsHandler.refreshAllSubscriptions();
+apiRouter.post('/refresh-subscriptions', async (_req: Request, res: Response) => {
+  await wsHandler.refreshAllSubscriptions();
   res.json({
     success: true,
     message: 'Subscriptions refreshed for all connected clients',

@@ -52,7 +52,7 @@ class WSHandler {
    * validation. Identity is trusted (comes from the validated JWT). Sets up
    * the post-connect state that handleAuth used to do.
    */
-  onConnection(ws: WebSocket, identity: { userId: string; userName: string; email: string; role: string }): void {
+  async onConnection(ws: WebSocket, identity: { userId: string; userName: string; email: string; role: string }): Promise<void> {
     const { userId, userName } = identity;
 
     const client: AuthenticatedClient = {
@@ -68,7 +68,7 @@ class WSHandler {
 
     presenceManager.update(userId, userName, 'online', 'online');
 
-    const channelIds = channelRegistry.subscribeUserToChannels(userId);
+    const channelIds = await channelRegistry.subscribeUserToChannels(userId);
     for (const channelId of channelIds) {
       client.subscribedChannels.add(channelId);
       if (!client.channelUnsubs.has(channelId)) {
@@ -464,9 +464,9 @@ class WSHandler {
    * Force refresh subscriptions for all clients
    * Useful after channel creation when clients were already connected
    */
-  refreshAllSubscriptions(): void {
+  async refreshAllSubscriptions(): Promise<void> {
     for (const [ws, client] of this.clients) {
-      const channelIds = channelRegistry.subscribeUserToChannels(client.userId);
+      const channelIds = await channelRegistry.subscribeUserToChannels(client.userId);
       for (const channelId of channelIds) {
         client.subscribedChannels.add(channelId);
       }
