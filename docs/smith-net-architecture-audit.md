@@ -95,7 +95,7 @@ Each row: what + why it bites + when it bites + fix + when to fix.
 - **Fix.** Either (a) wire one real client path (Android SmithAI write-tools should go through `intentService`) or (b) move these into a feature-flagged module and skip from the default route set until the client lands.
 - **When to fix.** Roadmap Phase 4 (decision point at end of Phase 3).
 
-### 4. `wsHandler.ts` uses legacy `userId + userName` query auth
+### 4. `wsHandler.ts` uses legacy `userId + userName` query auth [closed in slice 3, commit 1ac4275]
 
 - **What.** 497 LOC handler accepts identity via WS connect params. New REST stack is JWT + httpOnly cookie.
 - **Why.** Inconsistent auth = trivial spoofing. A second client can claim any `userId`.
