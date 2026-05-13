@@ -126,6 +126,47 @@ class UsersService {
     );
     return result.rows[0] ? rowToUser(result.rows[0]) : undefined;
   }
+
+  async verifyPassword(email: string, password: string): Promise<LoginResult> {
+    const db = requirePg();
+    const ENUMERATION_DELAY_MS = 200;
+
+    const result = await db.query<UserRow>(
+      'SELECT * FROM users WHERE email_lower = $1',
+      [email.toLowerCase()]
+    );
+    const user = result.rows[0] ? rowToUser(result.rows[0]) : undefined;
+
+    if (!user || !user.isActive) {
+      await new Promise((r) => setTimeout(r, ENUMERATION_DELAY_MS));
+      return { ok: false, reason: 'invalid_credentials' };
+    }
+
+    // Lockout check — see Task 5 for full implementation.
+    if (user.lockedUntil && user.lockedUntil > Date.now()) {
+      const retryMinutes = Math.max(1, Math.ceil((user.lockedUntil - Date.now()) / 60_000));
+      return { ok: false, reason: 'locked', retryMinutes };
+    }
+
+    const isValid = await bcrypt.compare(password, user.passwordHash);
+    if (!isValid) {
+      // Failure counter handled in Task 5; this is just the happy-path scaffold.
+      return { ok: false, reason: 'invalid_credentials' };
+    }
+
+    await db.query(
+      `UPDATE users
+       SET last_login_at = NOW(),
+           failed_login_count = 0,
+           locked_until = NULL,
+           updated_at = NOW()
+       WHERE id = $1`,
+      [user.id]
+    );
+
+    const fresh = await this.getUserById(user.id);
+    return { ok: true, user: fresh! };
+  }
 }
 
 export const usersService = new UsersService();

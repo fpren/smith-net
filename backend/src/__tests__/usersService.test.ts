@@ -43,7 +43,6 @@ describeDb('usersService.createUser', () => {
 
 describeDb('usersService.getUserById / getUserByEmail', () => {
   beforeEach(cleanUsers);
-  afterAll(async () => { await pg?.end(); });
 
   it('getUserById returns user when present, undefined otherwise', async () => {
     const email = `t4-${Date.now()}@example.com`;
@@ -63,5 +62,41 @@ describeDb('usersService.getUserById / getUserByEmail', () => {
     const b = await usersService.getUserByEmail(email.toUpperCase());
     expect(a?.id).toBe(b?.id);
     expect(a?.id).toBeTruthy();
+  });
+});
+
+describeDb('usersService.verifyPassword — happy path', () => {
+  beforeEach(cleanUsers);
+  afterAll(async () => { await pg?.end(); });
+
+  it('returns ok=true and resets failed counter on success', async () => {
+    const email = `t6-${Date.now()}@example.com`;
+    const created = await usersService.createUser(email, 'password123', 'F', UserRole.SOLO);
+    const result = await usersService.verifyPassword(email, 'password123');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.user.id).toBe(created.id);
+    }
+    const fresh = await usersService.getUserById(created.id);
+    expect(fresh?.failedLoginCount).toBe(0);
+    expect(fresh?.lastLoginAt).toBeDefined();
+  });
+
+  it('returns ok=false / invalid_credentials when password is wrong', async () => {
+    const email = `t7-${Date.now()}@example.com`;
+    await usersService.createUser(email, 'password123', 'G', UserRole.SOLO);
+    const result = await usersService.verifyPassword(email, 'wrong-password');
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe('invalid_credentials');
+    }
+  });
+
+  it('returns ok=false / invalid_credentials with constant-time delay for unknown email', async () => {
+    const start = Date.now();
+    const result = await usersService.verifyPassword('nobody@example.com', 'whatever');
+    const elapsed = Date.now() - start;
+    expect(result.ok).toBe(false);
+    expect(elapsed).toBeGreaterThanOrEqual(190); // ENUMERATION_DELAY_MS = 200, allow 10ms jitter
   });
 });
