@@ -24,6 +24,7 @@ import adminRouter from './adminRoutes';
 import { jobsRouter } from './jobsRoutes';
 import { profilesRouter } from './profilesRoutes';
 import { wsHandler } from './wsHandler';
+import { setupWsServer } from './wsAuth';
 import { channelRegistry } from './channelRegistry';
 import { mediaRouter, IMAGES_DIR, VOICE_DIR, FILES_DIR, cleanupOldMedia } from './mediaHandler';
 import { auditLog, AuditAction } from './auditLog';
@@ -289,11 +290,11 @@ app.get('/', (_req, res) => {
 // Create HTTP server
 const server = http.createServer(app);
 
-// Create WebSocket server
-const wss = new WebSocketServer({ server });
-
-// Initialize WebSocket handler
+// Create WebSocket server in noServer mode — wsAuth performs JWT validation
+// on the HTTP upgrade and only then calls handleUpgrade.
+const wss = new WebSocketServer({ noServer: true });
 wsHandler.initialize(wss);
+setupWsServer(server, wss, (ws, identity) => wsHandler.onConnection(ws, identity));
 
 // Initialize channel registry with defaults
 channelRegistry.initialize();

@@ -33,40 +33,82 @@ class WSHandler {
    */
   initialize(wss: WebSocketServer): void {
     this.wss = wss;
-    
+
     // Keep presence alive for all connected clients every 30 seconds
     this.presenceInterval = setInterval(() => {
       this.refreshAllPresence();
     }, 30_000);
 
-    wss.on('connection', (ws) => {
-      requestLogger().info({ event: 'ws_new_connection' }, 'ws new connection');
-
-      ws.on('message', (data) => {
-        try {
-          const msg: WSMessage = JSON.parse(data.toString());
-          this.handleMessage(ws, msg);
-        } catch (e) {
-          this.sendError(ws, 'Invalid message format');
-        }
-      });
-
-      ws.on('close', () => {
-        this.handleDisconnect(ws);
-      });
-
-      ws.on('error', (err) => {
-        requestLogger().error({ event: 'ws_error', err }, 'ws error');
-        this.handleDisconnect(ws);
-      });
-    });
-
     // Subscribe to gateway messages
-    gatewayManager.onMessage((message, relayId) => {
+    gatewayManager.onMessage((message, _relayId) => {
       this.broadcastToChannel(message.channelId, message);
     });
 
     requestLogger().info({ event: 'ws_handler_initialized' }, 'ws handler initialized');
+  }
+
+  /**
+   * Phase 2 Slice 3 entry point. Called by wsAuth.setupWsServer after JWT
+   * validation. Identity is trusted (comes from the validated JWT). Sets up
+   * the post-connect state that handleAuth used to do.
+   */
+  onConnection(ws: WebSocket, identity: { userId: string; userName: string; email: string; role: string }): void {
+    const { userId, userName } = identity;
+
+    const client: AuthenticatedClient = {
+      ws,
+      userId,
+      userName,
+      subscribedChannels: new Set(),
+      isRelay: false,
+      relayId: undefined,
+      channelUnsubs: new Map(),
+    };
+    this.clients.set(ws, client);
+
+    presenceManager.update(userId, userName, 'online', 'online');
+
+    const channelIds = channelRegistry.subscribeUserToChannels(userId);
+    for (const channelId of channelIds) {
+      client.subscribedChannels.add(channelId);
+      if (!client.channelUnsubs.has(channelId)) {
+        const unsub = subscribe(channelId, (unifiedMsg) => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'message', data: unifiedMsg }));
+          }
+        });
+        client.channelUnsubs.set(channelId, unsub);
+      }
+    }
+
+    const channels = channelRegistry.listForUser(userId);
+    this.send(ws, {
+      type: 'auth_ok',
+      payload: {
+        userId,
+        channels: channels.map(c => ({ id: c.id, name: c.name, type: c.type })),
+      },
+      timestamp: Date.now(),
+    });
+    this.broadcastPresence();
+
+    // Wire up message + close + error handlers (previously done in the
+    // wss.on('connection') callback in initialize()).
+    ws.on('message', (data) => {
+      try {
+        const msg: WSMessage = JSON.parse(data.toString());
+        this.handleMessage(ws, msg);
+      } catch (e) {
+        this.sendError(ws, 'Invalid message format');
+      }
+    });
+    ws.on('close', () => { this.handleDisconnect(ws); });
+    ws.on('error', (err) => {
+      requestLogger().error({ event: 'ws_error', err }, 'ws error');
+      this.handleDisconnect(ws);
+    });
+
+    requestLogger().info({ event: 'ws_authenticated', userId, userName, channelCount: channelIds.length }, 'ws authenticated');
   }
 
   /**
