@@ -121,7 +121,10 @@ class WSHandler {
         break;
 
       case 'gateway_connect':
-        this.handleGatewayConnect(ws, msg.payload as { relayId: string; name: string; capabilities: string[] });
+        this.handleGatewayConnect(ws, msg.payload as { relayId: string; name: string; capabilities: string[] }).catch((err) => {
+          requestLogger().error({ err, event: 'handle_gateway_connect_failed' }, 'handleGatewayConnect failed');
+          this.sendError(ws, 'Gateway register failed');
+        });
         break;
 
       case 'gateway_message':
@@ -215,10 +218,10 @@ class WSHandler {
   /**
    * Handle gateway relay connection
    */
-  private handleGatewayConnect(
+  private async handleGatewayConnect(
     ws: WebSocket,
     payload: { relayId: string; name: string; capabilities: string[] }
-  ): void {
+  ): Promise<void> {
     // Phase 2 Slice 3: only admin/foreman/system can register as a gateway relay.
     // Identity comes from the validated JWT on the upgrade, so this check is
     // server-authoritative.
@@ -231,7 +234,7 @@ class WSHandler {
     const { relayId, name, capabilities } = payload;
 
     // Register relay
-    const relay = gatewayManager.register(relayId, name, capabilities, ws);
+    const relay = await gatewayManager.register(relayId, name, capabilities, ws);
 
     // Update client
     const client = this.clients.get(ws);
@@ -309,7 +312,11 @@ class WSHandler {
       client.channelUnsubs.clear();
 
       if (client.isRelay && client.relayId) {
-        gatewayManager.unregister(client.relayId);
+        // Fire-and-forget: handleDisconnect is called from ws 'close' event listeners
+        // and is intentionally sync. The pg DELETE is best-effort; any error is logged.
+        gatewayManager.unregister(client.relayId).catch((err) => {
+          requestLogger().error({ err, event: 'gateway_unregister_failed', relayId: client.relayId }, 'gateway unregister failed');
+        });
       }
 
       this.clients.delete(ws);

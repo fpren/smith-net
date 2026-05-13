@@ -491,17 +491,17 @@ apiRouter.get('/gateway/relays', (_req: Request, res: Response) => {
 /**
  * Disconnect a specific relay (admin control from dashboard)
  */
-apiRouter.delete('/gateway/relays/:relayId', (req: Request, res: Response) => {
+apiRouter.delete('/gateway/relays/:relayId', async (req: Request, res: Response) => {
   const { relayId } = req.params;
-  
+
   const relay = gatewayManager.get(relayId);
   if (!relay) {
     return res.status(404).json({ error: 'Relay not found' });
   }
-  
+
   // Force disconnect the relay
-  gatewayManager.forceDisconnect(relayId);
-  
+  await gatewayManager.forceDisconnect(relayId);
+
   console.log(`[API] Admin force-disconnected relay: ${relay.name} (${relayId})`);
   res.json({ success: true, disconnected: relay.name });
 });

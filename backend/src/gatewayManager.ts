@@ -6,6 +6,8 @@
 import { WebSocket } from 'ws';
 import { GatewayRelay, Message } from './types';
 import { createMessage, publish } from './messageBus';
+import { pg, isPgEnabled } from './db';
+import { requestLogger } from './log';
 
 interface ConnectedRelay {
   relay: GatewayRelay;
@@ -19,7 +21,7 @@ class GatewayManager {
   /**
    * Register a gateway relay
    */
-  register(relayId: string, name: string, capabilities: string[], ws: WebSocket): GatewayRelay {
+  async register(relayId: string, name: string, capabilities: string[], ws: WebSocket): Promise<GatewayRelay> {
     const relay: GatewayRelay = {
       id: relayId,
       name,
@@ -29,19 +31,34 @@ class GatewayManager {
     };
 
     this.relays.set(relayId, { relay, ws });
-    console.log(`[GatewayManager] Relay registered: ${name} (${relayId})`);
-    
+
+    if (isPgEnabled() && pg) {
+      await pg.query(
+        `INSERT INTO gateway_sessions (id, name, capabilities, last_activity, created_at)
+         VALUES ($1, $2, $3::jsonb, NOW(), NOW())
+         ON CONFLICT (id) DO UPDATE SET
+           name          = EXCLUDED.name,
+           capabilities  = EXCLUDED.capabilities,
+           last_activity = NOW()`,
+        [relayId, name, JSON.stringify(capabilities)]
+      );
+    }
+
+    requestLogger().info({ event: 'gateway_registered', relayId, name }, 'gateway relay registered');
     return relay;
   }
 
   /**
    * Unregister a relay
    */
-  unregister(relayId: string): void {
+  async unregister(relayId: string): Promise<void> {
     const connected = this.relays.get(relayId);
     if (connected) {
       this.relays.delete(relayId);
-      console.log(`[GatewayManager] Relay unregistered: ${connected.relay.name}`);
+      if (isPgEnabled() && pg) {
+        await pg.query('DELETE FROM gateway_sessions WHERE id = $1', [relayId]);
+      }
+      requestLogger().info({ event: 'gateway_unregistered', relayId, name: connected.relay.name }, 'gateway relay unregistered');
     }
   }
 
@@ -71,7 +88,7 @@ class GatewayManager {
    */
   injectMessage(relayId: string, message: Message): boolean {
     const connected = this.relays.get(relayId);
-    if (!connected || connected.ws.readyState !== WebSocket.OPEN) {
+    if (!connected || !connected.ws || connected.ws.readyState !== WebSocket.OPEN) {
       console.log(`[GatewayManager] Cannot inject: relay ${relayId} not connected`);
       return false;
     }
@@ -136,17 +153,23 @@ class GatewayManager {
   /**
    * Update activity timestamp
    */
-  updateActivity(relayId: string): void {
+  async updateActivity(relayId: string): Promise<void> {
     const connected = this.relays.get(relayId);
     if (connected) {
       connected.relay.lastActivity = Date.now();
+      if (isPgEnabled() && pg) {
+        await pg.query(
+          `UPDATE gateway_sessions SET last_activity = NOW() WHERE id = $1`,
+          [relayId]
+        );
+      }
     }
   }
 
   /**
    * Force disconnect a relay (admin action from dashboard)
    */
-  forceDisconnect(relayId: string): boolean {
+  async forceDisconnect(relayId: string): Promise<boolean> {
     const connected = this.relays.get(relayId);
     if (!connected) {
       return false;
@@ -154,24 +177,62 @@ class GatewayManager {
 
     try {
       // Send disconnect command to the phone
-      connected.ws.send(JSON.stringify({
-        type: 'admin_disconnect',
-        payload: { reason: 'Disconnected by admin from dashboard' },
-        timestamp: Date.now(),
-      }));
-      
-      // Close the WebSocket
-      connected.ws.close(1000, 'Admin disconnect');
-      
+      if (connected.ws) {
+        connected.ws.send(JSON.stringify({
+          type: 'admin_disconnect',
+          payload: { reason: 'Disconnected by admin from dashboard' },
+          timestamp: Date.now(),
+        }));
+
+        // Close the WebSocket
+        connected.ws.close(1000, 'Admin disconnect');
+      }
+
       // Remove from registry
       this.relays.delete(relayId);
-      
+
+      if (isPgEnabled() && pg) {
+        await pg.query('DELETE FROM gateway_sessions WHERE id = $1', [relayId]);
+      }
+
       console.log(`[GatewayManager] Force disconnected relay: ${connected.relay.name}`);
       return true;
     } catch (e) {
       console.error(`[GatewayManager] Force disconnect error:`, e);
       return false;
     }
+  }
+
+  /**
+   * Initialize gateway manager by loading non-stale (< 5 min) sessions from Postgres.
+   * The WS reference is per-process — relays must reconnect to repopulate it.
+   * `injectMessage` skips entries with a null ws.
+   */
+  async initialize(): Promise<void> {
+    if (!isPgEnabled() || !pg) {
+      requestLogger().info({ event: 'gateway_manager_initialized', mode: 'memory_only' }, 'gateway manager initialized (no DB)');
+      return;
+    }
+    const { rows } = await pg.query<{
+      id: string; name: string; capabilities: string[]; last_activity: Date; created_at: Date;
+    }>(
+      `SELECT id, name, capabilities, last_activity, created_at
+         FROM gateway_sessions
+        WHERE last_activity > NOW() - INTERVAL '5 minutes'`
+    );
+    // Note: the WS reference is per-process. We rebuild metadata but
+    // not the live socket — relays must reconnect to repopulate that.
+    for (const row of rows) {
+      const relay: GatewayRelay = {
+        id: row.id,
+        name: row.name,
+        connectedAt: row.created_at.getTime(),
+        lastActivity: row.last_activity.getTime(),
+        capabilities: row.capabilities ?? [],
+      };
+      this.relays.set(row.id, { relay, ws: null as any });
+    }
+    requestLogger().info({ event: 'gateway_manager_initialized', count: rows.length }, 'gateway manager loaded from pg');
   }
 }
 

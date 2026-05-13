@@ -26,6 +26,7 @@ import { profilesRouter } from './profilesRoutes';
 import { wsHandler } from './wsHandler';
 import { setupWsServer } from './wsAuth';
 import { channelRegistry } from './channelRegistry';
+import { gatewayManager } from './gatewayManager';
 import { mediaRouter, IMAGES_DIR, VOICE_DIR, FILES_DIR, cleanupOldMedia } from './mediaHandler';
 import { auditLog, AuditAction } from './auditLog';
 import { llm } from './llmInterface';
@@ -306,6 +307,10 @@ setupWsServer(server, wss, (ws, identity) => {
 // Non-blocking on the server.listen path: errors surface via .catch.
 channelRegistry.initialize().catch((err) => {
   requestLogger().error({ err, event: 'channel_registry_init_failed' }, 'channel registry init failed at boot');
+});
+
+gatewayManager.initialize().catch((err) => {
+  requestLogger().error({ err, event: 'gateway_manager_init_failed' }, 'gateway manager init failed at boot');
 });
 
 // Start server
