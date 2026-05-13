@@ -268,6 +268,56 @@ class UsersService {
       [userId]
     );
   }
+
+  async updateUser(id: string, updates: Partial<StoredUser>): Promise<StoredUser | undefined> {
+    const db = requirePg();
+    const sets: string[] = [];
+    const params: unknown[] = [id];
+    let i = 2;
+    const colMap: Record<keyof StoredUser, string> = {
+      id: 'id',
+      email: 'email',
+      passwordHash: 'password_hash',
+      displayName: 'display_name',
+      role: 'role',
+      organizationId: 'organization_id',
+      isActive: 'is_active',
+      mfaEnabled: 'mfa_enabled',
+      mfaSecret: 'mfa_secret',
+      failedLoginCount: 'failed_login_count',
+      lockedUntil: 'locked_until',
+      emailVerifiedAt: 'email_verified_at',
+      emailVerificationToken: 'email_verification_token',
+      emailVerificationExpiresAt: 'email_verification_expires_at',
+      emailVerificationLastSentAt: 'email_verification_last_sent_at',
+      lastLoginAt: 'last_login_at',
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+    };
+    const timestampFields = new Set([
+      'lockedUntil', 'emailVerifiedAt', 'emailVerificationExpiresAt',
+      'emailVerificationLastSentAt', 'lastLoginAt',
+    ]);
+    for (const [key, val] of Object.entries(updates) as [keyof StoredUser, unknown][]) {
+      if (key === 'id' || key === 'createdAt' || key === 'updatedAt') continue;
+      const col = colMap[key];
+      if (!col) continue;
+      sets.push(`${col} = $${i}`);
+      params.push(timestampFields.has(key) && typeof val === 'number' ? new Date(val) : val);
+      i++;
+    }
+    if (sets.length === 0) return this.getUserById(id);
+    sets.push('updated_at = NOW()');
+    const sql = `UPDATE users SET ${sets.join(', ')} WHERE id = $1 RETURNING *`;
+    const result = await db.query<UserRow>(sql, params);
+    return result.rows[0] ? rowToUser(result.rows[0]) : undefined;
+  }
+
+  async getAllUsers(): Promise<StoredUser[]> {
+    const db = requirePg();
+    const result = await db.query<UserRow>('SELECT * FROM users ORDER BY created_at DESC');
+    return result.rows.map(rowToUser);
+  }
 }
 
 export const usersService = new UsersService();

@@ -145,7 +145,6 @@ describeDb('usersService refresh tokens', () => {
 
 describeDb('usersService email verification', () => {
   beforeEach(cleanUsers);
-  afterAll(async () => { await pg?.end(); });
 
   it('findByVerificationToken returns user when token valid and unexpired', async () => {
     const email = `t11-${Date.now()}@example.com`;
@@ -183,5 +182,31 @@ describeDb('usersService email verification', () => {
     const newTok = await usersService.regenerateVerificationToken(u.id);
     expect(newTok).toBeTruthy();
     expect(newTok).not.toBe(oldTok);
+  });
+});
+
+describeDb('usersService updateUser + getAllUsers', () => {
+  beforeEach(cleanUsers);
+  afterAll(async () => { await pg?.end(); });
+
+  it('updateUser merges partial updates and returns the new state', async () => {
+    const email = `t15-${Date.now()}@example.com`;
+    const u = await usersService.createUser(email, 'password123', 'O', UserRole.SOLO);
+    const updated = await usersService.updateUser(u.id, { displayName: 'Renamed', isActive: false });
+    expect(updated?.displayName).toBe('Renamed');
+    expect(updated?.isActive).toBe(false);
+    expect(updated?.email).toBe(email.toLowerCase()); // untouched
+  });
+
+  it('updateUser returns undefined for missing user', async () => {
+    const u = await usersService.updateUser('missing', { displayName: 'X' });
+    expect(u).toBeUndefined();
+  });
+
+  it('getAllUsers returns every row', async () => {
+    await usersService.createUser(`t16a-${Date.now()}@example.com`, 'password123', 'P1', UserRole.SOLO);
+    await usersService.createUser(`t16b-${Date.now()}@example.com`, 'password123', 'P2', UserRole.SOLO);
+    const all = await usersService.getAllUsers();
+    expect(all.length).toBeGreaterThanOrEqual(2);
   });
 });
