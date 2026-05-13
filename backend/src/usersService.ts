@@ -111,6 +111,21 @@ class UsersService {
     console.log(`[usersService] User created: ${email} (${role})`);
     return rowToUser(result.rows[0]);
   }
+
+  async getUserById(id: string): Promise<StoredUser | undefined> {
+    const db = requirePg();
+    const result = await db.query<UserRow>('SELECT * FROM users WHERE id = $1', [id]);
+    return result.rows[0] ? rowToUser(result.rows[0]) : undefined;
+  }
+
+  async getUserByEmail(email: string): Promise<StoredUser | undefined> {
+    const db = requirePg();
+    const result = await db.query<UserRow>(
+      'SELECT * FROM users WHERE email_lower = $1',
+      [email.toLowerCase()]
+    );
+    return result.rows[0] ? rowToUser(result.rows[0]) : undefined;
+  }
 }
 
 export const usersService = new UsersService();

@@ -12,7 +12,6 @@ async function cleanUsers() {
 
 describeDb('usersService.createUser', () => {
   beforeEach(cleanUsers);
-  afterAll(async () => { await pg?.end(); });
 
   it('inserts a user row and returns the StoredUser', async () => {
     const email = `t1-${Date.now()}@example.com`;
@@ -39,5 +38,30 @@ describeDb('usersService.createUser', () => {
     await expect(
       usersService.createUser(email, 'short', 'C', UserRole.SOLO)
     ).rejects.toThrow();
+  });
+});
+
+describeDb('usersService.getUserById / getUserByEmail', () => {
+  beforeEach(cleanUsers);
+  afterAll(async () => { await pg?.end(); });
+
+  it('getUserById returns user when present, undefined otherwise', async () => {
+    const email = `t4-${Date.now()}@example.com`;
+    const created = await usersService.createUser(email, 'password123', 'D', UserRole.SOLO);
+    const fetched = await usersService.getUserById(created.id);
+    expect(fetched?.id).toBe(created.id);
+    expect(fetched?.email).toBe(email.toLowerCase());
+
+    const missing = await usersService.getUserById('does-not-exist');
+    expect(missing).toBeUndefined();
+  });
+
+  it('getUserByEmail is case-insensitive', async () => {
+    const email = `t5-${Date.now()}@example.com`;
+    await usersService.createUser(email, 'password123', 'E', UserRole.SOLO);
+    const a = await usersService.getUserByEmail(email);
+    const b = await usersService.getUserByEmail(email.toUpperCase());
+    expect(a?.id).toBe(b?.id);
+    expect(a?.id).toBeTruthy();
   });
 });
