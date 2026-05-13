@@ -106,7 +106,7 @@ authRouter.post('/register', validateBody(RegisterBody), async (req, res) => {
     const tokens = await generateTokens(user);
 
     // Audit log
-    auditLog.log(AuditAction.USER_REGISTER, user.id, { email });
+    await auditLog.log(AuditAction.USER_REGISTER, user.id, { email });
 
     // F1.4: send verification email (non-blocking — failures don't fail register).
     // The token was generated inside createUser; mark the send-attempt timestamp
@@ -146,7 +146,7 @@ authRouter.post('/login', async (req, res) => {
 
     if (!result.ok) {
       if (result.reason === 'locked') {
-        auditLog.log(AuditAction.SECURITY_ALERT, 'unknown', {
+        await auditLog.log(AuditAction.SECURITY_ALERT, 'unknown', {
           event: 'login_blocked_locked',
           email,
         });
@@ -156,14 +156,14 @@ authRouter.post('/login', async (req, res) => {
           retry_after_minutes: result.retryMinutes,
         });
       }
-      auditLog.log(AuditAction.USER_LOGIN_FAILED, 'unknown', { email });
+      await auditLog.log(AuditAction.USER_LOGIN_FAILED, 'unknown', { email });
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const tokens = await generateTokens(result.user);
 
     // Audit log
-    auditLog.log(AuditAction.USER_LOGIN, result.user.id, { email });
+    await auditLog.log(AuditAction.USER_LOGIN, result.user.id, { email });
 
     setAuthCookies(res, tokens);
 
@@ -222,7 +222,7 @@ authRouter.get('/verify', async (req, res) => {
   }
 
   await userStore.markEmailVerified(user.id);
-  auditLog.log(AuditAction.USER_PROFILE_UPDATE, user.id, { event: 'email_verified' });
+  await auditLog.log(AuditAction.USER_PROFILE_UPDATE, user.id, { event: 'email_verified' });
 
   try {
     const tplPath = path.join(__dirname, 'templates', 'verified.html');
@@ -268,7 +268,7 @@ authRouter.post('/resend-verification', authenticateToken, async (req: Authentic
   }
 
   await sendVerificationEmail(stored.email, stored.displayName, newToken);
-  auditLog.log(AuditAction.USER_PROFILE_UPDATE, userId, { event: 'verification_resent' });
+  await auditLog.log(AuditAction.USER_PROFILE_UPDATE, userId, { event: 'verification_resent' });
 
   res.json({ ok: true, dryRun: !isEmailLive() });
 });
@@ -298,7 +298,7 @@ authRouter.patch('/me', authenticateToken, async (req: AuthenticatedRequest, res
       return res.status(404).json({ error: 'User not found' });
     }
 
-    auditLog.log(AuditAction.USER_PROFILE_UPDATE, userId, { updates });
+    await auditLog.log(AuditAction.USER_PROFILE_UPDATE, userId, { updates });
 
     res.json({ user: toPublicUser(updated) });
   } catch (e: any) {
@@ -318,7 +318,7 @@ authRouter.post('/logout', authenticateToken, async (req: AuthenticatedRequest, 
     await userStore.revokeRefreshToken(refreshToken);
   }
 
-  auditLog.log(AuditAction.USER_LOGOUT, req.user!.id, {});
+  await auditLog.log(AuditAction.USER_LOGOUT, req.user!.id, {});
 
   clearAuthCookies(res);
 
@@ -366,7 +366,7 @@ authRouter.patch(
         return res.status(404).json({ error: 'User not found' });
       }
 
-      auditLog.log(AuditAction.USER_ROLE_CHANGE, req.user!.id, {
+      await auditLog.log(AuditAction.USER_ROLE_CHANGE, req.user!.id, {
         targetUserId: userId,
         newRole: role,
       });

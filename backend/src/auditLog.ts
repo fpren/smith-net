@@ -7,6 +7,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { pg, isPgEnabled } from './db';
 
 // ════════════════════════════════════════════════════════════════════
 // AUDIT ACTIONS
@@ -73,7 +74,10 @@ export interface AuditEntry {
   metadata: Record<string, any>;
   ip?: string;
   userAgent?: string;
-  checksum: string;       // SHA256 hash for integrity verification
+  /** SHA256 of the previous entry's checksum + this entry's body. null for the first entry. */
+  prevChecksum: string | null;
+  /** SHA256(prevChecksum + body). */
+  checksum: string;
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -158,7 +162,11 @@ class AuditLogManager {
       if (fs.existsSync(this.logFile)) {
         const content = fs.readFileSync(this.logFile, 'utf-8');
         const lines = content.trim().split('\n').filter(line => line);
-        this.entries = lines.map(line => JSON.parse(line));
+        this.entries = lines.map(line => {
+          const parsed = JSON.parse(line);
+          if (!('prevChecksum' in parsed)) parsed.prevChecksum = null;
+          return parsed;
+        });
         this.entryCounter = this.entries.length;
       }
     } catch (e) {
@@ -168,7 +176,7 @@ class AuditLogManager {
 
   private generateChecksum(entry: Omit<AuditEntry, 'checksum'>): string {
     const crypto = require('crypto');
-    const data = JSON.stringify({
+    const body = JSON.stringify({
       id: entry.id,
       timestamp: entry.timestamp,
       action: entry.action,
@@ -176,18 +184,87 @@ class AuditLogManager {
       targetId: entry.targetId,
       metadata: entry.metadata,
     });
-    return crypto.createHash('sha256').update(data).digest('hex');
+    const seed = (entry.prevChecksum ?? '') + body;
+    return crypto.createHash('sha256').update(seed).digest('hex');
   }
 
   /**
    * Log an audit entry (append-only).
+   *
+   * Writes synchronously to pg under an advisory lock so the SHA chain stays
+   * consistent across concurrent writers. JSONL is a cold backup; Task 4 will
+   * batch the JSONL flush.
    */
-  log(
+  async log(
     action: AuditAction,
     actorId: string,
     metadata: Record<string, any> = {},
     options: { targetId?: string; ip?: string; userAgent?: string } = {}
+  ): Promise<AuditEntry> {
+    if (!isPgEnabled() || !pg) {
+      // No pg available — fall back to in-memory + JSONL only (dev mode).
+      return this.logInMemoryOnly(action, actorId, metadata, options);
+    }
+
+    const client = await pg.connect();
+    try {
+      await client.query('BEGIN');
+      // Advisory lock serializes chain writers without blocking other DB work.
+      // Constant key 42 — there's only one audit chain.
+      await client.query('SELECT pg_advisory_xact_lock(42)');
+
+      // Read the most recent hash to form prevChecksum.
+      const prevResult = await client.query<{ hash: string }>(
+        `SELECT hash FROM audit_entries ORDER BY id DESC LIMIT 1`
+      );
+      const prevChecksum = prevResult.rows[0]?.hash ?? null;
+
+      const entry: Omit<AuditEntry, 'checksum'> = {
+        id: `audit-${Date.now()}-${++this.entryCounter}`,
+        timestamp: Date.now(),
+        action,
+        actorId,
+        targetId: options.targetId,
+        metadata,
+        ip: options.ip,
+        userAgent: options.userAgent,
+        prevChecksum,
+      };
+      const checksum = this.generateChecksum(entry);
+      const full: AuditEntry = { ...entry, checksum };
+
+      await client.query(
+        `INSERT INTO audit_entries
+           (audit_id, actor_id, target_id, action, metadata, ip, user_agent, prev_hash, hash)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [full.id, full.actorId, full.targetId ?? null, full.action,
+         full.metadata, full.ip ?? null, full.userAgent ?? null,
+         full.prevChecksum, full.checksum]
+      );
+      await client.query('COMMIT');
+
+      // In-memory + JSONL backups. Task 4 will move JSONL into a buffer.
+      this.entries.push(full);
+      this.bufferJsonl(full);
+      return full;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  /** No-pg path for local dev with DATABASE_URL unset. */
+  private logInMemoryOnly(
+    action: AuditAction,
+    actorId: string,
+    metadata: Record<string, any>,
+    options: { targetId?: string; ip?: string; userAgent?: string }
   ): AuditEntry {
+    const prevChecksum = this.entries.length > 0
+      ? this.entries[this.entries.length - 1].checksum
+      : null;
     const entry: Omit<AuditEntry, 'checksum'> = {
       id: `audit-${Date.now()}-${++this.entryCounter}`,
       timestamp: Date.now(),
@@ -197,27 +274,21 @@ class AuditLogManager {
       metadata,
       ip: options.ip,
       userAgent: options.userAgent,
+      prevChecksum,
     };
+    const full: AuditEntry = { ...entry, checksum: this.generateChecksum(entry) };
+    this.entries.push(full);
+    this.bufferJsonl(full);
+    return full;
+  }
 
-    const fullEntry: AuditEntry = {
-      ...entry,
-      checksum: this.generateChecksum(entry),
-    };
-
-    // Append to memory
-    this.entries.push(fullEntry);
-
-    // Append to file (JSONL format - one JSON object per line)
+  /** JSONL buffer placeholder — Task 4 will replace with 60s flush. */
+  private bufferJsonl(entry: AuditEntry): void {
     try {
-      fs.appendFileSync(this.logFile, JSON.stringify(fullEntry) + '\n');
+      fs.appendFileSync(this.logFile, JSON.stringify(entry) + '\n');
     } catch (e) {
-      console.error('[AuditLog] Failed to write to log file:', e);
+      console.error('[AuditLog] Failed to write JSONL backup:', e);
     }
-
-    // Log to console for visibility
-    console.log(`[Audit] ${action} by ${actorId}`, metadata);
-
-    return fullEntry;
   }
 
   /**
@@ -310,17 +381,24 @@ class AuditLogManager {
     let valid = 0;
     let invalid = 0;
     const invalidEntries: string[] = [];
+    let expectedPrev: string | null = null;
 
     for (const entry of this.entries) {
       const { checksum, ...rest } = entry;
+      if ((rest.prevChecksum ?? null) !== expectedPrev) {
+        invalid++;
+        invalidEntries.push(`${entry.id} (broken chain)`);
+        expectedPrev = checksum;
+        continue;
+      }
       const expectedChecksum = this.generateChecksum(rest);
-      
       if (checksum === expectedChecksum) {
         valid++;
       } else {
         invalid++;
-        invalidEntries.push(entry.id);
+        invalidEntries.push(`${entry.id} (bad hash)`);
       }
+      expectedPrev = checksum;
     }
 
     return { valid, invalid, entries: invalidEntries };

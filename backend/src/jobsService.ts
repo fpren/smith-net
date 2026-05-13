@@ -178,7 +178,7 @@ export async function create(input: CreateJobInput): Promise<Job> {
 
   const job = mapJobRow(rows[0]);
 
-  auditLog.log(AuditAction.JOB_CREATED, input.foremanId, {
+  await auditLog.log(AuditAction.JOB_CREATED, input.foremanId, {
     jobId: job.id,
     title: job.title,
     status: job.status,
@@ -211,7 +211,7 @@ export async function changeStatus(jobId: string, newStatus: JobStatus): Promise
 
   const job = mapJobRow(rows[0]);
 
-  auditLog.log(AuditAction.JOB_STATUS_CHANGED, job.foremanId, {
+  await auditLog.log(AuditAction.JOB_STATUS_CHANGED, job.foremanId, {
     jobId: job.id,
     from: existing.status,
     to: newStatus,
@@ -251,7 +251,7 @@ export async function update(jobId: string, patch: UpdatePatch): Promise<Job> {
   if (rows.length === 0) throw new NotFoundError();
   const job = mapJobRow(rows[0]);
 
-  auditLog.log(AuditAction.JOB_UPDATED, job.foremanId, {
+  await auditLog.log(AuditAction.JOB_UPDATED, job.foremanId, {
     jobId: job.id,
     changedFields,
     after: { title: job.title, description: job.description, scheduledAt: job.scheduledAt, location: job.location },
@@ -282,7 +282,7 @@ export async function assignCrew(
     );
     const assignment = mapCrewRow(rows[0]);
 
-    auditLog.log(AuditAction.JOB_CREW_ASSIGNED, job.foremanId, {
+    await auditLog.log(AuditAction.JOB_CREW_ASSIGNED, job.foremanId, {
       jobId,
       profileId,
       roleOnJob,
@@ -313,7 +313,7 @@ export async function unassignCrew(jobId: string, profileId: string): Promise<vo
     throw new NotFoundError('Assignment not found');
   }
 
-  auditLog.log(AuditAction.JOB_CREW_UNASSIGNED, job.foremanId, {
+  await auditLog.log(AuditAction.JOB_CREW_UNASSIGNED, job.foremanId, {
     jobId,
     profileId,
   });
@@ -332,7 +332,7 @@ async function geocodeAndUpdate(jobId: string, foremanId: string, locationText: 
       `UPDATE jobs SET latitude = $1, longitude = $2, geocoded_at = NOW(), updated_at = NOW() WHERE id = $3`,
       [coords.lat, coords.lng, jobId]
     );
-    auditLog.log(AuditAction.JOB_GEOCODED, foremanId, {
+    await auditLog.log(AuditAction.JOB_GEOCODED, foremanId, {
       jobId,
       lat: coords.lat,
       lng: coords.lng,

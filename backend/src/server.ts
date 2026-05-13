@@ -335,8 +335,10 @@ server.listen(PORT, () => {
   console.log('   ✓ C-05 Data Retention Core');
   console.log('════════════════════════════════════════');
   
-  // Log server start
-  auditLog.log(AuditAction.ADMIN_ACTION, 'system', { action: 'server_start', port: PORT });
+  // Log server start (fire-and-forget — startup banner mustn't block on pg).
+  auditLog
+    .log(AuditAction.ADMIN_ACTION, 'system', { action: 'server_start', port: PORT })
+    .catch((err) => console.error('[AuditLog] server_start audit failed (non-fatal):', err));
 });
 
 // Schedule media cleanup every hour
