@@ -103,7 +103,7 @@ Each row: what + why it bites + when it bites + fix + when to fix.
 - **Fix.** Validate the JWT from the upgrade handshake cookie; reject otherwise. Drop the query-param path.
 - **When to fix.** Roadmap Phase 2 (security-affecting).
 
-### 5. `channelRegistry` + `gatewayManager` in-memory
+### 5. `channelRegistry` + `gatewayManager` in-memory [closed in slice 4, commit 1a7d8b5]
 
 - **What.** 378 + 178 LOC of routing state held in process maps.
 - **Why.** Restart wipes membership; reconnect storms; mesh routing forgets peers.
