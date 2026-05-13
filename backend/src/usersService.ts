@@ -179,6 +179,37 @@ class UsersService {
     const fresh = await this.getUserById(user.id);
     return { ok: true, user: fresh! };
   }
+
+  async storeRefreshToken(token: string, userId: string): Promise<void> {
+    const db = requirePg();
+    await db.query(
+      `UPDATE users
+       SET refresh_tokens = refresh_tokens || jsonb_build_array($2::text),
+           updated_at = NOW()
+       WHERE id = $1`,
+      [userId, token]
+    );
+  }
+
+  async validateRefreshToken(token: string): Promise<string | undefined> {
+    const db = requirePg();
+    const result = await db.query<{ id: string }>(
+      `SELECT id FROM users WHERE refresh_tokens ? $1 LIMIT 1`,
+      [token]
+    );
+    return result.rows[0]?.id;
+  }
+
+  async revokeRefreshToken(token: string): Promise<void> {
+    const db = requirePg();
+    await db.query(
+      `UPDATE users
+       SET refresh_tokens = refresh_tokens - $1,
+           updated_at = NOW()
+       WHERE refresh_tokens ? $1`,
+      [token]
+    );
+  }
 }
 
 export const usersService = new UsersService();

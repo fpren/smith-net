@@ -102,7 +102,6 @@ describeDb('usersService.verifyPassword — happy path', () => {
 
 describeDb('usersService.verifyPassword — lockout', () => {
   beforeEach(cleanUsers);
-  afterAll(async () => { await pg?.end(); });
 
   it('locks the account after 5 failed attempts', async () => {
     const email = `t8-${Date.now()}@example.com`;
@@ -120,5 +119,27 @@ describeDb('usersService.verifyPassword — lockout', () => {
     const fresh = await usersService.getUserById(created.id);
     expect(fresh?.failedLoginCount).toBe(5);
     expect(fresh?.lockedUntil).toBeGreaterThan(Date.now());
+  });
+});
+
+describeDb('usersService refresh tokens', () => {
+  beforeEach(cleanUsers);
+  afterAll(async () => { await pg?.end(); });
+
+  it('storeRefreshToken + validateRefreshToken returns the userId', async () => {
+    const email = `t9-${Date.now()}@example.com`;
+    const u = await usersService.createUser(email, 'password123', 'I', UserRole.SOLO);
+    await usersService.storeRefreshToken('refresh-abc', u.id);
+    const found = await usersService.validateRefreshToken('refresh-abc');
+    expect(found).toBe(u.id);
+  });
+
+  it('revokeRefreshToken removes it', async () => {
+    const email = `t10-${Date.now()}@example.com`;
+    const u = await usersService.createUser(email, 'password123', 'J', UserRole.SOLO);
+    await usersService.storeRefreshToken('refresh-xyz', u.id);
+    await usersService.revokeRefreshToken('refresh-xyz');
+    const found = await usersService.validateRefreshToken('refresh-xyz');
+    expect(found).toBeUndefined();
   });
 });
