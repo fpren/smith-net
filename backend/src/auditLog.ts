@@ -8,6 +8,7 @@
 import fs from 'fs';
 import path from 'path';
 import { pg, isPgEnabled } from './db';
+import { requestLogger } from './log';
 
 // ════════════════════════════════════════════════════════════════════
 // AUDIT ACTIONS
@@ -156,7 +157,7 @@ class AuditLogManager {
     // Load existing entries for today
     this.loadTodaysLog();
 
-    console.log('[AuditLog] Initialized with', this.entries.length, 'entries for today');
+    requestLogger().info({ event: 'audit_log_initialized', entries: this.entries.length }, 'audit log initialized');
   }
 
   private loadTodaysLog() {
@@ -172,7 +173,7 @@ class AuditLogManager {
         this.entryCounter = this.entries.length;
       }
     } catch (e) {
-      console.error('[AuditLog] Failed to load existing log:', e);
+      requestLogger().error({ event: 'audit_log_load_failed', err: e }, 'failed to load existing audit log');
     }
   }
 
@@ -307,7 +308,7 @@ class AuditLogManager {
       const blob = drained.map((e) => JSON.stringify(e)).join('\n') + '\n';
       fs.appendFileSync(this.logFile, blob);
     } catch (e) {
-      console.error('[AuditLog] Failed to flush JSONL buffer:', e);
+      requestLogger().error({ event: 'audit_log_flush_failed', err: e }, 'failed to flush JSONL buffer');
       // Re-queue on failure — the next interval will retry.
       this.jsonlBuffer.unshift(...drained);
     }
@@ -395,7 +396,7 @@ class AuditLogManager {
       if (ageDays > 730) {
         const filePath = path.join(auditDir, file);
         fs.unlinkSync(filePath);
-        console.log(`[AuditLog] Deleted old log file: ${file}`);
+        requestLogger().info({ event: 'audit_log_file_deleted', file }, 'deleted old audit log file');
         deleted++;
       }
     }

@@ -4,6 +4,7 @@ import { authenticateToken, AuthenticatedRequest } from './auth';
 import { requireConsoleTier } from './middleware/requireConsoleTier';
 import { requireJobOwner, JobOwnerRequest } from './middleware/requireJobOwner';
 import * as jobsService from './jobsService';
+import { requestLogger } from './log';
 import { validateBody } from './middleware/validate';
 import { CreateJobBody, UpdateJobBody, StatusChangeBody, AssignCrewBody } from './schemas/jobs';
 
@@ -21,7 +22,7 @@ jobsRouter.get('/', async (req: AuthenticatedRequest, res: Response) => {
     const jobs = await jobsService.listByForeman(req.user!.id);
     res.json({ jobs });
   } catch (e: any) {
-    console.error('[Jobs] list error:', e.message);
+    requestLogger().error({ event: 'jobs_list_error', err: e }, 'jobs list error');
     res.status(500).json({ error: 'Failed to list jobs' });
   }
 });
@@ -35,7 +36,7 @@ jobsRouter.get('/:id', requireJobOwner, async (req: JobOwnerRequest, res: Respon
     const crew = await jobsService.listCrew(req.job!.id);
     res.json({ job: req.job, crew });
   } catch (e: any) {
-    console.error('[Jobs] getOne error:', e.message);
+    requestLogger().error({ event: 'jobs_get_error', err: e }, 'jobs get error');
     res.status(500).json({ error: 'Failed to load job' });
   }
 });
@@ -58,7 +59,7 @@ jobsRouter.post('/', validateBody(CreateJobBody), async (req: AuthenticatedReque
     });
     res.status(201).json({ job });
   } catch (e: any) {
-    console.error('[Jobs] create error:', e.message);
+    requestLogger().error({ event: 'jobs_create_error', err: e }, 'jobs create error');
     res.status(500).json({ error: 'Failed to create job' });
   }
 });
@@ -84,7 +85,7 @@ jobsRouter.patch('/:id/status', requireJobOwner, validateBody(StatusChangeBody),
     if (e instanceof jobsService.NotFoundError) {
       return res.status(404).json({ error: 'Job not found' });
     }
-    console.error('[Jobs] status error:', e.message);
+    requestLogger().error({ event: 'jobs_status_error', err: e }, 'jobs status error');
     res.status(500).json({ error: 'Failed to change status' });
   }
 });
@@ -107,7 +108,7 @@ jobsRouter.patch('/:id', requireJobOwner, validateBody(UpdateJobBody), async (re
     if (e instanceof jobsService.NotFoundError) {
       return res.status(404).json({ error: 'Job not found' });
     }
-    console.error('[Jobs] update error:', e.message);
+    requestLogger().error({ event: 'jobs_update_error', err: e }, 'jobs update error');
     res.status(500).json({ error: 'Failed to update job' });
   }
 });
@@ -131,7 +132,7 @@ jobsRouter.post('/:id/assign', requireJobOwner, validateBody(AssignCrewBody), as
     if (e.code === '23503') {
       return res.status(400).json({ error: 'Unknown profile', code: 'unknown_profile' });
     }
-    console.error('[Jobs] assign error:', e.message);
+    requestLogger().error({ event: 'jobs_assign_error', err: e }, 'jobs assign error');
     res.status(500).json({ error: 'Failed to assign crew' });
   }
 });
@@ -148,9 +149,9 @@ jobsRouter.delete('/:id/assign/:profileId', requireJobOwner, async (req: JobOwne
     if (e instanceof jobsService.NotFoundError) {
       return res.status(404).json({ error: e.message });
     }
-    console.error('[Jobs] unassign error:', e.message);
+    requestLogger().error({ event: 'jobs_unassign_error', err: e }, 'jobs unassign error');
     res.status(500).json({ error: 'Failed to unassign crew' });
   }
 });
 
-console.log('[Jobs] routes initialized');
+requestLogger().info({ event: 'jobs_routes_initialized' }, 'jobs routes initialized');

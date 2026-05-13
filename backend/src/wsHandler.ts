@@ -11,6 +11,7 @@ import { messageStore } from './messageStore';
 import { presenceManager } from './presenceManager';
 import { gatewayManager } from './gatewayManager';
 import { createMessage, publish, subscribe } from './messageBus';
+import { requestLogger } from './log';
 
 interface AuthenticatedClient {
   ws: WebSocket;
@@ -39,7 +40,7 @@ class WSHandler {
     }, 30_000);
 
     wss.on('connection', (ws) => {
-      console.log('[WS] New connection');
+      requestLogger().info({ event: 'ws_new_connection' }, 'ws new connection');
 
       ws.on('message', (data) => {
         try {
@@ -55,7 +56,7 @@ class WSHandler {
       });
 
       ws.on('error', (err) => {
-        console.error('[WS] Error:', err);
+        requestLogger().error({ event: 'ws_error', err }, 'ws error');
         this.handleDisconnect(ws);
       });
     });
@@ -65,7 +66,7 @@ class WSHandler {
       this.broadcastToChannel(message.channelId, message);
     });
 
-    console.log('[WS] Handler initialized');
+    requestLogger().info({ event: 'ws_handler_initialized' }, 'ws handler initialized');
   }
 
   /**
@@ -180,7 +181,7 @@ class WSHandler {
     // Broadcast presence update
     this.broadcastPresence();
 
-    console.log(`[WS] Authenticated: ${userName} (${userId}) - subscribed to ${channelIds.length} channels`);
+    requestLogger().info({ event: 'ws_authenticated', userId, userName, channelCount: channelIds.length }, 'ws authenticated');
   }
 
   /**
@@ -256,7 +257,7 @@ class WSHandler {
       timestamp: Date.now(),
     });
 
-    console.log(`[WS] Gateway connected: ${name}`);
+    requestLogger().info({ event: 'gateway_connected', relayId, name }, 'gateway connected');
   }
 
   /**
@@ -277,9 +278,9 @@ class WSHandler {
       const channel = channelRegistry.findByName(message.channelId);
       if (channel) {
         resolvedChannelId = channel.id;
-        console.log(`[Gateway] Resolved channel "${message.channelId}" -> ${resolvedChannelId}`);
+        requestLogger().info({ event: 'gateway_channel_resolved', channelName: message.channelId, resolvedChannelId }, 'gateway channel resolved');
       } else {
-        console.log(`[Gateway] Unknown channel: ${message.channelId}`);
+        requestLogger().warn({ event: 'gateway_unknown_channel', channelName: message.channelId }, 'gateway unknown channel');
         return;
       }
     }
@@ -300,7 +301,7 @@ class WSHandler {
 
     // MessageBus publish happens in gatewayManager.onMeshMessage() — no duplicate publish here
 
-    console.log(`[Gateway] Stored mesh message: "${message.content}" from ${message.senderName}`);
+    requestLogger().info({ event: 'gateway_mesh_message_stored', senderId: message.senderId, senderName: message.senderName, channelId: resolvedChannelId }, 'gateway mesh message stored');
   }
 
   /**
@@ -323,7 +324,7 @@ class WSHandler {
 
       this.clients.delete(ws);
       this.broadcastPresence();
-      console.log(`[WS] Disconnected: ${client.userName}`);
+      requestLogger().info({ event: 'ws_disconnected', userId: client.userId, userName: client.userName }, 'ws disconnected');
     }
   }
 
@@ -433,7 +434,7 @@ class WSHandler {
         });
       }
     }
-    console.log(`[WS] Auto-subscribed ${subscribed} clients to #${channelName}`);
+    requestLogger().info({ event: 'ws_auto_subscribed', subscribed, channelId, channelName }, 'ws auto subscribed clients');
   }
 
   /**
@@ -490,7 +491,7 @@ class WSHandler {
         timestamp: Date.now(),
       });
     }
-    console.log(`[WS] Refreshed subscriptions for ${this.clients.size} clients`);
+    requestLogger().info({ event: 'ws_subscriptions_refreshed', clientCount: this.clients.size }, 'ws subscriptions refreshed');
   }
 }
 

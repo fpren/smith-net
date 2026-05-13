@@ -23,6 +23,7 @@ import {
 } from './auth';
 import { auditLog, AuditAction } from './auditLog';
 import { sendEmail, isEmailLive } from './emailService';
+import { requestLogger } from './log';
 import { validateBody, validateQuery } from './middleware/validate';
 import {
   RegisterBody,
@@ -71,7 +72,7 @@ async function sendVerificationEmail(to: string, displayName: string, token: str
   const result = await sendEmail({ to, subject, text, html });
   if (!result.ok) {
     // Don't fail the request — registration succeeded; user can request resend.
-    console.warn('[Auth] Verification email send failed (non-fatal):', result.error);
+    requestLogger().warn({ event: 'verification_email_send_failed', err: result.error, email: to }, 'verification email send failed (non-fatal)');
   }
 }
 
@@ -114,7 +115,7 @@ authRouter.post('/register', validateBody(RegisterBody), async (req, res) => {
     if (user.emailVerificationToken) {
       await userStore.recordVerificationSendAttempt(user.id);
       sendVerificationEmail(user.email, user.displayName, user.emailVerificationToken)
-        .catch((err) => console.warn('[Auth] Verification email error (non-fatal):', err));
+        .catch((err) => requestLogger().warn({ event: 'verification_email_error', err, email: user.email }, 'verification email error (non-fatal)'));
     }
 
     setAuthCookies(res, tokens);
@@ -125,7 +126,7 @@ authRouter.post('/register', validateBody(RegisterBody), async (req, res) => {
       requiresEmailVerification: true,
     });
   } catch (e: any) {
-    console.error('[Auth] Register error:', e.message);
+    requestLogger().error({ event: 'register_error', err: e }, 'register error');
     res.status(400).json({ error: e.message });
   }
 });
@@ -172,7 +173,7 @@ authRouter.post('/login', async (req, res) => {
       ...tokens,
     });
   } catch (e: any) {
-    console.error('[Auth] Login error:', e.message);
+    requestLogger().error({ event: 'login_error', err: e }, 'login error');
     res.status(500).json({ error: 'Login failed' });
   }
 });
@@ -198,7 +199,7 @@ authRouter.post('/refresh', async (req, res) => {
 
     res.json(tokens);
   } catch (e: any) {
-    console.error('[Auth] Refresh error:', e.message);
+    requestLogger().error({ event: 'refresh_error', err: e }, 'refresh error');
     res.status(500).json({ error: 'Token refresh failed' });
   }
 });
@@ -302,7 +303,7 @@ authRouter.patch('/me', authenticateToken, async (req: AuthenticatedRequest, res
 
     res.json({ user: toPublicUser(updated) });
   } catch (e: any) {
-    console.error('[Auth] Update profile error:', e.message);
+    requestLogger().error({ event: 'update_profile_error', err: e }, 'update profile error');
     res.status(500).json({ error: 'Update failed' });
   }
 });
@@ -373,10 +374,10 @@ authRouter.patch(
 
       res.json({ user: toPublicUser(updated) });
     } catch (e: any) {
-      console.error('[Auth] Update role error:', e.message);
+      requestLogger().error({ event: 'update_role_error', err: e }, 'update role error');
       res.status(500).json({ error: 'Update failed' });
     }
   }
 );
 
-console.log('[Auth] Auth routes initialized');
+requestLogger().info({ event: 'auth_routes_initialized' }, 'auth routes initialized');

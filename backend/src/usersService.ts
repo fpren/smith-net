@@ -9,6 +9,7 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { pg, isPgEnabled } from './db';
+import { requestLogger } from './log';
 import {
   StoredUser,
   UserRole,
@@ -108,7 +109,7 @@ class UsersService {
       [id, email.toLowerCase(), passwordHash, displayName, role, token, expires]
     );
 
-    console.log(`[usersService] User created: ${email} (${role})`);
+    requestLogger().info({ event: 'user_created', email, role }, 'user created');
     return rowToUser(result.rows[0]);
   }
 
@@ -338,9 +339,9 @@ class UsersService {
 
     if ((result.rowCount ?? 0) > 0) {
       if (isDefault) {
-        console.warn('[usersService] Bootstrapped admin with built-in password — set DEFAULT_ADMIN_PASSWORD for production.');
+        requestLogger().warn({ event: 'admin_bootstrap_default_password' }, 'admin bootstrapped with default password — set DEFAULT_ADMIN_PASSWORD for production');
       } else {
-        console.log('[usersService] Bootstrapped admin from DEFAULT_ADMIN_PASSWORD env.');
+        requestLogger().info({ event: 'admin_bootstrap_env_password' }, 'admin bootstrapped from DEFAULT_ADMIN_PASSWORD env');
       }
     }
   }
@@ -351,6 +352,6 @@ export const usersService = new UsersService();
 // Run admin bootstrap once at import. Idempotent — safe to import many times.
 if (isPgEnabled()) {
   usersService.bootstrapAdmin().catch((err) => {
-    console.error('[usersService] admin bootstrap failed:', err);
+    requestLogger().error({ event: 'admin_bootstrap_failed', err }, 'admin bootstrap failed');
   });
 }
