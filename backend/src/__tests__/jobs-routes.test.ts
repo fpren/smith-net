@@ -5,6 +5,7 @@ import { authRouter } from '../authRoutes';
 import { jobsRouter } from '../jobsRoutes';
 import { userStore, generateTokens, UserRole } from '../auth';
 import { pg, isPgEnabled } from '../db';
+import { __resetGeocoderState } from '../geocoder';
 
 // Skip the entire suite when no Postgres test DB is configured.
 // To run these tests, set DATABASE_URL pointing at a dev/test Postgres
@@ -139,6 +140,42 @@ describeDb('POST /api/jobs', () => {
       .set('Authorization', `Bearer ${f.token}`)
       .send({ title: 'x', foremanId: 'spoofed', status: 'complete' });
     expect(res.status).toBe(400);
+  });
+
+  it('latitude/longitude get populated by background geocode', async () => {
+    // Reset geocoder rate-limit clock so we don't wait 1.1s from a prior test run.
+    __resetGeocoderState();
+    // Mock fetch globally so the geocoder returns coords without hitting Nominatim.
+    const originalFetch = global.fetch;
+    (global as any).fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => [{ lat: '40.748817', lon: '-73.985428' }],
+    });
+
+    try {
+      const f = await createForemanAndLogin('geocode-create');
+      const res = await request(app)
+        .post('/api/jobs')
+        .set('Authorization', `Bearer ${f.token}`)
+        .send({ title: 'Empire State smoke', location: 'Empire State Building, NYC' });
+      expect(res.status).toBe(201);
+      // Coords are null in the immediate response (async).
+      expect(res.body.job.latitude).toBeNull();
+
+      // Wait for the async geocode + UPDATE to complete.
+      await new Promise((r) => setTimeout(r, 200));
+
+      // Re-fetch — coords should be populated now.
+      const got = await request(app)
+        .get(`/api/jobs/${res.body.job.id}`)
+        .set('Authorization', `Bearer ${f.token}`);
+      expect(got.status).toBe(200);
+      expect(got.body.job.latitude).toBeCloseTo(40.748817, 4);
+      expect(got.body.job.longitude).toBeCloseTo(-73.985428, 4);
+    } finally {
+      global.fetch = originalFetch;
+    }
   });
 });
 

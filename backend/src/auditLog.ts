@@ -41,6 +41,7 @@ export enum AuditAction {
   JOB_STATUS_CHANGED = 'job.status_changed',
   JOB_CREW_ASSIGNED = 'job.crew_assigned',
   JOB_CREW_UNASSIGNED = 'job.crew_unassigned',
+  JOB_GEOCODED = 'job.geocoded',
 
   // Gateway / Mesh
   GATEWAY_CONNECTED = 'gateway.connected',
