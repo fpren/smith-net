@@ -40,6 +40,15 @@ export function ConsoleShell({ children }: Props) {
         <nav className="w-48 border-r border-console-border bg-console-surface p-4 text-sm text-console-text-muted">
           <div className="uppercase tracking-wide text-xs mb-2">Nav</div>
           <NavLink
+            to="/console"
+            end
+            className={({ isActive }) =>
+              `block px-2 py-1 ${isActive ? 'text-console-accent' : 'text-console-text hover:text-console-accent'}`
+            }
+          >
+            Map
+          </NavLink>
+          <NavLink
             to="/console/jobs"
             className={({ isActive }) =>
               `block px-2 py-1 ${isActive ? 'text-console-accent' : 'text-console-text hover:text-console-accent'}`
@@ -47,9 +56,14 @@ export function ConsoleShell({ children }: Props) {
           >
             Jobs
           </NavLink>
-          <div className="block px-2 py-1 text-console-text-muted/60 cursor-not-allowed" title="Coming soon">
-            Map
-          </div>
+          <NavLink
+            to="/console/crew"
+            className={({ isActive }) =>
+              `block px-2 py-1 ${isActive ? 'text-console-accent' : 'text-console-text hover:text-console-accent'}`
+            }
+          >
+            Crew
+          </NavLink>
         </nav>
         <main className="flex-1 p-6">{children}</main>
       </div>
