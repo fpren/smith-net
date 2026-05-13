@@ -111,7 +111,7 @@ Each row: what + why it bites + when it bites + fix + when to fix.
 - **Fix.** Persist channel membership and gateway sessions in pg with a TTL column; rebuild on boot from DB rather than waiting for clients to re-announce.
 - **When to fix.** Roadmap Phase 2.
 
-### 6. `auditLog.ts` writes JSONL files, not DB rows
+### 6. `auditLog.ts` writes JSONL files, not DB rows [closed in slice 2, commit 85685aa]
 
 - **What.** Daily file with SHA256 checksums. Cleanup via `setInterval` every 24h.
 - **Why.** Search is grep. Querying for "all writes by foreman X in March" is `find | xargs grep`. SHA chain spans files, not records — re-org is destructive.
