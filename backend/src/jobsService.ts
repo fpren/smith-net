@@ -5,10 +5,12 @@
 //
 // Mutation operations call auditLog.log() before returning — see plan spec.
 
+import bcrypt from 'bcryptjs';
 import { pg, isPgEnabled } from './db';
 import { auditLog, AuditAction } from './auditLog';
 import { v4 as uuidv4 } from 'uuid';
 import { geocodeLocation } from './geocoder';
+import { StoredUser, UserRole, validatePassword } from './auth';
 
 export type JobStatus = 'planned' | 'in_progress' | 'complete' | 'cancelled';
 
@@ -339,4 +341,62 @@ async function geocodeAndUpdate(jobId: string, foremanId: string, locationText: 
     // Don't crash the process — geocoding is best-effort enrichment.
     console.warn(`[JobsService] async geocode failed for ${jobId}: ${e.message}`);
   }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Transactional user+profile create (Phase 2 Slice 1)
+// ════════════════════════════════════════════════════════════════════
+
+interface CreateUserAndProfileInput {
+  email: string;
+  password: string;
+  displayName: string;
+  role: UserRole;
+  /** Internal — only used by tests to force a collision. */
+  forcedId?: string;
+}
+
+/**
+ * Phase 2 Slice 1: create a user row AND its matching profile row inside a
+ * single transaction. Either both land or neither does. Closes audit weak
+ * point #1 (userStore <-> profiles FK drift).
+ */
+export async function createUserAndProfile(input: CreateUserAndProfileInput): Promise<StoredUser> {
+  const db = requirePg();
+  const validation = validatePassword(input.password);
+  if (!validation.valid) throw new Error(validation.reason);
+
+  const id = input.forcedId ?? uuidv4();
+  const SALT_ROUNDS = 10;
+  const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
+
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      `INSERT INTO users (
+         id, email, password_hash, display_name, role,
+         is_active, mfa_enabled, failed_login_count
+       ) VALUES ($1, $2, $3, $4, $5, TRUE, FALSE, 0)`,
+      [id, input.email.toLowerCase(), passwordHash, input.displayName, input.role]
+    );
+    await client.query(
+      `INSERT INTO profiles (id, email, display_name, role)
+       VALUES ($1, $2, $3, $4)`,
+      [id, input.email.toLowerCase(), input.displayName, input.role]
+    );
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  // Re-fetch via usersService to apply the row->StoredUser mapper.
+  // Dynamic import avoids circularity: auth.ts -> usersService.ts -> auth.ts.
+  const { usersService } = await import('./usersService');
+  const fresh = await usersService.getUserById(id);
+  if (!fresh) throw new Error('[createUserAndProfile] post-insert lookup failed');
+  return fresh;
 }

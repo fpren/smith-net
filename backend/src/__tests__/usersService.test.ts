@@ -1,6 +1,7 @@
 import { pg, isPgEnabled } from '../db';
 import { usersService } from '../usersService';
 import { UserRole } from '../auth';
+import { createUserAndProfile } from '../jobsService';
 
 const describeDb = isPgEnabled() ? describe : describe.skip;
 
@@ -211,8 +212,6 @@ describeDb('usersService updateUser + getAllUsers', () => {
 });
 
 describeDb('usersService.bootstrapAdmin', () => {
-  afterAll(async () => { await pg?.end(); });
-
   it('inserts admin-001 if absent; no-op if present', async () => {
     await pg!.query("DELETE FROM users WHERE id = 'admin-001'");
     await usersService.bootstrapAdmin();
@@ -224,5 +223,57 @@ describeDb('usersService.bootstrapAdmin', () => {
     await usersService.bootstrapAdmin();
     const count = await pg!.query("SELECT COUNT(*) FROM users WHERE id = 'admin-001'");
     expect(parseInt(count.rows[0].count, 10)).toBe(1);
+  });
+});
+
+describeDb('jobsService.createUserAndProfile — transactional user+profile', () => {
+  beforeEach(cleanUsers);
+
+  it('inserts both user and profile rows on success', async () => {
+    const email = `t-tx2-${Date.now()}@example.com`;
+    const created = await createUserAndProfile({
+      email,
+      password: 'password123',
+      displayName: 'OK',
+      role: UserRole.FOREMAN,
+    });
+    expect(created.id).toBeTruthy();
+    const userRow = await pg!.query('SELECT id FROM users WHERE id = $1', [created.id]);
+    const profileRow = await pg!.query('SELECT id FROM profiles WHERE id = $1', [created.id]);
+    expect(userRow.rowCount).toBe(1);
+    expect(profileRow.rowCount).toBe(1);
+  });
+
+  it('rolls back the user when profile insert violates a constraint', async () => {
+    // Pre-seed a profile with a known id so the next user+profile create collides
+    // on the profiles PK. The user insert succeeds; the profile insert fails;
+    // both must be rolled back.
+    const collidedId = 'fixed-collision-id-' + Date.now();
+    await pg!.query(
+      "INSERT INTO profiles (id, email, display_name, role) VALUES ($1, $2, $3, $4)",
+      [collidedId, 'pre@example.com', 'Pre', UserRole.FOREMAN]
+    );
+
+    await expect(
+      createUserAndProfile({
+        email: `t-tx3-${Date.now()}@example.com`,
+        password: 'password123',
+        displayName: 'Collider',
+        role: UserRole.FOREMAN,
+        forcedId: collidedId,
+      })
+    ).rejects.toThrow();
+
+    // After rollback, NO user row with that id should exist.
+    const userRow = await pg!.query('SELECT id FROM users WHERE id = $1', [collidedId]);
+    expect(userRow.rowCount).toBe(0);
+  });
+
+  // Clean up the pre-seeded collision row, then close the pool.
+  afterAll(async () => {
+    if (isPgEnabled()) {
+      await pg!.query("DELETE FROM profiles WHERE id LIKE 'fixed-collision-id-%'");
+    }
+    await pg?.end();
   });
 });

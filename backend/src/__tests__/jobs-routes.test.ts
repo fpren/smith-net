@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser';
 import { authRouter } from '../authRoutes';
 import { jobsRouter } from '../jobsRoutes';
 import { userStore, generateTokens, UserRole } from '../auth';
+import { createUserAndProfile } from '../jobsService';
 import { pg, isPgEnabled } from '../db';
 import { __resetGeocoderState } from '../geocoder';
 
@@ -21,37 +22,31 @@ function buildApp() {
   return app;
 }
 
-// Each test creates its own foreman with a unique email so the in-memory
-// userStore doesn't collide. ALSO inserts a matching row into the pg
-// `profiles` table so jobs.foreman_id FK constraint is satisfied.
-// Returns the access token.
+// Each test creates its own foreman with a unique email so the user table
+// doesn't collide. Uses the transactional createUserAndProfile so users +
+// profiles land atomically (no more manual FK mirroring).
 async function createForemanAndLogin(suffix: string): Promise<{ id: string; token: string }> {
   const email = `foreman-jobs-${suffix}-${Date.now()}@example.com`;
-  const user = await userStore.createUser(email, 'password123', `Foreman ${suffix}`, UserRole.FOREMAN);
-  if (isPgEnabled() && pg) {
-    await pg.query(
-      `INSERT INTO profiles (id, email, display_name, role) VALUES ($1, $2, $3, $4)
-       ON CONFLICT (id) DO NOTHING`,
-      [user.id, user.email, user.displayName, 'foreman']
-    );
-  }
+  const user = await createUserAndProfile({
+    email,
+    password: 'password123',
+    displayName: `Foreman ${suffix}`,
+    role: UserRole.FOREMAN,
+  });
   const { accessToken } = await generateTokens(user);
   return { id: user.id, token: accessToken };
 }
 
-// Also expose a helper for creating crew members (TEAM_MEMBER) that get
-// mirrored into the profiles table — the assign tests need this for FK.
+// Helper for creating crew members (TEAM_MEMBER) — also via the transactional path.
 async function createCrewProfile(suffix: string): Promise<{ id: string; email: string }> {
   const email = `crew-${suffix}-${Date.now()}@example.com`;
-  const user = await userStore.createUser(email, 'password123', `Crew ${suffix}`, UserRole.TEAM_MEMBER);
-  if (isPgEnabled() && pg) {
-    await pg.query(
-      `INSERT INTO profiles (id, email, display_name, role) VALUES ($1, $2, $3, $4)
-       ON CONFLICT (id) DO NOTHING`,
-      [user.id, user.email, user.displayName, 'team']
-    );
-  }
-  return { id: user.id, email };
+  const user = await createUserAndProfile({
+    email,
+    password: 'password123',
+    displayName: `Crew ${suffix}`,
+    role: UserRole.TEAM_MEMBER,
+  });
+  return { id: user.id, email: user.email };
 }
 
 // Truncate the test data this suite produces so reruns are clean.
@@ -60,6 +55,7 @@ afterEach(async () => {
   await pg.query(`DELETE FROM job_crew`);
   await pg.query(`DELETE FROM jobs`);
   await pg.query(`DELETE FROM profiles WHERE email LIKE 'foreman-jobs-%' OR email LIKE 'crew-%'`);
+  await pg.query(`DELETE FROM users WHERE email LIKE 'foreman-jobs-%' OR email LIKE 'crew-%' OR email LIKE 'solo-jobs-%'`);
 });
 
 describeDb('GET /api/jobs', () => {
