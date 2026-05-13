@@ -116,10 +116,6 @@ class WSHandler {
    */
   private handleMessage(ws: WebSocket, msg: WSMessage): void {
     switch (msg.type) {
-      case 'auth':
-        this.handleAuth(ws, msg.payload as { userId: string; userName: string; isRelay?: boolean; relayId?: string });
-        break;
-
       case 'message':
         this.handleChatMessage(ws, msg.payload as { channelId: string; content: string; recipientId?: string; recipientName?: string });
         break;
@@ -167,63 +163,6 @@ class WSHandler {
       default:
         this.sendError(ws, `Unknown message type: ${msg.type}`);
     }
-  }
-
-  /**
-   * Handle authentication
-   */
-  private handleAuth(ws: WebSocket, payload: { userId: string; userName: string; isRelay?: boolean; relayId?: string }): void {
-    const { userId, userName, isRelay, relayId } = payload;
-
-    const client: AuthenticatedClient = {
-      ws,
-      userId,
-      userName,
-      subscribedChannels: new Set(),
-      isRelay: isRelay || false,
-      relayId,
-      channelUnsubs: new Map(),
-    };
-
-    this.clients.set(ws, client);
-
-    // Update presence
-    presenceManager.update(userId, userName, 'online', isRelay ? 'gateway' : 'online');
-
-    // Subscribe user to all appropriate channels (auto-adds to broadcast channels)
-    const channelIds = channelRegistry.subscribeUserToChannels(userId);
-    for (const channelId of channelIds) {
-      client.subscribedChannels.add(channelId);
-
-      // Subscribe to MessageBus so messages published on this channel
-      // are delivered to this WS client in real-time
-      if (!client.channelUnsubs.has(channelId)) {
-        const unsub = subscribe(channelId, (unifiedMsg) => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'message', data: unifiedMsg }));
-          }
-        });
-        client.channelUnsubs.set(channelId, unsub);
-      }
-    }
-
-    // Get full channel info for response
-    const channels = channelRegistry.listForUser(userId);
-
-    // Send auth confirmation
-    this.send(ws, {
-      type: 'auth_ok',
-      payload: {
-        userId,
-        channels: channels.map(c => ({ id: c.id, name: c.name, type: c.type })),
-      },
-      timestamp: Date.now(),
-    });
-
-    // Broadcast presence update
-    this.broadcastPresence();
-
-    requestLogger().info({ event: 'ws_authenticated', userId, userName, channelCount: channelIds.length }, 'ws authenticated');
   }
 
   /**
@@ -280,6 +219,15 @@ class WSHandler {
     ws: WebSocket,
     payload: { relayId: string; name: string; capabilities: string[] }
   ): void {
+    // Phase 2 Slice 3: only admin/foreman/system can register as a gateway relay.
+    // Identity comes from the validated JWT on the upgrade, so this check is
+    // server-authoritative.
+    const ident = (ws as any).identity as { role: string } | undefined;
+    if (!ident || (ident.role !== 'admin' && ident.role !== 'foreman' && ident.role !== 'system')) {
+      this.sendError(ws, 'Gateway registration requires admin/foreman role');
+      return;
+    }
+
     const { relayId, name, capabilities } = payload;
 
     // Register relay
