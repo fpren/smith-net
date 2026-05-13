@@ -9,6 +9,7 @@ const j = (id: string, status: Job['status']): Job => ({
   id, foremanId: 'f-1', clientId: null, engagementId: null,
   title: `Job ${id}`, description: null, status,
   scheduledAt: null, location: null,
+  latitude: null, longitude: null, geocodedAt: null,
   createdAt: '2026-05-11T10:00:00Z', updatedAt: '2026-05-11T10:00:00Z',
 });
 

@@ -12,6 +12,9 @@ export interface Job {
   status: JobStatus;
   scheduledAt: string | null;     // ISO 8601 from server
   location: string | null;
+  latitude: number | null;        // Plan 4: populated async after Nominatim geocode
+  longitude: number | null;
+  geocodedAt: string | null;      // ISO 8601 when geocode landed
   createdAt: string;
   updatedAt: string;
 }

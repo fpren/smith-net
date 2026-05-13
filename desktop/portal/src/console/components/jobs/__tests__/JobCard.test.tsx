@@ -14,6 +14,9 @@ const baseJob: Job = {
   status: 'planned',
   scheduledAt: null,
   location: '123 Main St',
+  latitude: null,
+  longitude: null,
+  geocodedAt: null,
   createdAt: '2026-05-11T10:00:00Z',
   updatedAt: '2026-05-11T10:00:00Z',
 };

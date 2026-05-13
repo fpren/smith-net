@@ -13,6 +13,9 @@ const sampleJob: Job = {
   status: 'planned',
   scheduledAt: null,
   location: null,
+  latitude: null,
+  longitude: null,
+  geocodedAt: null,
   createdAt: '2026-05-11T10:00:00Z',
   updatedAt: '2026-05-11T10:00:00Z',
 };
