@@ -9,3 +9,36 @@
     font-family: theme('fontFamily.mono');
   }
 }
+
+/* Plan 4: map marker styles. Used by createJobMarkerElement(). */
+.job-marker {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+  font-size: 14px;
+  font-weight: bold;
+  border: 2px solid theme('colors.console-bg');
+  border-radius: 4px;
+  cursor: pointer;
+  color: white;
+}
+.job-marker-planned     { background: theme('colors.console-text-muted'); }
+.job-marker-in_progress { background: theme('colors.console-ok'); }
+.job-marker-complete    { background: theme('colors.console-ok'); opacity: 0.6; }
+.job-marker-cancelled   { background: theme('colors.console-danger'); }
+
+/* MapLibre default popup needs minor reset to match console aesthetic. */
+.maplibregl-popup-content {
+  background: theme('colors.console-surface');
+  color: theme('colors.console-text');
+  border: 1px solid theme('colors.console-border');
+  border-radius: 0;
+  font-family: monospace;
+  padding: 0;
+}
+.maplibregl-popup-tip {
+  border-top-color: theme('colors.console-surface');
+}
