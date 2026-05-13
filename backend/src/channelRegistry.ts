@@ -5,6 +5,8 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { Channel, ChannelVisibility } from './types';
+import { pg, isPgEnabled } from './db';
+import { requestLogger } from './log';
 
 class ChannelRegistry {
   private channels: Map<string, Channel> = new Map();
@@ -21,17 +23,53 @@ class ChannelRegistry {
     return hash & 0x7FFF; // Keep positive, 15 bits
   }
 
+  private async persistChannel(channel: Channel): Promise<void> {
+    if (!isPgEnabled() || !pg) return; // dev-mode fallback: in-memory only
+    await pg.query(
+      `INSERT INTO channels (
+         id, name, type, visibility, creator_id,
+         member_ids, allowed_users, blocked_users, pending_requests,
+         requires_approval, is_archived, is_deleted, mesh_hash, updated_at
+       ) VALUES (
+         $1, $2, $3, $4, $5,
+         $6::jsonb, $7::jsonb, $8::jsonb, $9::jsonb,
+         $10, $11, $12, $13, NOW()
+       )
+       ON CONFLICT (id) DO UPDATE SET
+         name              = EXCLUDED.name,
+         type              = EXCLUDED.type,
+         visibility        = EXCLUDED.visibility,
+         creator_id        = EXCLUDED.creator_id,
+         member_ids        = EXCLUDED.member_ids,
+         allowed_users     = EXCLUDED.allowed_users,
+         blocked_users     = EXCLUDED.blocked_users,
+         pending_requests  = EXCLUDED.pending_requests,
+         requires_approval = EXCLUDED.requires_approval,
+         is_archived       = EXCLUDED.is_archived,
+         is_deleted        = EXCLUDED.is_deleted,
+         updated_at        = NOW()`,
+      [
+        channel.id, channel.name, channel.type, channel.visibility, channel.creatorId,
+        JSON.stringify(channel.memberIds),
+        JSON.stringify(channel.allowedUsers),
+        JSON.stringify(channel.blockedUsers),
+        JSON.stringify(channel.pendingRequests),
+        channel.requiresApproval, channel.isArchived, channel.isDeleted, channel.meshHash,
+      ]
+    );
+  }
+
   /**
    * Create a new channel with canonical ID
    */
-  create(
-    name: string, 
-    type: Channel['type'], 
-    creatorId: string, 
+  async create(
+    name: string,
+    type: Channel['type'],
+    creatorId: string,
     memberIds?: string[],
     visibility: ChannelVisibility = 'public',
     requiresApproval: boolean = false
-  ): Channel {
+  ): Promise<Channel> {
     const id = uuidv4();
     const meshHash = this.computeMeshHash(id);
 
@@ -54,8 +92,9 @@ class ChannelRegistry {
 
     this.channels.set(id, channel);
     this.meshHashIndex.set(meshHash, id);
+    await this.persistChannel(channel);
 
-    console.log(`[ChannelRegistry] Created: ${name} (${id}) visibility=${visibility} meshHash=${meshHash}`);
+    requestLogger().info({ event: 'channel_created', id, name, visibility, meshHash }, 'channel created');
     return channel;
   }
 
@@ -326,10 +365,44 @@ class ChannelRegistry {
   }
 
   /**
-   * Initialize registry (no default channels - dashboard creates them dynamically)
+   * Initialize registry by loading persisted channels from Postgres.
    */
-  initialize(): void {
-    console.log(`[ChannelRegistry] Initialized (no default channels - create via dashboard)`);
+  async initialize(): Promise<void> {
+    if (!isPgEnabled() || !pg) {
+      requestLogger().info({ event: 'channel_registry_initialized', mode: 'memory_only' }, 'channel registry initialized (no DB)');
+      return;
+    }
+    const { rows } = await pg.query<{
+      id: string; name: string; type: string; visibility: string; creator_id: string;
+      member_ids: string[]; allowed_users: string[]; blocked_users: string[]; pending_requests: string[];
+      requires_approval: boolean; is_archived: boolean; is_deleted: boolean; mesh_hash: number;
+      created_at: Date;
+    }>(
+      `SELECT * FROM channels WHERE is_deleted = FALSE ORDER BY created_at ASC`
+    );
+    let count = 0;
+    for (const row of rows) {
+      const channel: Channel = {
+        id: row.id,
+        name: row.name,
+        type: row.type as Channel['type'],
+        visibility: row.visibility as ChannelVisibility,
+        creatorId: row.creator_id,
+        memberIds: row.member_ids ?? [],
+        allowedUsers: row.allowed_users ?? [],
+        blockedUsers: row.blocked_users ?? [],
+        pendingRequests: row.pending_requests ?? [],
+        requiresApproval: row.requires_approval,
+        isArchived: row.is_archived,
+        isDeleted: row.is_deleted,
+        meshHash: row.mesh_hash,
+        createdAt: row.created_at.getTime(),
+      };
+      this.channels.set(row.id, channel);
+      this.meshHashIndex.set(row.mesh_hash, row.id);
+      count++;
+    }
+    requestLogger().info({ event: 'channel_registry_initialized', count }, 'channel registry loaded from pg');
   }
 
   /**
