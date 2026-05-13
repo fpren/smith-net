@@ -318,6 +318,39 @@ class UsersService {
     const result = await db.query<UserRow>('SELECT * FROM users ORDER BY created_at DESC');
     return result.rows.map(rowToUser);
   }
+
+  async bootstrapAdmin(): Promise<void> {
+    const db = requirePg();
+    const rawPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'admin123';
+    const isDefault = !process.env.DEFAULT_ADMIN_PASSWORD;
+    const passwordHash = await bcrypt.hash(rawPassword, SALT_ROUNDS);
+
+    const result = await db.query(
+      `INSERT INTO users (
+         id, email, password_hash, display_name, role,
+         is_active, mfa_enabled, failed_login_count,
+         email_verified_at
+       ) VALUES ('admin-001', 'admin@smithnet.local', $1, 'System Admin', 'admin',
+                 TRUE, FALSE, 0, NOW())
+       ON CONFLICT (id) DO NOTHING`,
+      [passwordHash]
+    );
+
+    if ((result.rowCount ?? 0) > 0) {
+      if (isDefault) {
+        console.warn('[usersService] Bootstrapped admin with built-in password — set DEFAULT_ADMIN_PASSWORD for production.');
+      } else {
+        console.log('[usersService] Bootstrapped admin from DEFAULT_ADMIN_PASSWORD env.');
+      }
+    }
+  }
 }
 
 export const usersService = new UsersService();
+
+// Run admin bootstrap once at import. Idempotent — safe to import many times.
+if (isPgEnabled()) {
+  usersService.bootstrapAdmin().catch((err) => {
+    console.error('[usersService] admin bootstrap failed:', err);
+  });
+}

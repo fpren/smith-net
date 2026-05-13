@@ -187,7 +187,6 @@ describeDb('usersService email verification', () => {
 
 describeDb('usersService updateUser + getAllUsers', () => {
   beforeEach(cleanUsers);
-  afterAll(async () => { await pg?.end(); });
 
   it('updateUser merges partial updates and returns the new state', async () => {
     const email = `t15-${Date.now()}@example.com`;
@@ -208,5 +207,22 @@ describeDb('usersService updateUser + getAllUsers', () => {
     await usersService.createUser(`t16b-${Date.now()}@example.com`, 'password123', 'P2', UserRole.SOLO);
     const all = await usersService.getAllUsers();
     expect(all.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describeDb('usersService.bootstrapAdmin', () => {
+  afterAll(async () => { await pg?.end(); });
+
+  it('inserts admin-001 if absent; no-op if present', async () => {
+    await pg!.query("DELETE FROM users WHERE id = 'admin-001'");
+    await usersService.bootstrapAdmin();
+    const first = await usersService.getUserById('admin-001');
+    expect(first?.email).toBe('admin@smithnet.local');
+    expect(first?.role).toBe(UserRole.ADMIN);
+    expect(first?.emailVerifiedAt).toBeDefined();
+
+    await usersService.bootstrapAdmin();
+    const count = await pg!.query("SELECT COUNT(*) FROM users WHERE id = 'admin-001'");
+    expect(parseInt(count.rows[0].count, 10)).toBe(1);
   });
 });
