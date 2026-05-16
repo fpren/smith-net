@@ -41,6 +41,7 @@ import { engagementsInvoicesRouter } from './engagementsInvoicesRoutes';
 import { settingsRouter } from './settingsRoutes';
 import { phase0Router } from './phase0Routes';
 import { proposalsRouter, proposalPublicRouter as _proposalPublicRouter } from './proposalsRoutes';
+import { presenceGatewayRouter } from './presenceGatewayRoutes';
 
 export const apiRouter = Router();
 
@@ -54,6 +55,7 @@ apiRouter.use(engagementsInvoicesRouter);
 apiRouter.use(settingsRouter);
 apiRouter.use(phase0Router);
 apiRouter.use(proposalsRouter);
+apiRouter.use(presenceGatewayRouter);
 
 // Re-export the public proposal router so server.ts can mount it at /p
 // without importing from proposalsRoutes directly. Preserves existing
@@ -416,154 +418,7 @@ apiRouter.get('/sync', (_req: Request, res: Response) => {
 // PRESENCE
 // ════════════════════════════════════════════════════════════════════
 
-/**
- * Get all presence data (for Android app polling)
- * Returns users in a format the app expects
- */
-apiRouter.get('/presence', (_req: Request, res: Response) => {
-  const onlineUsers = presenceManager.getOnline();
-  
-  // Format for Android app
-  res.json({
-    users: onlineUsers.map(p => ({
-      userId: p.userId,
-      userName: p.userName,
-      timestamp: p.lastSeen,
-      status: p.status,
-      connectionType: p.connectionType
-    })),
-    count: onlineUsers.length,
-    serverTime: Date.now()
-  });
-});
-
-/**
- * Send presence heartbeat (for Android app)
- * Called periodically to announce user is online
- */
-apiRouter.post('/presence', (req: Request, res: Response) => {
-  const { userId, userName, timestamp } = req.body;
-  
-  if (!userId || !userName) {
-    return res.status(400).json({ error: 'userId and userName required' });
-  }
-  
-  // Update presence
-  const presence = presenceManager.update(
-    userId,
-    userName,
-    'online',
-    'mobile' // Android app
-  );
-  
-  console.log(`[Presence] Heartbeat from ${userName} (${userId})`);
-  
-  // Broadcast presence update to WebSocket clients
-  wsHandler.broadcastPresence(presence);
-  
-  res.status(200).json({ 
-    success: true, 
-    presence,
-    onlineCount: presenceManager.getOnline().length
-  });
-});
-
-/**
- * Get online users only
- */
-apiRouter.get('/presence/online', (_req: Request, res: Response) => {
-  res.json(presenceManager.getOnline());
-});
-
-// ════════════════════════════════════════════════════════════════════
-// GATEWAY
-// ════════════════════════════════════════════════════════════════════
-
-/**
- * Get gateway status
- */
-apiRouter.get('/gateway/status', (_req: Request, res: Response) => {
-  const relays = gatewayManager.getAll();
-  const hasRelay = relays.length > 0;
-
-  res.json({
-    mode: hasRelay ? 'gateway' : 'online',
-    relayConnected: hasRelay,
-    relays,
-    lastMeshActivity: relays.length > 0 
-      ? Math.max(...relays.map(r => r.lastActivity))
-      : undefined,
-  });
-});
-
-/**
- * List connected relays
- */
-apiRouter.get('/gateway/relays', (_req: Request, res: Response) => {
-  res.json(gatewayManager.getAll());
-});
-
-/**
- * Disconnect a specific relay (admin control from dashboard)
- */
-apiRouter.delete('/gateway/relays/:relayId', async (req: Request, res: Response) => {
-  const { relayId } = req.params;
-
-  const relay = gatewayManager.get(relayId);
-  if (!relay) {
-    return res.status(404).json({ error: 'Relay not found' });
-  }
-
-  // Force disconnect the relay
-  await gatewayManager.forceDisconnect(relayId);
-
-  console.log(`[API] Admin force-disconnected relay: ${relay.name} (${relayId})`);
-  res.json({ success: true, disconnected: relay.name });
-});
-
-/**
- * Inject message via gateway
- */
-apiRouter.post('/gateway/inject', (req: Request, res: Response) => {
-  const { channelId, content } = req.body;
-  // F1.1: identity from JWT (was X-User-Id + X-User-Name).
-  const auth = (req as AuthenticatedRequest).user!;
-  const senderId = auth.id;
-  const senderName = auth.displayName || auth.email || 'User';
-
-  if (!channelId || !content) {
-    return res.status(400).json({ error: 'channelId and content required' });
-  }
-
-  if (!gatewayManager.hasConnectedRelay()) {
-    return res.status(503).json({ error: 'No gateway relay connected' });
-  }
-
-  // Create message
-  const message: Message = {
-    id: uuidv4(),
-    channelId,
-    senderId,
-    senderName,
-    content,
-    timestamp: Date.now(),
-    origin: 'gateway',
-  };
-
-  // Store
-  messageStore.add(channelId, senderId, senderName, content, 'gateway');
-
-  // Broadcast online
-  wsHandler.broadcastToChannel(channelId, message);
-
-  // Inject to mesh
-  const injected = gatewayManager.broadcastToRelays(message);
-
-  res.status(201).json({ 
-    message, 
-    injectedToRelays: injected 
-  });
-});
+// presence + gateway routes now in presenceGatewayRoutes.ts.
 
 // ════════════════════════════════════════════════════════════════════
 // PLAN MANAGEMENT SYSTEM
@@ -805,76 +660,7 @@ apiRouter.post('/reports/generate', async (req: Request, res: Response) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════════════
-// HEALTH
-// ════════════════════════════════════════════════════════════════════
-
-const SERVER_START_MS = Date.now();
-
-apiRouter.get('/health', (_req: Request, res: Response) => {
-  res.json({
-    status: 'ok',
-    timestamp: Date.now(),
-    uptimeSeconds: Math.floor((Date.now() - SERVER_START_MS) / 1000),
-    channels: channelRegistry.list().length,
-    onlineUsers: presenceManager.getOnline().length,
-    relays: gatewayManager.getAll().length,
-    wsClients: wsHandler.getClientCount(),
-  });
-});
-
-// More detailed metrics for monitoring. Cheap to serve; no DB hits by default.
-apiRouter.get('/metrics', async (_req: Request, res: Response) => {
-  let dbOk = false;
-  let messageCount: number | null = null;
-  try {
-    const { pg, isPgEnabled } = await import('./db');
-    if (isPgEnabled() && pg) {
-      const { rows } = await pg.query(
-        `SELECT (SELECT COUNT(*)::int FROM message_bus_messages) AS msgs`
-      );
-      messageCount = rows[0].msgs;
-      dbOk = true;
-    }
-  } catch {
-    dbOk = false;
-  }
-  const mem = process.memoryUsage();
-  res.json({
-    status: 'ok',
-    timestamp: Date.now(),
-    uptimeSeconds: Math.floor((Date.now() - SERVER_START_MS) / 1000),
-    db: { connected: dbOk, messageBusCount: messageCount },
-    connections: {
-      channels: channelRegistry.list().length,
-      onlineUsers: presenceManager.getOnline().length,
-      relays: gatewayManager.getAll().length,
-      wsClients: wsHandler.getClientCount(),
-    },
-    memory: {
-      rssMB: Math.round(mem.rss / 1024 / 1024),
-      heapUsedMB: Math.round(mem.heapUsed / 1024 / 1024),
-      heapTotalMB: Math.round(mem.heapTotal / 1024 / 1024),
-    },
-    process: {
-      pid: process.pid,
-      nodeVersion: process.version,
-    },
-  });
-});
-
-/**
- * Force refresh all WebSocket client subscriptions
- * Call this after creating channels when clients were already connected
- */
-apiRouter.post('/refresh-subscriptions', async (_req: Request, res: Response) => {
-  await wsHandler.refreshAllSubscriptions();
-  res.json({
-    success: true,
-    message: 'Subscriptions refreshed for all connected clients',
-    clientCount: wsHandler.getClientCount()
-  });
-});
+// /health + /metrics + /refresh-subscriptions now in presenceGatewayRoutes.ts.
 
 // intent/synthesize/ledger/small-project routes now in phase0Routes.ts.
 
