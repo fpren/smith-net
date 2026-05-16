@@ -37,6 +37,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { invoiceLinkService } from './invoiceLinks';
 import { wageDataService } from './wageData';
 import { authenticateToken, AuthenticatedRequest } from './auth';
+import { engagementsInvoicesRouter } from './engagementsInvoicesRoutes';
 
 export const apiRouter = Router();
 
@@ -44,6 +45,9 @@ export const apiRouter = Router();
 // Public routes (/api/auth/*, /api/admin/*, /api/health) are mounted BEFORE this router in server.ts.
 // Per F1.1 (PRD): replaces legacy `X-User-Id` header-based identity with JWT.
 apiRouter.use(authenticateToken);
+
+// Phase 4 Slice 3: domain routers (extracted from api.ts).
+apiRouter.use(engagementsInvoicesRouter);
 
 // ════════════════════════════════════════════════════════════════════
 // CHANNELS
@@ -554,47 +558,7 @@ apiRouter.post('/gateway/inject', (req: Request, res: Response) => {
 // PLAN MANAGEMENT SYSTEM
 // ════════════════════════════════════════════════════════════════════
 
-// ENGAGEMENTS
-apiRouter.post('/engagements', (req: Request, res: Response) => {
-  const { name, description, clientName, location, intent } = req.body as CreateEngagementRequest;
-
-  if (!name || !intent) {
-    return res.status(400).json({ error: 'name and intent required' });
-  }
-
-  // F1.1: identity from JWT.
-  const creatorId = (req as AuthenticatedRequest).user!.id;
-
-  const engagement: Engagement = {
-    id: uuidv4(),
-    name,
-    description,
-    clientName,
-    location,
-    createdBy: creatorId,
-    createdAt: Date.now(),
-    status: 'active',
-    intent
-  };
-
-  // TODO: Store in database
-  console.log('[API] Created engagement:', engagement.id);
-
-  res.status(201).json(engagement);
-});
-
-apiRouter.get('/engagements', (req: Request, res: Response) => {
-  // TODO: Fetch from database
-  res.json([]);
-});
-
-apiRouter.get('/engagements/:id', (req: Request, res: Response) => {
-  const { id } = req.params;
-  // TODO: Fetch from database
-  res.status(404).json({ error: 'Engagement not found' });
-});
-
-// REPORTS
+// REPORTS (basic CRUD — assemble/render/etc. further below in this file)
 apiRouter.get('/reports', (req: Request, res: Response) => {
   // TODO: Fetch reports from database
   res.json([]);
@@ -604,28 +568,6 @@ apiRouter.get('/reports/:id', (req: Request, res: Response) => {
   const { id } = req.params;
   // TODO: Fetch report from database
   res.status(404).json({ error: 'Report not found' });
-});
-
-// INVOICES
-apiRouter.get('/invoices', (req: Request, res: Response) => {
-  // TODO: Fetch invoices from database
-  res.json([]);
-});
-
-apiRouter.get('/invoices/:id', (req: Request, res: Response) => {
-  const { id } = req.params;
-  // TODO: Fetch invoice from database
-  res.status(404).json({ error: 'Invoice not found' });
-});
-
-apiRouter.patch('/invoices/:id/status', (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { status } = req.body;
-
-  // TODO: Update invoice status
-  console.log('[API] Updated invoice', id, 'status to:', status);
-
-  res.json({ status: 'updated' });
 });
 
 // ════════════════════════════════════════════════════════════════════
@@ -1351,43 +1293,5 @@ proposalPublicRouter.post('/:uuid/respond', async (req: Request, res: Response) 
 // INVOICE LINKS
 // ════════════════════════════════════════════════════════════════
 
-/**
- * Create a shareable invoice link
- */
-apiRouter.post('/invoice-links', async (req: Request, res: Response) => {
-  try {
-    const result = await invoiceLinkService.createInvoiceLink(req.body);
-    if (!result) {
-      return res.status(500).json({ error: 'Failed to create invoice link' });
-    }
-    res.status(201).json(result);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to create invoice link' });
-  }
-});
-
-// ════════════════════════════════════════════════════════════════
-// WAGES
-// ════════════════════════════════════════════════════════════════
-
-/**
- * Get BLS wage data by zip code and SOC code
- * GET /api/wages?zip=78701&soc=47-2111
- */
-apiRouter.get('/wages', async (req: Request, res: Response) => {
-  const { zip, soc } = req.query as { zip?: string; soc?: string };
-
-  if (!zip || !soc) {
-    return res.status(400).json({ error: 'zip and soc query parameters are required' });
-  }
-
-  try {
-    const result = await wageDataService.getWageByZipAndTrade(zip, soc);
-    if (!result) {
-      return res.status(404).json({ error: 'No wage data found for this zip/trade combination' });
-    }
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to retrieve wage data' });
-  }
-});
+// engagements + invoices + invoice-links + wages now live in engagementsInvoicesRoutes.ts
+// (mounted via apiRouter.use(engagementsInvoicesRouter) above).
