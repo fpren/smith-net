@@ -79,7 +79,7 @@ Each row: what + why it bites + when it bites + fix + when to fix.
 - **Fix.** Persist users in pg as part of authentication; collapse `userStore` into a `users` table; trigger or service-layer insert that creates a matching `profiles` row in the same transaction.
 - **When to fix.** Roadmap Phase 2. Blocking before any external beta.
 
-### 2. No background-job system at all [closed in phase-3, commit pending]
+### 2. No background-job system at all [closed in phase-3, commit ce7c191]
 
 - **What.** No queue table, no worker process, no retry, no dead-letter.
 - **Why.** Plan 4 makes geocoding fire-and-forget after job INSERT. Email send, invoice generation, audit flushes — all inline or scattered.
