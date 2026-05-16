@@ -86,6 +86,26 @@ Implications:
   after a crash mid-INSERT won't double-write; the unique index on
   `audit_id` is the safety net.
 
+## Email worker (Phase 3 Slice 3)
+
+`authRoutes.ts` no longer calls SMTP directly. Register and resend-verification
+enqueue a `kind='email'` job with `subkind='verification'`; the emailWorker
+dispatches and calls `emailService.sendEmail`.
+
+Dedupe key: `email:verify:<userId>:<token>`. If register races a resend the
+second enqueue returns `created: false` and only one send reaches SMTP.
+
+If SMTP env (`SMTP_USER` + `SMTP_APP_PASSWORD`) is unset, `sendEmail` runs
+in dry-run mode and logs the body to the worker's stdout — useful for
+grabbing the verification link in dev. The route's `/resend-verification`
+response still includes `dryRun: !isEmailLive()` so the client knows
+whether real mail was attempted.
+
+Retry: a `sendEmail` failure marks the row `state='failed'` with
+exponential backoff (`60 * 3^attempts` seconds, capped at 6h). After
+`max_attempts=5`, the row goes to `state='dead'` and stays for operator
+review. Same stuck-row recipe applies.
+
 ## Crew tracking (Phase 3.5)
 
 Two tables: `shifts` and `crew_positions`.
