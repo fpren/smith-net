@@ -50,3 +50,45 @@ export async function enqueue(opts: EnqueueOptions): Promise<{ id: number; creat
   // BIGSERIAL is returned as string from node-pg; normalize to number for consumers.
   return { id: Number(r.rows[0].id), created: true };
 }
+
+export interface ClaimedJob {
+  id: number;
+  payload: Record<string, unknown>;
+  attempts: number;
+  max_attempts: number;
+}
+
+export async function claimNext(kind: BgJobKind, workerId: string): Promise<ClaimedJob | null> {
+  const db = requirePg();
+  const r = await db.query<{ id: string; payload: Record<string, unknown>; attempts: number; max_attempts: number }>(
+    `UPDATE background_jobs
+        SET state = 'running',
+            locked_at = NOW(),
+            locked_by = $2,
+            attempts = attempts + 1,
+            updated_at = NOW()
+      WHERE id = (
+        SELECT id FROM background_jobs
+         WHERE kind = $1 AND state = 'queued' AND scheduled_at <= NOW()
+         ORDER BY scheduled_at, id
+         FOR UPDATE SKIP LOCKED
+         LIMIT 1
+      )
+      RETURNING id, payload, attempts, max_attempts`,
+    [kind, workerId]
+  );
+  const row = r.rows[0];
+  if (!row) return null;
+  // node-pg returns BIGSERIAL id as string; normalize to number.
+  return { id: Number(row.id), payload: row.payload, attempts: row.attempts, max_attempts: row.max_attempts };
+}
+
+export async function complete(id: number): Promise<void> {
+  const db = requirePg();
+  await db.query(
+    `UPDATE background_jobs
+        SET state = 'succeeded', finished_at = NOW(), updated_at = NOW()
+      WHERE id = $1`,
+    [id]
+  );
+}
