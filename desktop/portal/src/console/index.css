@@ -1,3 +1,8 @@
+/* Visual lift (2026-05-16): adopt the dashboard module's Altara palette
+   typography. Syne for display, IBM Plex Sans for body, IBM Plex Mono
+   throughout. */
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,6 +12,28 @@
     background-color: theme('colors.console-bg');
     color: theme('colors.console-text');
     font-family: theme('fontFamily.mono');
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* CSS vars used by the dashboard-derived primitives (Avatar / Chip /
+     ProgressBar / SectionHeader). Same palette as tailwind.config.js +
+     consoleTheme.ts. */
+  :root {
+    --color-bg:         #F4F2EE;
+    --color-surface:    #FAFAF8;
+    --color-border:     #E8E4DE;
+    --color-border2:    #D6CFC3;
+    --color-text:       #2A2520;
+    --color-text-muted: #5C5347;
+    --color-text-dim:   #8C8478;
+    --color-accent:     #9A6F2E;
+    --color-ok:         #5A8C76;
+    --color-warn:       #8C5A2E;
+    --color-danger:     #8C3A3A;
+    --font-display: 'Syne', 'IBM Plex Sans', system-ui, sans-serif;
+    --font-body:    'IBM Plex Sans', system-ui, sans-serif;
+    --font-mono:    'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   }
 }
 

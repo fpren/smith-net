@@ -18,7 +18,11 @@ module.exports = {
         'console-danger': '#8C3A3A',
       },
       fontFamily: {
-        mono: ['"JetBrains Mono"', '"SF Mono"', 'Consolas', 'monospace'],
+        // Visual lift (2026-05-16): ported from dashboard module.
+        // Body: IBM Plex Sans. Display: Syne. Mono: IBM Plex Mono.
+        sans: ['"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+        display: ['Syne', '"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+        mono: ['"IBM Plex Mono"', '"JetBrains Mono"', '"SF Mono"', 'Consolas', 'monospace'],
       },
     },
   },

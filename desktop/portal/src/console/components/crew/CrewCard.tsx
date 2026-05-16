@@ -1,6 +1,8 @@
 // desktop/portal/src/console/components/crew/CrewCard.tsx
 import { Badge } from '../ui/Badge';
+import { Avatar } from '../ui/Avatar';
 import { AvailabilityDot } from './AvailabilityDot';
+import { accentForId } from '../../lib/utils';
 import type { CrewEntry } from '../../api/crewClient';
 import type { CrewPosition } from '../../api/crewPositionsClient';
 
@@ -25,8 +27,9 @@ export function CrewCard({ entry, position }: Props) {
   const availability = entry.activeJob !== null ? 'busy' : 'free';
   const onShift = !!position;
   return (
-    <div className="grid grid-cols-[1.5ch_1fr_20ch_8ch_1fr_16ch] gap-3 items-center px-3 py-2 border-b border-console-border text-sm font-mono">
+    <div className="grid grid-cols-[1.5ch_22px_1fr_20ch_8ch_1fr_16ch] gap-3 items-center px-3 py-2 border-b border-console-border text-sm font-mono">
       <AvailabilityDot availability={availability} />
+      <Avatar name={entry.displayName} color={accentForId(entry.id)} size={22} />
       <span className="text-console-text">{entry.displayName}</span>
       <span className="text-console-text-muted truncate">{entry.email}</span>
       <Badge tone="default">{entry.role}</Badge>
