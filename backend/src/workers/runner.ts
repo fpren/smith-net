@@ -10,6 +10,7 @@
 
 import { tick as geocodeTick } from './geocodeWorker';
 import { tick as auditFlushTick } from './auditFlushWorker';
+import { tick as emailTick } from './emailWorker';
 import { baseLogger } from '../log';
 
 const WORKER_ID = `${process.pid}@${process.env.HOSTNAME ?? 'host'}`;
@@ -32,4 +33,5 @@ async function loop(kind: string, fn: (id: string) => Promise<boolean>) {
 baseLogger.info({ event: 'worker_starting', workerId: WORKER_ID }, 'worker starting');
 void loop('geocode', geocodeTick);
 void loop('audit_flush', auditFlushTick);
-// Email worker registers in Slice 3.
+void loop('email', emailTick);
+// All Phase 3 workers registered. Phase 4 adds daemons inside this runner.
