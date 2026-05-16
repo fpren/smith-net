@@ -21,6 +21,7 @@ import {
   setAuthCookies,
   clearAuthCookies,
 } from './auth';
+import { createUserAndProfile } from './jobsService';
 import { auditLog, AuditAction } from './auditLog';
 import { sendEmail, isEmailLive } from './emailService';
 import { requestLogger } from './log';
@@ -103,7 +104,11 @@ authRouter.post('/register', validateBody(RegisterBody), async (req, res) => {
       return res.status(400).json({ error: passwordCheck.reason, code: 'weak_password' });
     }
 
-    const user = await userStore.createUser(email, password, displayName, UserRole.SOLO);
+    // Phase 3.5 follow-up: use the transactional helper so the profiles row
+    // lands atomically with the users row. Without this, the register handler
+    // would only INSERT into users and downstream features that FK to
+    // profiles(id) — shifts, jobs.foreman_id — would 500 on first use.
+    const user = await createUserAndProfile({ email, password, displayName, role: UserRole.SOLO });
     const tokens = await generateTokens(user);
 
     // Audit log

@@ -354,7 +354,11 @@ export async function createUserAndProfile(input: CreateUserAndProfileInput): Pr
 
   const id = input.forcedId ?? uuidv4();
   const SALT_ROUNDS = 10;
+  const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
+  const crypto = require('crypto');
   const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
+  const verificationToken = crypto.randomBytes(32).toString('hex');
+  const verificationExpires = new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS);
 
   const client = await db.connect();
   try {
@@ -362,9 +366,10 @@ export async function createUserAndProfile(input: CreateUserAndProfileInput): Pr
     await client.query(
       `INSERT INTO users (
          id, email, password_hash, display_name, role,
-         is_active, mfa_enabled, failed_login_count
-       ) VALUES ($1, $2, $3, $4, $5, TRUE, FALSE, 0)`,
-      [id, input.email.toLowerCase(), passwordHash, input.displayName, input.role]
+         is_active, mfa_enabled, failed_login_count,
+         email_verification_token, email_verification_expires_at
+       ) VALUES ($1, $2, $3, $4, $5, TRUE, FALSE, 0, $6, $7)`,
+      [id, input.email.toLowerCase(), passwordHash, input.displayName, input.role, verificationToken, verificationExpires]
     );
     await client.query(
       `INSERT INTO profiles (id, email, display_name, role)
