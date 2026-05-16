@@ -67,3 +67,40 @@ Production runs two long-lived Node processes:
 Both connect to the same Postgres. Use `pm2` or two `systemd` units.
 
 Local development: `npm run dev:all` runs both via `concurrently`.
+
+## Crew tracking (Phase 3.5)
+
+Two tables: `shifts` and `crew_positions`.
+
+- `shifts` is append-only; at most one open shift per user is enforced by the
+  partial unique index `shifts_one_open_per_user_uidx` (where `ended_at IS NULL`).
+  Retention: keep indefinitely — needed for hours-worked reporting in Phase 3.6.
+- `crew_positions` is latest-only: one row per user, UPSERTed on every
+  `POST /api/presence/location`. No history table. Stale rows (user has no open
+  shift) are harmless because `GET /api/crew/positions` INNER JOINs to
+  `shifts WHERE ended_at IS NULL`, so the operator never sees them.
+- No PII beyond `user_id`, `lat`, `lng`, `accuracy_m`, `battery_pct`. No
+  addresses, no reverse-geocoded street names. Re-evaluate when history
+  ships (Phase 3.6).
+- API surface: `POST /api/shifts/{start,end}`, `GET /api/shifts/current`,
+  `POST /api/presence/location`, `GET /api/crew/positions` (foreman+).
+- Operator query — currently-clocked-in users:
+
+```sql
+SELECT s.user_id, pr.display_name, s.source, s.started_at,
+       p.latitude, p.longitude, p.recorded_at
+  FROM shifts s
+  INNER JOIN profiles pr      ON pr.id     = s.user_id
+  LEFT  JOIN crew_positions p ON p.user_id = s.user_id
+ WHERE s.ended_at IS NULL
+ ORDER BY s.started_at;
+```
+
+- Operator action — force-end a stuck shift (e.g. user closed app without
+  clocking out):
+
+```sql
+UPDATE shifts SET ended_at = NOW()
+ WHERE user_id = '<id>' AND ended_at IS NULL;
+```
+
