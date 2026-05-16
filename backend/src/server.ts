@@ -23,6 +23,8 @@ import { authRouter } from './authRoutes';
 import adminRouter from './adminRoutes';
 import { jobsRouter } from './jobsRoutes';
 import { profilesRouter } from './profilesRoutes';
+import { shiftsRouter } from './shiftsRoutes';
+import { presenceLocationRouter } from './presenceLocationRoutes';
 import { wsHandler } from './wsHandler';
 import { setupWsServer } from './wsAuth';
 import { channelRegistry } from './channelRegistry';
@@ -146,6 +148,12 @@ app.use('/api/jobs', jobsRouter);
 
 // Mount Profiles API (read-only crew search for console)
 app.use('/api/profiles', profilesRouter);
+
+// Mount Shifts API
+app.use('/api/shifts', shiftsRouter);
+
+// Mount Presence/Location & Crew Positions APIs
+app.use('/api', presenceLocationRouter);
 
 // Mount API
 app.use('/api', apiRouter);
