@@ -7,7 +7,7 @@ import { useJobsStore } from '../../stores/jobsStore';
 // MapLibre is mocked the same way as in MapCanvas.test.tsx
 vi.mock('maplibre-gl', () => ({
   default: {
-    Map: vi.fn(() => ({ on: vi.fn(), off: vi.fn(), addControl: vi.fn(), fitBounds: vi.fn(), flyTo: vi.fn(), remove: vi.fn() })),
+    Map: vi.fn(() => ({ on: vi.fn(), off: vi.fn(), once: vi.fn(), addControl: vi.fn(), fitBounds: vi.fn(), flyTo: vi.fn(), jumpTo: vi.fn(), remove: vi.fn(), resize: vi.fn(), loaded: () => true })),
     Marker: vi.fn(() => ({ setLngLat: vi.fn().mockReturnThis(), addTo: vi.fn().mockReturnThis(), remove: vi.fn(), getElement: vi.fn(() => document.createElement('div')) })),
     Popup: vi.fn(() => ({ setLngLat: vi.fn().mockReturnThis(), setDOMContent: vi.fn().mockReturnThis(), addTo: vi.fn().mockReturnThis(), remove: vi.fn() })),
     NavigationControl: vi.fn(() => ({})),

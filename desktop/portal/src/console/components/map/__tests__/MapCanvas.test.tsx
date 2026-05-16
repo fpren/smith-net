@@ -5,11 +5,14 @@ import type { Job } from '../../../api/jobsClient';
 import * as maplibreModule from 'maplibre-gl';
 
 const mapInstance = {
-  on: vi.fn(), off: vi.fn(),
+  on: vi.fn(), off: vi.fn(), once: vi.fn(),
   addControl: vi.fn(),
   fitBounds: vi.fn(),
   flyTo: vi.fn(),
+  jumpTo: vi.fn(),
   remove: vi.fn(),
+  resize: vi.fn(),
+  loaded: () => true,
 };
 
 const markerInstance = () => ({
