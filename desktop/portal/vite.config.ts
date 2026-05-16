@@ -7,7 +7,6 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src/dashboard'),
       '@console': path.resolve(__dirname, './src/console'),
     },
   },

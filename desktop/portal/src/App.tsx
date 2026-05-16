@@ -2,7 +2,6 @@ import { Routes, Route, Outlet } from 'react-router-dom';
 import Auth from './Auth';
 import AuthCallback from './AuthCallback';
 import Portal from './Portal';
-import DashboardApp from './dashboard/App';
 import { LoginForm } from './console/auth/LoginForm';
 import { RegisterForm } from './console/auth/RegisterForm';
 import { RequireAuth } from './console/auth/RequireAuth';
@@ -25,7 +24,6 @@ export default function App() {
       <Route path="/" element={<Auth />} />
       <Route path="/auth/callback" element={<AuthCallback onAuthSuccess={() => {}} />} />
       <Route path="/portal" element={<Portal />} />
-      <Route path="/dashboard" element={<DashboardApp />} />
 
       <Route path="/console/login" element={<LoginForm />} />
       <Route path="/console/register" element={<RegisterForm />} />
