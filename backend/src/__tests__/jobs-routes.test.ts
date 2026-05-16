@@ -6,7 +6,6 @@ import { jobsRouter } from '../jobsRoutes';
 import { userStore, generateTokens, UserRole } from '../auth';
 import { createUserAndProfile } from '../jobsService';
 import { pg, isPgEnabled } from '../db';
-import { __resetGeocoderState } from '../geocoder';
 
 // Skip the entire suite when no Postgres test DB is configured.
 // To run these tests, set DATABASE_URL pointing at a dev/test Postgres
@@ -53,6 +52,9 @@ async function createCrewProfile(suffix: string): Promise<{ id: string; email: s
 afterEach(async () => {
   if (!isPgEnabled() || !pg) return;
   await pg.query(`DELETE FROM job_crew`);
+  // Phase 3 Slice 1: create/update enqueue geocode jobs; clear them so
+  // dedupe_key doesn't collide across reruns.
+  await pg.query(`DELETE FROM background_jobs WHERE kind = 'geocode'`);
   await pg.query(`DELETE FROM jobs`);
   await pg.query(`DELETE FROM profiles WHERE email LIKE 'foreman-jobs-%' OR email LIKE 'crew-%'`);
   await pg.query(`DELETE FROM users WHERE email LIKE 'foreman-jobs-%' OR email LIKE 'crew-%' OR email LIKE 'solo-jobs-%'`);
@@ -138,40 +140,31 @@ describeDb('POST /api/jobs', () => {
     expect(res.status).toBe(400);
   });
 
-  it('latitude/longitude get populated by background geocode', async () => {
-    // Reset geocoder rate-limit clock so we don't wait 1.1s from a prior test run.
-    __resetGeocoderState();
-    // Mock fetch globally so the geocoder returns coords without hitting Nominatim.
-    const originalFetch = global.fetch;
-    (global as any).fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => [{ lat: '40.748817', lon: '-73.985428' }],
-    });
+  it('create with location enqueues a geocode background job', async () => {
+    // Phase 3 Slice 1: geocode is now async via background_jobs queue.
+    // The route returns immediately with coords=null; the worker picks up
+    // the queued row and UPDATEs lat/lng on its own schedule. The new
+    // contract under test here is the enqueue, not the eventual UPDATE.
+    const f = await createForemanAndLogin('geocode-create');
+    const res = await request(app)
+      .post('/api/jobs')
+      .set('Authorization', `Bearer ${f.token}`)
+      .send({ title: 'Empire State smoke', location: 'Empire State Building, NYC' });
+    expect(res.status).toBe(201);
+    expect(res.body.job.latitude).toBeNull();
+    expect(res.body.job.longitude).toBeNull();
 
-    try {
-      const f = await createForemanAndLogin('geocode-create');
-      const res = await request(app)
-        .post('/api/jobs')
-        .set('Authorization', `Bearer ${f.token}`)
-        .send({ title: 'Empire State smoke', location: 'Empire State Building, NYC' });
-      expect(res.status).toBe(201);
-      // Coords are null in the immediate response (async).
-      expect(res.body.job.latitude).toBeNull();
-
-      // Wait for the async geocode + UPDATE to complete.
-      await new Promise((r) => setTimeout(r, 200));
-
-      // Re-fetch — coords should be populated now.
-      const got = await request(app)
-        .get(`/api/jobs/${res.body.job.id}`)
-        .set('Authorization', `Bearer ${f.token}`);
-      expect(got.status).toBe(200);
-      expect(got.body.job.latitude).toBeCloseTo(40.748817, 4);
-      expect(got.body.job.longitude).toBeCloseTo(-73.985428, 4);
-    } finally {
-      global.fetch = originalFetch;
-    }
+    const jobId = res.body.job.id;
+    const queueRows = await pg!.query(
+      `SELECT kind, state, payload, dedupe_key
+         FROM background_jobs
+        WHERE kind = 'geocode' AND payload->>'job_id' = $1`,
+      [jobId]
+    );
+    expect(queueRows.rowCount).toBe(1);
+    expect(queueRows.rows[0].state).toBe('queued');
+    expect(queueRows.rows[0].payload.address).toBe('Empire State Building, NYC');
+    expect(queueRows.rows[0].dedupe_key).toBe(`geocode:${jobId}`);
   });
 });
 

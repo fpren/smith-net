@@ -9,7 +9,7 @@ import bcrypt from 'bcryptjs';
 import { pg, isPgEnabled } from './db';
 import { auditLog, AuditAction } from './auditLog';
 import { v4 as uuidv4 } from 'uuid';
-import { geocodeLocation } from './geocoder';
+import { enqueue } from './queue/queue';
 import { StoredUser, UserRole, validatePassword } from './auth';
 
 export type JobStatus = 'planned' | 'in_progress' | 'complete' | 'cancelled';
@@ -188,10 +188,14 @@ export async function create(input: CreateJobInput): Promise<Job> {
     engagementId: job.engagementId,
   });
 
-  // Fire-and-forget geocode. Job is already returned with coords=null;
-  // a subsequent fetch picks up the populated row.
+  // Phase 3 Slice 1: enqueue geocode instead of fire-and-forget.
+  // Worker picks it up off background_jobs and UPDATEs lat/lng asynchronously.
   if (job.location) {
-    geocodeAndUpdate(job.id, input.foremanId, job.location);
+    await enqueue({
+      kind: 'geocode',
+      payload: { job_id: job.id, address: job.location },
+      dedupeKey: `geocode:${job.id}`,
+    });
   }
 
   return job;
@@ -257,9 +261,15 @@ export async function update(jobId: string, patch: UpdatePatch): Promise<Job> {
     after: { title: job.title, description: job.description, scheduledAt: job.scheduledAt, location: job.location },
   });
 
-  // If location changed, re-geocode. Best-effort.
+  // Phase 3 Slice 1: enqueue geocode instead of fire-and-forget.
+  // dedupeKey is per-job so multiple location edits collapse to one queued row
+  // until the worker drains it; subsequent location changes after that re-enqueue.
   if (changedFields.includes('location') && job.location) {
-    geocodeAndUpdate(job.id, job.foremanId, job.location);
+    await enqueue({
+      kind: 'geocode',
+      payload: { job_id: job.id, address: job.location },
+      dedupeKey: `geocode:${job.id}`,
+    });
   }
 
   return job;
@@ -317,30 +327,6 @@ export async function unassignCrew(jobId: string, profileId: string): Promise<vo
     jobId,
     profileId,
   });
-}
-
-// ════════════════════════════════════════════════════════════════════
-// Geocoding (best-effort async; called from create + update)
-// ════════════════════════════════════════════════════════════════════
-
-async function geocodeAndUpdate(jobId: string, foremanId: string, locationText: string): Promise<void> {
-  try {
-    const coords = await geocodeLocation(locationText);
-    if (!coords) return;
-    const db = requirePg();
-    await db.query(
-      `UPDATE jobs SET latitude = $1, longitude = $2, geocoded_at = NOW(), updated_at = NOW() WHERE id = $3`,
-      [coords.lat, coords.lng, jobId]
-    );
-    await auditLog.log(AuditAction.JOB_GEOCODED, foremanId, {
-      jobId,
-      lat: coords.lat,
-      lng: coords.lng,
-    });
-  } catch (e: any) {
-    // Don't crash the process — geocoding is best-effort enrichment.
-    console.warn(`[JobsService] async geocode failed for ${jobId}: ${e.message}`);
-  }
 }
 
 // ════════════════════════════════════════════════════════════════════
