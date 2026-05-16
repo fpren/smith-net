@@ -68,6 +68,24 @@ Both connect to the same Postgres. Use `pm2` or two `systemd` units.
 
 Local development: `npm run dev:all` runs both via `concurrently`.
 
+## Audit chain visibility lag (Phase 3 Slice 2)
+
+`auditLog.log()` no longer writes synchronously. It enqueues a `kind='audit_flush'`
+row and returns `{ auditId, queued: true }` immediately; the auditFlushWorker
+drains under `pg_advisory_xact_lock(42)` and INSERTs the row into
+`audit_entries`. Typical lag: <100ms.
+
+Implications:
+- A request handler that emits an audit cannot read the resulting row in the
+  same handler — query `background_jobs` first if it must.
+- The stuck-row recipe at the top of this file applies to `audit_flush` jobs
+  too. The advisory lock is transaction-scoped, so a crashed worker releases
+  it automatically; the manual reset puts the row back to `queued` for the
+  next worker.
+- `INSERT ... ON CONFLICT (audit_id) DO NOTHING` in the worker means a retry
+  after a crash mid-INSERT won't double-write; the unique index on
+  `audit_id` is the safety net.
+
 ## Crew tracking (Phase 3.5)
 
 Two tables: `shifts` and `crew_positions`.
