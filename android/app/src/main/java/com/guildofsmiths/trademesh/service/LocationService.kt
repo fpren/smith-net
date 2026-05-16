@@ -11,6 +11,7 @@ import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.os.BatteryManager
 import android.os.Build
 import android.os.IBinder
 import android.os.Looper
@@ -22,7 +23,14 @@ import com.guildofsmiths.trademesh.R
 import com.guildofsmiths.trademesh.data.CrewPresenceRepository
 import com.guildofsmiths.trademesh.data.LocationSharingPreferences
 import com.guildofsmiths.trademesh.data.LocationTrailRepository
+import com.guildofsmiths.trademesh.data.PresenceApiClient
 import com.guildofsmiths.trademesh.data.UserPreferences
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
 
 /**
  * Foreground service that tracks the device's GPS location while clocked in.
@@ -56,6 +64,11 @@ class LocationService : Service() {
     private var locationManager: LocationManager? = null
     private var listener: LocationListener? = null
     private var running = false
+
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val presenceApi by lazy { PresenceApiClient(OkHttpClient()) }
+    private var lastPostAtMs: Long = 0L
+    private val postIntervalMs: Long = 60_000L
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -92,6 +105,7 @@ class LocationService : Service() {
     }
 
     override fun onDestroy() {
+        serviceScope.cancel()
         stopUpdates()
         running = false
         super.onDestroy()
@@ -109,6 +123,30 @@ class LocationService : Service() {
         listener = object : LocationListener {
             override fun onLocationChanged(location: Location) {
                 record(userId, location)
+
+                val now = System.currentTimeMillis()
+                if (now - lastPostAtMs < postIntervalMs) return
+                lastPostAtMs = now
+
+                val accuracy: Float? = if (location.hasAccuracy()) location.accuracy else null
+                val battery: Int? = readBatteryPct()
+
+                serviceScope.launch {
+                    try {
+                        val ok = presenceApi.postLocation(
+                            lat = location.latitude,
+                            lng = location.longitude,
+                            accuracyM = accuracy,
+                            batteryPct = battery,
+                        )
+                        if (!ok) {
+                            Log.w(TAG, "postLocation returned no-open-shift; stopping service")
+                            stopSelf()
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "postLocation failed (will retry on next emission): ${e.message}")
+                    }
+                }
             }
             @Deprecated("Deprecated in Java")
             override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) {}
@@ -162,6 +200,15 @@ class LocationService : Service() {
             timestamp = loc.time,
             source = loc.provider ?: "gps"
         )
+    }
+
+    private fun readBatteryPct(): Int? {
+        return try {
+            val bm = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+            bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private fun hasPermission(): Boolean = ContextCompat.checkSelfPermission(
