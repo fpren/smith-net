@@ -32,9 +32,9 @@ describe('JobCard', () => {
     expect(screen.getByText('123 Main St')).toBeInTheDocument();
   });
 
-  it('renders "unsch" when scheduledAt is null', () => {
+  it('renders "unscheduled" when scheduledAt is null', () => {
     render(<MemoryRouter><JobCard job={baseJob} /></MemoryRouter>);
-    expect(screen.getByText('unsch')).toBeInTheDocument();
+    expect(screen.getByText('unscheduled')).toBeInTheDocument();
   });
 
   it('renders id prefix (first 8 chars after #)', () => {

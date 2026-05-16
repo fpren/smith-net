@@ -2,10 +2,11 @@ import { FormEvent, useEffect, useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
-import { Badge } from '../ui/Badge';
+import { Chip } from '../ui/Chip';
 import { profilesClient, ProfileMatch } from '../../api/profilesClient';
 import { jobsClient, CrewAssignment } from '../../api/jobsClient';
 import { useToast } from '../../hooks/useToast';
+import { colorForRole } from '../../lib/utils';
 
 interface Props {
   open: boolean;
@@ -99,7 +100,7 @@ export function AssignCrewModal({ open, jobId, alreadyAssigned, onClose, onAssig
                   <span className="text-console-text">{p.displayName}</span>{' '}
                   <span className="text-console-text-muted">{p.email}</span>
                 </span>
-                <Badge tone="default">{p.role}</Badge>
+                <Chip label={p.role.toUpperCase()} color={colorForRole(p.role)} xs />
                 {assigned && <span className="ml-2 text-console-text-muted text-xs">(already assigned)</span>}
               </button>
             );

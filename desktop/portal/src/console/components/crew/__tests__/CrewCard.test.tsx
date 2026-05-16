@@ -19,9 +19,9 @@ describe('CrewCard', () => {
     expect(screen.getByText('b@x.com')).toBeInTheDocument();
   });
 
-  it('renders role badge', () => {
+  it('renders role chip (uppercase)', () => {
     render(<CrewCard entry={free} />);
-    expect(screen.getByText('lead')).toBeInTheDocument();
+    expect(screen.getByText('LEAD')).toBeInTheDocument();
   });
 
   it('renders "on <title>" when busy', () => {

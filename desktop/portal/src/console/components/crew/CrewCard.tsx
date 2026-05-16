@@ -1,8 +1,8 @@
 // desktop/portal/src/console/components/crew/CrewCard.tsx
-import { Badge } from '../ui/Badge';
+import { Chip } from '../ui/Chip';
 import { Avatar } from '../ui/Avatar';
 import { AvailabilityDot } from './AvailabilityDot';
-import { accentForId } from '../../lib/utils';
+import { accentForId, colorForRole } from '../../lib/utils';
 import type { CrewEntry } from '../../api/crewClient';
 import type { CrewPosition } from '../../api/crewPositionsClient';
 
@@ -32,7 +32,7 @@ export function CrewCard({ entry, position }: Props) {
       <Avatar name={entry.displayName} color={accentForId(entry.id)} size={22} />
       <span className="text-console-text">{entry.displayName}</span>
       <span className="text-console-text-muted truncate">{entry.email}</span>
-      <Badge tone="default">{entry.role}</Badge>
+      <Chip label={entry.role.toUpperCase()} color={colorForRole(entry.role)} xs />
       <span className="text-console-text-muted truncate">
         {entry.activeJob ? `on ${entry.activeJob.title}` : 'idle'}
       </span>

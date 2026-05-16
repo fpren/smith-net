@@ -19,10 +19,12 @@ describe('JobsListRoute', () => {
   it('renders 4 status section headers', async () => {
     useJobsStore.getState().setJobs([j('a', 'planned'), j('b', 'in_progress'), j('c', 'complete'), j('d', 'cancelled')]);
     render(<MemoryRouter><JobsListRoute /></MemoryRouter>);
-    expect(screen.getByText(/planned/i)).toBeInTheDocument();
-    expect(screen.getByText(/in progress/i)).toBeInTheDocument();
-    expect(screen.getByText(/^complete/i)).toBeInTheDocument();
-    expect(screen.getByText(/cancelled/i)).toBeInTheDocument();
+    // Status labels appear in section headers AND JobCard chips (visual lift).
+    // Use the "X (N)" header form to disambiguate.
+    expect(screen.getByText('PLANNED (1)')).toBeInTheDocument();
+    expect(screen.getByText('IN PROGRESS (1)')).toBeInTheDocument();
+    expect(screen.getByText('COMPLETE (1)')).toBeInTheDocument();
+    expect(screen.getByText('CANCELLED (1)')).toBeInTheDocument();
   });
 
   it('renders correct count next to each header', () => {

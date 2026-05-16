@@ -49,3 +49,16 @@ export function accentForId(id: string): string {
   for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
   return ACCENT_PALETTE[Math.abs(hash) % ACCENT_PALETTE.length];
 }
+
+/** Stable accent color for a user role. Used by Chip in CrewCard etc. */
+export function colorForRole(role: string): string {
+  switch (role) {
+    case 'admin':      return '#8C3A3A'; // brick
+    case 'enterprise': return '#3A6E8C'; // dusty blue
+    case 'foreman':    return '#9A6F2E'; // accent gold
+    case 'lead':       return '#6B4F8C'; // muted purple
+    case 'team':       return '#5A8C76'; // sage
+    case 'solo':
+    default:           return '#8C7E3A'; // olive
+  }
+}
