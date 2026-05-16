@@ -7,6 +7,7 @@ const describeDb = isPgEnabled() ? describe : describe.skip;
 async function cleanQueue() {
   if (!isPgEnabled()) return;
   await pg!.query(`DELETE FROM background_jobs WHERE kind='test_cleanup'`);
+  await pg!.query(`DELETE FROM worker_heartbeats WHERE worker_id LIKE 'cleanup-test-%'`);
 }
 
 describeDb('cleanupDaemon', () => {
@@ -46,5 +47,25 @@ describeDb('cleanupDaemon', () => {
       [enq.id]
     );
     expect(parseInt(r.rows[0].count, 10)).toBe(1);
+  });
+
+  it('purges worker_heartbeats older than 24 hours; keeps recent rows', async () => {
+    await pg!.query(
+      `INSERT INTO worker_heartbeats (worker_id, kinds, last_beat_at, started_at)
+       VALUES ($1, ARRAY['geocode'], NOW() - INTERVAL '25 hours', NOW() - INTERVAL '25 hours')`,
+      ['cleanup-test-stale']
+    );
+    await pg!.query(
+      `INSERT INTO worker_heartbeats (worker_id, kinds, last_beat_at, started_at)
+       VALUES ($1, ARRAY['email'], NOW() - INTERVAL '5 minutes', NOW() - INTERVAL '5 minutes')`,
+      ['cleanup-test-fresh']
+    );
+
+    await cleanupTick();
+
+    const rows = await pg!.query<{ worker_id: string }>(
+      `SELECT worker_id FROM worker_heartbeats WHERE worker_id LIKE 'cleanup-test-%' ORDER BY worker_id`
+    );
+    expect(rows.rows.map((r) => r.worker_id)).toEqual(['cleanup-test-fresh']);
   });
 });

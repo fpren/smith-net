@@ -10,6 +10,7 @@ import { requestLogger } from '../log';
 
 export const INTERVAL_MS = 24 * 60 * 60 * 1000;
 const DEAD_JOB_RETENTION_DAYS = 30;
+const STALE_HEARTBEAT_RETENTION_HOURS = 24;
 
 export async function tick(): Promise<void> {
   if (!isPgEnabled() || !pg) return;
@@ -24,6 +25,23 @@ export async function tick(): Promise<void> {
     requestLogger().info(
       { event: 'dead_jobs_purged', count: dead.rowCount },
       'purged dead background_jobs older than retention'
+    );
+  }
+
+  // Stale heartbeats. A worker_heartbeats row outlives the worker process
+  // (we never DELETE on shutdown — the parent crashes might not run
+  // cleanup). Purge anything not refreshed in 24h so the admin/health
+  // table doesn't accumulate noise from dev/test sessions.
+  const heartbeats = await pg.query<{ worker_id: string }>(
+    `DELETE FROM worker_heartbeats
+      WHERE last_beat_at < NOW() - ($1::int * INTERVAL '1 hour')
+      RETURNING worker_id`,
+    [STALE_HEARTBEAT_RETENTION_HOURS]
+  );
+  if ((heartbeats.rowCount ?? 0) > 0) {
+    requestLogger().info(
+      { event: 'stale_heartbeats_purged', count: heartbeats.rowCount },
+      'purged worker_heartbeats older than retention'
     );
   }
 
