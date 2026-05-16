@@ -18,6 +18,16 @@ export const shiftsRouter = Router();
 
 const VALID_SOURCES = new Set(['android', 'web', 'admin']);
 
+function serializeShift(s: Shift) {
+  return {
+    id: s.id,
+    userId: s.user_id,
+    startedAt: s.started_at,
+    endedAt: s.ended_at,
+    source: s.source,
+  };
+}
+
 shiftsRouter.post('/start', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user!.id;
   const source = (req.body?.source ?? 'web') as Shift['source'];
@@ -28,7 +38,7 @@ shiftsRouter.post('/start', authenticateToken, async (req: AuthenticatedRequest,
     const shift = await crewPositionService.startShift(userId, source);
     await auditLog.log(AuditAction.SHIFT_STARTED, userId, { shift_id: shift.id, source });
     requestLogger().info({ event: 'shift_started', userId, source, shiftId: shift.id }, 'shift started');
-    return res.status(200).json(shift);
+    return res.status(200).json({ shift: serializeShift(shift) });
   } catch (err) {
     if ((err as { code?: string }).code === '23505') {
       return res.status(409).json({ error: 'shift already open' });
@@ -45,11 +55,11 @@ shiftsRouter.post('/end', authenticateToken, async (req: AuthenticatedRequest, r
   }
   await auditLog.log(AuditAction.SHIFT_ENDED, userId, { shift_id: shift.id });
   requestLogger().info({ event: 'shift_ended', userId, shiftId: shift.id }, 'shift ended');
-  return res.status(200).json(shift);
+  return res.status(200).json({ shift: serializeShift(shift) });
 });
 
 shiftsRouter.get('/current', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user!.id;
   const shift = await crewPositionService.getCurrentShift(userId);
-  return res.status(200).json(shift);
+  return res.status(200).json({ shift: shift ? serializeShift(shift) : null });
 });

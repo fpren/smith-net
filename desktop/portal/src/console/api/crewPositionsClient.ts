@@ -1,21 +1,20 @@
 // desktop/portal/src/console/api/crewPositionsClient.ts
 //
-// Fetch wrapper for Phase 3.5 Slice 1 GET /api/crew/positions.
+// Fetch wrapper for Phase 3.5 GET /api/crew/positions (foreman+ only).
 //
-// Backend response shape (verified against backend/src/presenceLocationRoutes.ts
-// and backend/src/crewPositionService.ts listOpenPositions):
-//   GET /api/crew/positions -> raw array of crew_positions rows (snake_case, no wrapper)
-//   Fields: user_id, latitude, longitude, accuracy_m, recorded_at, source, battery_pct
-//   NOTE: there is no displayName field — crew_positions stores coordinates only.
+// Backend response shape (camelCase, wrapped):
+//   { positions: [{ userId, displayName, latitude, longitude,
+//                   accuracyM, recordedAt, source, batteryPct }, ...] }
 
 export interface CrewPosition {
-  user_id: string;
+  userId: string;
+  displayName: string;
   latitude: number;
   longitude: number;
-  accuracy_m: number | null;
-  recorded_at: string;
+  accuracyM: number | null;
+  recordedAt: string;
   source: string;
-  battery_pct: number | null;
+  batteryPct: number | null;
 }
 
 export type CrewPositionsResult<T> =
@@ -31,8 +30,7 @@ export const crewPositionsClient = {
       const body = await res.json().catch(() => ({ error: res.statusText }));
       return { ok: false, status: res.status, error: body.error || 'Failed', code: body.code };
     }
-    // Backend returns the array directly, not wrapped in { positions: [...] }
-    const positions = (await res.json()) as CrewPosition[];
-    return { ok: true, positions };
+    const data = (await res.json()) as ListResp;
+    return { ok: true, ...data };
   },
 };

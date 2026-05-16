@@ -25,6 +25,10 @@ export interface CrewPosition {
   battery_pct: number | null;
 }
 
+export interface CrewPositionWithProfile extends CrewPosition {
+  display_name: string;
+}
+
 function requirePg() {
   if (!isPgEnabled() || !pg) {
     throw new Error('[crewPositionService] DATABASE_URL is required; pg pool is not initialized');
@@ -96,12 +100,14 @@ class CrewPositionService {
     return r.rows[0];
   }
 
-  async listOpenPositions(): Promise<CrewPosition[]> {
+  async listOpenPositions(): Promise<CrewPositionWithProfile[]> {
     const db = requirePg();
-    const r = await db.query<CrewPosition>(
-      `SELECT p.user_id, p.latitude, p.longitude, p.accuracy_m, p.recorded_at, p.source, p.battery_pct
+    const r = await db.query<CrewPositionWithProfile>(
+      `SELECT p.user_id, p.latitude, p.longitude, p.accuracy_m, p.recorded_at, p.source, p.battery_pct,
+              pr.display_name
          FROM crew_positions p
-         INNER JOIN shifts s ON s.user_id = p.user_id AND s.ended_at IS NULL`
+         INNER JOIN shifts   s  ON s.user_id  = p.user_id AND s.ended_at IS NULL
+         INNER JOIN profiles pr ON pr.id      = p.user_id`
     );
     return r.rows;
   }

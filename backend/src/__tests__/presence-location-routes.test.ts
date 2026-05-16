@@ -64,8 +64,8 @@ describeDb('presence/location + crew/positions routes', () => {
       .set('Cookie', `smithnet_access=${token}`)
       .send({ lat: 40.748, lng: -73.985, accuracy_m: 8.0, battery_pct: 72 });
     expect(res.status).toBe(200);
-    expect(res.body.user_id).toBe(id);
-    expect(parseFloat(res.body.latitude)).toBeCloseTo(40.748, 3);
+    expect(res.body.position.userId).toBe(id);
+    expect(res.body.position.latitude).toBeCloseTo(40.748, 3);
   });
 
   it('POST /api/presence/location rejects invalid lat/lng (400)', async () => {
@@ -95,8 +95,11 @@ describeDb('presence/location + crew/positions routes', () => {
 
     const res = await request(app).get('/api/crew/positions').set('Cookie', `smithnet_access=${foreman.token}`);
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
-    const ids = res.body.map((r: { user_id: string }) => r.user_id);
+    expect(Array.isArray(res.body.positions)).toBe(true);
+    const ids = res.body.positions.map((r: { userId: string }) => r.userId);
     expect(ids).toContain(crewA.id);
+    const crewARow = res.body.positions.find((r: { userId: string }) => r.userId === crewA.id);
+    expect(crewARow.displayName).toBeDefined();
+    expect(typeof crewARow.displayName).toBe('string');
   });
 });

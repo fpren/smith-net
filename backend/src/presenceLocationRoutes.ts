@@ -10,11 +10,27 @@
 
 import { Router, Response } from 'express';
 import { authenticateToken, AuthenticatedRequest, UserRole } from './auth';
-import { crewPositionService } from './crewPositionService';
+import { crewPositionService, CrewPosition, CrewPositionWithProfile } from './crewPositionService';
 import { auditLog, AuditAction } from './auditLog';
 import { requestLogger } from './log';
 
 export const presenceLocationRouter = Router();
+
+function serializePosition(p: CrewPosition) {
+  return {
+    userId: p.user_id,
+    latitude: typeof p.latitude === 'string' ? parseFloat(p.latitude) : p.latitude,
+    longitude: typeof p.longitude === 'string' ? parseFloat(p.longitude) : p.longitude,
+    accuracyM: p.accuracy_m,
+    recordedAt: p.recorded_at,
+    source: p.source,
+    batteryPct: p.battery_pct,
+  };
+}
+
+function serializePositionWithProfile(p: CrewPositionWithProfile) {
+  return { ...serializePosition(p), displayName: p.display_name };
+}
 
 function isFiniteNumber(x: unknown): x is number {
   return typeof x === 'number' && Number.isFinite(x);
@@ -67,7 +83,7 @@ presenceLocationRouter.post(
         { event: 'location_reported', userId, lat: pos.latitude, lng: pos.longitude },
         'location reported'
       );
-      return res.status(200).json(pos);
+      return res.status(200).json({ position: serializePosition(pos) });
     } catch (err) {
       if ((err as Error).message?.match(/no open shift/i)) {
         return res.status(403).json({ error: 'no open shift' });
@@ -86,6 +102,6 @@ presenceLocationRouter.get(
       return res.status(403).json({ error: 'foreman role required' });
     }
     const positions = await crewPositionService.listOpenPositions();
-    return res.status(200).json(positions);
+    return res.status(200).json({ positions: positions.map(serializePositionWithProfile) });
   }
 );

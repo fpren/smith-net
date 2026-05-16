@@ -55,9 +55,9 @@ describeDb('shifts routes', () => {
       .set('Cookie', `smithnet_access=${token}`)
       .send({ source: 'android' });
     expect(res.status).toBe(200);
-    expect(res.body.id).toBeTruthy();
-    expect(res.body.source).toBe('android');
-    expect(res.body.ended_at).toBeNull();
+    expect(res.body.shift.id).toBeTruthy();
+    expect(res.body.shift.source).toBe('android');
+    expect(res.body.shift.endedAt).toBeNull();
   });
 
   it('POST /api/shifts/start returns 409 if user already has an open shift', async () => {
@@ -75,18 +75,18 @@ describeDb('shifts routes', () => {
     await request(app).post('/api/shifts/start').set('Cookie', `smithnet_access=${token}`).send({ source: 'android' });
     const closed = await request(app).post('/api/shifts/end').set('Cookie', `smithnet_access=${token}`).send();
     expect(closed.status).toBe(200);
-    expect(closed.body.ended_at).toBeTruthy();
+    expect(closed.body.shift.endedAt).toBeTruthy();
   });
 
   it('GET /api/shifts/current returns the open shift or null', async () => {
     const { token } = await createForemanAndLogin('cur1');
     const empty = await request(app).get('/api/shifts/current').set('Cookie', `smithnet_access=${token}`);
     expect(empty.status).toBe(200);
-    expect(empty.body).toBeNull();
+    expect(empty.body.shift).toBeNull();
 
     await request(app).post('/api/shifts/start').set('Cookie', `smithnet_access=${token}`).send({ source: 'web' });
     const full = await request(app).get('/api/shifts/current').set('Cookie', `smithnet_access=${token}`);
-    expect(full.body.source).toBe('web');
+    expect(full.body.shift.source).toBe('web');
   });
 
   it('source must be one of android / web / admin (400 otherwise)', async () => {

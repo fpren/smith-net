@@ -1,13 +1,12 @@
 // desktop/portal/src/console/api/presenceClient.ts
 //
-// Fetch wrappers for Phase 3.5 Slice 1 shift lifecycle and location routes.
+// Fetch wrappers for Phase 3.5 shift lifecycle and location routes.
 //
-// Backend response shapes (verified against backend/src/shiftsRoutes.ts and
-// backend/src/presenceLocationRoutes.ts):
-//   POST /api/shifts/start  -> raw Shift row (snake_case, no wrapper)
-//   POST /api/shifts/end    -> raw Shift row or 404 { error }
-//   GET  /api/shifts/current -> raw Shift row | null (no wrapper)
-//   POST /api/presence/location -> raw CrewPosition row (snake_case, no wrapper)
+// Backend wire format (camelCase, wrapped in named keys):
+//   POST /api/shifts/start  -> { shift: { id, userId, startedAt, endedAt, source } }
+//   POST /api/shifts/end    -> { shift: {...} }  or  404 { error }
+//   GET  /api/shifts/current -> { shift: {...} | null }
+//   POST /api/presence/location -> { position: {...} }
 
 export type PresenceResult<T> =
   | ({ ok: true } & T)
@@ -41,9 +40,8 @@ export const presenceClient = {
       const e = await parseError(res);
       return { ok: false, status: res.status, ...e };
     }
-    // Backend returns raw row: { id, user_id, started_at, ended_at, source }
     const data = await res.json();
-    return { ok: true, shiftId: data.id };
+    return { ok: true, shiftId: data.shift.id };
   },
 
   endShift: async (): Promise<PresenceResult<{}>> => {
@@ -53,7 +51,6 @@ export const presenceClient = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
     });
-    // 404 means no open shift = already ended; treat as success
     if (res.status === 404) return { ok: true };
     if (!res.ok) {
       const e = await parseError(res);
@@ -67,7 +64,6 @@ export const presenceClient = {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      // Backend expects snake_case keys per presenceLocationRoutes.ts
       body: JSON.stringify({
         lat: input.lat,
         lng: input.lng,
@@ -88,8 +84,7 @@ export const presenceClient = {
       const e = await parseError(res);
       return { ok: false, status: res.status, ...e };
     }
-    // Backend returns null or raw shift row ({ id, user_id, ... })
     const data = await res.json();
-    return { ok: true, shiftId: data?.id ?? null };
+    return { ok: true, shiftId: data.shift?.id ?? null };
   },
 };
