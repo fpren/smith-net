@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Badge } from './components/ui/Badge';
 import { Button } from './components/ui/Button';
+import { ShareLocationToggle } from './components/header/ShareLocationToggle';
 import { authClient } from './auth/authClient';
 import { useAuthStore } from './auth/authStore';
 
@@ -27,6 +28,7 @@ export function ConsoleShell({ children }: Props) {
           <span className="text-console-accent text-sm tracking-wide">SMITH NET / CONSOLE</span>
         </div>
         <div className="flex items-center gap-3 text-sm">
+          {user && <ShareLocationToggle />}
           {user && (
             <>
               <span className="text-console-text">{user.displayName}</span>
