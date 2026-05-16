@@ -27,8 +27,15 @@ apiRouter.use(presenceGatewayRouter);
 apiRouter.use(engagementsInvoicesRouter);
 apiRouter.use(reportsRouter);
 apiRouter.use(settingsRouter);
-apiRouter.use(phase0Router);
 apiRouter.use(proposalsRouter);
+
+// Phase 4 Slice 4 (ADR-0001): Phase-0 routes (intents/synthesize/ledger/
+// small-project) are feature-flagged off by default. Their implementation
+// stays on disk so reviving means flipping the env var. See
+// docs/adr/0001-phase-0-routes-feature-flag-off.md.
+if (process.env.PHASE_0_ENABLED === 'true') {
+  apiRouter.use(phase0Router);
+}
 
 // Re-export so existing `import { proposalPublicRouter } from './api'`
 // continues to resolve (server.ts mounts it at /p).

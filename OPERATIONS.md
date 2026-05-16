@@ -75,6 +75,22 @@ Both connect to the same Postgres. Use `pm2` or two `systemd` units.
 
 Local development: `npm run dev:all` runs both via `concurrently`.
 
+## Phase-0 routes feature flag (ADR-0001)
+
+Intent / Synthesizer / Ledger / small-project routes are mounted only when
+`PHASE_0_ENABLED=true` is set in the backend env. Default off — all 10
+endpoints return 404. Implementation files stay on disk so reviving is a
+flag flip + restart, not a rewrite.
+
+To revive (when a real caller materializes):
+```bash
+echo 'PHASE_0_ENABLED=true' >> /opt/smith-net/backend/.env
+systemctl restart smith-net-api
+```
+
+See `docs/adr/0001-phase-0-routes-feature-flag-off.md` for the decision
+rationale.
+
 ## Presence watcher (Phase 4 Slice 2)
 
 `presenceWatcherDaemon` runs on a 60s cadence and emits two audit signals

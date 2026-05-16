@@ -87,7 +87,7 @@ Each row: what + why it bites + when it bites + fix + when to fix.
 - **Fix.** Single pg-backed `background_jobs` table (see `smith-net-daemon-worker-queue-plan.md`). Two workers (geocode, audit-flush) and three daemons (heartbeat, queue-watcher, cleanup) on day one.
 - **When to fix.** Roadmap Phase 3. Geocode is the canary.
 
-### 3. Dead Phase-0 routes (Intent / SummaryArtifact / Ledger)
+### 3. Dead Phase-0 routes (Intent / SummaryArtifact / Ledger) [closed in phase-4, commit pending — flagged off per ADR-0001]
 
 - **What.** 11 mounts in `api.ts` for `/intents`, `/synthesize`, `/ledger/*`. Multi-authority validation, SHA256 sealing — all real code. Zero callers.
 - **Why.** Code rots without callers. Schema drift accumulates. Operational cost (test maintenance, mental load) is real.
