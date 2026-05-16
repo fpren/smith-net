@@ -24,10 +24,6 @@ async function cleanShiftsAndPositions() {
 
 describeDb('crewPositionService — shifts', () => {
   beforeEach(cleanShiftsAndPositions);
-  afterAll(async () => {
-    await cleanShiftsAndPositions();
-    await pg?.end();
-  });
 
   it('startShift creates an open shift row', async () => {
     const userId = await makeUser('s1');
@@ -74,5 +70,76 @@ describeDb('crewPositionService — shifts', () => {
     await crewPositionService.endShift(userId);
     const b = await crewPositionService.startShift(userId, 'web');
     expect(b.id).not.toBe(a.id);
+  });
+});
+
+describeDb('crewPositionService — positions', () => {
+  beforeEach(cleanShiftsAndPositions);
+
+  it('upsertPosition writes the row when an open shift exists', async () => {
+    const userId = await makeUser('p1');
+    await crewPositionService.startShift(userId, 'android');
+    const pos = await crewPositionService.upsertPosition(userId, {
+      lat: 40.7484,
+      lng: -73.9856,
+      accuracy_m: 12.5,
+      battery_pct: 84,
+    }, 'android');
+    expect(pos.user_id).toBe(userId);
+    expect(pos.latitude).toBeCloseTo(40.7484, 3);
+    expect(pos.longitude).toBeCloseTo(-73.9856, 3);
+    expect(pos.accuracy_m).toBeCloseTo(12.5, 1);
+    expect(pos.battery_pct).toBe(84);
+  });
+
+  it('upsertPosition rejects when the user has no open shift', async () => {
+    const userId = await makeUser('p2');
+    await expect(
+      crewPositionService.upsertPosition(userId, { lat: 0, lng: 0 }, 'web')
+    ).rejects.toThrow(/no open shift/i);
+  });
+
+  it('upsertPosition updates the existing row (latest-only)', async () => {
+    const userId = await makeUser('p3');
+    await crewPositionService.startShift(userId, 'android');
+    await crewPositionService.upsertPosition(userId, { lat: 1, lng: 2 }, 'android');
+    await crewPositionService.upsertPosition(userId, { lat: 3, lng: 4 }, 'android');
+    const count = await pg!.query("SELECT COUNT(*) FROM crew_positions WHERE user_id = $1", [userId]);
+    expect(parseInt(count.rows[0].count, 10)).toBe(1);
+    const row = await pg!.query("SELECT latitude, longitude FROM crew_positions WHERE user_id = $1", [userId]);
+    expect(row.rows[0].latitude).toBeCloseTo(3, 5);
+    expect(row.rows[0].longitude).toBeCloseTo(4, 5);
+  });
+
+  it('listOpenPositions returns rows for users with open shifts; skips others', async () => {
+    const a = await makeUser('lp1');
+    const b = await makeUser('lp2');
+    const c = await makeUser('lp3');
+    await crewPositionService.startShift(a, 'android');
+    await crewPositionService.startShift(b, 'web');
+    // c never starts a shift
+    await crewPositionService.upsertPosition(a, { lat: 10, lng: 20 }, 'android');
+    await crewPositionService.upsertPosition(b, { lat: 30, lng: 40 }, 'web');
+
+    const list = await crewPositionService.listOpenPositions();
+    const ids = list.map((p) => p.user_id);
+    expect(ids).toContain(a);
+    expect(ids).toContain(b);
+    expect(ids).not.toContain(c);
+  });
+
+  it('listOpenPositions excludes users whose shift has ended', async () => {
+    const a = await makeUser('lp4');
+    await crewPositionService.startShift(a, 'android');
+    await crewPositionService.upsertPosition(a, { lat: 1, lng: 2 }, 'android');
+    await crewPositionService.endShift(a);
+
+    const list = await crewPositionService.listOpenPositions();
+    expect(list.map((p) => p.user_id)).not.toContain(a);
+  });
+
+  afterAll(async () => {
+    await cleanShiftsAndPositions();
+    await pg?.end();
   });
 });

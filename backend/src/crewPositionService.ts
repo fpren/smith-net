@@ -69,6 +69,42 @@ class CrewPositionService {
     );
     return r.rows[0] ?? null;
   }
+
+  async upsertPosition(
+    userId: string,
+    input: { lat: number; lng: number; accuracy_m?: number; battery_pct?: number },
+    source: Shift['source']
+  ): Promise<CrewPosition> {
+    const db = requirePg();
+    const open = await this.getCurrentShift(userId);
+    if (!open) {
+      throw new Error('no open shift for user');
+    }
+    const r = await db.query<CrewPosition>(
+      `INSERT INTO crew_positions (user_id, latitude, longitude, accuracy_m, source, battery_pct, recorded_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW())
+       ON CONFLICT (user_id) DO UPDATE SET
+         latitude    = EXCLUDED.latitude,
+         longitude   = EXCLUDED.longitude,
+         accuracy_m  = EXCLUDED.accuracy_m,
+         source      = EXCLUDED.source,
+         battery_pct = EXCLUDED.battery_pct,
+         recorded_at = NOW()
+       RETURNING user_id, latitude, longitude, accuracy_m, recorded_at, source, battery_pct`,
+      [userId, input.lat, input.lng, input.accuracy_m ?? null, source, input.battery_pct ?? null]
+    );
+    return r.rows[0];
+  }
+
+  async listOpenPositions(): Promise<CrewPosition[]> {
+    const db = requirePg();
+    const r = await db.query<CrewPosition>(
+      `SELECT p.user_id, p.latitude, p.longitude, p.accuracy_m, p.recorded_at, p.source, p.battery_pct
+         FROM crew_positions p
+         INNER JOIN shifts s ON s.user_id = p.user_id AND s.ended_at IS NULL`
+    );
+    return r.rows;
+  }
 }
 
 export const crewPositionService = new CrewPositionService();
