@@ -3,6 +3,7 @@ package com.guildofsmiths.trademesh.ui.timetracking
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.guildofsmiths.trademesh.data.JobRepository
+import com.guildofsmiths.trademesh.data.PresenceApiClient
 import com.guildofsmiths.trademesh.data.TimeEntryRepository
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.service.AuthService
@@ -27,6 +28,7 @@ import java.util.*
 class TimeTrackingViewModel : ViewModel() {
 
     private val client = OkHttpClient()
+    private val presenceApi = PresenceApiClient(client)
     private val baseUrl = "http://10.0.2.2:3002"
 
     /**
@@ -61,6 +63,10 @@ class TimeTrackingViewModel : ViewModel() {
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
+
+    // Backend shift id from POST /api/shifts/start. Null when off-clock.
+    private val _shiftId = MutableStateFlow<String?>(null)
+    val shiftId: StateFlow<String?> = _shiftId.asStateFlow()
 
     // Available jobs (from job board or custom)
     private val _availableJobs = MutableStateFlow<List<String>>(emptyList())
@@ -300,6 +306,21 @@ class TimeTrackingViewModel : ViewModel() {
 
         // Try to sync to backend
         syncClockInToBackend(entry)
+
+        // Also open a shift on the crew-tracking backend (Phase 3.5 Slice 2).
+        // Degraded mode: a failure here does not block the local clock-in.
+        viewModelScope.launch {
+            try {
+                val id = presenceApi.startShift("android")
+                _shiftId.value = id
+                android.util.Log.i("TimeTrackingViewModel", "clockIn: backend shift=$id")
+            } catch (e: Exception) {
+                android.util.Log.w(
+                    "TimeTrackingViewModel",
+                    "clockIn: backend startShift failed (degraded): ${e.message}"
+                )
+            }
+        }
     }
 
     fun clockOut(note: String? = null) {
@@ -359,6 +380,21 @@ class TimeTrackingViewModel : ViewModel() {
         
         // Try to sync to backend
         syncClockOutToBackend(completedEntry)
+
+        // Close the shift on the crew-tracking backend (Phase 3.5 Slice 2).
+        // Degraded mode: a failure here does not block the local clock-out.
+        viewModelScope.launch {
+            try {
+                presenceApi.endShift()
+                _shiftId.value = null
+                android.util.Log.i("TimeTrackingViewModel", "clockOut: backend shift ended")
+            } catch (e: Exception) {
+                android.util.Log.w(
+                    "TimeTrackingViewModel",
+                    "clockOut: backend endShift failed: ${e.message}"
+                )
+            }
+        }
 
         completedEntry.jobId?.let { jobId ->
             android.util.Log.i("TimeTrackingVM", "Clock-out on job: ${completedEntry.jobTitle} — triggering daily log")
