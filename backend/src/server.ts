@@ -21,6 +21,7 @@ import fs from 'fs';
 import { apiRouter, proposalPublicRouter } from './api';
 import { authRouter } from './authRoutes';
 import adminRouter from './adminRoutes';
+import { healthRouter } from './healthRoutes';
 import { jobsRouter } from './jobsRoutes';
 import { profilesRouter } from './profilesRoutes';
 import { shiftsRouter } from './shiftsRoutes';
@@ -142,6 +143,7 @@ app.use('/api/auth', authLimiter, authRouter);
 
 // Mount Admin API
 app.use('/api/admin', adminRouter);
+app.use('/api/admin', healthRouter);
 
 // Mount Jobs API
 app.use('/api/jobs', jobsRouter);
@@ -350,8 +352,8 @@ server.listen(PORT, () => {
 // Schedule media cleanup every hour
 setInterval(cleanupOldMedia, 60 * 60 * 1000);
 
-// Schedule audit log cleanup daily
-setInterval(() => auditLog.cleanupOldEntries(), 24 * 60 * 60 * 1000);
+// Phase 4 Slice 1: audit-log retention now owned by cleanupDaemon
+// (backend/src/daemons/cleanupDaemon.ts), running in the worker process.
 
 // Flush audit log buffer on process exit
 process.on('SIGTERM', () => { auditLog.flushNow(); });
