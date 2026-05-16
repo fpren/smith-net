@@ -38,6 +38,7 @@ import { invoiceLinkService } from './invoiceLinks';
 import { wageDataService } from './wageData';
 import { authenticateToken, AuthenticatedRequest } from './auth';
 import { engagementsInvoicesRouter } from './engagementsInvoicesRoutes';
+import { settingsRouter } from './settingsRoutes';
 
 export const apiRouter = Router();
 
@@ -48,6 +49,7 @@ apiRouter.use(authenticateToken);
 
 // Phase 4 Slice 3: domain routers (extracted from api.ts).
 apiRouter.use(engagementsInvoicesRouter);
+apiRouter.use(settingsRouter);
 
 // ════════════════════════════════════════════════════════════════════
 // CHANNELS
@@ -570,125 +572,7 @@ apiRouter.get('/reports/:id', (req: Request, res: Response) => {
   res.status(404).json({ error: 'Report not found' });
 });
 
-// ════════════════════════════════════════════════════════════════════
-// SETTINGS — SYSTEM CONFIGURATION (NON-EXECUTIVE)
-// ════════════════════════════════════════════════════════════════════
-
-/**
- * GET SYSTEM SETTINGS
- * System Law: Settings configure reality, they do not execute work
- */
-apiRouter.get('/settings', (req: Request, res: Response) => {
-  // TODO: Fetch from database with user context
-  // Settings never participate in payroll, planning, or reporting logic
-
-  res.json({
-    identity: {
-      userId: 'current_user',
-      displayName: 'Current User',
-      role: 'worker', // 'worker' | 'foreman' | 'admin'
-      organizationId: 'org_123'
-    },
-    permissions: {
-      canCreateJobs: true,
-      canApproveBreaks: false,
-      canFinalizePlans: false,
-      canAccessArchive: true
-    },
-    connectivity: {
-      bleMeshEnabled: true,
-      onlineSyncEnabled: true,
-      gatewayMode: 'hybrid', // 'online' | 'gateway' | 'hybrid'
-      relayConnected: true
-    },
-    ai: {
-      summarizationEnabled: true,
-      breakRequestAssistEnabled: true,
-      contextAnalysisEnabled: false
-    },
-    archive: {
-      readOnlyAccess: true,
-      exportFormats: ['pdf', 'html', 'xlsx'],
-      retentionPolicy: 'forever' // System Law: Archive is forever
-    },
-    ui: {
-      theme: 'system',
-      notifications: {
-        breakRequests: true,
-        jobCompletions: true,
-        planFinalizations: false
-      }
-    }
-  });
-});
-
-/**
- * UPDATE SETTINGS
- * System Law: Settings never change data, only configuration
- */
-apiRouter.patch('/settings', (req: Request, res: Response) => {
-  const updates = req.body;
-
-  // Validate that updates are configuration-only
-  const allowedCategories = ['connectivity', 'ai', 'ui'];
-  const requestedCategories = Object.keys(updates);
-
-  const invalidCategories = requestedCategories.filter(cat => !allowedCategories.includes(cat));
-
-  if (invalidCategories.length > 0) {
-    return res.status(400).json({
-      error: 'Invalid settings categories',
-      allowed: allowedCategories,
-      requested: invalidCategories,
-      systemLaw: 'Settings configure reality, they do not execute work or change data'
-    });
-  }
-
-  // TODO: Validate and store settings updates
-  console.log('[Settings] Updated configuration:', updates);
-
-  res.json({
-    success: true,
-    updated: updates,
-    systemLaw: {
-      enforced: true,
-      reminder: 'Settings configure reality, they do not execute work'
-    }
-  });
-});
-
-/**
- * GET CONNECTIVITY STATUS
- * Infrastructure status, not workflow status
- */
-apiRouter.get('/settings/connectivity', (req: Request, res: Response) => {
-  // TODO: Get actual connectivity status from gateway manager
-
-  res.json({
-    bleMesh: {
-      enabled: true,
-      connectedPeers: 5,
-      lastActivity: Date.now() - 30000,
-      status: 'active'
-    },
-    online: {
-      enabled: true,
-      connected: true,
-      lastSync: Date.now() - 60000,
-      status: 'online'
-    },
-    gateway: {
-      mode: 'hybrid',
-      relayConnected: true,
-      relayId: 'relay_001',
-      capabilities: ['mesh_bridge', 'cloud_sync']
-    },
-    systemLaw: {
-      enforced: true,
-      reminder: 'Connectivity is infrastructure, not workflow'
-    }
-  });
-});
+// settings + connectivity now in settingsRoutes.ts.
 
 // ════════════════════════════════════════════════════════════════════
 // REPORT GENERATION PIPELINE
