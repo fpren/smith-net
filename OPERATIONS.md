@@ -75,6 +75,40 @@ Both connect to the same Postgres. Use `pm2` or two `systemd` units.
 
 Local development: `npm run dev:all` runs both via `concurrently`.
 
+## Presence watcher (Phase 4 Slice 2)
+
+`presenceWatcherDaemon` runs on a 60s cadence and emits two audit signals
+without taking any automated action:
+
+- `stale_presence` — open shift whose latest GPS report is >30 minutes old
+  (or has never reported). Suggests a dead device, app killed, or user
+  underground.
+- `ultra_long_shift` — open shift duration >16 hours. Suggests a forgotten
+  clock-out.
+
+Both emit `ADMIN_ACTION` audit rows with `actor_id='presenceWatcherDaemon'`.
+The daemon dedupes per-process: a given shift emits each event at most once
+per worker-process lifetime, so a forgotten shift produces one signal, not
+hundreds. Worker restart resets the dedupe set (acceptable — restarts are
+rare and audit duplicates are not destructive).
+
+Operator inspection query:
+
+```sql
+SELECT id, audit_id, metadata->>'event' AS event,
+       metadata->>'user_id' AS user_id,
+       metadata->>'shift_id' AS shift_id,
+       created_at
+  FROM audit_entries
+ WHERE actor_id = 'presenceWatcherDaemon'
+   AND created_at > NOW() - INTERVAL '24 hours'
+ ORDER BY created_at DESC;
+```
+
+The daemon does NOT auto-end shifts (intentional — too easy to surprise
+users who briefly lost GPS). To force-end a shift after operator review,
+use the manual SQL in the crew tracking section above.
+
 ## Audit chain visibility lag (Phase 3 Slice 2)
 
 `auditLog.log()` no longer writes synchronously. It enqueues a `kind='audit_flush'`
