@@ -233,4 +233,27 @@ export const handlers = [
   http.get('/api/crew/positions', () => {
     return HttpResponse.json({ positions: [] });
   }),
+
+  http.post('/api/shifts/start', () =>
+    HttpResponse.json({
+      shift: { id: 'shift-msw', userId: 'user-1', startedAt: '2026-05-16T00:00:00Z', endedAt: null, source: 'web' },
+    })
+  ),
+
+  http.post('/api/shifts/end', () =>
+    HttpResponse.json({
+      shift: { id: 'shift-msw', userId: 'user-1', startedAt: '2026-05-16T00:00:00Z', endedAt: '2026-05-16T01:00:00Z', source: 'web' },
+    })
+  ),
+
+  http.get('/api/shifts/current', () => HttpResponse.json({ shift: null })),
+
+  http.post('/api/presence/location', () =>
+    HttpResponse.json({
+      position: {
+        userId: 'user-1', latitude: 40.7, longitude: -74,
+        accuracyM: 5, recordedAt: '2026-05-16T00:01:00Z', source: 'web', batteryPct: 80,
+      },
+    })
+  ),
 ];
