@@ -30,8 +30,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import okhttp3.OkHttpClient
-
 /**
  * Foreground service that tracks the device's GPS location while clocked in.
  * Writes updates to [CrewPresenceRepository] (for the live-crew view) and
@@ -66,7 +64,7 @@ class LocationService : Service() {
     private var running = false
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val presenceApi by lazy { PresenceApiClient(OkHttpClient()) }
+    private val presenceApi by lazy { PresenceApiClient(HttpClientFactory.client) }
     private var lastPostAtMs: Long = 0L
     private val postIntervalMs: Long = 60_000L
 

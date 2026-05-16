@@ -27,7 +27,7 @@ import java.util.*
  */
 class TimeTrackingViewModel : ViewModel() {
 
-    private val client = OkHttpClient()
+    private val client = com.guildofsmiths.trademesh.service.HttpClientFactory.client
     private val presenceApi = PresenceApiClient(client)
     private val baseUrl = "http://10.0.2.2:3002"
 

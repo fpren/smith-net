@@ -19,8 +19,9 @@ import java.io.IOException
  *   POST /api/shifts/end
  *   POST /api/presence/location { lat, lng, accuracy_m?, battery_pct? }
  *
- * Caller is responsible for owning a CookieJar so the auth cookie persists
- * across requests. Pass the configured OkHttpClient via the constructor.
+ * Pass the configured OkHttpClient via the constructor. In production the
+ * shared instance from [HttpClientFactory] should be used so the AuthInterceptor
+ * attaches `Authorization: Bearer <access_token>` to every call.
  */
 class PresenceApiClient(private val client: OkHttpClient) {
 
