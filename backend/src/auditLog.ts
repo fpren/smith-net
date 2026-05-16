@@ -9,6 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import { pg, isPgEnabled } from './db';
 import { requestLogger } from './log';
+import { enqueue } from './queue/queue';
 
 // ════════════════════════════════════════════════════════════════════
 // AUDIT ACTIONS
@@ -199,83 +200,57 @@ class AuditLogManager {
   /**
    * Log an audit entry (append-only).
    *
-   * Writes synchronously to pg under an advisory lock so the SHA chain stays
-   * consistent across concurrent writers. JSONL is a cold backup; Task 4 will
-   * batch the JSONL flush.
+   * Enqueues an audit_flush background job so the chain hashing + INSERT
+   * happen in the worker (Task 2). The caller gets back an auditId
+   * immediately without waiting for the pg write.
    */
   async log(
     action: AuditAction,
     actorId: string,
     metadata: Record<string, any> = {},
     options: { targetId?: string; ip?: string; userAgent?: string } = {}
-  ): Promise<AuditEntry> {
+  ): Promise<{ auditId: string; queued: true }> {
+    const auditId = `audit-${Date.now()}-${++this.entryCounter}`;
+    const timestamp = Date.now();
+
     if (!isPgEnabled() || !pg) {
       // No pg available — fall back to in-memory + JSONL only (dev mode).
-      return this.logInMemoryOnly(action, actorId, metadata, options);
+      this.logInMemoryOnly(auditId, timestamp, action, actorId, metadata, options);
+      return { auditId, queued: true };
     }
 
-    const client = await pg.connect();
-    try {
-      await client.query('BEGIN');
-      // Advisory lock serializes chain writers without blocking other DB work.
-      // Constant key 42 — there's only one audit chain.
-      await client.query('SELECT pg_advisory_xact_lock(42)');
-
-      // Read the most recent hash to form prevChecksum.
-      const prevResult = await client.query<{ hash: string }>(
-        `SELECT hash FROM audit_entries ORDER BY id DESC LIMIT 1`
-      );
-      const prevChecksum = prevResult.rows[0]?.hash ?? null;
-
-      const entry: Omit<AuditEntry, 'checksum'> = {
-        id: `audit-${Date.now()}-${++this.entryCounter}`,
-        timestamp: Date.now(),
+    await enqueue({
+      kind: 'audit_flush',
+      dedupeKey: auditId,
+      payload: {
+        auditId,
+        timestamp,
         action,
         actorId,
-        targetId: options.targetId,
+        targetId: options.targetId ?? null,
         metadata,
-        ip: options.ip,
-        userAgent: options.userAgent,
-        prevChecksum,
-      };
-      const checksum = this.generateChecksum(entry);
-      const full: AuditEntry = { ...entry, checksum };
-
-      await client.query(
-        `INSERT INTO audit_entries
-           (audit_id, actor_id, target_id, action, metadata, ip, user_agent, prev_hash, hash)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [full.id, full.actorId, full.targetId ?? null, full.action,
-         full.metadata, full.ip ?? null, full.userAgent ?? null,
-         full.prevChecksum, full.checksum]
-      );
-      await client.query('COMMIT');
-
-      // In-memory + JSONL backups. Task 4 will move JSONL into a buffer.
-      this.entries.push(full);
-      this.bufferJsonl(full);
-      return full;
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw err;
-    } finally {
-      client.release();
-    }
+        ip: options.ip ?? null,
+        userAgent: options.userAgent ?? null,
+      },
+    });
+    return { auditId, queued: true };
   }
 
   /** No-pg path for local dev with DATABASE_URL unset. */
   private logInMemoryOnly(
+    auditId: string,
+    timestamp: number,
     action: AuditAction,
     actorId: string,
     metadata: Record<string, any>,
     options: { targetId?: string; ip?: string; userAgent?: string }
-  ): AuditEntry {
+  ): void {
     const prevChecksum = this.entries.length > 0
       ? this.entries[this.entries.length - 1].checksum
       : null;
     const entry: Omit<AuditEntry, 'checksum'> = {
-      id: `audit-${Date.now()}-${++this.entryCounter}`,
-      timestamp: Date.now(),
+      id: auditId,
+      timestamp,
       action,
       actorId,
       targetId: options.targetId,
@@ -287,7 +262,15 @@ class AuditLogManager {
     const full: AuditEntry = { ...entry, checksum: this.generateChecksum(entry) };
     this.entries.push(full);
     this.bufferJsonl(full);
-    return full;
+  }
+
+  /**
+   * Called by the auditFlushWorker after a successful pg INSERT.
+   * Mirrors the row into the in-memory cache and JSONL buffer.
+   */
+  bufferFromWorker(entry: AuditEntry): void {
+    this.entries.push(entry);
+    this.bufferJsonl(entry);
   }
 
   /**
