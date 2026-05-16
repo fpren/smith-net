@@ -45,6 +45,11 @@ export enum AuditAction {
   JOB_CREW_UNASSIGNED = 'job.crew_unassigned',
   JOB_GEOCODED = 'job.geocoded',
 
+  // Crew tracking (Phase 3.5)
+  SHIFT_STARTED = 'shift.started',
+  SHIFT_ENDED = 'shift.ended',
+  LOCATION_REPORTED = 'location.reported',
+
   // Gateway / Mesh
   GATEWAY_CONNECTED = 'gateway.connected',
   GATEWAY_DISCONNECTED = 'gateway.disconnected',
