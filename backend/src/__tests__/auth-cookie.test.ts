@@ -79,9 +79,12 @@ describe('setAuthCookies / clearAuthCookies', () => {
   });
 
   it('register response sets httpOnly cookies', async () => {
+    // Use a unique email so a stale row from a prior run doesn't block this.
+    // Phase 3.5 fix: register now also writes the profiles row (unique on email).
+    const email = `reg-cookie-${Date.now()}@example.com`;
     const res = await request(app)
       .post('/api/auth/register')
-      .send({ email: 'reg-cookie@example.com', password: 'password123', displayName: 'R' });
+      .send({ email, password: 'password123', displayName: 'R' });
     expect(res.status).toBe(201);
     const cookies = (res.headers['set-cookie'] || []) as unknown as string[];
     expect(cookies.find((c: string) => c.startsWith('smithnet_access='))).toBeDefined();
