@@ -16,6 +16,7 @@ import { tick as emailTick } from './emailWorker';
 import { tick as heartbeatTick, INTERVAL_MS as HEARTBEAT_MS } from '../daemons/heartbeatDaemon';
 import { tick as queueWatcherTick, INTERVAL_MS as QUEUE_WATCHER_MS } from '../daemons/queueWatcherDaemon';
 import { tick as cleanupTick, INTERVAL_MS as CLEANUP_MS } from '../daemons/cleanupDaemon';
+import { tick as presenceWatcherTick, INTERVAL_MS as PRESENCE_WATCHER_MS } from '../daemons/presenceWatcherDaemon';
 import { baseLogger } from '../log';
 
 const WORKER_ID = `${process.pid}@${process.env.HOSTNAME ?? 'host'}`;
@@ -58,4 +59,5 @@ void loop('email', emailTick);
 
 void daemonLoop('heartbeat',     HEARTBEAT_MS,     () => heartbeatTick(WORKER_ID, REGISTERED_KINDS));
 void daemonLoop('queue_watcher', QUEUE_WATCHER_MS, queueWatcherTick);
-void daemonLoop('cleanup',       CLEANUP_MS,       cleanupTick);
+void daemonLoop('cleanup',          CLEANUP_MS,          cleanupTick);
+void daemonLoop('presence_watcher', PRESENCE_WATCHER_MS, presenceWatcherTick);
