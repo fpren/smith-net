@@ -229,4 +229,8 @@ export const handlers = [
       ],
     });
   }),
+
+  http.get('/api/crew/positions', () => {
+    return HttpResponse.json({ positions: [] });
+  }),
 ];

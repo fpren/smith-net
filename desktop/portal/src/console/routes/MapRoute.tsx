@@ -8,6 +8,8 @@ import { MapCanvas } from '../components/map/MapCanvas';
 import type { FilterMode } from '../components/map/MapFilterChips';
 import { useJobsPolling } from '../hooks/useJobsPolling';
 import { useJobsStore } from '../stores/jobsStore';
+import { useCrewPositionsPolling } from '../hooks/useCrewPositionsPolling';
+import { useCrewPositionsStore } from '../stores/crewPositionsStore';
 import type { JobStatus } from '../api/jobsClient';
 
 const FILTER_KEY = 'console.map.filterMode';
@@ -27,6 +29,8 @@ const ALL_STATUSES: JobStatus[] = ['planned', 'in_progress', 'complete', 'cancel
 export function MapRoute() {
   useJobsPolling('list');
   const jobs = useJobsStore((s) => s.jobs);
+  useCrewPositionsPolling();
+  const crewPositions = useCrewPositionsStore((s) => s.positions);
   const [mode, setMode] = useState<FilterMode>(readFilterMode);
   const [showCreate, setShowCreate] = useState(false);
 
@@ -46,6 +50,7 @@ export function MapRoute() {
         <div className="flex-1 relative">
           <MapCanvas
             jobs={jobs}
+            crewPositions={crewPositions}
             visibleStatuses={visibleStatuses}
             selectedJobId={null}
             onSelectJob={(_id) => { /* future: open popup */ }}
