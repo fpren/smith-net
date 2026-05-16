@@ -66,6 +66,16 @@ export function ConsoleShell({ children }: Props) {
           >
             Crew
           </NavLink>
+          {user?.role === 'admin' && (
+            <NavLink
+              to="/console/admin"
+              className={({ isActive }) =>
+                `block px-2 py-1 ${isActive ? 'text-console-accent' : 'text-console-text hover:text-console-accent'}`
+              }
+            >
+              Admin
+            </NavLink>
+          )}
         </nav>
         <main className="flex-1 min-h-0 overflow-y-auto p-6">{children}</main>
       </div>

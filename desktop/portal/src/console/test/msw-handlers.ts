@@ -256,4 +256,26 @@ export const handlers = [
       },
     })
   ),
+
+  // Phase 4 admin health endpoint.
+  http.get('/api/admin/health', () =>
+    HttpResponse.json({
+      workers: [
+        {
+          workerId: '12345@host',
+          kinds: ['geocode', 'audit_flush', 'email'],
+          lastBeatAt: '2026-05-16T00:00:00Z',
+          ageSec: 7,
+        },
+      ],
+      queue: {
+        byKindState: [
+          { kind: 'geocode', state: 'succeeded', count: 12 },
+          { kind: 'audit_flush', state: 'queued', count: 1 },
+        ],
+        oldestQueued: { kind: 'audit_flush', scheduledAt: '2026-05-16T00:00:00Z', ageSec: 3 },
+        oldestRunning: null,
+      },
+    })
+  ),
 ];
