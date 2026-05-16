@@ -92,3 +92,21 @@ export async function complete(id: number): Promise<void> {
     [id]
   );
 }
+
+export async function fail(id: number, err: Error, opts: { attempts: number; maxAttempts: number }): Promise<void> {
+  const db = requirePg();
+  const dead = opts.attempts >= opts.maxAttempts;
+  const backoffSec = Math.min(60 * Math.pow(3, opts.attempts), 6 * 3600);
+  await db.query(
+    `UPDATE background_jobs
+        SET state = $2::bg_job_state,
+            last_error = $3,
+            scheduled_at = CASE WHEN $2 = 'failed' THEN NOW() + ($4::int * INTERVAL '1 second') ELSE scheduled_at END,
+            finished_at = CASE WHEN $2 = 'dead' THEN NOW() ELSE NULL END,
+            locked_at = NULL,
+            locked_by = NULL,
+            updated_at = NOW()
+      WHERE id = $1`,
+    [id, dead ? 'dead' : 'failed', err.message.slice(0, 1000), backoffSec]
+  );
+}
