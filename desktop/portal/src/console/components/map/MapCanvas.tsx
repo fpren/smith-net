@@ -3,12 +3,15 @@ import { useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import type { Job, JobStatus } from '../../api/jobsClient';
 import { createJobMarkerElement } from './JobMarker';
+import type { CrewPosition } from '../../api/crewPositionsClient';
+import { createCrewMarkerElement } from './CrewMarker';
 
 interface Props {
   jobs: Job[];
   visibleStatuses: JobStatus[];
   selectedJobId: string | null;
   onSelectJob: (jobId: string) => void;
+  crewPositions?: CrewPosition[];
 }
 
 const TILE_STYLE = {
@@ -24,10 +27,11 @@ const TILE_STYLE = {
   layers: [{ id: 'osm', type: 'raster' as const, source: 'osm' }],
 };
 
-export function MapCanvas({ jobs, visibleStatuses, onSelectJob }: Props) {
+export function MapCanvas({ jobs, visibleStatuses, onSelectJob, crewPositions }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map());
+  const crewMarkersRef = useRef<Map<string, maplibregl.Marker>>(new Map());
 
   // Init map once
   useEffect(() => {
@@ -61,6 +65,7 @@ export function MapCanvas({ jobs, visibleStatuses, onSelectJob }: Props) {
       mapRef.current?.remove();
       mapRef.current = null;
       markersRef.current.clear();
+      crewMarkersRef.current.clear();
     };
   }, []);
 
@@ -116,6 +121,34 @@ export function MapCanvas({ jobs, visibleStatuses, onSelectJob }: Props) {
       else map.once('idle', run);
     }
   }, [jobs, visibleStatuses, onSelectJob]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const positions = (crewPositions ?? []).filter(
+      (p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude)
+    );
+    const wantIds = new Set(positions.map((p) => p.userId));
+
+    for (const [id, marker] of crewMarkersRef.current.entries()) {
+      if (!wantIds.has(id)) {
+        marker.remove();
+        crewMarkersRef.current.delete(id);
+      }
+    }
+    for (const p of positions) {
+      const existing = crewMarkersRef.current.get(p.userId);
+      if (existing) {
+        existing.setLngLat([p.longitude, p.latitude]);
+        continue;
+      }
+      const el = createCrewMarkerElement(p);
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([p.longitude, p.latitude])
+        .addTo(map);
+      crewMarkersRef.current.set(p.userId, marker);
+    }
+  }, [crewPositions]);
 
   return <div ref={containerRef} className="w-full h-full" data-testid="map-canvas" />;
 }

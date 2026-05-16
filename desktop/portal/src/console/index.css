@@ -42,3 +42,21 @@
 .maplibregl-popup-tip {
   border-top-color: theme('colors.console-surface');
 }
+
+/* Phase 3.5 Slice 3: crew dots on the operator map. Distinct from job markers. */
+.crew-marker {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #22d3ee;
+  color: #001018;
+  font-family: ui-monospace, monospace;
+  font-weight: 700;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid theme('colors.console-bg');
+  box-shadow: 0 0 6px rgba(34, 211, 238, 0.6);
+  cursor: default;
+}
