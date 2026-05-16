@@ -9,6 +9,7 @@
  */
 
 import { tick as geocodeTick } from './geocodeWorker';
+import { tick as auditFlushTick } from './auditFlushWorker';
 import { baseLogger } from '../log';
 
 const WORKER_ID = `${process.pid}@${process.env.HOSTNAME ?? 'host'}`;
@@ -30,4 +31,5 @@ async function loop(kind: string, fn: (id: string) => Promise<boolean>) {
 
 baseLogger.info({ event: 'worker_starting', workerId: WORKER_ID }, 'worker starting');
 void loop('geocode', geocodeTick);
-// Audit-flush worker registers in Slice 2; email worker in Slice 3.
+void loop('audit_flush', auditFlushTick);
+// Email worker registers in Slice 3.
