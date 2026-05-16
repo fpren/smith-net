@@ -23,7 +23,8 @@ import {
 } from './auth';
 import { createUserAndProfile } from './jobsService';
 import { auditLog, AuditAction } from './auditLog';
-import { sendEmail, isEmailLive } from './emailService';
+import { isEmailLive } from './emailService';
+import { enqueue } from './queue/queue';
 import { requestLogger } from './log';
 import { validateBody, validateQuery } from './middleware/validate';
 import {
@@ -42,39 +43,22 @@ import {
 // in the systemd .env so the email points at the publicly reachable host.
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || `http://localhost:${process.env.PORT || 3030}`;
 
-function buildVerificationLink(token: string): string {
-  return `${PUBLIC_BASE_URL.replace(/\/+$/, '')}/api/auth/verify?token=${encodeURIComponent(token)}`;
-}
+// Phase 3 Slice 3: helpers above (buildVerificationLink, buildVerificationEmail,
+// sendVerificationEmail) moved into workers/emailWorker.ts. Routes now enqueue
+// a kind='email' job and return; the worker builds the body and calls SMTP.
 
-function buildVerificationEmail(displayName: string, link: string): { subject: string; text: string; html: string } {
-  const subject = 'Verify your Smith Net email';
-  const text = [
-    `Hi ${displayName},`,
-    '',
-    'Tap to verify your email and finish setting up Smith Net:',
-    '',
-    link,
-    '',
-    'This link expires in 24 hours. If you did not create a Smith Net account, ignore this email.',
-    '',
-    '— Smith Net',
-  ].join('\n');
-  const html = `<p>Hi ${displayName},</p>
-<p>Tap to verify your email and finish setting up Smith Net:</p>
-<p><a href="${link}">${link}</a></p>
-<p>This link expires in 24 hours. If you did not create a Smith Net account, ignore this email.</p>
-<p>— Smith Net</p>`;
-  return { subject, text, html };
-}
-
-async function sendVerificationEmail(to: string, displayName: string, token: string): Promise<void> {
-  const link = buildVerificationLink(token);
-  const { subject, text, html } = buildVerificationEmail(displayName, link);
-  const result = await sendEmail({ to, subject, text, html });
-  if (!result.ok) {
-    // Don't fail the request — registration succeeded; user can request resend.
-    requestLogger().warn({ event: 'verification_email_send_failed', err: result.error, email: to }, 'verification email send failed (non-fatal)');
-  }
+async function enqueueVerificationEmail(to: string, displayName: string, token: string, userId: string): Promise<void> {
+  await enqueue({
+    kind: 'email',
+    dedupeKey: `email:verify:${userId}:${token}`,
+    payload: {
+      subkind: 'verification',
+      to,
+      displayName,
+      token,
+      baseUrl: PUBLIC_BASE_URL,
+    },
+  });
 }
 
 function renderVerifyFailed(res: Response, status: number, reason: string): void {
@@ -119,8 +103,7 @@ authRouter.post('/register', validateBody(RegisterBody), async (req, res) => {
     // so the resend cooldown applies even to this initial send.
     if (user.emailVerificationToken) {
       await userStore.recordVerificationSendAttempt(user.id);
-      sendVerificationEmail(user.email, user.displayName, user.emailVerificationToken)
-        .catch((err) => requestLogger().warn({ event: 'verification_email_error', err, email: user.email }, 'verification email error (non-fatal)'));
+      await enqueueVerificationEmail(user.email, user.displayName, user.emailVerificationToken, user.id);
     }
 
     setAuthCookies(res, tokens);
@@ -273,7 +256,7 @@ authRouter.post('/resend-verification', authenticateToken, async (req: Authentic
     return res.json({ ok: true, alreadyVerified: true });
   }
 
-  await sendVerificationEmail(stored.email, stored.displayName, newToken);
+  await enqueueVerificationEmail(stored.email, stored.displayName, newToken, userId);
   await auditLog.log(AuditAction.USER_PROFILE_UPDATE, userId, { event: 'verification_resent' });
 
   res.json({ ok: true, dryRun: !isEmailLive() });
