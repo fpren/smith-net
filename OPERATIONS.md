@@ -1,9 +1,26 @@
 # Smith Net Operations Runbook
 
-## Stuck running background_jobs (Phase 3 interim)
+## Operator health view
 
-Until Phase 4's `queueWatcherDaemon` ships, a worker that crashes mid-job
-leaves its row in `state='running'` indefinitely. Operator recipe:
+`GET /api/admin/health` (admin role required) returns:
+- `workers[]` — every process with a recent `worker_heartbeats` row
+- `queue.byKindState[]` — count of rows per (kind, state)
+- `queue.oldestQueued` / `queue.oldestRunning` — oldest pending+running rows
+
+Use this to verify both processes are alive after a deploy and to spot
+queue buildup before users notice. Heartbeat cadence is 30s; rows older
+than ~2 minutes mean the worker process is down.
+
+## Stuck running background_jobs
+
+**Automated since Phase 4 Slice 1.** `queueWatcherDaemon` runs on a 60s
+cadence inside the worker process and resets any `state='running'` row
+whose `locked_at` is older than 10 minutes back to `state='queued'`.
+Operator intervention is no longer required for the typical worker-crash
+case; each reset is audit-logged (`ADMIN_ACTION` / `stuck_job_reset`).
+
+The manual SQL recipe below stays as a break-glass for emergencies (e.g.
+the worker process itself is down):
 
 ```sql
 UPDATE background_jobs
@@ -14,14 +31,6 @@ UPDATE background_jobs
    AND locked_at < NOW() - INTERVAL '10 minutes';
 ```
 
-Run via:
-
-```bash
-psql "$DATABASE_URL" -c "<sql>"
-```
-
-whenever the queue shows running rows older than 10 minutes.
-
 Diagnostic query — show stuck rows:
 
 ```sql
@@ -31,8 +40,6 @@ SELECT id, kind, locked_by, locked_at, attempts
    AND locked_at < NOW() - INTERVAL '10 minutes'
  ORDER BY locked_at;
 ```
-
-Frequency: as needed. The queueWatcherDaemon (Phase 4) will automate this on a 5s cadence.
 
 ## Dead jobs (terminal failure)
 
