@@ -56,7 +56,7 @@ export async function tick(workerId: string): Promise<boolean> {
   try {
     switch (p.subkind) {
       case 'verification': {
-        const link = `${p.baseUrl.replace(/\/+$/, '')}/api/auth/verify-email?token=${encodeURIComponent(p.token)}`;
+        const link = `${p.baseUrl.replace(/\/+$/, '')}/api/auth/verify?token=${encodeURIComponent(p.token)}`;
         const { subject, text, html } = buildVerificationEmail(p.displayName, link);
         const r = await sendEmail({ to: p.to, subject, text, html });
         if (!r.ok && !r.dryRun) {
