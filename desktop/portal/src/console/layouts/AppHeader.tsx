@@ -79,6 +79,7 @@ export function AppHeader() {
         <NavButton to="/console" label="Map" end />
         <NavButton to="/console/jobs" label="Jobs" />
         <NavButton to="/console/crew" label="Crew" />
+        <NavButton to="/console/comm" label="Comm" />
         {user.role === 'admin' && <NavButton to="/console/admin" label="Admin" />}
       </nav>
 

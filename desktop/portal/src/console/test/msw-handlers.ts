@@ -257,6 +257,59 @@ export const handlers = [
     })
   ),
 
+  // Comm — channels list + messages history + send.
+  http.get('/api/channels', () =>
+    HttpResponse.json([
+      {
+        id: 'ch-general',
+        name: 'general',
+        type: 'group',
+        visibility: 'public',
+        creatorId: 'user-1',
+        createdAt: 1716000000000,
+        memberIds: ['user-1'],
+        allowedUsers: [],
+        blockedUsers: [],
+        pendingRequests: [],
+        requiresApproval: false,
+        isArchived: false,
+        isDeleted: false,
+      },
+    ])
+  ),
+
+  http.get('/api/channels/:id/messages', ({ params }) =>
+    HttpResponse.json([
+      {
+        id: 'msg-1',
+        channelId: params.id,
+        senderId: 'user-1',
+        senderName: 'Test Foreman',
+        content: 'hello world',
+        timestamp: 1716000001000,
+        origin: 'online',
+      },
+    ])
+  ),
+
+  http.post('/api/messages/inject', async ({ request }) => {
+    const body = (await request.json()) as { channelId: string; content: string };
+    return HttpResponse.json(
+      {
+        id: 'msg-new',
+        channelId: body.channelId,
+        senderId: 'user-1',
+        senderName: 'Test Foreman',
+        content: body.content,
+        timestamp: 1716000099000,
+        origin: 'online',
+        meshInjected: false,
+        relayCount: 0,
+      },
+      { status: 201 }
+    );
+  }),
+
   // Phase 4 admin health endpoint.
   http.get('/api/admin/health', () =>
     HttpResponse.json({

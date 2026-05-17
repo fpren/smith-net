@@ -10,6 +10,7 @@ import { JobsListRoute } from './console/routes/JobsListRoute';
 import { JobDetailRoute } from './console/routes/JobDetailRoute';
 import { MapRoute } from './console/routes/MapRoute';
 import { CrewRoute } from './console/routes/CrewRoute';
+import { CommRoute } from './console/routes/CommRoute';
 import { AdminRoute } from './console/routes/AdminRoute';
 import { RequireAdmin } from './console/auth/RequireAdmin';
 
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="jobs" element={<JobsListRoute />} />
         <Route path="jobs/:id" element={<JobDetailRoute />} />
         <Route path="crew" element={<CrewRoute />} />
+        <Route path="comm" element={<CommRoute />} />
         <Route path="admin" element={<RequireAdmin><AdminRoute /></RequireAdmin>} />
       </Route>
     </Routes>
