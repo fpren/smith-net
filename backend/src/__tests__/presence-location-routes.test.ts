@@ -84,22 +84,50 @@ describeDb('presence/location + crew/positions routes', () => {
     expect(res.status).toBe(403);
   });
 
-  it('GET /api/crew/positions returns positions for users with open shifts', async () => {
+  it('GET /api/crew/positions returns positions in the caller org', async () => {
+    // Org-of-one: foreman sees their own position (same org_id), not another
+    // foreman's position in a different org. The cross-foreman case is covered
+    // by the next test.
     const foreman = await createUserAndLogin('list2', UserRole.FOREMAN);
-    const crewA = await createUserAndLogin('list2a', UserRole.FOREMAN);
-    await request(app).post('/api/shifts/start').set('Cookie', `smithnet_access=${crewA.token}`).send({ source: 'android' });
+    await request(app).post('/api/shifts/start').set('Cookie', `smithnet_access=${foreman.token}`).send({ source: 'android' });
     await request(app)
       .post('/api/presence/location')
-      .set('Cookie', `smithnet_access=${crewA.token}`)
+      .set('Cookie', `smithnet_access=${foreman.token}`)
       .send({ lat: 30, lng: 60 });
 
     const res = await request(app).get('/api/crew/positions').set('Cookie', `smithnet_access=${foreman.token}`);
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.positions)).toBe(true);
     const ids = res.body.positions.map((r: { userId: string }) => r.userId);
-    expect(ids).toContain(crewA.id);
-    const crewARow = res.body.positions.find((r: { userId: string }) => r.userId === crewA.id);
-    expect(crewARow.displayName).toBeDefined();
-    expect(typeof crewARow.displayName).toBe('string');
+    expect(ids).toContain(foreman.id);
+    const row = res.body.positions.find((r: { userId: string }) => r.userId === foreman.id);
+    expect(typeof row.displayName).toBe('string');
+  });
+
+  it('GET /api/crew/positions does NOT leak positions across orgs', async () => {
+    // Two foremen in separate orgs (the org-of-one default). Each must only
+    // see themselves; neither should see the other's dot.
+    const alpha = await createUserAndLogin('list3a', UserRole.FOREMAN);
+    const bravo = await createUserAndLogin('list3b', UserRole.FOREMAN);
+
+    for (const u of [alpha, bravo]) {
+      await request(app).post('/api/shifts/start').set('Cookie', `smithnet_access=${u.token}`).send({ source: 'android' });
+      await request(app)
+        .post('/api/presence/location')
+        .set('Cookie', `smithnet_access=${u.token}`)
+        .send({ lat: 40, lng: -73 });
+    }
+
+    const alphaRes = await request(app).get('/api/crew/positions').set('Cookie', `smithnet_access=${alpha.token}`);
+    expect(alphaRes.status).toBe(200);
+    const alphaIds = alphaRes.body.positions.map((r: { userId: string }) => r.userId);
+    expect(alphaIds).toContain(alpha.id);
+    expect(alphaIds).not.toContain(bravo.id);
+
+    const bravoRes = await request(app).get('/api/crew/positions').set('Cookie', `smithnet_access=${bravo.token}`);
+    expect(bravoRes.status).toBe(200);
+    const bravoIds = bravoRes.body.positions.map((r: { userId: string }) => r.userId);
+    expect(bravoIds).toContain(bravo.id);
+    expect(bravoIds).not.toContain(alpha.id);
   });
 });

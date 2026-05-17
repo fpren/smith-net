@@ -101,7 +101,14 @@ presenceLocationRouter.get(
     if (!FOREMAN_ROLES.has(role)) {
       return res.status(403).json({ error: 'foreman role required' });
     }
-    const positions = await crewPositionService.listOpenPositions();
+    const organizationId = req.user!.organizationId;
+    if (!organizationId) {
+      // 012 migration makes users.organization_id NOT NULL, so this should be
+      // unreachable for any user created or backfilled after deploy. Treat the
+      // mismatch as an auth failure rather than silently returning every org.
+      return res.status(401).json({ error: 'user missing organization_id' });
+    }
+    const positions = await crewPositionService.listOpenPositions(organizationId);
     return res.status(200).json({ positions: positions.map(serializePositionWithProfile) });
   }
 );

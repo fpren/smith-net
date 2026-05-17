@@ -365,10 +365,10 @@ export async function createUserAndProfile(input: CreateUserAndProfileInput): Pr
     await client.query('BEGIN');
     await client.query(
       `INSERT INTO users (
-         id, email, password_hash, display_name, role,
+         id, email, password_hash, display_name, role, organization_id,
          is_active, mfa_enabled, failed_login_count,
          email_verification_token, email_verification_expires_at
-       ) VALUES ($1, $2, $3, $4, $5, TRUE, FALSE, 0, $6, $7)`,
+       ) VALUES ($1, $2, $3, $4, $5, $1, TRUE, FALSE, 0, $6, $7)`,
       [id, input.email.toLowerCase(), passwordHash, input.displayName, input.role, verificationToken, verificationExpires]
     );
     await client.query(

@@ -84,9 +84,20 @@ class CrewPositionService {
     if (!open) {
       throw new Error('no open shift for user');
     }
+    // organization_id is denormalized onto crew_positions so the foreman
+    // crew-list query can filter on a single column without a JOIN. The
+    // owning user's org is the source of truth (013 migration ensures NOT NULL).
+    const orgRow = await db.query<{ organization_id: string }>(
+      `SELECT organization_id FROM users WHERE id = $1`,
+      [userId]
+    );
+    const organizationId = orgRow.rows[0]?.organization_id;
+    if (!organizationId) {
+      throw new Error(`user ${userId} has no organization_id`);
+    }
     const r = await db.query<CrewPosition>(
-      `INSERT INTO crew_positions (user_id, latitude, longitude, accuracy_m, source, battery_pct, recorded_at)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW())
+      `INSERT INTO crew_positions (user_id, latitude, longitude, accuracy_m, source, battery_pct, organization_id, recorded_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
        ON CONFLICT (user_id) DO UPDATE SET
          latitude    = EXCLUDED.latitude,
          longitude   = EXCLUDED.longitude,
@@ -95,16 +106,18 @@ class CrewPositionService {
          battery_pct = EXCLUDED.battery_pct,
          recorded_at = NOW()
        RETURNING user_id, latitude, longitude, accuracy_m, recorded_at, source, battery_pct`,
-      [userId, input.lat, input.lng, input.accuracy_m ?? null, source, input.battery_pct ?? null]
+      [userId, input.lat, input.lng, input.accuracy_m ?? null, source, input.battery_pct ?? null, organizationId]
     );
     return r.rows[0];
   }
 
-  async listOpenPositions(): Promise<CrewPositionWithProfile[]> {
+  async listOpenPositions(organizationId: string): Promise<CrewPositionWithProfile[]> {
     const db = requirePg();
-    // Solo workers' positions are excluded from the foreman-facing crew view —
-    // their work-mode says they operate independently, so their dot should not
-    // surface on any supervisor's console.
+    // Two filters stack here:
+    //   1. organization_id — tenant isolation (013 migration); a foreman only
+    //      ever sees crew in their own org.
+    //   2. u.role <> 'solo' — solo workers operate independently, so their dot
+    //      should not surface on any supervisor's console even within the org.
     const r = await db.query<CrewPositionWithProfile>(
       `SELECT p.user_id, p.latitude, p.longitude, p.accuracy_m, p.recorded_at, p.source, p.battery_pct,
               pr.display_name
@@ -112,7 +125,9 @@ class CrewPositionService {
          INNER JOIN shifts   s  ON s.user_id  = p.user_id AND s.ended_at IS NULL
          INNER JOIN profiles pr ON pr.id      = p.user_id
          INNER JOIN users    u  ON u.id       = p.user_id
-        WHERE u.role <> 'solo'`
+        WHERE p.organization_id = $1
+          AND u.role <> 'solo'`,
+      [organizationId]
     );
     return r.rows;
   }

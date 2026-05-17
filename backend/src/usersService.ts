@@ -99,12 +99,15 @@ class UsersService {
     const token = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS);
 
+    // Tenant isolation slice 1: every new user starts as their own org of one.
+    // Invite/join flow (which reassigns organization_id to a foreman's org)
+    // is a follow-up plan; for now organization_id always equals id at create.
     const result = await db.query<UserRow>(
       `INSERT INTO users (
-         id, email, password_hash, display_name, role,
+         id, email, password_hash, display_name, role, organization_id,
          is_active, mfa_enabled, failed_login_count,
          email_verification_token, email_verification_expires_at
-       ) VALUES ($1, $2, $3, $4, $5, TRUE, FALSE, 0, $6, $7)
+       ) VALUES ($1, $2, $3, $4, $5, $1, TRUE, FALSE, 0, $6, $7)
        RETURNING *`,
       [id, email.toLowerCase(), passwordHash, displayName, role, token, expires]
     );
@@ -328,10 +331,10 @@ class UsersService {
 
     const result = await db.query(
       `INSERT INTO users (
-         id, email, password_hash, display_name, role,
+         id, email, password_hash, display_name, role, organization_id,
          is_active, mfa_enabled, failed_login_count,
          email_verified_at
-       ) VALUES ('admin-001', 'admin@smithnet.local', $1, 'System Admin', 'admin',
+       ) VALUES ('admin-001', 'admin@smithnet.local', $1, 'System Admin', 'admin', 'admin-001',
                  TRUE, FALSE, 0, NOW())
        ON CONFLICT (id) DO NOTHING`,
       [passwordHash]

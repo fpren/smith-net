@@ -111,7 +111,10 @@ describeDb('crewPositionService — positions', () => {
     expect(row.rows[0].longitude).toBeCloseTo(4, 5);
   });
 
-  it('listOpenPositions returns rows for users with open shifts; skips others', async () => {
+  it('listOpenPositions returns only positions in the caller org; skips others', async () => {
+    // Org-of-one: each user starts in their own org, so listOpenPositions(orgA)
+    // returns A only, listOpenPositions(orgB) returns B only. Cross-org rows
+    // never leak even when both have open shifts.
     const a = await makeUser('lp1');
     const b = await makeUser('lp2');
     const c = await makeUser('lp3');
@@ -121,11 +124,14 @@ describeDb('crewPositionService — positions', () => {
     await crewPositionService.upsertPosition(a, { lat: 10, lng: 20 }, 'android');
     await crewPositionService.upsertPosition(b, { lat: 30, lng: 40 }, 'web');
 
-    const list = await crewPositionService.listOpenPositions();
-    const ids = list.map((p) => p.user_id);
-    expect(ids).toContain(a);
-    expect(ids).toContain(b);
-    expect(ids).not.toContain(c);
+    const listA = await crewPositionService.listOpenPositions(a); // org-of-one: orgId === userId
+    expect(listA.map((p) => p.user_id)).toEqual([a]);
+
+    const listB = await crewPositionService.listOpenPositions(b);
+    expect(listB.map((p) => p.user_id)).toEqual([b]);
+
+    const listC = await crewPositionService.listOpenPositions(c);
+    expect(listC).toEqual([]);
   });
 
   it('listOpenPositions excludes users whose shift has ended', async () => {
@@ -134,7 +140,7 @@ describeDb('crewPositionService — positions', () => {
     await crewPositionService.upsertPosition(a, { lat: 1, lng: 2 }, 'android');
     await crewPositionService.endShift(a);
 
-    const list = await crewPositionService.listOpenPositions();
+    const list = await crewPositionService.listOpenPositions(a);
     expect(list.map((p) => p.user_id)).not.toContain(a);
   });
 
