@@ -172,13 +172,24 @@ class ChannelRegistry {
   }
 
   /**
-   * Check if user can see channel in listings (for private/restricted, show if can request)
+   * Whether a non-member should still see a channel in their list (for the
+   * "discoverable, join-by-request" affordance). Membership-based access is
+   * already handled by canUserAccess in listForUser, so this method only
+   * needs to cover the discovery case.
+   *
+   * Previously this returned `true` for ANY `public` channel, which leaked
+   * unrelated users' channels across the tenant boundary (a public channel
+   * created by user-A appeared in user-B's list even when user-B was not a
+   * member and shared no org with user-A). Public visibility now only matters
+   * inside `canUserAccess` (open `memberIds.length === 0` channels + explicit
+   * membership); discovery is reserved for private channels that explicitly
+   * opt in via `requiresApproval`.
    */
   canUserSeeInList(channel: Channel, userId: string): boolean {
-    if (channel.visibility === 'public') return true;
     if (this.canUserAccess(channel, userId)) return true;
-    // Can see if they can request access
-    return channel.visibility === 'private' && channel.requiresApproval && !channel.blockedUsers.includes(userId);
+    return channel.visibility === 'private'
+        && channel.requiresApproval
+        && !channel.blockedUsers.includes(userId);
   }
 
   /**
