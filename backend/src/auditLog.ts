@@ -25,6 +25,10 @@ export enum AuditAction {
   USER_ROLE_CHANGE = 'user.role_change',
   USER_DEACTIVATED = 'user.deactivated',
   TOKEN_REFRESH = 'token.refresh',
+
+  // Org membership
+  ORG_INVITE_CREATED = 'org.invite_created',
+  ORG_MEMBER_JOINED = 'org.member_joined',
   
   // Messaging
   MESSAGE_SENT = 'message.sent',

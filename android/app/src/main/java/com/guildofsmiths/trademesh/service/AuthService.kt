@@ -128,6 +128,118 @@ object AuthService {
     }
 
     // ════════════════════════════════════════════════════════════════════
+    // ORG INVITE & JOIN
+    // ════════════════════════════════════════════════════════════════════
+
+    data class InviteCode(val code: String, val expiresAt: String)
+
+    data class OrgMember(
+        val id: String,
+        val email: String,
+        val displayName: String,
+        val role: String,
+    )
+
+    sealed class JoinResult {
+        object Ok : JoinResult()
+        data class Error(val status: Int, val message: String) : JoinResult()
+    }
+
+    /** Foreman-only. Returns null on auth/permission failure or network error. */
+    suspend fun createOrgInvite(): InviteCode? = withContext(Dispatchers.IO) {
+        val token = getAccessToken() ?: return@withContext null
+        try {
+            val req = Request.Builder()
+                .url("$baseUrl/api/auth/org/invites")
+                .addHeader("Authorization", "Bearer $token")
+                .post("".toRequestBody(JSON_MEDIA_TYPE))
+                .build()
+            client.newCall(req).execute().use { res ->
+                if (!res.isSuccessful) {
+                    Log.w(TAG, "createOrgInvite HTTP ${res.code}")
+                    return@use null
+                }
+                val body = JSONObject(res.body?.string() ?: "{}")
+                InviteCode(body.getString("code"), body.getString("expiresAt"))
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "createOrgInvite failed: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Accept an invite code. On success, updates the local cached role from the
+     * server response so RoleContext reflects the post-join team_member role.
+     * Surfaces HTTP status distinctly so the Settings UI can render the right
+     * error (404 not found / 409 already used / 410 expired).
+     */
+    suspend fun acceptOrgJoin(code: String): JoinResult = withContext(Dispatchers.IO) {
+        val token = getAccessToken() ?: return@withContext JoinResult.Error(401, "not logged in")
+        try {
+            val body = JSONObject().put("code", code.trim()).toString().toRequestBody(JSON_MEDIA_TYPE)
+            val req = Request.Builder()
+                .url("$baseUrl/api/auth/org/join")
+                .addHeader("Authorization", "Bearer $token")
+                .post(body)
+                .build()
+            client.newCall(req).execute().use { res ->
+                val bodyText = res.body?.string() ?: "{}"
+                if (res.isSuccessful) {
+                    // Pull the fresh role + org from the response so the local
+                    // SharedPrefs cache + RoleContext follow the server.
+                    val user = JSONObject(bodyText).optJSONObject("user")
+                    user?.optString("role")?.takeIf { it.isNotBlank() }?.let { updateUserRole(it) }
+                    JoinResult.Ok
+                } else {
+                    val msg = try { JSONObject(bodyText).optString("error", "join failed") }
+                              catch (_: Exception) { "join failed" }
+                    Log.w(TAG, "acceptOrgJoin HTTP ${res.code}: $msg")
+                    JoinResult.Error(res.code, msg)
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "acceptOrgJoin failed: ${e.message}")
+            JoinResult.Error(0, e.message ?: "network error")
+        }
+    }
+
+    /** Foreman-only. Returns null on auth/permission failure or network error. */
+    suspend fun listOrgMembers(): List<OrgMember>? = withContext(Dispatchers.IO) {
+        val token = getAccessToken() ?: return@withContext null
+        try {
+            val req = Request.Builder()
+                .url("$baseUrl/api/auth/org/members")
+                .addHeader("Authorization", "Bearer $token")
+                .get()
+                .build()
+            client.newCall(req).execute().use { res ->
+                if (!res.isSuccessful) {
+                    Log.w(TAG, "listOrgMembers HTTP ${res.code}")
+                    return@use null
+                }
+                val arr = JSONObject(res.body?.string() ?: "{}").optJSONArray("members") ?: return@use emptyList()
+                buildList {
+                    for (i in 0 until arr.length()) {
+                        val m = arr.getJSONObject(i)
+                        add(
+                            OrgMember(
+                                id = m.optString("id"),
+                                email = m.optString("email"),
+                                displayName = m.optString("displayName"),
+                                role = m.optString("role"),
+                            )
+                        )
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "listOrgMembers failed: ${e.message}")
+            null
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
     // REGISTER
     // ════════════════════════════════════════════════════════════════════
     

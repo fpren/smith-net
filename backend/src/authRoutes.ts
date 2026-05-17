@@ -412,4 +412,105 @@ authRouter.patch(
   }
 );
 
+// ════════════════════════════════════════════════════════════════════
+// ORG INVITE & JOIN
+// ════════════════════════════════════════════════════════════════════
+//
+// Lets a foreman generate a one-time 8-char code and another user redeem
+// it to join the foreman's org. The joiner's organization_id reassigns
+// to the foreman's; their role flips to team_member so the crew-list
+// role filter stops hiding them. See organizationInviteService for the
+// transactional consumption logic.
+
+import { organizationInviteService, InviteError } from './organizationInviteService';
+
+// Roles allowed to issue invites and read the org member list. Mirrors the
+// foreman-tier set in presenceLocationRoutes.ts.
+const ORG_ADMIN_ROLES: ReadonlySet<UserRole> = new Set<UserRole>([
+  UserRole.FOREMAN,
+  UserRole.ENTERPRISE,
+  UserRole.ADMIN,
+]);
+
+authRouter.post(
+  '/org/invites',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!ORG_ADMIN_ROLES.has(req.user!.role as UserRole)) {
+        return res.status(403).json({ error: 'foreman role required' });
+      }
+      const organizationId = req.user!.organizationId;
+      if (!organizationId) {
+        return res.status(401).json({ error: 'user missing organization_id' });
+      }
+      const invite = await organizationInviteService.createInvite(req.user!.id, organizationId);
+      await auditLog.log(AuditAction.ORG_INVITE_CREATED, req.user!.id, {
+        organizationId,
+        code: invite.code,
+        expiresAt: invite.expiresAt.toISOString(),
+      });
+      res.json({ code: invite.code, expiresAt: invite.expiresAt.toISOString() });
+    } catch (e: any) {
+      requestLogger().error({ event: 'org_invite_create_error', err: e }, 'org invite create error');
+      res.status(500).json({ error: 'Invite creation failed' });
+    }
+  }
+);
+
+authRouter.post(
+  '/org/join',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { code } = req.body ?? {};
+      if (typeof code !== 'string' || !code.trim()) {
+        return res.status(400).json({ error: 'code is required' });
+      }
+      const result = await organizationInviteService.acceptInvite(
+        req.user!.id,
+        req.user!.role as UserRole,
+        code
+      );
+      // Refetch so the response carries the new role + organizationId.
+      const fresh = await userStore.getUserById(req.user!.id);
+      if (!fresh) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      await auditLog.log(AuditAction.ORG_MEMBER_JOINED, req.user!.id, {
+        organizationId: result.organizationId,
+        newRole: result.newRole,
+      });
+      res.json({ user: toPublicUser(fresh) });
+    } catch (e: any) {
+      if (e instanceof InviteError) {
+        return res.status(e.status).json({ error: e.message });
+      }
+      requestLogger().error({ event: 'org_join_error', err: e }, 'org join error');
+      res.status(500).json({ error: 'Join failed' });
+    }
+  }
+);
+
+authRouter.get(
+  '/org/members',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!ORG_ADMIN_ROLES.has(req.user!.role as UserRole)) {
+        return res.status(403).json({ error: 'foreman role required' });
+      }
+      const organizationId = req.user!.organizationId;
+      if (!organizationId) {
+        return res.status(401).json({ error: 'user missing organization_id' });
+      }
+      const members = await organizationInviteService.listMembers(organizationId);
+      res.json({ members });
+    } catch (e: any) {
+      requestLogger().error({ event: 'org_members_error', err: e }, 'org members error');
+      res.status(500).json({ error: 'List failed' });
+    }
+  }
+);
+
 requestLogger().info({ event: 'auth_routes_initialized' }, 'auth routes initialized');

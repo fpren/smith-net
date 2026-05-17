@@ -151,6 +151,15 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             // ════════════════════════════════════════════════════════════════
+            // TEAM (invite codes for foremen; join code for everyone else)
+            // ════════════════════════════════════════════════════════════════
+            TeamSection()
+
+            Spacer(modifier = Modifier.height(16.dp))
+            ConsoleSeparator()
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // ════════════════════════════════════════════════════════════════
             // TRADE ROLE
             // ════════════════════════════════════════════════════════════════
             TradeRoleSection()
@@ -1084,6 +1093,207 @@ private fun WorkModeSection() {
             text = "Changes the dashboard layout, permissions, and available features.",
             style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
         )
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// TEAM SECTION — foremen generate invite codes, everyone else joins a team
+// ════════════════════════════════════════════════════════════════════════════
+
+private val FOREMAN_TIER = setOf(
+    UserRole.FOREMAN,
+    UserRole.GENERAL_CONTRACTOR,
+    UserRole.ENTERPRISE,
+    UserRole.ADMIN,
+)
+
+@Composable
+private fun TeamSection() {
+    val role = RoleContext.role
+    if (role in FOREMAN_TIER) {
+        ForemanTeamSection()
+    } else {
+        JoinTeamSection()
+    }
+}
+
+@Composable
+private fun ForemanTeamSection() {
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+    var invite by remember { mutableStateOf<AuthService.InviteCode?>(null) }
+    var members by remember { mutableStateOf<List<AuthService.OrgMember>>(emptyList()) }
+    var loading by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        members = AuthService.listOrgMembers() ?: emptyList()
+    }
+
+    Column {
+        Text(text = "TEAM", style = ConsoleTheme.captionBold)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(ConsoleTheme.surface)
+                .clickable(enabled = !loading) {
+                    loading = true
+                    scope.launch {
+                        val fresh = AuthService.createOrgInvite()
+                        loading = false
+                        if (fresh != null) {
+                            invite = fresh
+                        } else {
+                            Toast.makeText(context, "Could not create invite", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (loading) "[Generating...]" else "[Generate Invite Code]",
+                style = ConsoleTheme.action.copy(color = ConsoleTheme.accent)
+            )
+        }
+
+        invite?.let { inv ->
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.background)
+                    .clickable {
+                        clipboard.setText(AnnotatedString(inv.code))
+                        Toast.makeText(context, "Code copied", Toast.LENGTH_SHORT).show()
+                    }
+                    .padding(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = inv.code, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
+                Text(text = "[Copy]", style = ConsoleTheme.action.copy(color = ConsoleTheme.accent))
+            }
+            Text(
+                text = "Expires ${inv.expiresAt.take(10)}. One-time use.",
+                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                modifier = Modifier.padding(start = 12.dp, top = 4.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(text = "TEAM MEMBERS", style = ConsoleTheme.captionBold)
+        Spacer(modifier = Modifier.height(4.dp))
+        if (members.isEmpty()) {
+            Text(
+                text = "No members yet. Share an invite code to add your crew.",
+                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                modifier = Modifier.padding(horizontal = 12.dp)
+            )
+        } else {
+            members.forEach { m ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = m.displayName, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
+                    Text(text = m.role, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun JoinTeamSection() {
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    var expanded by remember { mutableStateOf(false) }
+    var code by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    var loading by remember { mutableStateOf(false) }
+
+    Column {
+        Text(text = "JOIN A TEAM", style = ConsoleTheme.captionBold)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (!expanded) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .clickable { expanded = true; error = null }
+                    .padding(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "Have an invite code?", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
+                Text(text = "[Enter code]", style = ConsoleTheme.action.copy(color = ConsoleTheme.accent))
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                BasicTextField(
+                    value = code,
+                    onValueChange = { code = it.uppercase().take(8); error = null },
+                    textStyle = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text),
+                    cursorBrush = SolidColor(ConsoleTheme.cursor),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    decorationBox = { inner ->
+                        Box {
+                            if (code.isEmpty()) {
+                                Text("8-char code", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted))
+                            }
+                            inner()
+                        }
+                    }
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = if (loading) "[Joining...]" else "[Join]",
+                        style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                        modifier = Modifier.clickable(enabled = !loading && code.length == 8) {
+                            loading = true
+                            scope.launch {
+                                when (val r = AuthService.acceptOrgJoin(code)) {
+                                    is AuthService.JoinResult.Ok -> {
+                                        loading = false
+                                        expanded = false
+                                        code = ""
+                                        Toast.makeText(context, "Joined team. Welcome!", Toast.LENGTH_SHORT).show()
+                                    }
+                                    is AuthService.JoinResult.Error -> {
+                                        loading = false
+                                        error = r.message
+                                    }
+                                }
+                            }
+                        }
+                    )
+                    Text(
+                        text = "[Cancel]",
+                        style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                        modifier = Modifier.clickable { expanded = false; code = ""; error = null }
+                    )
+                }
+                error?.let {
+                    Text(
+                        text = it,
+                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent)
+                    )
+                }
+            }
+        }
     }
 }
 
