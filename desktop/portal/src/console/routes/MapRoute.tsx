@@ -42,12 +42,12 @@ export function MapRoute() {
 
   return (
     <div className="flex flex-col h-full font-mono">
-      <div className="flex items-center justify-between p-3 border-b border-console-border">
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between p-3 border-b border-console-border">
         <StatsStrip jobs={jobs} />
         <Button onClick={() => setShowCreate(true)}>+ Create Job</Button>
       </div>
-      <div className="flex flex-1 min-h-0">
-        <div className="flex-1 relative">
+      <div className="flex flex-col md:flex-row flex-1 min-h-0">
+        <div className="flex-1 min-h-[40vh] md:min-h-0 relative">
           <MapCanvas
             jobs={jobs}
             crewPositions={crewPositions}

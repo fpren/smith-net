@@ -55,7 +55,7 @@ export function JobsListRoute() {
 
   return (
     <div className="font-mono">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col items-start gap-2 md:flex-row md:items-center md:justify-between mb-4">
         <h1 className="text-console-text text-lg">Jobs</h1>
         <Button onClick={() => setShowCreate(true)}>+ Create Job</Button>
       </div>

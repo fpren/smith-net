@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { AppHeader } from './layouts/AppHeader';
+import { BottomTabBar } from './layouts/BottomTabBar';
 import { ShareLocationToggle } from './components/header/ShareLocationToggle';
 import { useAuthStore } from './auth/authStore';
 
@@ -18,7 +19,10 @@ export function ConsoleShell({ children }: Props) {
           <ShareLocationToggle />
         </div>
       )}
-      <main className="flex-1 min-h-0 overflow-y-auto p-6">{children}</main>
+      {/* pb-20 keeps content above the 56px BottomTabBar on mobile; resets
+          to the original p-6 padding at md+ where the bar is hidden. */}
+      <main className="flex-1 min-h-0 overflow-y-auto p-6 pb-20 md:pb-6">{children}</main>
+      <BottomTabBar />
     </div>
   );
 }

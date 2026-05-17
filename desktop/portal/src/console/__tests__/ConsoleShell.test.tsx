@@ -28,4 +28,9 @@ describe('ConsoleShell', () => {
     await userEvent.click(screen.getByRole('button', { name: /log out/i }));
     await waitFor(() => expect(useAuthStore.getState().user).toBeNull());
   });
+
+  it('renders the BottomTabBar (mobile nav) when authenticated', () => {
+    render(<MemoryRouter><ConsoleShell><div>x</div></ConsoleShell></MemoryRouter>);
+    expect(screen.getByRole('navigation', { name: /primary navigation/i })).toBeInTheDocument();
+  });
 });

@@ -43,7 +43,7 @@ export function MapSidePanel({ jobs, mode, onModeChange, onSelectJob }: Props) {
   );
 
   return (
-    <aside className="w-[300px] border-l border-console-border bg-console-surface flex flex-col font-mono">
+    <aside className="w-full md:w-[300px] border-t md:border-t-0 md:border-l border-console-border bg-console-surface flex flex-col font-mono">
       <div className="p-3 border-b border-console-border">
         <MapFilterChips mode={mode} onChange={onModeChange} />
       </div>

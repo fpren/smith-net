@@ -26,7 +26,7 @@ export function CrewRoute() {
 
   return (
     <div className="font-mono">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col items-start gap-2 md:flex-row md:items-center md:justify-between mb-4">
         <h1 className="text-console-text text-lg">Crew</h1>
         <span className="text-console-text-muted text-xs">
           {roster.length} member{roster.length === 1 ? '' : 's'}

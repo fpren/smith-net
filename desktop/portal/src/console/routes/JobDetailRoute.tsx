@@ -49,7 +49,7 @@ export function JobDetailRoute() {
         <StatusButtons jobId={job.id} status={job.status} onChanged={upsertJob} />
       </div>
       <div className="mt-8">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex flex-col items-start gap-2 md:flex-row md:items-center md:justify-between mb-2">
           <h2 className="text-console-text-muted text-xs uppercase tracking-wide">Crew ({crew.length})</h2>
           <Button onClick={() => setShowAssign(true)}>+ Assign crew</Button>
         </div>
