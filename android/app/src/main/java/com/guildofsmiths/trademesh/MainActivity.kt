@@ -261,8 +261,16 @@ class MainActivity : ComponentActivity() {
                     val ttvm: com.guildofsmiths.trademesh.ui.timetracking.TimeTrackingViewModel = viewModel(viewModelStoreOwner = this@MainActivity)
                     val isClockedInFlag by ttvm.isClockedIn.collectAsState()
                     val appContext = this@MainActivity.applicationContext
-                    LaunchedEffect(isClockedInFlag) {
-                        if (isClockedInFlag) {
+                    val ttvmBackStackEntry by navController.currentBackStackEntryAsState()
+                    val ttvmCurrentRoute = ttvmBackStackEntry?.destination?.route
+                    LaunchedEffect(isClockedInFlag, ttvmCurrentRoute) {
+                        // Wait for NavHost to settle on a real route before toggling the
+                        // foreground service. Firing during the null→AUTH transition races
+                        // with startForegroundService's 5-second startForeground contract
+                        // and crashes the process.
+                        if (ttvmCurrentRoute == null) return@LaunchedEffect
+                        val onAuthRoute = ttvmCurrentRoute == NavRoutes.AUTH
+                        if (isClockedInFlag && !onAuthRoute) {
                             com.guildofsmiths.trademesh.service.LocationService.start(appContext)
                         } else {
                             com.guildofsmiths.trademesh.service.LocationService.stop(appContext)
@@ -448,15 +456,15 @@ class MainActivity : ComponentActivity() {
                                     UserPreferences.setUserName(name)
                                     viewModel.setUserName(name)
 
-                                    // DO NOT set onboarding complete here - that's system configuration
-                                    // Check if system is already configured, then navigate appropriately
-                                    if (UserPreferences.isOnboardingDataComplete()) {
-                                        // System already configured - go to Dashboard
+                                    // Route the same way the cold-start path does: trust the
+                                    // boolean flag set when the user reached the final onboarding
+                                    // screen. Don't re-gate on individual field values — those
+                                    // fields are optional and the user can fill them in Settings.
+                                    if (UserPreferences.isOnboardingComplete()) {
                                         navController.navigate(NavRoutes.DASHBOARD) {
                                             popUpTo(NavRoutes.AUTH) { inclusive = true }
                                         }
                                     } else {
-                                        // System not configured - go to onboarding
                                         navController.navigate(NavRoutes.ONBOARDING) {
                                             popUpTo(NavRoutes.AUTH) { inclusive = true }
                                         }
@@ -791,7 +799,8 @@ class MainActivity : ComponentActivity() {
                             TimeTrackingScreen(
                                 onNavigateBack = {
                                     navController.popBackStack()
-                                }
+                                },
+                                viewModel = ttvm,
                             )
                         }
 

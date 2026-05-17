@@ -77,6 +77,11 @@ class LocationService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Always call startForeground first to honor the 5-second contract from
+        // startForegroundService(). Otherwise bailing on a guard below throws
+        // ForegroundServiceDidNotStartInTimeException and kills the process.
+        startForeground(NOTIFICATION_ID, buildNotification())
+
         when (intent?.action) {
             ACTION_STOP -> {
                 stopSelf()
@@ -96,7 +101,6 @@ class LocationService : Service() {
             return START_NOT_STICKY
         }
 
-        startForeground(NOTIFICATION_ID, buildNotification())
         beginUpdates(prefs.cadence.seconds)
         running = true
         return START_STICKY
