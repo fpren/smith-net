@@ -239,6 +239,61 @@ describeDb('organizationInviteService', () => {
     });
   });
 
+  describe('leaveOrg', () => {
+    it('moves a team_member back to own org-of-one with role=solo and reassigns crew_positions', async () => {
+      const foreman = await makeUser('lv1', UserRole.FOREMAN);
+      const joiner = await makeUser('lvj1', UserRole.SOLO);
+      await crewPositionService.startShift(joiner, 'android');
+      await crewPositionService.upsertPosition(joiner, { lat: 1, lng: 2 }, 'android');
+      const invite = await organizationInviteService.createInvite(foreman, foreman);
+      await organizationInviteService.acceptInvite(joiner, UserRole.SOLO, invite.code);
+
+      const result = await organizationInviteService.leaveOrg(joiner, UserRole.TEAM_MEMBER);
+      expect(result).toEqual({ id: joiner, role: UserRole.SOLO, organizationId: joiner });
+
+      const userRow = await pg!.query(`SELECT organization_id, role FROM users WHERE id = $1`, [joiner]);
+      expect(userRow.rows[0].organization_id).toBe(joiner);
+      expect(userRow.rows[0].role).toBe('solo');
+
+      const pos = await pg!.query(`SELECT organization_id FROM crew_positions WHERE user_id = $1`, [joiner]);
+      expect(pos.rows[0].organization_id).toBe(joiner);
+    });
+
+    it('keeps the foreman role when a peer foreman leaves another foreman\'s org', async () => {
+      const bossA = await makeUser('lv2a', UserRole.FOREMAN);
+      const bossB = await makeUser('lv2b', UserRole.FOREMAN);
+      const invite = await organizationInviteService.createInvite(bossA, bossA);
+      await organizationInviteService.acceptInvite(bossB, UserRole.FOREMAN, invite.code);
+
+      const result = await organizationInviteService.leaveOrg(bossB, UserRole.FOREMAN);
+      expect(result).toEqual({ id: bossB, role: UserRole.FOREMAN, organizationId: bossB });
+
+      const row = await pg!.query(`SELECT organization_id, role FROM users WHERE id = $1`, [bossB]);
+      expect(row.rows[0].organization_id).toBe(bossB);
+      expect(row.rows[0].role).toBe('foreman');
+    });
+
+    it('throws 403 for an original foreman trying to leave their own org', async () => {
+      const foreman = await makeUser('lv3', UserRole.FOREMAN);
+      await expect(
+        organizationInviteService.leaveOrg(foreman, UserRole.FOREMAN)
+      ).rejects.toMatchObject({ status: 403 });
+    });
+
+    it('throws 403 for a solo user already in own org-of-one', async () => {
+      const solo = await makeUser('lv4', UserRole.SOLO);
+      await expect(
+        organizationInviteService.leaveOrg(solo, UserRole.SOLO)
+      ).rejects.toMatchObject({ status: 403 });
+    });
+
+    it('throws 404 for an unknown user id', async () => {
+      await expect(
+        organizationInviteService.leaveOrg('00000000-0000-0000-0000-000000000000', UserRole.SOLO)
+      ).rejects.toMatchObject({ status: 404 });
+    });
+  });
+
   describe('listMembers', () => {
     it('returns every user in the org, ordered by display_name', async () => {
       const foreman = await makeUser('lm1', UserRole.FOREMAN);

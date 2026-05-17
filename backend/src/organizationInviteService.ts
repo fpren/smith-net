@@ -203,6 +203,59 @@ class OrganizationInviteService {
     }
   }
 
+  async leaveOrg(
+    userId: string,
+    currentRole: UserRole,
+  ): Promise<{ id: string; role: UserRole; organizationId: string }> {
+    const db = requirePg();
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      // Lock the row so we read a consistent organization_id and decide on
+      // the up-to-date state, not the (possibly stale) JWT claims.
+      const r = await client.query<{ organization_id: string }>(
+        `SELECT organization_id FROM users WHERE id = $1 FOR UPDATE`,
+        [userId]
+      );
+      if (r.rowCount === 0) {
+        throw new OrgError('user not found', 404);
+      }
+      if (r.rows[0].organization_id === userId) {
+        // Either solo in own org-of-one, or original foreman of an org with
+        // members. Both blocked: there's nothing to leave for the former,
+        // and the latter would orphan the org.
+        throw new OrgError('cannot leave your own org', 403);
+      }
+
+      // Foremen who joined a peer's org stay foremen; everyone else drops to
+      // solo so the `u.role <> 'solo'` crew-list filter correctly hides the
+      // ex-team_member from their (former) foreman's map.
+      const newRole = currentRole === UserRole.FOREMAN ? UserRole.FOREMAN : UserRole.SOLO;
+
+      await client.query(
+        `UPDATE users
+            SET organization_id = id,
+                role = $2,
+                updated_at = NOW()
+          WHERE id = $1`,
+        [userId, newRole]
+      );
+      await client.query(
+        `UPDATE crew_positions
+            SET organization_id = user_id
+          WHERE user_id = $1`,
+        [userId]
+      );
+      await client.query('COMMIT');
+      return { id: userId, role: newRole, organizationId: userId };
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  }
+
   async listMembers(organizationId: string): Promise<OrgMember[]> {
     const db = requirePg();
     const r = await db.query<OrgMember>(

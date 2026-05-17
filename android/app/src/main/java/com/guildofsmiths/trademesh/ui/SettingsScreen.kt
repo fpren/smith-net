@@ -1129,10 +1129,17 @@ private fun ForemanTeamSection() {
     var loading by remember { mutableStateOf(false) }
     var confirmTarget by remember { mutableStateOf<AuthService.OrgMember?>(null) }
     var removing by remember { mutableStateOf(false) }
+    var confirmLeave by remember { mutableStateOf(false) }
+    var leaving by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         members = AuthService.listOrgMembers() ?: emptyList()
     }
+
+    // Peer foreman = someone else in this org is also a foreman, i.e. the
+    // current user joined another foreman's org. Original foremen are the
+    // only foreman in their own org and this evaluates false for them.
+    val amPeerForeman = members.any { it.id != selfId && it.role == "foreman" }
 
     Column {
         Text(text = "TEAM", style = ConsoleTheme.captionBold)
@@ -1220,6 +1227,65 @@ private fun ForemanTeamSection() {
                 }
             }
         }
+
+        if (amPeerForeman) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .clickable(enabled = !leaving) { confirmLeave = true }
+                    .padding(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(text = "Leave this team", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
+                Text(text = "[Leave team]", style = ConsoleTheme.action.copy(color = ConsoleTheme.accent))
+            }
+        }
+    }
+
+    if (confirmLeave) {
+        AlertDialog(
+            onDismissRequest = { confirmLeave = false },
+            title = { Text(text = "Leave team") },
+            text = { Text(text = "Leave this team? You will become solo and lose access to team-shared work.") },
+            confirmButton = {
+                Text(
+                    text = "[Leave]",
+                    style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                    modifier = Modifier
+                        .clickable(enabled = !leaving) {
+                            leaving = true
+                            scope.launch {
+                                when (val r = AuthService.leaveOrg()) {
+                                    is AuthService.LeaveResult.Ok -> {
+                                        leaving = false
+                                        confirmLeave = false
+                                        Toast.makeText(context, "Left team.", Toast.LENGTH_SHORT).show()
+                                        members = AuthService.listOrgMembers() ?: emptyList()
+                                    }
+                                    is AuthService.LeaveResult.Error -> {
+                                        leaving = false
+                                        confirmLeave = false
+                                        Toast.makeText(context, r.message, Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+                        }
+                        .padding(8.dp),
+                )
+            },
+            dismissButton = {
+                Text(
+                    text = "[Cancel]",
+                    style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                    modifier = Modifier
+                        .clickable { confirmLeave = false }
+                        .padding(8.dp),
+                )
+            },
+        )
     }
 
     confirmTarget?.let { target ->
@@ -1270,16 +1336,50 @@ private fun ForemanTeamSection() {
 private fun JoinTeamSection() {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val selfId = remember { UserPreferences.getUserId() }
     var expanded by remember { mutableStateOf(false) }
     var code by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
+    var members by remember { mutableStateOf<List<AuthService.OrgMember>>(emptyList()) }
+    var loadedMembers by remember { mutableStateOf(false) }
+    var confirmLeave by remember { mutableStateOf(false) }
+    var leaving by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        members = AuthService.listOrgMembers() ?: emptyList()
+        loadedMembers = true
+    }
+
+    val inSomeoneElsesOrg = loadedMembers && members.any { it.id != selfId }
 
     Column {
-        Text(text = "JOIN A TEAM", style = ConsoleTheme.captionBold)
-        Spacer(modifier = Modifier.height(8.dp))
+        if (inSomeoneElsesOrg) {
+            Text(text = "YOUR TEAM", style = ConsoleTheme.captionBold)
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .padding(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "${members.size} member${if (members.size == 1) "" else "s"}",
+                    style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text),
+                )
+                Text(
+                    text = "[Leave team]",
+                    style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                    modifier = Modifier.clickable(enabled = !leaving) { confirmLeave = true },
+                )
+            }
+        } else {
+            Text(text = "JOIN A TEAM", style = ConsoleTheme.captionBold)
+            Spacer(modifier = Modifier.height(8.dp))
 
-        if (!expanded) {
+            if (!expanded) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1351,7 +1451,51 @@ private fun JoinTeamSection() {
                     )
                 }
             }
+            }
         }
+    }
+
+    if (confirmLeave) {
+        AlertDialog(
+            onDismissRequest = { confirmLeave = false },
+            title = { Text(text = "Leave team") },
+            text = { Text(text = "Leave this team? You will become solo and lose access to team-shared work.") },
+            confirmButton = {
+                Text(
+                    text = "[Leave]",
+                    style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                    modifier = Modifier
+                        .clickable(enabled = !leaving) {
+                            leaving = true
+                            scope.launch {
+                                when (val r = AuthService.leaveOrg()) {
+                                    is AuthService.LeaveResult.Ok -> {
+                                        leaving = false
+                                        confirmLeave = false
+                                        Toast.makeText(context, "Left team.", Toast.LENGTH_SHORT).show()
+                                        members = AuthService.listOrgMembers() ?: emptyList()
+                                    }
+                                    is AuthService.LeaveResult.Error -> {
+                                        leaving = false
+                                        confirmLeave = false
+                                        Toast.makeText(context, r.message, Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+                        }
+                        .padding(8.dp),
+                )
+            },
+            dismissButton = {
+                Text(
+                    text = "[Cancel]",
+                    style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                    modifier = Modifier
+                        .clickable { confirmLeave = false }
+                        .padding(8.dp),
+                )
+            },
+        )
     }
 }
 

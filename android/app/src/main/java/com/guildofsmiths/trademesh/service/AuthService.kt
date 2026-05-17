@@ -204,6 +204,42 @@ object AuthService {
         }
     }
 
+    sealed class LeaveResult {
+        object Ok : LeaveResult()
+        data class Error(val status: Int, val message: String) : LeaveResult()
+    }
+
+    /**
+     * Any auth'd user. On success updates the local cached role from the
+     * response so RoleContext + dashboard tabs reflect the post-leave state.
+     */
+    suspend fun leaveOrg(): LeaveResult = withContext(Dispatchers.IO) {
+        val token = getAccessToken() ?: return@withContext LeaveResult.Error(401, "not logged in")
+        try {
+            val req = Request.Builder()
+                .url("$baseUrl/api/auth/org/leave")
+                .addHeader("Authorization", "Bearer $token")
+                .post("".toRequestBody(JSON_MEDIA_TYPE))
+                .build()
+            client.newCall(req).execute().use { res ->
+                val bodyText = res.body?.string() ?: "{}"
+                if (res.isSuccessful) {
+                    val user = JSONObject(bodyText).optJSONObject("user")
+                    user?.optString("role")?.takeIf { it.isNotBlank() }?.let { updateUserRole(it) }
+                    LeaveResult.Ok
+                } else {
+                    val msg = try { JSONObject(bodyText).optString("error", "leave failed") }
+                              catch (_: Exception) { "leave failed" }
+                    Log.w(TAG, "leaveOrg HTTP ${res.code}: $msg")
+                    LeaveResult.Error(res.code, msg)
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "leaveOrg failed: ${e.message}")
+            LeaveResult.Error(0, e.message ?: "network error")
+        }
+    }
+
     /** Foreman-only. Returns true on success, false on any failure. */
     suspend fun removeOrgMember(memberId: String): Boolean = withContext(Dispatchers.IO) {
         val token = getAccessToken() ?: return@withContext false

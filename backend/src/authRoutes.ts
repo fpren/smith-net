@@ -549,4 +549,33 @@ authRouter.delete(
   }
 );
 
+authRouter.post(
+  '/org/leave',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const leftOrganizationId = req.user!.organizationId;
+      const result = await organizationInviteService.leaveOrg(
+        req.user!.id,
+        req.user!.role as UserRole,
+      );
+      const fresh = await userStore.getUserById(req.user!.id);
+      if (!fresh) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      await auditLog.log(AuditAction.ORG_MEMBER_LEFT, req.user!.id, {
+        leftOrganizationId,
+        newRole: result.role,
+      });
+      res.json({ user: toPublicUser(fresh) });
+    } catch (e: any) {
+      if (e instanceof OrgError) {
+        return res.status(e.status).json({ error: e.message });
+      }
+      requestLogger().error({ event: 'org_leave_error', err: e }, 'org leave error');
+      res.status(500).json({ error: 'Leave failed' });
+    }
+  }
+);
+
 requestLogger().info({ event: 'auth_routes_initialized' }, 'auth routes initialized');
