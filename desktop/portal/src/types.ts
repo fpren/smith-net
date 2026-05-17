@@ -75,6 +75,7 @@ export type WSMessageType =
   | 'channel_created'
   | 'channel_updated'
   | 'channel_deleted'
+  | 'channel_cleared'
   | 'presence_update'
   | 'error';
 

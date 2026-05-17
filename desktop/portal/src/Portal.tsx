@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Channel, Message, Presence, GatewayStatus, MediaAttachment } from './types';
+import { Channel, Message, Presence, GatewayStatus } from './types';
 import { wsClient } from './websocket';
 import * as api from './api';
 import { supabaseChat } from './supabaseClient';
@@ -170,23 +170,6 @@ export default function Portal() {
       flexDirection: 'column' as const,
       gap: '16px',
     },
-  };
-
-  // Filter channels for privacy:
-  // - Show channels created by this dashboard user
-  // - Show public/broadcast channels (type !== 'dm')
-  // - Hide private DMs unless dashboard created them
-  const filterChannelsForDashboard = (allChannels: Channel[], dashboardUserId: string): Channel[] => {
-    return allChannels.filter(ch => {
-      // Always show channels created by this dashboard
-      if (ch.creatorId === dashboardUserId) return true;
-
-      // Show public/broadcast/group channels (not DMs)
-      if (ch.type !== 'dm') return true;
-
-      // Hide private DMs from other users
-      return false;
-    });
   };
 
   // Login handler

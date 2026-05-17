@@ -21,7 +21,7 @@ import { RequireAdmin } from './console/auth/RequireAdmin';
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Auth />} />
+      <Route path="/" element={<Auth onAuthSuccess={() => {}} />} />
       <Route path="/auth/callback" element={<AuthCallback onAuthSuccess={() => {}} />} />
       <Route path="/portal" element={<Portal />} />
 
