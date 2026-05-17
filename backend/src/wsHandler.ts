@@ -380,7 +380,19 @@ class WSHandler {
   }
 
   /**
-   * Broadcast channel event to all clients
+   * Broadcast a channel event. The previous implementation fanned out every
+   * event to every connected client — which leaked private/group channels
+   * created by one user into another user's UI via `channel_created` (closes
+   * the second half of the leak whose REST-list half was fixed in ffe0af5).
+   * Filtering is per-event:
+   *
+   *  - channel_created / channel_updated: only push to members (or to
+   *    everyone for broadcast channels).
+   *  - channel_deleted / channel_cleared: only push to clients already
+   *    subscribed to the channel (i.e. clients that knew it existed).
+   *  - message_deleted: still broadcast — the payload is only `{ messageId }`
+   *    and receivers no-op unless they have the message in their local store,
+   *    so there is no scope leak, just wasted bandwidth.
    */
   broadcastChannelEvent(type: 'channel_created' | 'channel_updated' | 'channel_deleted' | 'channel_cleared' | 'message_deleted', channel: unknown): void {
     const wsMsg: WSMessage = {
@@ -389,8 +401,10 @@ class WSHandler {
       timestamp: Date.now(),
     };
 
-    for (const [ws] of this.clients) {
-      this.send(ws, wsMsg);
+    for (const [ws, client] of this.clients) {
+      if (this.shouldBroadcastTo(type, channel, client)) {
+        this.send(ws, wsMsg);
+      }
     }
 
     // Auto-subscribe all clients to new broadcast channels
@@ -400,6 +414,41 @@ class WSHandler {
         this.subscribeAllToChannel(ch.id, ch.name);
       }
     }
+  }
+
+  /**
+   * Whether a given channel event should be sent to a given client. Pulled
+   * out as a pure method so the filter rules are unit-testable without
+   * standing up a real WebSocketServer.
+   */
+  shouldBroadcastTo(
+    type: 'channel_created' | 'channel_updated' | 'channel_deleted' | 'channel_cleared' | 'message_deleted',
+    payload: unknown,
+    client: { userId: string; subscribedChannels: Set<string> },
+  ): boolean {
+    if (type === 'channel_created' || type === 'channel_updated') {
+      const ch = payload as {
+        type?: string;
+        memberIds?: string[];
+        creatorId?: string;
+        allowedUsers?: string[];
+      } | null;
+      if (!ch) return false;
+      if (ch.type === 'broadcast') return true;
+      if (ch.creatorId === client.userId) return true;
+      if (Array.isArray(ch.memberIds) && ch.memberIds.includes(client.userId)) return true;
+      if (Array.isArray(ch.allowedUsers) && ch.allowedUsers.includes(client.userId)) return true;
+      return false;
+    }
+    if (type === 'channel_deleted' || type === 'channel_cleared') {
+      const id =
+        (payload as { id?: string; channelId?: string } | null)?.id ??
+        (payload as { id?: string; channelId?: string } | null)?.channelId;
+      if (!id) return false;
+      return client.subscribedChannels.has(id);
+    }
+    // message_deleted — broadcast (see method JSDoc).
+    return true;
   }
 
   /**
