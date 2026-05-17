@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { AppHeader } from './layouts/AppHeader';
 import { BottomTabBar } from './layouts/BottomTabBar';
 import { ShareLocationToggle } from './components/header/ShareLocationToggle';
+import { ClockButton } from './components/header/ClockButton';
 import { useAuthStore } from './auth/authStore';
 
 interface Props {
@@ -15,7 +16,8 @@ export function ConsoleShell({ children }: Props) {
     <div className="h-screen flex flex-col font-mono">
       <AppHeader />
       {user && (
-        <div className="border-b border-console-border bg-console-surface px-4 py-1 flex justify-end">
+        <div className="border-b border-console-border bg-console-surface px-4 py-1 flex items-center justify-between gap-2">
+          <ClockButton />
           <ShareLocationToggle />
         </div>
       )}

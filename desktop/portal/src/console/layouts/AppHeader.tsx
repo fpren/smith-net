@@ -18,7 +18,6 @@ import { Avatar } from '../components/ui/Avatar';
 import { authClient } from '../auth/authClient';
 import { useAuthStore } from '../auth/authStore';
 import { useCurrentTime } from '../hooks/useCurrentTime';
-import { useCurrentShift } from '../hooks/useCurrentShift';
 import { accentForId, colorForRole } from '../lib/utils';
 
 function NavButton({ to, label, end }: { to: string; label: string; end?: boolean }) {
@@ -44,7 +43,6 @@ export function AppHeader() {
   const hasForemanTier = useAuthStore((s) => s.hasForemanTier);
   const navigate = useNavigate();
   const { hh, mm, ss } = useCurrentTime();
-  const { onClock } = useCurrentShift();
 
   async function onLogout() {
     await authClient.logout();
@@ -86,13 +84,8 @@ export function AppHeader() {
 
       <div className="flex-1" />
 
-      {/* ON CLOCK chip + clock — informational, hidden on mobile. */}
-      <div className="hidden md:flex">
-        <Chip
-          label={onClock ? '● ON CLOCK' : '○ OFF CLOCK'}
-          color={onClock ? '#5A8C76' : '#8C8478'}
-        />
-      </div>
+      {/* Clock chip lives in ConsoleShell's share-location bar now so it
+          works on both desktop and mobile. */}
 
       <div className="hidden md:flex items-baseline gap-1 px-2">
         <span className="text-console-text text-lg tabular-nums" style={{ fontFamily: 'var(--font-mono)' }}>

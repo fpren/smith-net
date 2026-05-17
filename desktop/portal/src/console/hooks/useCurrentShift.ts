@@ -1,33 +1,45 @@
 // desktop/portal/src/console/hooks/useCurrentShift.ts
 //
-// Polls GET /api/shifts/current every 30s so AppHeader can show
-// "ON CLOCK · <source>" or "OFF CLOCK" for the logged-in user.
+// Polls GET /api/shifts/current every 30s so the AppHeader / ClockButton
+// can show "ON CLOCK" or "OFF CLOCK" for the logged-in user. The hook also
+// returns a `refresh` function so a caller that just POSTed shifts/start
+// or shifts/end can re-fetch immediately without waiting for the 30s tick.
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { presenceClient } from '../api/presenceClient';
 
 export interface CurrentShift {
   shiftId: string | null;
   /** True if the user has an open shift right now. */
   onClock: boolean;
+  /** Re-fetch /api/shifts/current immediately (e.g. after toggling). */
+  refresh: () => Promise<void>;
 }
 
 export function useCurrentShift(intervalMs: number = 30_000): CurrentShift {
-  const [state, setState] = useState<CurrentShift>({ shiftId: null, onClock: false });
+  const [state, setState] = useState<{ shiftId: string | null; onClock: boolean }>({
+    shiftId: null,
+    onClock: false,
+  });
+  const cancelledRef = useRef(false);
+
+  const refresh = useCallback(async () => {
+    const r = await presenceClient.getCurrentShift();
+    if (cancelledRef.current) return;
+    if (r.ok) {
+      setState({ shiftId: r.shiftId, onClock: r.shiftId !== null });
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    const fetchOnce = async () => {
-      const r = await presenceClient.getCurrentShift();
-      if (cancelled) return;
-      if (r.ok) {
-        setState({ shiftId: r.shiftId, onClock: r.shiftId !== null });
-      }
+    cancelledRef.current = false;
+    refresh();
+    const id = setInterval(refresh, intervalMs);
+    return () => {
+      cancelledRef.current = true;
+      clearInterval(id);
     };
-    fetchOnce();
-    const id = setInterval(fetchOnce, intervalMs);
-    return () => { cancelled = true; clearInterval(id); };
-  }, [intervalMs]);
+  }, [intervalMs, refresh]);
 
-  return state;
+  return { ...state, refresh };
 }
