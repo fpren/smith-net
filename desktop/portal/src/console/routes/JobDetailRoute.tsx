@@ -8,14 +8,23 @@ import { useJobsPolling } from '../hooks/useJobsPolling';
 import { useJobsStore } from '../stores/jobsStore';
 import { jobsClient } from '../api/jobsClient';
 import { useToast } from '../hooks/useToast';
+import { useTasksPolling } from '../hooks/useTasksPolling';
+import { useTasksStore } from '../stores/tasksStore';
+import { TaskList } from '../components/tasks/TaskList';
+import { AddTaskInput } from '../components/tasks/AddTaskInput';
+import type { Task } from '../api/tasksClient';
+
+const EMPTY_TASKS: Task[] = [];
 
 export function JobDetailRoute() {
   const { id } = useParams<{ id: string }>();
   useJobsPolling({ detail: id ?? '' });
+  useTasksPolling(id ?? '');
   const job = useJobsStore((s) => s.detailJob);
   const crew = useJobsStore((s) => s.detailCrew);
   const upsertJob = useJobsStore((s) => s.upsertJob);
   const setDetail = useJobsStore((s) => s.setDetail);
+  const tasks = useTasksStore((s) => (id ? s.tasksByJob[id] : undefined) ?? EMPTY_TASKS);
   const [showAssign, setShowAssign] = useState(false);
   const toast = useToast();
 
@@ -60,6 +69,19 @@ export function JobDetailRoute() {
             <button onClick={() => onUnassign(c.profileId)} className="text-console-danger">[x]</button>
           </div>
         ))}
+      </div>
+      <div className="mt-8">
+        <div className="mb-2">
+          <h2 className="text-console-text-muted text-xs uppercase tracking-wide">
+            Tasks ({tasks.length}
+            {tasks.length > 0 && (
+              <>, {tasks.filter((t) => t.status === 'done').length} done</>
+            )}
+            )
+          </h2>
+        </div>
+        <TaskList jobId={job.id} />
+        <AddTaskInput jobId={job.id} />
       </div>
       <AssignCrewModal
         open={showAssign}

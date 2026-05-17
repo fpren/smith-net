@@ -4,6 +4,7 @@ import { authenticateToken, AuthenticatedRequest } from './auth';
 import { requireConsoleTier } from './middleware/requireConsoleTier';
 import { requireJobOwner, JobOwnerRequest } from './middleware/requireJobOwner';
 import * as jobsService from './jobsService';
+import * as tasksService from './tasksService';
 import { requestLogger } from './log';
 import { validateBody } from './middleware/validate';
 import { CreateJobBody, UpdateJobBody, StatusChangeBody, AssignCrewBody } from './schemas/jobs';
@@ -38,6 +39,20 @@ jobsRouter.get('/:id', requireJobOwner, async (req: JobOwnerRequest, res: Respon
   } catch (e: any) {
     requestLogger().error({ event: 'jobs_get_error', err: e }, 'jobs get error');
     res.status(500).json({ error: 'Failed to load job' });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════
+// GET /api/jobs/:id/tasks — per-job task list (foreman of the job only)
+// ════════════════════════════════════════════════════════════════════
+
+jobsRouter.get('/:id/tasks', requireJobOwner, async (req: JobOwnerRequest, res: Response) => {
+  try {
+    const tasks = await tasksService.listByJob(req.job!.id);
+    res.json({ tasks });
+  } catch (e: any) {
+    requestLogger().error({ event: 'tasks_list_error', err: e }, 'tasks list error');
+    res.status(500).json({ error: 'Failed to load tasks' });
   }
 });
 

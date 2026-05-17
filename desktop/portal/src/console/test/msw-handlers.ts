@@ -257,6 +257,64 @@ export const handlers = [
     })
   ),
 
+  // Per-job tasks (migration 016 + tasksRoutes.ts).
+  http.get('/api/jobs/:jobId/tasks', ({ params }) =>
+    HttpResponse.json({
+      tasks: [
+        {
+          id: 't-1',
+          jobId: params.jobId,
+          title: 'First task',
+          status: 'pending',
+          sortOrder: 0,
+          createdBy: 'user-1',
+          createdAt: '2026-05-11T10:00:00Z',
+          updatedAt: '2026-05-11T10:00:00Z',
+          completedAt: null,
+        },
+      ],
+    }),
+  ),
+
+  http.post('/api/tasks', async ({ request }) => {
+    const body = (await request.json()) as { jobId: string; title: string };
+    return HttpResponse.json(
+      {
+        task: {
+          id: 't-new',
+          jobId: body.jobId,
+          title: body.title,
+          status: 'pending',
+          sortOrder: 1,
+          createdBy: 'user-1',
+          createdAt: '2026-05-11T11:00:00Z',
+          updatedAt: '2026-05-11T11:00:00Z',
+          completedAt: null,
+        },
+      },
+      { status: 201 },
+    );
+  }),
+
+  http.patch('/api/tasks/:id', async ({ params, request }) => {
+    const body = (await request.json()) as { title?: string; status?: 'pending' | 'done' };
+    return HttpResponse.json({
+      task: {
+        id: params.id,
+        jobId: 'job-1',
+        title: body.title ?? 'First task',
+        status: body.status ?? 'pending',
+        sortOrder: 0,
+        createdBy: 'user-1',
+        createdAt: '2026-05-11T10:00:00Z',
+        updatedAt: '2026-05-11T11:00:00Z',
+        completedAt: body.status === 'done' ? '2026-05-11T11:00:00Z' : null,
+      },
+    });
+  }),
+
+  http.delete('/api/tasks/:id', () => new HttpResponse(null, { status: 204 })),
+
   // Comm — channels list + messages history + send.
   http.get('/api/channels', () =>
     HttpResponse.json([
