@@ -1,5 +1,5 @@
 import { pg, isPgEnabled } from '../db';
-import { organizationInviteService, InviteError } from '../organizationInviteService';
+import { organizationInviteService, InviteError, OrgError } from '../organizationInviteService';
 import { crewPositionService } from '../crewPositionService';
 import { createUserAndProfile } from '../jobsService';
 import { UserRole } from '../auth';
@@ -161,6 +161,81 @@ describeDb('organizationInviteService', () => {
         `  ${invite.code.toLowerCase()}  `
       );
       expect(result.organizationId).toBe(foreman);
+    });
+  });
+
+  describe('removeMember', () => {
+    it('moves the member back to own org-of-one with role=solo', async () => {
+      const foreman = await makeUser('rm1', UserRole.FOREMAN);
+      const joiner = await makeUser('rmj1', UserRole.SOLO);
+      const invite = await organizationInviteService.createInvite(foreman, foreman);
+      await organizationInviteService.acceptInvite(joiner, UserRole.SOLO, invite.code);
+
+      const result = await organizationInviteService.removeMember(foreman, foreman, joiner);
+      expect(result).toEqual({ id: joiner, role: UserRole.SOLO, organizationId: joiner });
+
+      const row = await pg!.query(`SELECT organization_id, role FROM users WHERE id = $1`, [joiner]);
+      expect(row.rows[0].organization_id).toBe(joiner);
+      expect(row.rows[0].role).toBe('solo');
+    });
+
+    it('reassigns existing crew_positions back to the target user', async () => {
+      const foreman = await makeUser('rm2', UserRole.FOREMAN);
+      const joiner = await makeUser('rmj2', UserRole.SOLO);
+      await crewPositionService.startShift(joiner, 'android');
+      await crewPositionService.upsertPosition(joiner, { lat: 1, lng: 2 }, 'android');
+      const invite = await organizationInviteService.createInvite(foreman, foreman);
+      await organizationInviteService.acceptInvite(joiner, UserRole.SOLO, invite.code);
+
+      const mid = await pg!.query(`SELECT organization_id FROM crew_positions WHERE user_id = $1`, [joiner]);
+      expect(mid.rows[0].organization_id).toBe(foreman);
+
+      await organizationInviteService.removeMember(foreman, foreman, joiner);
+      const after = await pg!.query(`SELECT organization_id FROM crew_positions WHERE user_id = $1`, [joiner]);
+      expect(after.rows[0].organization_id).toBe(joiner);
+    });
+
+    it('throws 400 on self-kick', async () => {
+      const foreman = await makeUser('rm3', UserRole.FOREMAN);
+      await expect(
+        organizationInviteService.removeMember(foreman, foreman, foreman)
+      ).rejects.toMatchObject({ status: 400 });
+    });
+
+    it('throws 403 when target is a foreman in the same org', async () => {
+      const bossA = await makeUser('rm4a', UserRole.FOREMAN);
+      const bossB = await makeUser('rm4b', UserRole.FOREMAN);
+      const invite = await organizationInviteService.createInvite(bossA, bossA);
+      await organizationInviteService.acceptInvite(bossB, UserRole.FOREMAN, invite.code);
+
+      await expect(
+        organizationInviteService.removeMember(bossA, bossA, bossB)
+      ).rejects.toMatchObject({ status: 403 });
+    });
+
+    it('throws 404 when target user does not exist', async () => {
+      const foreman = await makeUser('rm5', UserRole.FOREMAN);
+      await expect(
+        organizationInviteService.removeMember(foreman, foreman, '00000000-0000-0000-0000-000000000000')
+      ).rejects.toMatchObject({ status: 404 });
+    });
+
+    it('throws 404 when target is in a different org (no leakage)', async () => {
+      const bossA = await makeUser('rm6a', UserRole.FOREMAN);
+      const bossB = await makeUser('rm6b', UserRole.FOREMAN);
+      const outsider = await makeUser('rm6o', UserRole.SOLO);
+      const invite = await organizationInviteService.createInvite(bossB, bossB);
+      await organizationInviteService.acceptInvite(outsider, UserRole.SOLO, invite.code);
+
+      // bossA tries to kick outsider, who is in bossB's org.
+      await expect(
+        organizationInviteService.removeMember(bossA, bossA, outsider)
+      ).rejects.toMatchObject({ status: 404 });
+
+      // outsider still in bossB's org.
+      const row = await pg!.query(`SELECT organization_id, role FROM users WHERE id = $1`, [outsider]);
+      expect(row.rows[0].organization_id).toBe(bossB);
+      expect(row.rows[0].role).toBe('team');
     });
   });
 

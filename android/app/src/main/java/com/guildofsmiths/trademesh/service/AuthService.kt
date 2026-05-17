@@ -204,6 +204,28 @@ object AuthService {
         }
     }
 
+    /** Foreman-only. Returns true on success, false on any failure. */
+    suspend fun removeOrgMember(memberId: String): Boolean = withContext(Dispatchers.IO) {
+        val token = getAccessToken() ?: return@withContext false
+        try {
+            val req = Request.Builder()
+                .url("$baseUrl/api/auth/org/members/$memberId")
+                .addHeader("Authorization", "Bearer $token")
+                .delete()
+                .build()
+            client.newCall(req).execute().use { res ->
+                if (!res.isSuccessful) {
+                    Log.w(TAG, "removeOrgMember HTTP ${res.code}")
+                    return@use false
+                }
+                true
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "removeOrgMember failed: ${e.message}")
+            false
+        }
+    }
+
     /** Foreman-only. Returns null on auth/permission failure or network error. */
     suspend fun listOrgMembers(): List<OrgMember>? = withContext(Dispatchers.IO) {
         val token = getAccessToken() ?: return@withContext null

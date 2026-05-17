@@ -19,6 +19,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -1122,9 +1123,12 @@ private fun ForemanTeamSection() {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
+    val selfId = remember { UserPreferences.getUserId() }
     var invite by remember { mutableStateOf<AuthService.InviteCode?>(null) }
     var members by remember { mutableStateOf<List<AuthService.OrgMember>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
+    var confirmTarget by remember { mutableStateOf<AuthService.OrgMember?>(null) }
+    var removing by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         members = AuthService.listOrgMembers() ?: emptyList()
@@ -1194,17 +1198,71 @@ private fun ForemanTeamSection() {
             )
         } else {
             members.forEach { m ->
+                val canRemove = m.id != selfId && m.role != "foreman"
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(text = m.displayName, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
-                    Text(text = m.role, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = m.displayName, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
+                        Text(text = m.role, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                    }
+                    if (canRemove) {
+                        Text(
+                            text = "[Remove]",
+                            style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                            modifier = Modifier.clickable(enabled = !removing) { confirmTarget = m },
+                        )
+                    }
                 }
             }
         }
+    }
+
+    confirmTarget?.let { target ->
+        AlertDialog(
+            onDismissRequest = { confirmTarget = null },
+            title = { Text(text = "Remove member") },
+            text = {
+                Text(
+                    text = "Remove ${target.displayName} from your team? They will become solo again.",
+                )
+            },
+            confirmButton = {
+                Text(
+                    text = "[Remove]",
+                    style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                    modifier = Modifier
+                        .clickable(enabled = !removing) {
+                            removing = true
+                            scope.launch {
+                                val ok = AuthService.removeOrgMember(target.id)
+                                removing = false
+                                confirmTarget = null
+                                if (ok) {
+                                    members = AuthService.listOrgMembers() ?: members
+                                    Toast.makeText(context, "${target.displayName} removed", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Could not remove member", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                        .padding(8.dp),
+                )
+            },
+            dismissButton = {
+                Text(
+                    text = "[Cancel]",
+                    style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                    modifier = Modifier
+                        .clickable { confirmTarget = null }
+                        .padding(8.dp),
+                )
+            },
+        )
     }
 }
 

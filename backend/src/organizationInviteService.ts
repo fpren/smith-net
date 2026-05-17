@@ -30,6 +30,15 @@ export class InviteError extends Error {
   }
 }
 
+export class OrgError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+    this.name = 'OrgError';
+  }
+}
+
 export interface InviteRecord {
   code: string;
   expiresAt: Date;
@@ -131,6 +140,61 @@ class OrganizationInviteService {
       );
       await client.query('COMMIT');
       return { organizationId: row.organization_id, newRole };
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  }
+
+  async removeMember(
+    actorId: string,
+    organizationId: string,
+    targetUserId: string,
+  ): Promise<{ id: string; role: UserRole; organizationId: string }> {
+    if (actorId === targetUserId) {
+      throw new OrgError('cannot remove yourself', 400);
+    }
+    const db = requirePg();
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const target = await client.query<{
+        id: string;
+        role: string;
+        organization_id: string;
+      }>(
+        `SELECT id, role, organization_id FROM users WHERE id = $1 FOR UPDATE`,
+        [targetUserId]
+      );
+      if (target.rowCount === 0 || target.rows[0].organization_id !== organizationId) {
+        // Treat cross-org as not-found so we don't leak the user's existence.
+        throw new OrgError('member not found in your org', 404);
+      }
+      if (target.rows[0].role === UserRole.FOREMAN) {
+        throw new OrgError('cannot remove a foreman', 403);
+      }
+
+      // Symmetric reversal of acceptInvite: move back to own org-of-one, drop
+      // to solo. The `u.role <> 'solo'` filter in /api/crew/positions then
+      // hides them from the (former) foreman's map.
+      await client.query(
+        `UPDATE users
+            SET organization_id = id,
+                role = $2,
+                updated_at = NOW()
+          WHERE id = $1`,
+        [targetUserId, UserRole.SOLO]
+      );
+      await client.query(
+        `UPDATE crew_positions
+            SET organization_id = user_id
+          WHERE user_id = $1`,
+        [targetUserId]
+      );
+      await client.query('COMMIT');
+      return { id: targetUserId, role: UserRole.SOLO, organizationId: targetUserId };
     } catch (e) {
       await client.query('ROLLBACK');
       throw e;

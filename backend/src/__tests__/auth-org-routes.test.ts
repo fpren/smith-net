@@ -153,6 +153,114 @@ describeDb('auth /org routes (invite, join, members)', () => {
     expect(res.status).toBe(403);
   });
 
+  it('DELETE /api/auth/org/members/:id without token returns 401', async () => {
+    const res = await request(app).delete('/api/auth/org/members/anything');
+    expect(res.status).toBe(401);
+  });
+
+  it('DELETE /api/auth/org/members/:id by non-foreman returns 403', async () => {
+    const solo = await createUserAndLogin('rmS', UserRole.SOLO);
+    const res = await request(app)
+      .delete('/api/auth/org/members/anything')
+      .set('Authorization', `Bearer ${solo.token}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('DELETE /api/auth/org/members/:id removes a member and returns 200', async () => {
+    const boss = await createUserAndLogin('rmB', UserRole.FOREMAN);
+    const worker = await createUserAndLogin('rmW', UserRole.SOLO);
+
+    const inv = await request(app)
+      .post('/api/auth/org/invites')
+      .set('Authorization', `Bearer ${boss.token}`);
+    await request(app)
+      .post('/api/auth/org/join')
+      .set('Authorization', `Bearer ${worker.token}`)
+      .send({ code: inv.body.code });
+
+    const del = await request(app)
+      .delete(`/api/auth/org/members/${worker.id}`)
+      .set('Authorization', `Bearer ${boss.token}`);
+    expect(del.status).toBe(200);
+    expect(del.body.removed).toEqual({ id: worker.id, role: 'solo', organizationId: worker.id });
+  });
+
+  it('DELETE /api/auth/org/members/:id self-kick returns 400', async () => {
+    const boss = await createUserAndLogin('rmSelf', UserRole.FOREMAN);
+    const res = await request(app)
+      .delete(`/api/auth/org/members/${boss.id}`)
+      .set('Authorization', `Bearer ${boss.token}`);
+    expect(res.status).toBe(400);
+  });
+
+  it('DELETE /api/auth/org/members/:id targeting a foreman peer returns 403', async () => {
+    const bossA = await createUserAndLogin('rmFA', UserRole.FOREMAN);
+    const bossB = await createUserAndLogin('rmFB', UserRole.FOREMAN);
+    const inv = await request(app)
+      .post('/api/auth/org/invites')
+      .set('Authorization', `Bearer ${bossA.token}`);
+    await request(app)
+      .post('/api/auth/org/join')
+      .set('Authorization', `Bearer ${bossB.token}`)
+      .send({ code: inv.body.code });
+
+    const res = await request(app)
+      .delete(`/api/auth/org/members/${bossB.id}`)
+      .set('Authorization', `Bearer ${bossA.token}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('DELETE /api/auth/org/members/:id across orgs returns 404', async () => {
+    const bossA = await createUserAndLogin('rmXA', UserRole.FOREMAN);
+    const bossB = await createUserAndLogin('rmXB', UserRole.FOREMAN);
+    const outsider = await createUserAndLogin('rmXO', UserRole.SOLO);
+    const inv = await request(app)
+      .post('/api/auth/org/invites')
+      .set('Authorization', `Bearer ${bossB.token}`);
+    await request(app)
+      .post('/api/auth/org/join')
+      .set('Authorization', `Bearer ${outsider.token}`)
+      .send({ code: inv.body.code });
+
+    // bossA tries to remove outsider (who belongs to bossB's org).
+    const res = await request(app)
+      .delete(`/api/auth/org/members/${outsider.id}`)
+      .set('Authorization', `Bearer ${bossA.token}`);
+    expect(res.status).toBe(404);
+  });
+
+  it('end-to-end: kicked worker disappears from /api/auth/org/members and /api/crew/positions', async () => {
+    const boss = await createUserAndLogin('rmE2E', UserRole.FOREMAN);
+    const worker = await createUserAndLogin('rmE2EW', UserRole.SOLO);
+
+    const inv = await request(app)
+      .post('/api/auth/org/invites')
+      .set('Authorization', `Bearer ${boss.token}`);
+    await request(app)
+      .post('/api/auth/org/join')
+      .set('Authorization', `Bearer ${worker.token}`)
+      .send({ code: inv.body.code });
+    await request(app).post('/api/shifts/start').set('Authorization', `Bearer ${worker.token}`).send({ source: 'android' });
+    await request(app)
+      .post('/api/presence/location')
+      .set('Authorization', `Bearer ${worker.token}`)
+      .send({ lat: 41, lng: -72 });
+
+    // Pre-kick: worker is visible.
+    const pre = await request(app).get('/api/crew/positions').set('Authorization', `Bearer ${boss.token}`);
+    expect(pre.body.positions.map((p: { userId: string }) => p.userId)).toEqual(expect.arrayContaining([worker.id]));
+
+    await request(app)
+      .delete(`/api/auth/org/members/${worker.id}`)
+      .set('Authorization', `Bearer ${boss.token}`);
+
+    const members = await request(app).get('/api/auth/org/members').set('Authorization', `Bearer ${boss.token}`);
+    expect(members.body.members.map((m: { id: string }) => m.id)).not.toContain(worker.id);
+
+    const post = await request(app).get('/api/crew/positions').set('Authorization', `Bearer ${boss.token}`);
+    expect(post.body.positions.map((p: { userId: string }) => p.userId)).not.toContain(worker.id);
+  });
+
   it('end-to-end: joiner appears on foreman /api/crew/positions after joining', async () => {
     const boss = await createUserAndLogin('e1', UserRole.FOREMAN);
     const worker = await createUserAndLogin('w-e1', UserRole.SOLO);

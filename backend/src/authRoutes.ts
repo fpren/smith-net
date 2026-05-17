@@ -422,7 +422,7 @@ authRouter.patch(
 // role filter stops hiding them. See organizationInviteService for the
 // transactional consumption logic.
 
-import { organizationInviteService, InviteError } from './organizationInviteService';
+import { organizationInviteService, InviteError, OrgError } from './organizationInviteService';
 
 // Roles allowed to issue invites and read the org member list. Mirrors the
 // foreman-tier set in presenceLocationRoutes.ts.
@@ -509,6 +509,42 @@ authRouter.get(
     } catch (e: any) {
       requestLogger().error({ event: 'org_members_error', err: e }, 'org members error');
       res.status(500).json({ error: 'List failed' });
+    }
+  }
+);
+
+authRouter.delete(
+  '/org/members/:id',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!ORG_ADMIN_ROLES.has(req.user!.role as UserRole)) {
+        return res.status(403).json({ error: 'foreman role required' });
+      }
+      const organizationId = req.user!.organizationId;
+      if (!organizationId) {
+        return res.status(401).json({ error: 'user missing organization_id' });
+      }
+      const targetId = req.params.id;
+      if (!targetId) {
+        return res.status(400).json({ error: 'member id required' });
+      }
+      const result = await organizationInviteService.removeMember(
+        req.user!.id,
+        organizationId,
+        targetId,
+      );
+      await auditLog.log(AuditAction.ORG_MEMBER_REMOVED, req.user!.id, {
+        organizationId,
+        removedUserId: targetId,
+      });
+      res.json({ removed: result });
+    } catch (e: any) {
+      if (e instanceof OrgError) {
+        return res.status(e.status).json({ error: e.message });
+      }
+      requestLogger().error({ event: 'org_member_remove_error', err: e }, 'org member remove error');
+      res.status(500).json({ error: 'Remove failed' });
     }
   }
 );

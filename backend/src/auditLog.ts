@@ -29,6 +29,7 @@ export enum AuditAction {
   // Org membership
   ORG_INVITE_CREATED = 'org.invite_created',
   ORG_MEMBER_JOINED = 'org.member_joined',
+  ORG_MEMBER_REMOVED = 'org.member_removed',
   
   // Messaging
   MESSAGE_SENT = 'message.sent',
