@@ -83,7 +83,16 @@ class WebSocketClient {
       this.authResolve = resolve;
       this.authReject = reject;
 
-      const wsUrl = 'ws://localhost:3030';
+      // Connect to the page's own origin at /api/ws so:
+      //  (a) the smithnet_access cookie (Path=/api) rides the upgrade, and
+      //  (b) the vite dev server's `ws: true` proxy forwards the upgrade to
+      //      the real backend on a different port without CORS pain.
+      // In jsdom tests window.location is http://localhost/ so this still
+      // produces a stable URL.
+      const loc = typeof window !== 'undefined' ? window.location : null;
+      const proto = loc && loc.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = loc?.host || 'localhost:3030';
+      const wsUrl = `${proto}//${host}/api/ws`;
       console.log('[WS] Connecting to:', wsUrl);
 
       this.ws = new WebSocket(wsUrl);

@@ -13,7 +13,15 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:3030',
+      // ws:true so the WS upgrade at /api/ws (used by wsClient) is forwarded
+      // to the backend. Same-origin from the browser's view keeps the
+      // smithnet_access cookie attached on the upgrade request — the cookie
+      // is scoped to Path=/api, so connecting via /api/ws is required.
+      '/api': {
+        target: 'http://localhost:3030',
+        ws: true,
+        changeOrigin: true,
+      },
     },
   },
   test: {
