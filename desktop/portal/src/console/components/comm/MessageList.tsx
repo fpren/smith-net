@@ -129,7 +129,7 @@ export function MessageList({ channelId }: Props) {
                       <button
                         type="button"
                         onClick={() => doDelete(m.id)}
-                        className="ml-auto text-xs text-console-text-muted opacity-0 group-hover:opacity-100 hover:text-console-danger transition-opacity"
+                        className="ml-auto text-xs text-console-text-muted opacity-40 hover:opacity-100 focus:opacity-100 hover:text-console-danger focus:text-console-danger transition-opacity"
                         aria-label="Delete message"
                       >
                         [x]

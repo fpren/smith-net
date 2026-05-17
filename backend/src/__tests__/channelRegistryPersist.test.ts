@@ -16,7 +16,7 @@ describeDb('channelRegistry persistence', () => {
   afterAll(async () => { await pg?.end(); });
 
   it('create() writes a row to channels and stays in the in-memory map', async () => {
-    const ch = await channelRegistry.create('test-A', 'broadcast', 'user-1');
+    const ch = await channelRegistry.create('test-A', 'broadcast', 'user-1', 'user-1');
     expect(ch.id).toBeTruthy();
     expect(channelRegistry.get(ch.id)).toBeDefined();
 
@@ -29,7 +29,7 @@ describeDb('channelRegistry persistence', () => {
   });
 
   it('initialize() loads existing rows into the in-memory map', async () => {
-    const ch = await channelRegistry.create('test-B', 'group', 'user-2');
+    const ch = await channelRegistry.create('test-B', 'group', 'user-2', 'user-2');
     (channelRegistry as any).channels.clear();
     (channelRegistry as any).meshHashIndex.clear();
     expect(channelRegistry.get(ch.id)).toBeUndefined();

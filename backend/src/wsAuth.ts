@@ -19,6 +19,7 @@ export interface WsIdentity {
   userName: string;
   email: string;
   role: UserRole;
+  organizationId: string;
 }
 
 const JWT_SECRET = process.env.JWT_SECRET || 'smith-net-dev-secret-change-in-production';
@@ -77,6 +78,10 @@ async function authorize(req: http.IncomingMessage): Promise<WsIdentity | null> 
     userName: user.displayName,
     email: user.email,
     role: user.role,
+    // Migration 012 enforces users.organization_id NOT NULL, so this is
+    // always set in practice. Fall back to user.id for the rare in-memory
+    // dev-mode case where the column wasn't populated.
+    organizationId: user.organizationId ?? user.id,
   };
 }
 

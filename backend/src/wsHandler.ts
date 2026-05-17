@@ -17,6 +17,7 @@ interface AuthenticatedClient {
   ws: WebSocket;
   userId: string;
   userName: string;
+  organizationId: string;
   subscribedChannels: Set<string>;
   isRelay: boolean;
   relayId?: string;
@@ -52,13 +53,14 @@ class WSHandler {
    * validation. Identity is trusted (comes from the validated JWT). Sets up
    * the post-connect state that handleAuth used to do.
    */
-  async onConnection(ws: WebSocket, identity: { userId: string; userName: string; email: string; role: string }): Promise<void> {
-    const { userId, userName } = identity;
+  async onConnection(ws: WebSocket, identity: { userId: string; userName: string; email: string; role: string; organizationId: string }): Promise<void> {
+    const { userId, userName, organizationId } = identity;
 
     const client: AuthenticatedClient = {
       ws,
       userId,
       userName,
+      organizationId,
       subscribedChannels: new Set(),
       isRelay: false,
       relayId: undefined,
@@ -81,7 +83,7 @@ class WSHandler {
       }
     }
 
-    const channels = channelRegistry.listForUser(userId);
+    const channels = channelRegistry.listForUser(userId, organizationId);
     this.send(ws, {
       type: 'auth_ok',
       payload: {
@@ -424,16 +426,24 @@ class WSHandler {
   shouldBroadcastTo(
     type: 'channel_created' | 'channel_updated' | 'channel_deleted' | 'channel_cleared' | 'message_deleted',
     payload: unknown,
-    client: { userId: string; subscribedChannels: Set<string> },
+    client: { userId: string; organizationId?: string; subscribedChannels: Set<string> },
   ): boolean {
     if (type === 'channel_created' || type === 'channel_updated') {
       const ch = payload as {
         type?: string;
+        organizationId?: string;
         memberIds?: string[];
         creatorId?: string;
         allowedUsers?: string[];
       } | null;
       if (!ch) return false;
+      // Tenant fence — even broadcast channels stay scoped to one org.
+      // Defense-in-depth on top of the REST list filter: if memberIds is
+      // stale or includes a cross-org user, the org gate still drops the
+      // event before it crosses the tenant boundary.
+      if (ch.organizationId && client.organizationId && ch.organizationId !== client.organizationId) {
+        return false;
+      }
       if (ch.type === 'broadcast') return true;
       if (ch.creatorId === client.userId) return true;
       if (Array.isArray(ch.memberIds) && ch.memberIds.includes(client.userId)) return true;
@@ -528,7 +538,7 @@ class WSHandler {
       }
       
       // Send updated channel list
-      const channels = channelRegistry.listForUser(client.userId);
+      const channels = channelRegistry.listForUser(client.userId, client.organizationId);
       this.send(ws, {
         type: 'channels_updated',
         payload: {

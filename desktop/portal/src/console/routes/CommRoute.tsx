@@ -1,4 +1,11 @@
 // desktop/portal/src/console/routes/CommRoute.tsx
+//
+// Responsive shell: stacks vertically on mobile and switches to a two-pane
+// side-by-side at md:+ (768px). On mobile, exactly one pane is visible at a
+// time — the channel list when nothing is selected, the message pane (with
+// a [← back] row) once a channel is selected. Mirrors the Android
+// ConversationScreen single-pane navigation pattern.
+
 import { useEffect } from 'react';
 import { useCommWebSocket } from '../hooks/useCommWebSocket';
 import { useCommStore } from '../stores/commStore';
@@ -14,8 +21,6 @@ export function CommRoute() {
   const select = useCommStore((s) => s.selectChannel);
   const isStale = useCommStore((s) => s.isStaleChannels);
 
-  // The WS pushes future events only — fetch history once when the user
-  // picks a channel. setMessages dedupes via the next appendMessage flow.
   useEffect(() => {
     if (!selectedId) return;
     let alive = true;
@@ -29,9 +34,16 @@ export function CommRoute() {
     };
   }, [selectedId]);
 
+  const selectedChannel = selectedId ? channels.find((c) => c.id === selectedId) : null;
+
   return (
-    <div className="font-mono h-full flex">
-      <aside className="w-72 border-r border-console-border overflow-y-auto flex-shrink-0">
+    <div className="font-mono h-full flex flex-col md:flex-row">
+      <aside
+        className={
+          'w-full md:w-72 md:flex-shrink-0 border-b md:border-b-0 md:border-r border-console-border md:overflow-y-auto ' +
+          (selectedId ? 'hidden md:block' : 'block')
+        }
+      >
         <div className="px-3 py-2 text-console-text-muted text-xs uppercase tracking-wide">
           Channels
         </div>
@@ -42,9 +54,22 @@ export function CommRoute() {
         )}
         <ChannelList channels={channels} selectedId={selectedId} onSelect={select} />
       </aside>
-      <main className="flex-1 flex flex-col min-w-0">
+      <main className={`flex-1 flex-col min-w-0 ${selectedId ? 'flex' : 'hidden md:flex'}`}>
         {selectedId ? (
           <>
+            <div className="md:hidden border-b border-console-border bg-console-surface px-3 py-2 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => select(null)}
+                className="text-console-accent text-sm font-mono"
+                aria-label="Back to channels"
+              >
+                [← back]
+              </button>
+              <span className="text-console-text-muted text-xs uppercase tracking-wide truncate">
+                {selectedChannel?.name ?? 'channel'}
+              </span>
+            </div>
             <MessageList channelId={selectedId} />
             <MessageInput channelId={selectedId} />
           </>

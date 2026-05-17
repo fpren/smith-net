@@ -12,6 +12,7 @@ export type AccessStatus = 'granted' | 'pending' | 'can_request' | 'denied';
 
 export interface Channel {
   id: string;                    // Canonical UUID - source of truth
+  organizationId: string;        // Tenant fence; backfilled from creator's org (migration 015).
   name: string;
   type: 'broadcast' | 'group' | 'dm';
   visibility: ChannelVisibility; // NEW: Access control level

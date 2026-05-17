@@ -11,6 +11,7 @@ import type { Channel, Message } from '../../../types';
 function makeChannel(id: string, name: string, createdAt = 1716000000000): Channel {
   return {
     id,
+    organizationId: 'org-1',
     name,
     type: 'group',
     creatorId: 'user-1',
@@ -115,6 +116,36 @@ describe('CommRoute', () => {
     useCommStore.getState().markRead('m-mine', 'u-other-2');
     render(<MemoryRouter><CommRoute /></MemoryRouter>);
     expect(await screen.findByText(/seen by 2/i)).toBeInTheDocument();
+  });
+
+  it('does NOT render the mobile [← back] row when no channel is selected', () => {
+    useCommStore.getState().setChannels([makeChannel('ch-x', 'general')]);
+    render(<MemoryRouter><CommRoute /></MemoryRouter>);
+    expect(screen.queryByLabelText(/back to channels/i)).not.toBeInTheDocument();
+  });
+
+  it('renders the [← back] row when a channel is selected, and clicking it clears selection', async () => {
+    server.use(http.get('/api/channels/:id/messages', () => HttpResponse.json([])));
+    useCommStore.getState().setChannels([makeChannel('ch-sel', 'general')]);
+    useCommStore.getState().selectChannel('ch-sel');
+    render(<MemoryRouter><CommRoute /></MemoryRouter>);
+    const back = await screen.findByLabelText(/back to channels/i);
+    fireEvent.click(back);
+    expect(useCommStore.getState().selectedChannelId).toBeNull();
+  });
+
+  it('renders the [x] delete button on own messages without requiring hover state', async () => {
+    server.use(http.get('/api/channels/:id/messages', () => HttpResponse.json([makeMessage('m1', 'ch-mine', 'hi')])));
+    useCommStore.getState().setChannels([makeChannel('ch-mine', 'mine')]);
+    useCommStore.getState().selectChannel('ch-mine');
+    useCommStore.getState().setMessages('ch-mine', [makeMessage('m1', 'ch-mine', 'hi')]);
+    render(<MemoryRouter><CommRoute /></MemoryRouter>);
+    const del = await screen.findByLabelText(/delete message/i);
+    // The button is in the DOM regardless of hover — touch users can reach it.
+    // CSS dimming via opacity-40 is verified visually in M3; here we only
+    // assert presence + a non-hover-gated class.
+    expect(del).toBeInTheDocument();
+    expect(del.className).not.toMatch(/opacity-0/);
   });
 
   it('shows the [OFFLINE] banner when channel list fetch fails', async () => {

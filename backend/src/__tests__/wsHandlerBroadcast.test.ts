@@ -7,8 +7,8 @@
 
 import { wsHandler } from '../wsHandler';
 
-function client(userId: string, subs: string[] = []) {
-  return { userId, subscribedChannels: new Set(subs) };
+function client(userId: string, subs: string[] = [], organizationId?: string) {
+  return { userId, subscribedChannels: new Set(subs), organizationId };
 }
 
 describe('wsHandler.shouldBroadcastTo', () => {
@@ -73,6 +73,45 @@ describe('wsHandler.shouldBroadcastTo', () => {
 
     it('returns false when the payload lacks an id or channelId', () => {
       expect(wsHandler.shouldBroadcastTo('channel_deleted', {}, subscribed)).toBe(false);
+    });
+  });
+
+  describe('organization tenant fence', () => {
+    const baseChannel = {
+      id: 'c1',
+      type: 'group',
+      organizationId: 'org-A',
+      memberIds: ['u-X'],
+      creatorId: 'u-creator',
+      allowedUsers: [],
+      visibility: 'public',
+    };
+
+    it('blocks channel_created when the channel and client are in different orgs (even if memberIds matches)', () => {
+      const wrongOrg = client('u-X', [], 'org-B');
+      expect(wsHandler.shouldBroadcastTo('channel_created', baseChannel, wrongOrg)).toBe(false);
+    });
+
+    it('allows channel_created when org matches and client is a member', () => {
+      const sameOrg = client('u-X', [], 'org-A');
+      expect(wsHandler.shouldBroadcastTo('channel_created', baseChannel, sameOrg)).toBe(true);
+    });
+
+    it('blocks a broadcast channel from another org', () => {
+      const bcast = { ...baseChannel, type: 'broadcast', memberIds: [] };
+      expect(wsHandler.shouldBroadcastTo('channel_created', bcast, client('any', [], 'org-B'))).toBe(false);
+      expect(wsHandler.shouldBroadcastTo('channel_created', bcast, client('any', [], 'org-A'))).toBe(true);
+    });
+
+    it('is permissive when either side lacks organizationId (backward compat)', () => {
+      // If the channel payload lacks org (legacy event before migration) the
+      // gate falls back to the membership-only check. Similarly if the
+      // client lacks it (a pre-migration WS handshake). Avoids breaking
+      // older deployments mid-rollout.
+      const noOrgChannel = { ...baseChannel, organizationId: undefined };
+      expect(wsHandler.shouldBroadcastTo('channel_created', noOrgChannel, client('u-X', [], 'org-B'))).toBe(true);
+      const noOrgClient = client('u-X', []);
+      expect(wsHandler.shouldBroadcastTo('channel_created', baseChannel, noOrgClient)).toBe(true);
     });
   });
 

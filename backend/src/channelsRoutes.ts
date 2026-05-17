@@ -33,12 +33,17 @@ channelsRouter.post('/channels', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'name and type required' });
   }
 
-  const creatorId = (req as AuthenticatedRequest).user!.id;
+  const auth = (req as AuthenticatedRequest).user!;
+  const organizationId = auth.organizationId;
+  if (!organizationId) {
+    return res.status(401).json({ error: 'user missing organization_id' });
+  }
 
   const channel = await channelRegistry.create(
     name,
     type,
-    creatorId,
+    auth.id,
+    organizationId,
     memberIds,
     visibility || 'public',
     requiresApproval || false
@@ -53,9 +58,12 @@ channelsRouter.post('/channels', async (req: Request, res: Response) => {
 });
 
 channelsRouter.get('/channels', (req: Request, res: Response) => {
-  // Always scope to authenticated user.
-  const userId = (req as AuthenticatedRequest).user!.id;
-  const channels = channelRegistry.listForUser(userId);
+  // Always scope to authenticated user AND their org (migration 015).
+  const auth = (req as AuthenticatedRequest).user!;
+  if (!auth.organizationId) {
+    return res.status(401).json({ error: 'user missing organization_id' });
+  }
+  const channels = channelRegistry.listForUser(auth.id, auth.organizationId);
   res.json(channels);
 });
 

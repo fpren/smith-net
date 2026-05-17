@@ -27,15 +27,16 @@ class ChannelRegistry {
     if (!isPgEnabled() || !pg) return; // dev-mode fallback: in-memory only
     await pg.query(
       `INSERT INTO channels (
-         id, name, type, visibility, creator_id,
+         id, organization_id, name, type, visibility, creator_id,
          member_ids, allowed_users, blocked_users, pending_requests,
          requires_approval, is_archived, is_deleted, mesh_hash, updated_at
        ) VALUES (
-         $1, $2, $3, $4, $5,
-         $6::jsonb, $7::jsonb, $8::jsonb, $9::jsonb,
-         $10, $11, $12, $13, NOW()
+         $1, $2, $3, $4, $5, $6,
+         $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb,
+         $11, $12, $13, $14, NOW()
        )
        ON CONFLICT (id) DO UPDATE SET
+         organization_id   = EXCLUDED.organization_id,
          name              = EXCLUDED.name,
          type              = EXCLUDED.type,
          visibility        = EXCLUDED.visibility,
@@ -49,7 +50,7 @@ class ChannelRegistry {
          is_deleted        = EXCLUDED.is_deleted,
          updated_at        = NOW()`,
       [
-        channel.id, channel.name, channel.type, channel.visibility, channel.creatorId,
+        channel.id, channel.organizationId, channel.name, channel.type, channel.visibility, channel.creatorId,
         JSON.stringify(channel.memberIds),
         JSON.stringify(channel.allowedUsers),
         JSON.stringify(channel.blockedUsers),
@@ -66,6 +67,7 @@ class ChannelRegistry {
     name: string,
     type: Channel['type'],
     creatorId: string,
+    organizationId: string,
     memberIds?: string[],
     visibility: ChannelVisibility = 'public',
     requiresApproval: boolean = false
@@ -75,6 +77,7 @@ class ChannelRegistry {
 
     const channel: Channel = {
       id,
+      organizationId,
       name,
       type,
       visibility,
@@ -94,7 +97,7 @@ class ChannelRegistry {
     this.meshHashIndex.set(meshHash, id);
     await this.persistChannel(channel);
 
-    requestLogger().info({ event: 'channel_created', id, name, visibility, meshHash }, 'channel created');
+    requestLogger().info({ event: 'channel_created', id, name, visibility, meshHash, organizationId }, 'channel created');
     return channel;
   }
 
@@ -135,10 +138,18 @@ class ChannelRegistry {
   }
 
   /**
-   * List channels for a specific user (respects visibility permissions)
+   * List channels for a specific user (respects visibility permissions).
+   *
+   * Tenant fence runs FIRST: a channel from another org is invisible
+   * regardless of memberIds. Mirrors crew_positions / users isolation
+   * (migrations 012, 013, 015). The existing membership / discovery rules
+   * apply only within the user's own org.
    */
-  listForUser(userId: string): Channel[] {
-    return this.list().filter(c => this.canUserAccess(c, userId) || this.canUserSeeInList(c, userId));
+  listForUser(userId: string, organizationId: string): Channel[] {
+    return this.list().filter((c) => {
+      if (c.organizationId !== organizationId) return false;
+      return this.canUserAccess(c, userId) || this.canUserSeeInList(c, userId);
+    });
   }
 
   /**
@@ -399,7 +410,7 @@ class ChannelRegistry {
       return;
     }
     const { rows } = await pg.query<{
-      id: string; name: string; type: string; visibility: string; creator_id: string;
+      id: string; organization_id: string; name: string; type: string; visibility: string; creator_id: string;
       member_ids: string[]; allowed_users: string[]; blocked_users: string[]; pending_requests: string[];
       requires_approval: boolean; is_archived: boolean; is_deleted: boolean; mesh_hash: number;
       created_at: Date;
@@ -410,6 +421,7 @@ class ChannelRegistry {
     for (const row of rows) {
       const channel: Channel = {
         id: row.id,
+        organizationId: row.organization_id,
         name: row.name,
         type: row.type as Channel['type'],
         visibility: row.visibility as ChannelVisibility,
