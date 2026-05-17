@@ -102,12 +102,16 @@ export function AppHeader() {
         </span>
       </div>
 
-      {/* User card */}
-      <div className="flex items-center gap-2 border-l border-console-border pl-3">
+      {/* User card — role chip hidden on mobile to keep the header on one
+          tidy row. Avatar + name carry identity; role is visible in desktop
+          context where the chip fits comfortably. */}
+      <div className="flex items-center gap-2 md:border-l md:border-console-border md:pl-3">
         <Avatar name={user.displayName} color={accentForId(user.id)} size={28} />
         <div className="flex flex-col leading-tight">
-          <span className="text-console-text text-xs font-medium">{user.displayName}</span>
-          <Chip label={user.role.toUpperCase()} color={colorForRole(user.role)} xs />
+          <span className="text-console-text text-xs font-medium whitespace-nowrap">{user.displayName}</span>
+          <span className="hidden md:inline">
+            <Chip label={user.role.toUpperCase()} color={colorForRole(user.role)} xs />
+          </span>
         </div>
       </div>
 

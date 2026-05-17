@@ -18,11 +18,17 @@ export function StatsStrip({ jobs }: { jobs: Job[] }) {
   }, [jobs]);
 
   return (
-    <div className="font-mono text-xs text-console-text-muted flex gap-3">
-      <span>PLANNED {stats.planned}</span><span>·</span>
-      <span>IN PROGRESS {stats.inProg}</span><span>·</span>
-      <span>COMPLETE {stats.complete} (week)</span><span>·</span>
-      <span>CANCELLED {stats.cancelled} (week)</span>
+    // Mobile: 2x2 grid so each stat stays whole and aligned. Desktop: the
+    // original inline strip with `·` separators (whitespace-nowrap ensures
+    // "IN PROGRESS 0" doesn't break in two when the row is tight).
+    <div className="font-mono text-xs text-console-text-muted grid grid-cols-2 gap-x-3 gap-y-1 md:flex md:gap-3">
+      <span className="whitespace-nowrap">PLANNED {stats.planned}</span>
+      <span className="hidden md:inline">·</span>
+      <span className="whitespace-nowrap">IN PROGRESS {stats.inProg}</span>
+      <span className="hidden md:inline">·</span>
+      <span className="whitespace-nowrap">COMPLETE {stats.complete} (week)</span>
+      <span className="hidden md:inline">·</span>
+      <span className="whitespace-nowrap">CANCELLED {stats.cancelled} (week)</span>
     </div>
   );
 }
