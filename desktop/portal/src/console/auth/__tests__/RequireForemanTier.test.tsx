@@ -7,15 +7,15 @@ import { useAuthStore } from '../authStore';
 function Protected() {
   return <div>foreman-only content</div>;
 }
-function MapStub() {
-  return <div>map (redirected)</div>;
+function CommStub() {
+  return <div>comm (worker landing)</div>;
 }
 
 function renderWithRouter(initial: string) {
   return render(
     <MemoryRouter initialEntries={[initial]}>
       <Routes>
-        <Route path="/console" element={<MapStub />} />
+        <Route path="/console/comm" element={<CommStub />} />
         <Route
           path="/console/crew"
           element={
@@ -50,13 +50,35 @@ describe('RequireForemanTier', () => {
     expect(screen.getByText('foreman-only content')).toBeInTheDocument();
   });
 
-  it('redirects a worker (solo) back to /console', () => {
+  it('redirects a worker (solo) to /console/comm (their only usable surface)', () => {
     useAuthStore.getState().setUser({
       id: 'u-solo', email: 's@x.com', displayName: 'S', role: 'solo', emailVerified: true,
     });
     renderWithRouter('/console/crew');
     expect(screen.queryByText('foreman-only content')).not.toBeInTheDocument();
-    expect(screen.getByText('map (redirected)')).toBeInTheDocument();
+    expect(screen.getByText('comm (worker landing)')).toBeInTheDocument();
+  });
+
+  it('honors a custom redirectTo prop', () => {
+    useAuthStore.getState().setUser({
+      id: 'u-solo', email: 's@x.com', displayName: 'S', role: 'solo', emailVerified: true,
+    });
+    render(
+      <MemoryRouter initialEntries={['/console/crew']}>
+        <Routes>
+          <Route path="/elsewhere" element={<div>elsewhere</div>} />
+          <Route
+            path="/console/crew"
+            element={
+              <RequireForemanTier redirectTo="/elsewhere">
+                <Protected />
+              </RequireForemanTier>
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+    expect(screen.getByText('elsewhere')).toBeInTheDocument();
   });
 
   it('redirects team_member and team_lead too', () => {

@@ -37,9 +37,9 @@ export default function App() {
           </RequireAuth>
         }
       >
-        <Route index element={<MapRoute />} />
-        <Route path="jobs" element={<JobsListRoute />} />
-        <Route path="jobs/:id" element={<JobDetailRoute />} />
+        <Route index element={<RequireForemanTier><MapRoute /></RequireForemanTier>} />
+        <Route path="jobs" element={<RequireForemanTier><JobsListRoute /></RequireForemanTier>} />
+        <Route path="jobs/:id" element={<RequireForemanTier><JobDetailRoute /></RequireForemanTier>} />
         <Route path="crew" element={<RequireForemanTier><CrewRoute /></RequireForemanTier>} />
         <Route path="comm" element={<CommRoute />} />
         <Route path="admin" element={<RequireAdmin><AdminRoute /></RequireAdmin>} />

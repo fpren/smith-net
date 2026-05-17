@@ -14,12 +14,20 @@ import { useAuthStore } from './authStore';
 
 interface Props {
   children: ReactNode;
+  /**
+   * Path to redirect non-foreman users to. Defaults to the Comm route since
+   * Comm is the only surface workers can actually use today (Map and Jobs
+   * are backend-gated at the tier middleware; landing on them shows broken
+   * empty states). Override is provided for the index route to avoid an
+   * infinite redirect when /console itself is foreman-only.
+   */
+  redirectTo?: string;
 }
 
-export function RequireForemanTier({ children }: Props) {
+export function RequireForemanTier({ children, redirectTo = '/console/comm' }: Props) {
   const hasForemanTier = useAuthStore((s) => s.hasForemanTier);
   if (!hasForemanTier()) {
-    return <Navigate to="/console" replace />;
+    return <Navigate to={redirectTo} replace />;
   }
   return <>{children}</>;
 }
