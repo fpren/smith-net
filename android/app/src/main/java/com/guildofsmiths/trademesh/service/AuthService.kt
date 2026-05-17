@@ -3,6 +3,7 @@ package com.guildofsmiths.trademesh.service
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import com.guildofsmiths.trademesh.BuildConfig
 import com.guildofsmiths.trademesh.data.RoleContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -31,7 +32,7 @@ object AuthService {
     private const val KEY_TOKEN_EXPIRY = "token_expiry"
     
     private var prefs: SharedPreferences? = null
-    private var baseUrl: String = "http://10.0.2.2:3030" // Android emulator localhost
+    private var baseUrl: String = BuildConfig.BACKEND_URL
     
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
@@ -87,6 +88,43 @@ object AuthService {
     fun updateUserRole(role: String) {
         prefs?.edit()?.putString(KEY_USER_ROLE, role)?.apply()
         RoleContext.setRoleFromString(role)
+    }
+
+    /**
+     * Push the work-mode pick to the backend so server-side scoping (e.g. the
+     * /api/crew/positions filter) sees the current role. The local SharedPrefs
+     * write is still authoritative on the phone; this is best-effort and any
+     * failure is swallowed so onboarding doesn't break offline.
+     *
+     * Caller passes "solo" or "foreman" (the work-mode whitelist on the
+     * backend rejects anything else).
+     */
+    suspend fun syncWorkMode(mode: String): Boolean = withContext(Dispatchers.IO) {
+        val token = getAccessToken()
+        if (token.isNullOrBlank()) {
+            Log.i(TAG, "syncWorkMode skipped — no auth token yet")
+            return@withContext false
+        }
+        try {
+            val body = JSONObject().put("mode", mode).toString().toRequestBody(JSON_MEDIA_TYPE)
+            val req = Request.Builder()
+                .url("$baseUrl/api/auth/users/me/work-mode")
+                .addHeader("Authorization", "Bearer $token")
+                .patch(body)
+                .build()
+            client.newCall(req).execute().use { res ->
+                if (res.isSuccessful) {
+                    Log.i(TAG, "syncWorkMode ok mode=$mode")
+                    true
+                } else {
+                    Log.w(TAG, "syncWorkMode HTTP ${res.code}")
+                    false
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "syncWorkMode failed (will reconcile later): ${e.message}")
+            false
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════

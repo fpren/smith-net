@@ -102,12 +102,17 @@ class CrewPositionService {
 
   async listOpenPositions(): Promise<CrewPositionWithProfile[]> {
     const db = requirePg();
+    // Solo workers' positions are excluded from the foreman-facing crew view —
+    // their work-mode says they operate independently, so their dot should not
+    // surface on any supervisor's console.
     const r = await db.query<CrewPositionWithProfile>(
       `SELECT p.user_id, p.latitude, p.longitude, p.accuracy_m, p.recorded_at, p.source, p.battery_pct,
               pr.display_name
          FROM crew_positions p
          INNER JOIN shifts   s  ON s.user_id  = p.user_id AND s.ended_at IS NULL
-         INNER JOIN profiles pr ON pr.id      = p.user_id`
+         INNER JOIN profiles pr ON pr.id      = p.user_id
+         INNER JOIN users    u  ON u.id       = p.user_id
+        WHERE u.role <> 'solo'`
     );
     return r.rows;
   }

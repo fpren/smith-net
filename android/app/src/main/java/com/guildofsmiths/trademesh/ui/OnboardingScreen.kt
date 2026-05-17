@@ -166,6 +166,7 @@ fun OnboardingScreen(
                     onSolo = {
                         AuthService.updateUserRole("solo")
                         scope.launch {
+                            AuthService.syncWorkMode("solo")
                             delay(160)
                             currentScreen = OnboardingScreen.DONE
                         }
@@ -173,6 +174,7 @@ fun OnboardingScreen(
                     onForeman = {
                         AuthService.updateUserRole("foreman")
                         scope.launch {
+                            AuthService.syncWorkMode("foreman")
                             delay(160)
                             currentScreen = OnboardingScreen.DONE
                         }

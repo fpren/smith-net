@@ -368,4 +368,48 @@ authRouter.patch(
   }
 );
 
+// ════════════════════════════════════════════════════════════════════
+// SELF-SERVICE: UPDATE WORK MODE (solo / foreman)
+// ════════════════════════════════════════════════════════════════════
+//
+// The Android onboarding "How do you work?" step lets users pick between
+// solo and crew/foreman. This route lets the authenticated user persist
+// that choice to their own row without needing MANAGE_ROLES. The whitelist
+// prevents privilege escalation — anything outside {solo, foreman} is 400.
+
+authRouter.patch(
+  '/users/me/work-mode',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { mode } = req.body ?? {};
+      const mapping: Record<string, UserRole> = {
+        solo: UserRole.SOLO,
+        foreman: UserRole.FOREMAN,
+      };
+      const role = mapping[mode];
+      if (!role) {
+        return res.status(400).json({ error: 'mode must be "solo" or "foreman"' });
+      }
+
+      const userId = req.user!.id;
+      const updated = await userStore.updateUser(userId, { role });
+      if (!updated) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      await auditLog.log(AuditAction.USER_ROLE_CHANGE, userId, {
+        targetUserId: userId,
+        newRole: role,
+        via: 'work-mode-self-service',
+      });
+
+      res.json({ user: toPublicUser(updated) });
+    } catch (e: any) {
+      requestLogger().error({ event: 'work_mode_update_error', err: e }, 'work-mode update error');
+      res.status(500).json({ error: 'Update failed' });
+    }
+  }
+);
+
 requestLogger().info({ event: 'auth_routes_initialized' }, 'auth routes initialized');

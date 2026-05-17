@@ -1028,6 +1028,7 @@ private fun SmithAISection() {
 @Composable
 private fun WorkModeSection() {
     var currentMode by remember { mutableStateOf(RoleContext.role) }
+    val workModeScope = rememberCoroutineScope()
 
     val modes = listOf(
         UserRole.SOLO to "Jobs, time tracking, invoicing — just for me.",
@@ -1051,6 +1052,7 @@ private fun WorkModeSection() {
                     .clickable {
                         currentMode = role
                         AuthService.updateUserRole(role.key)
+                        workModeScope.launch { AuthService.syncWorkMode(role.key) }
                     }
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
