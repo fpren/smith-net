@@ -57,6 +57,12 @@ export const commClient = {
     return { ok: true, messages };
   },
 
+  deleteMessage: async (messageId: string): Promise<CommResult<{}>> => {
+    const r = await fetchJson(`/api/messages/${encodeURIComponent(messageId)}`, { method: 'DELETE' });
+    if (!r.ok) return r;
+    return { ok: true };
+  },
+
   send: async (channelId: string, content: string): Promise<CommResult<{ message: Message }>> => {
     const r = await fetchJson('/api/messages/inject', {
       method: 'POST',

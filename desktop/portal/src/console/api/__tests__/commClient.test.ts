@@ -37,6 +37,25 @@ describe('commClient', () => {
     }
   });
 
+  it('deleteMessage returns ok on 204', async () => {
+    const result = await commClient.deleteMessage('msg-1');
+    expect(result.ok).toBe(true);
+  });
+
+  it('deleteMessage surfaces error on non-2xx', async () => {
+    server.use(
+      http.delete('/api/messages/:id', () =>
+        HttpResponse.json({ error: 'nope' }, { status: 403 }),
+      ),
+    );
+    const result = await commClient.deleteMessage('msg-1');
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.status).toBe(403);
+      expect(result.error).toBe('nope');
+    }
+  });
+
   it('send posts the body and returns the persisted message (sans bookkeeping)', async () => {
     const result = await commClient.send('ch-general', 'hey there');
     expect(result.ok).toBe(true);

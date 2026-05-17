@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { MemoryRouter } from 'react-router-dom';
@@ -47,18 +47,16 @@ describe('CommRoute', () => {
     });
   });
 
-  it('shows the "select a channel" prompt when none is selected', async () => {
+  it('shows the "select a channel" prompt when none is selected', () => {
+    useCommStore.getState().setChannels([makeChannel('ch-x', 'general')]);
     render(<MemoryRouter><CommRoute /></MemoryRouter>);
-    // Polling will pull in the msw fixture channel — wait for it, then assert
-    // the right pane is still showing the prompt since no channel is selected.
-    await waitFor(() => expect(useCommStore.getState().channels.length).toBeGreaterThan(0));
     expect(screen.getByText(/select a channel to start/i)).toBeInTheDocument();
   });
 
-  it('renders channel rows from polled state', async () => {
+  it('renders channel rows from seeded state', () => {
+    useCommStore.getState().setChannels([makeChannel('ch-x', 'general')]);
     render(<MemoryRouter><CommRoute /></MemoryRouter>);
-    // The msw handler returns a channel named "general".
-    await waitFor(() => expect(screen.getByText('general')).toBeInTheDocument());
+    expect(screen.getByText('general')).toBeInTheDocument();
   });
 
   it('selecting a channel populates the store and renders messages', async () => {
@@ -93,6 +91,30 @@ describe('CommRoute', () => {
     useCommStore.getState().setMessages('ch-empty', []);
     render(<MemoryRouter><CommRoute /></MemoryRouter>);
     expect(await screen.findByText(/no messages yet/i)).toBeInTheDocument();
+  });
+
+  it('renders the typing footer when typingByChannel has another user', async () => {
+    server.use(http.get('/api/channels/:id/messages', () => HttpResponse.json([])));
+    useCommStore.getState().setChannels([makeChannel('ch-t', 'typers')]);
+    useCommStore.getState().selectChannel('ch-t');
+    useCommStore.getState().setTyping('ch-t', 'u-other', 'Alice', true);
+    render(<MemoryRouter><CommRoute /></MemoryRouter>);
+    expect(await screen.findByText(/alice is typing/i)).toBeInTheDocument();
+  });
+
+  it('renders "· seen by N" suffix on my own messages when others have read them', async () => {
+    server.use(
+      http.get('/api/channels/:id/messages', () =>
+        HttpResponse.json([makeMessage('m-mine', 'ch-r', 'my message')]),
+      ),
+    );
+    useCommStore.getState().setChannels([makeChannel('ch-r', 'readers')]);
+    useCommStore.getState().selectChannel('ch-r');
+    useCommStore.getState().setMessages('ch-r', [makeMessage('m-mine', 'ch-r', 'my message')]);
+    useCommStore.getState().markRead('m-mine', 'u-other-1');
+    useCommStore.getState().markRead('m-mine', 'u-other-2');
+    render(<MemoryRouter><CommRoute /></MemoryRouter>);
+    expect(await screen.findByText(/seen by 2/i)).toBeInTheDocument();
   });
 
   it('shows the [OFFLINE] banner when channel list fetch fails', async () => {

@@ -292,6 +292,8 @@ export const handlers = [
     ])
   ),
 
+  http.delete('/api/messages/:id', () => new HttpResponse(null, { status: 204 })),
+
   http.post('/api/messages/inject', async ({ request }) => {
     const body = (await request.json()) as { channelId: string; content: string };
     return HttpResponse.json(
