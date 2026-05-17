@@ -43,14 +43,12 @@ describe('RequireAuth', () => {
     await waitFor(() => expect(screen.getByText('protected content')).toBeInTheDocument());
   });
 
-  it('shows upgrade screen for solo role', async () => {
+  it('shows children for a worker (solo) role — the upgrade-required wall is gone', async () => {
     useAuthStore.getState().setUser({
       id: 'u2', email: 's@x.com', displayName: 'S', role: 'solo', emailVerified: true,
     });
     renderWithRouter('/console');
-    await waitFor(() =>
-      expect(screen.getByText(/console requires advanced/i)).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText('protected content')).toBeInTheDocument());
   });
 
   it('hydrates from /api/auth/me on mount when authStore is empty (cookie path)', async () => {

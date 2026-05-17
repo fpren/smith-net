@@ -13,6 +13,7 @@ import { CrewRoute } from './console/routes/CrewRoute';
 import { CommRoute } from './console/routes/CommRoute';
 import { AdminRoute } from './console/routes/AdminRoute';
 import { RequireAdmin } from './console/auth/RequireAdmin';
+import { RequireForemanTier } from './console/auth/RequireForemanTier';
 
 /**
  * Guild of Smiths Web Portal
@@ -39,7 +40,7 @@ export default function App() {
         <Route index element={<MapRoute />} />
         <Route path="jobs" element={<JobsListRoute />} />
         <Route path="jobs/:id" element={<JobDetailRoute />} />
-        <Route path="crew" element={<CrewRoute />} />
+        <Route path="crew" element={<RequireForemanTier><CrewRoute /></RequireForemanTier>} />
         <Route path="comm" element={<CommRoute />} />
         <Route path="admin" element={<RequireAdmin><AdminRoute /></RequireAdmin>} />
       </Route>

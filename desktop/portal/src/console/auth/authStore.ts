@@ -16,17 +16,24 @@ interface AuthState {
   clear: () => void;
   isAuthenticated: () => boolean;
   hasConsoleAccess: () => boolean;
+  hasForemanTier: () => boolean;
 }
 
-const CONSOLE_ROLES: ConsoleRole[] = ['foreman', 'enterprise', 'admin'];
+// Foreman-tier: can manage crews + see Crew roster + manage org. Other
+// authenticated roles (solo, team, lead) get the worker subset (Map, Jobs,
+// Comm) via per-route guards. The full upgrade-required wall is gone.
+const FOREMAN_TIER_ROLES: ConsoleRole[] = ['foreman', 'enterprise', 'admin'];
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   setUser: (u) => set({ user: u }),
   clear: () => set({ user: null }),
   isAuthenticated: () => get().user !== null,
-  hasConsoleAccess: () => {
+  // Everyone authenticated can use the console. Per-route gates handle the
+  // foreman-only (RequireForemanTier) and admin-only (RequireAdmin) surfaces.
+  hasConsoleAccess: () => get().user !== null,
+  hasForemanTier: () => {
     const user = get().user;
-    return user !== null && CONSOLE_ROLES.includes(user.role);
+    return user !== null && FOREMAN_TIER_ROLES.includes(user.role);
   },
 }));

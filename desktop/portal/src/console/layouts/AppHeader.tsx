@@ -41,6 +41,7 @@ function NavButton({ to, label, end }: { to: string; label: string; end?: boolea
 export function AppHeader() {
   const user = useAuthStore((s) => s.user);
   const clear = useAuthStore((s) => s.clear);
+  const hasForemanTier = useAuthStore((s) => s.hasForemanTier);
   const navigate = useNavigate();
   const { hh, mm, ss } = useCurrentTime();
   const { onClock } = useCurrentShift();
@@ -78,7 +79,7 @@ export function AppHeader() {
       <nav className="hidden md:flex items-center gap-1 border-l border-console-border pl-3">
         <NavButton to="/console" label="Map" end />
         <NavButton to="/console/jobs" label="Jobs" />
-        <NavButton to="/console/crew" label="Crew" />
+        {hasForemanTier() && <NavButton to="/console/crew" label="Crew" />}
         <NavButton to="/console/comm" label="Comm" />
         {user.role === 'admin' && <NavButton to="/console/admin" label="Admin" />}
       </nav>

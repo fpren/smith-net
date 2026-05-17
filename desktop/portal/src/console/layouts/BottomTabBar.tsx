@@ -32,6 +32,7 @@ function TabLink({ to, label, end }: TabLinkProps) {
 
 export function BottomTabBar() {
   const user = useAuthStore((s) => s.user);
+  const hasForemanTier = useAuthStore((s) => s.hasForemanTier);
   if (!user) return null;
 
   return (
@@ -41,7 +42,7 @@ export function BottomTabBar() {
     >
       <TabLink to="/console" label="Map" end />
       <TabLink to="/console/jobs" label="Jobs" />
-      <TabLink to="/console/crew" label="Crew" />
+      {hasForemanTier() && <TabLink to="/console/crew" label="Crew" />}
       <TabLink to="/console/comm" label="Comm" />
       {user.role === 'admin' && <TabLink to="/console/admin" label="Admin" />}
     </nav>

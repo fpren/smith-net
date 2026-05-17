@@ -34,6 +34,26 @@ describe('BottomTabBar', () => {
     expect(screen.getByRole('link', { name: /Admin/ })).toBeInTheDocument();
   });
 
+  it('hides the Crew tab for a worker (solo) role', () => {
+    useAuthStore.getState().setUser({
+      id: 'u-solo', email: 's@x.com', displayName: 'S', role: 'solo', emailVerified: true,
+    });
+    render(<MemoryRouter><BottomTabBar /></MemoryRouter>);
+    expect(screen.getByRole('link', { name: /Map/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Jobs/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Comm/ })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Crew/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Admin/ })).not.toBeInTheDocument();
+  });
+
+  it('hides the Crew tab for team_member and team_lead too', () => {
+    useAuthStore.getState().setUser({
+      id: 'u-team', email: 't@x.com', displayName: 'T', role: 'team', emailVerified: true,
+    });
+    render(<MemoryRouter><BottomTabBar /></MemoryRouter>);
+    expect(screen.queryByRole('link', { name: /Crew/ })).not.toBeInTheDocument();
+  });
+
   it('uses md:hidden so the bar is hidden on desktop', () => {
     useAuthStore.getState().setUser({
       id: 'u1', email: 'f@x.com', displayName: 'F', role: 'foreman', emailVerified: true,
