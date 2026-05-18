@@ -1,14 +1,12 @@
 // backend/src/invoicesRoutes.ts
 //
 // Replaces the stub /api/invoices handlers that used to live in
-// engagementsInvoicesRoutes.ts. Mirrors jobsRoutes.ts in shape:
-// requireConsoleTier at router level (foreman+ only); every handler
-// passes req.user.organizationId through to invoicesService, which
-// enforces the tenant fence in every query.
+// engagementsInvoicesRoutes.ts. Every handler passes
+// req.user.organizationId through to invoicesService, which enforces
+// the tenant fence in every query.
 
 import { Router, Response } from 'express';
 import { AuthenticatedRequest } from './auth';
-import { requireConsoleTier } from './middleware/requireConsoleTier';
 import { validateBody } from './middleware/validate';
 import {
   CreateInvoiceBody, UpdateInvoiceBody, SetStatusBody,
@@ -18,7 +16,11 @@ import * as invoicesService from './invoicesService';
 import { requestLogger } from './log';
 
 export const invoicesRouter = Router();
-invoicesRouter.use(requireConsoleTier);
+// NOTE: requireConsoleTier intentionally removed. Solo workers post their
+// own invoices into their org-of-one for paper-trail purposes — see the
+// Android invoice wiring spec (docs/superpowers/specs/2026-05-17-android-
+// invoice-wiring-design.md). Per-org isolation is still enforced at the
+// service layer (every query filters by organization_id).
 
 function org(req: AuthenticatedRequest): string | null {
   return req.user?.organizationId ?? null;

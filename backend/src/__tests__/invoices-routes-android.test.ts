@@ -35,6 +35,18 @@ async function createForemanAndLogin(suffix: string) {
   return { id: user.id, token: accessToken };
 }
 
+async function createSoloAndLogin(suffix: string) {
+  const email = `solo-andinv-${suffix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.com`;
+  const user = await createUserAndProfile({
+    email,
+    password: 'password123',
+    displayName: `Solo ${suffix}`,
+    role: UserRole.SOLO,
+  });
+  const { accessToken } = await generateTokens(user);
+  return { id: user.id, token: accessToken };
+}
+
 afterEach(async () => {
   if (!isPgEnabled() || !pg) return;
   await pg.query(`DELETE FROM invoice_line_items`);
@@ -112,5 +124,42 @@ describeDb('POST /api/invoices — idempotency', () => {
     expect(a.status).toBe(201);
     expect(b.status).toBe(201);
     expect(a.body.invoice.id).not.toBe(b.body.invoice.id);
+  });
+});
+
+describeDb('POST /api/invoices — solo tier', () => {
+  const app = buildApp();
+
+  it('allows a solo user to create an invoice in their org-of-one', async () => {
+    const s = await createSoloAndLogin('post');
+    const created = await request(app)
+      .post('/api/invoices')
+      .set('Authorization', `Bearer ${s.token}`)
+      .send({ idempotencyKey: 'solo-1', clientName: 'Direct Client' });
+    expect(created.status).toBe(201);
+    expect(created.body.invoice.invoiceNumber).toMatch(/^INV-\d{4}-\d{4}$/);
+  });
+
+  it('solo GET /api/invoices returns only their own org', async () => {
+    const s = await createSoloAndLogin('list');
+    const f = await createForemanAndLogin('cross');
+
+    await request(app)
+      .post('/api/invoices')
+      .set('Authorization', `Bearer ${s.token}`)
+      .send({ idempotencyKey: 'solo-only', clientName: 'Solo Client' });
+
+    await request(app)
+      .post('/api/invoices')
+      .set('Authorization', `Bearer ${f.token}`)
+      .send({ idempotencyKey: 'foreman-only', clientName: 'Foreman Client' });
+
+    const soloList = await request(app)
+      .get('/api/invoices')
+      .set('Authorization', `Bearer ${s.token}`);
+    expect(soloList.status).toBe(200);
+    const names = soloList.body.invoices.map((i: any) => i.clientName);
+    expect(names).toContain('Solo Client');
+    expect(names).not.toContain('Foreman Client');
   });
 });

@@ -155,14 +155,15 @@ describeDb('/api/invoices routes', () => {
     expect(res.status).toBe(404);
   });
 
-  it('Solo worker gets 403 tier_required on all endpoints', async () => {
+  it('Solo worker can post to /api/invoices (no longer tier-gated)', async () => {
     const solo = await createSoloAndLogin('s');
     const list = await request(app).get('/api/invoices').set('Authorization', `Bearer ${solo.token}`);
-    expect(list.status).toBe(403);
-    expect(list.body.code).toBe('tier_required');
+    expect(list.status).toBe(200);
+    expect(list.body.invoices).toEqual([]);
 
-    const create = await request(app).post('/api/invoices').set('Authorization', `Bearer ${solo.token}`).send({});
-    expect(create.status).toBe(403);
+    const create = await request(app).post('/api/invoices').set('Authorization', `Bearer ${solo.token}`).send({ clientName: 'Foo' });
+    expect(create.status).toBe(201);
+    expect(create.body.invoice.invoiceNumber).toMatch(/^INV-\d{4}-0001$/);
   });
 
   it('PATCH /api/invoices/:id/status flips status', async () => {
