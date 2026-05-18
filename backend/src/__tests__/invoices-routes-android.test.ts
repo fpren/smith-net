@@ -45,6 +45,49 @@ afterEach(async () => {
 
 afterAll(async () => { await pg?.end(); });
 
+describeDb('POST /api/invoices — summary jsonb', () => {
+  const app = buildApp();
+
+  it('round-trips a summary blob unchanged', async () => {
+    const f = await createForemanAndLogin('sum-rt');
+    const summary = {
+      mode: 'ENTERPRISE',
+      from: { name: 'Jane', business: 'Acme Trades', trade: 'Foreman' },
+      crew: [
+        { name: 'Bob', role: 'Journeyman', totalHours: 8.5 },
+        { name: 'Sue', role: 'Apprentice', totalHours: 4.0 },
+      ],
+      dailyBreakdown: [
+        { day: 1, totalHours: 7.5, activities: 'Framing south wall' },
+      ],
+      meshPresence: '97.2% average',
+      efficiencyScore: 93,
+    };
+
+    const created = await request(app)
+      .post('/api/invoices')
+      .set('Authorization', `Bearer ${f.token}`)
+      .send({ idempotencyKey: 'sum-test-1', clientName: 'BigCo', summary });
+    expect([200, 201]).toContain(created.status);
+
+    const fetched = await request(app)
+      .get(`/api/invoices/${created.body.invoice.id}`)
+      .set('Authorization', `Bearer ${f.token}`);
+    expect(fetched.status).toBe(200);
+    expect(fetched.body.invoice.summary).toEqual(summary);
+  });
+
+  it('accepts a missing summary (null on read)', async () => {
+    const f = await createForemanAndLogin('sum-null');
+    const created = await request(app)
+      .post('/api/invoices')
+      .set('Authorization', `Bearer ${f.token}`)
+      .send({ idempotencyKey: 'no-sum', clientName: 'Foo' });
+    expect(created.status).toBe(201);
+    expect(created.body.invoice.summary).toBeNull();
+  });
+});
+
 describeDb('POST /api/invoices — idempotency', () => {
   const app = buildApp();
 
