@@ -1,5 +1,6 @@
 package com.guildofsmiths.trademesh.ui.jobboard
 
+import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -11,6 +12,9 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * Covers audit Gap 4 (job published to flow on creation) and the bonus
@@ -19,13 +23,22 @@ import org.junit.Test
  * JobBoardViewModel uses viewModelScope which needs Dispatchers.Main; we swap
  * in an UnconfinedTestDispatcher so init's loadJobs() launch resolves
  * synchronously and never blocks the assertion.
+ *
+ * Now extends AndroidViewModel so tests run under Robolectric to supply the
+ * Application context required by the constructor.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33])
 class JobBoardViewModelCreateJobTest {
+
+    private lateinit var vm: JobBoardViewModel
 
     @Before
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
+        val app = ApplicationProvider.getApplicationContext<android.app.Application>()
+        vm = JobBoardViewModel(app)
     }
 
     @After
@@ -35,7 +48,6 @@ class JobBoardViewModelCreateJobTest {
 
     @Test
     fun `createJob publishes new job to jobs flow`() {
-        val vm = JobBoardViewModel()
         val before = vm.jobs.value.size
 
         vm.createJob(title = "Panel upgrade")
@@ -47,8 +59,6 @@ class JobBoardViewModelCreateJobTest {
 
     @Test
     fun `createJob writes proposalId when provided (proposal-to-job link)`() {
-        val vm = JobBoardViewModel()
-
         vm.createJob(title = "From proposal", proposalId = "intent_123")
 
         val newest = vm.jobs.value.last()
@@ -57,8 +67,6 @@ class JobBoardViewModelCreateJobTest {
 
     @Test
     fun `createJob proposalId is null by default (wizard path)`() {
-        val vm = JobBoardViewModel()
-
         vm.createJob(title = "Wizard job")
 
         val newest = vm.jobs.value.last()
@@ -67,8 +75,6 @@ class JobBoardViewModelCreateJobTest {
 
     @Test
     fun `createJob seeds tasks from taskDescriptions and they appear after selectJob`() {
-        val vm = JobBoardViewModel()
-
         vm.createJob(
             title = "Multi-task job",
             taskDescriptions = listOf("Pull cables", "Set panel", "Final inspection")
@@ -84,8 +90,6 @@ class JobBoardViewModelCreateJobTest {
 
     @Test
     fun `createJob with blank task descriptions does not seed empty rows`() {
-        val vm = JobBoardViewModel()
-
         vm.createJob(
             title = "Sparse",
             taskDescriptions = listOf("real task", "  ", "")
@@ -100,8 +104,6 @@ class JobBoardViewModelCreateJobTest {
 
     @Test
     fun `createJob with no taskDescriptions leaves tasks empty (regression)`() {
-        val vm = JobBoardViewModel()
-
         vm.createJob(title = "No tasks job")
         val created = vm.jobs.value.last()
         vm.selectJob(created)

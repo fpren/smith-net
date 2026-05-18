@@ -1,5 +1,6 @@
 package com.guildofsmiths.trademesh.ui.jobboard
 
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.guildofsmiths.trademesh.data.JobRepository
@@ -22,10 +23,14 @@ import java.util.UUID
  * C-11: Job Board ViewModel
  * Manages job board state - uses local storage with optional backend sync
  */
-class JobBoardViewModel : ViewModel() {
+class JobBoardViewModel(application: android.app.Application) : AndroidViewModel(application) {
 
     private val client = OkHttpClient()
     private val baseUrl = "http://10.0.2.2:3001"
+
+    companion object {
+        const val SMITHAI_ENTERPRISE_SEED_JOB_ID = "smithai-enterprise-seed-v1"
+    }
 
     // ════════════════════════════════════════════════════════════════════
     // STATE
@@ -69,6 +74,8 @@ class JobBoardViewModel : ViewModel() {
         com.guildofsmiths.trademesh.ai.AISupervisor.onDailyLogGenerated = { jobId, log ->
             addDailyLog(jobId, log)
         }
+        registerSmithAIToolBridge()
+        seedSmithAIEnterpriseJobIfNeeded()
         // Auto-persist on every job-list change. Tasks are mutated through
         // the localTasks map directly; their writers call persistTasks()
         // explicitly below.
@@ -484,8 +491,11 @@ class JobBoardViewModel : ViewModel() {
     }
     
     fun archiveJob(jobId: String, reason: String = "Completed") {
+        if (jobId == SMITHAI_ENTERPRISE_SEED_JOB_ID) {
+            UserPreferences.setSmithAIEnterpriseJobCancelled()
+        }
         val now = System.currentTimeMillis()
-        
+
         // Find the job
         val jobToArchive = _jobs.value.find { it.id == jobId } ?: return
         
@@ -533,6 +543,9 @@ class JobBoardViewModel : ViewModel() {
     }
     
     fun deleteArchivedJob(jobId: String) {
+        if (jobId == SMITHAI_ENTERPRISE_SEED_JOB_ID) {
+            UserPreferences.setSmithAIEnterpriseJobCancelled()
+        }
         _archivedJobs.value = _archivedJobs.value.filter { it.id != jobId }
         localTasks.remove(jobId)
         persistTasks()
@@ -545,6 +558,29 @@ class JobBoardViewModel : ViewModel() {
      * with the actual TimeEntry history (e.g. work that happened yesterday
      * but was created via a free-text clock-in today).
      */
+    fun setClient(jobId: String, name: String, phone: String, address: String) {
+        val now = System.currentTimeMillis()
+        _jobs.value = _jobs.value.map { job ->
+            if (job.id == jobId) job.copy(
+                clientName = name.ifBlank { null },
+                clientPhone = phone,
+                clientAddress = address,
+                updatedAt = now
+            ) else job
+        }
+        _selectedJob.value?.let { sel ->
+            if (sel.id == jobId) {
+                _selectedJob.value = sel.copy(
+                    clientName = name.ifBlank { null },
+                    clientPhone = phone,
+                    clientAddress = address,
+                    updatedAt = now
+                )
+            }
+        }
+        persistJobs()
+    }
+
     fun updateJobLifecycle(
         jobId: String,
         status: JobStatus,
@@ -646,6 +682,124 @@ class JobBoardViewModel : ViewModel() {
             override fun onFailure(call: Call, e: IOException) {}
             override fun onResponse(call: Call, response: Response) {}
         })
+    }
+
+    /**
+     * One-time seed: adds a "Build SmithAI Enterprise Tier" job so we dogfood
+     * SmithAI by tracking its own roadmap inside the app. Runs once per device
+     * AND respects a "cancelled" flag so deletion is permanent — once the user
+     * deletes or archives the seed job, it never comes back, even after
+     * uninstall+reinstall (assuming Android Auto Backup keeps SharedPreferences).
+     * Local-only: never routes through Hetzner sync, so it stays per-profile.
+     */
+    private fun seedSmithAIEnterpriseJobIfNeeded() {
+        if (UserPreferences.isSmithAIEnterpriseJobSeeded()) return
+        if (UserPreferences.isSmithAIEnterpriseJobCancelled()) return
+        val userId = UserPreferences.getUserId()
+        val now = System.currentTimeMillis()
+        val seedJob = Job(
+            id = SMITHAI_ENTERPRISE_SEED_JOB_ID,
+            title = "Build SmithAI Enterprise Tier",
+            description = "Mutate-existing tools (edit/delete time entries, edit job fields) and crew/team awareness for SmithAI conversations. Add-only writes already shipped at the Advanced tier on 2026-05-03; this is the next tier up.",
+            status = JobStatus.TODO,
+            stage = JobStage.LEAD,
+            priority = Priority.MEDIUM,
+            createdBy = userId,
+            createdAt = now,
+            updatedAt = now,
+            tags = listOf("smithai", "enterprise", "roadmap")
+        )
+        _jobs.value = _jobs.value + seedJob
+        val seededTasks = listOf(
+            "Add update_time_entry tool (with before/after diff in approval card)",
+            "Add delete_time_entry tool",
+            "Add update_job_fields tool (edit title, client, address)",
+            "Add delete_job tool (wraps existing JobBoardViewModel.deleteJob)",
+            "Add query_crew_status tool",
+            "Add query_crew_messages tool",
+            "Add assign_to_crew tool",
+            "Wire SmithAITierGate to real entitlements endpoint",
+            "Capture pre-mutation hash in audit log for edits",
+            "Re-derive Ledger artifacts when a Ledger-input row is mutated"
+        )
+        val taskList = seededTasks.mapIndexed { index, title ->
+            Task(
+                id = UUID.randomUUID().toString(),
+                jobId = seedJob.id,
+                title = title,
+                status = TaskStatus.PENDING,
+                createdBy = userId,
+                createdAt = now,
+                updatedAt = now,
+                order = index
+            )
+        }
+        localTasks[seedJob.id] = taskList.toMutableList()
+        persistTasks()
+        UserPreferences.setSmithAIEnterpriseJobSeeded()
+        syncToRepository()
+    }
+
+    private fun registerSmithAIToolBridge() {
+        com.guildofsmiths.trademesh.ai.SmithAIToolBridge.jobsSnapshot = {
+            _jobs.value.map { job ->
+                com.guildofsmiths.trademesh.ai.SmithAIToolBridge.JobSnapshot(
+                    id = job.id,
+                    title = job.title,
+                    stage = job.stage.name,
+                    clientName = job.clientName,
+                    clientPhone = job.clientPhone.takeIf { it.isNotBlank() },
+                    clientAddress = job.clientAddress.takeIf { it.isNotBlank() },
+                    dueDate = job.dueDate,
+                    updatedAt = job.updatedAt
+                )
+            }
+        }
+        com.guildofsmiths.trademesh.ai.SmithAIToolBridge.clientsSnapshot = {
+            com.guildofsmiths.trademesh.data.ClientRepository.getClients(_jobs.value).map { c ->
+                com.guildofsmiths.trademesh.ai.SmithAIToolBridge.ClientSnapshot(
+                    name = c.name,
+                    phone = c.phone,
+                    address = c.address,
+                    activeJobCount = c.activeJobCount,
+                    totalJobCount = c.jobCount
+                )
+            }
+        }
+        com.guildofsmiths.trademesh.ai.SmithAIToolBridge.createJob = { title, clientName, address, stageRaw ->
+            try {
+                val parsedStage = stageRaw?.let { runCatching { JobStage.valueOf(it.uppercase()) }.getOrNull() } ?: JobStage.LEAD
+                createJob(
+                    title = title,
+                    clientName = clientName,
+                    clientAddress = address ?: "",
+                    stage = parsedStage
+                )
+                val created = _jobs.value.lastOrNull { it.title == title }
+                if (created != null) {
+                    com.guildofsmiths.trademesh.ai.SmithAIToolBridge.CreateJobResult.Created(created.id, created.title)
+                } else {
+                    com.guildofsmiths.trademesh.ai.SmithAIToolBridge.CreateJobResult.Failed("Job did not appear in active list")
+                }
+            } catch (e: Exception) {
+                com.guildofsmiths.trademesh.ai.SmithAIToolBridge.CreateJobResult.Failed(e.message ?: "unknown error")
+            }
+        }
+        com.guildofsmiths.trademesh.ai.SmithAIToolBridge.updateJobStage = { jobId, newStageRaw ->
+            try {
+                val newStage = JobStage.valueOf(newStageRaw.uppercase())
+                if (_jobs.value.none { it.id == jobId }) {
+                    com.guildofsmiths.trademesh.ai.SmithAIToolBridge.UpdateStageResult.Failed("Job not found")
+                } else {
+                    moveJobStage(jobId, newStage)
+                    com.guildofsmiths.trademesh.ai.SmithAIToolBridge.UpdateStageResult.Updated(jobId, newStage.name)
+                }
+            } catch (e: IllegalArgumentException) {
+                com.guildofsmiths.trademesh.ai.SmithAIToolBridge.UpdateStageResult.Failed("Unknown stage: $newStageRaw")
+            } catch (e: Exception) {
+                com.guildofsmiths.trademesh.ai.SmithAIToolBridge.UpdateStageResult.Failed(e.message ?: "unknown error")
+            }
+        }
     }
 
     fun moveJobStage(jobId: String, newStage: JobStage) {
@@ -785,6 +939,7 @@ class JobBoardViewModel : ViewModel() {
         }
         // Update selected job
         _selectedJob.value = _jobs.value.find { it.id == jobId }
+        persistJobs()
     }
 
     // Append a photo URI to a job
@@ -933,13 +1088,24 @@ class JobBoardViewModel : ViewModel() {
     private val _generatedInvoice = MutableStateFlow<com.guildofsmiths.trademesh.ui.invoice.Invoice?>(null)
     val generatedInvoice: StateFlow<com.guildofsmiths.trademesh.ui.invoice.Invoice?> = _generatedInvoice.asStateFlow()
 
+    // Tracks whether the user explicitly shared the current preview. If
+    // they dismiss without sharing, the outbox pushes a DISCARD so the
+    // backend row gets deleted; if they share, we mark it sent instead.
+    private var generatedShared: Boolean = false
+
+    private val invoicesOutbox: com.guildofsmiths.trademesh.data.invoice.InvoicesOutbox by lazy {
+        val ctx = getApplication<android.app.Application>().applicationContext
+        com.guildofsmiths.trademesh.data.invoice.InvoicesOutbox(
+            dao = com.guildofsmiths.trademesh.db.AppDatabase.getInstance(ctx).pendingInvoicePushDao(),
+            scheduler = com.guildofsmiths.trademesh.data.invoice.InvoicesOutbox.WorkManagerScheduler(ctx),
+        )
+    }
+
     fun generateInvoice(job: Job) {
         viewModelScope.launch {
             val userName = UserPreferences.getUserName()
-            
-            // Get time entries for this job from shared repository
             val timeEntries = TimeEntryRepository.getEntriesForJob(job.id, job.title)
-            
+
             val invoice = com.guildofsmiths.trademesh.ui.invoice.InvoiceGenerator.generateFromJob(
                 job = job,
                 timeEntries = timeEntries,
@@ -947,13 +1113,29 @@ class JobBoardViewModel : ViewModel() {
                 providerTrade = "Tradesperson – Guild of Smiths",
                 hourlyRate = if (job.hourlyRate > 0) job.hourlyRate else 85.0
             )
-            
+
+            generatedShared = false
             _generatedInvoice.value = invoice
+
+            // Push to backend paper trail; safe if offline (queue persists).
+            invoicesOutbox.enqueueCreate(invoice)
         }
     }
 
+    /** Called by the screen when the user actually shares the invoice. */
+    fun markShared(invoiceId: String) {
+        generatedShared = true
+        viewModelScope.launch { invoicesOutbox.enqueueMarkSent(invoiceId) }
+    }
+
     fun clearInvoice() {
+        val inv = _generatedInvoice.value
         _generatedInvoice.value = null
+        // If the user dismissed without sharing, discard the row.
+        if (inv != null && !generatedShared) {
+            viewModelScope.launch { invoicesOutbox.enqueueDiscard(inv.id) }
+        }
+        generatedShared = false
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -1005,6 +1187,9 @@ class JobBoardViewModel : ViewModel() {
     }
 
     fun deleteJob(jobId: String) {
+        if (jobId == SMITHAI_ENTERPRISE_SEED_JOB_ID) {
+            UserPreferences.setSmithAIEnterpriseJobCancelled()
+        }
         // Remove locally
         _jobs.value = _jobs.value.filter { it.id != jobId }
         localTasks.remove(jobId)

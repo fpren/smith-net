@@ -25,6 +25,8 @@ import com.guildofsmiths.trademesh.ui.ConsoleHeader
 import com.guildofsmiths.trademesh.ui.ConsoleSeparator
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.invoice.InvoicePreviewDialog
+import com.guildofsmiths.trademesh.data.ClientInfo
+import com.guildofsmiths.trademesh.data.ClientRepository
 import com.guildofsmiths.trademesh.data.RoleContext
 import com.guildofsmiths.trademesh.data.Permission
 import java.text.SimpleDateFormat
@@ -238,16 +240,21 @@ fun JobBoardScreen(
     // Create Job Dialog with Preview
     if (showCreateDialog) {
         val intent = pendingIntent
+        val savedClients = remember(jobs) { ClientRepository.getClients(jobs) }
         CreateJobDialogWithPreview(
             onDismiss = {
                 showCreateDialog = false
                 com.guildofsmiths.trademesh.data.IntentRepository.clearPendingIntentForJob()
             },
-            onCreate = { title, desc, priority, expenses, crewSize, crew, materials, startDate, endDate ->
+            onCreate = { title, desc, priority, expenses, crewSize, crew, materials, startDate, endDate, cName, cPhone, cAddr ->
                 // Re-read the pending intent at click time (the captured `intent` may be
                 // stale if a recomposition raced with the tap).
                 val sourceIntent = com.guildofsmiths.trademesh.data.IntentRepository
                     .pendingIntentForJob.value ?: intent
+                val resolvedClient = cName.ifBlank { sourceIntent?.parties?.firstOrNull().orEmpty() }
+                if (resolvedClient.isNotBlank() && (cPhone.isNotBlank() || cAddr.isNotBlank())) {
+                    ClientRepository.saveClientOverride(resolvedClient, resolvedClient, cPhone, cAddr)
+                }
                 viewModel.createJob(
                     title = title,
                     description = desc,
@@ -258,7 +265,9 @@ fun JobBoardScreen(
                     materials = materials,
                     estimatedStartDate = startDate,
                     estimatedEndDate = endDate,
-                    clientName = sourceIntent?.parties?.firstOrNull(),
+                    clientName = resolvedClient.ifBlank { null },
+                    clientPhone = cPhone,
+                    clientAddress = cAddr,
                     equipmentList = sourceIntent?.equipmentNeeded ?: emptyList(),
                     taskDescriptions = sourceIntent?.taskDescriptions ?: emptyList(),
                     proposalId = sourceIntent?.intentId
@@ -269,7 +278,9 @@ fun JobBoardScreen(
             initialTitle = intent?.scopeStatement ?: "",
             initialDescription = buildIntentDescription(intent),
             initialCrewSize = intent?.crewSize ?: 1,
-            initialMaterials = intent?.suppliesNeeded?.map { Material(name = it) } ?: emptyList()
+            initialMaterials = intent?.suppliesNeeded?.map { Material(name = it) } ?: emptyList(),
+            initialClientName = intent?.parties?.firstOrNull().orEmpty(),
+            savedClients = savedClients
         )
     }
 
@@ -358,6 +369,7 @@ fun JobBoardScreen(
             invoice = invoice,
             onDismiss = { viewModel.clearInvoice() },
             onShare = { text ->
+                viewModel.markShared(invoice.id)  // record intent before the intent fires
                 val share = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                     type = "text/plain"
                     putExtra(android.content.Intent.EXTRA_SUBJECT, "Invoice ${invoice.invoiceNumber}")
@@ -691,6 +703,12 @@ private fun JobWorkflowDialog(
     var materialQty by remember { mutableStateOf("1") }
     var materialUnit by remember { mutableStateOf("ea") }
     var materialVendor by remember { mutableStateOf("") }
+    var showClientPicker by remember { mutableStateOf(false) }
+    var clientPickerSearch by remember { mutableStateOf("") }
+    var clientNewName by remember { mutableStateOf("") }
+    var clientNewPhone by remember { mutableStateOf("") }
+    var clientNewAddress by remember { mutableStateOf("") }
+    val allJobsForClients by viewModel.jobs.collectAsState()
 
     // Check if can advance
     val allTasksComplete = tasks.isEmpty() || tasks.all { it.status == TaskStatus.DONE }
@@ -739,6 +757,159 @@ private fun JobWorkflowDialog(
                 modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // ═══════════════════════════════════════════════════
+                // CLIENT
+                // ═══════════════════════════════════════════════════
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = "CLIENT", style = ConsoleTheme.captionBold)
+                        val cName = job.clientName
+                        if (cName.isNullOrBlank()) {
+                            Text(
+                                text = "— not set —",
+                                style = ConsoleTheme.body.copy(color = ConsoleTheme.textMuted)
+                            )
+                        } else {
+                            Text(text = cName, style = ConsoleTheme.body)
+                            if (job.clientPhone.isNotBlank()) Text(
+                                text = job.clientPhone,
+                                style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted)
+                            )
+                            if (job.clientAddress.isNotBlank()) Text(
+                                text = job.clientAddress,
+                                style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted)
+                            )
+                        }
+                    }
+                    Text(
+                        text = if (showClientPicker) "[CLOSE]" else if (job.clientName.isNullOrBlank()) "[+ LINK]" else "[CHANGE]",
+                        style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                        modifier = Modifier.clickable {
+                            showClientPicker = !showClientPicker
+                            if (showClientPicker) {
+                                clientNewName = job.clientName.orEmpty()
+                                clientNewPhone = job.clientPhone
+                                clientNewAddress = job.clientAddress
+                                clientPickerSearch = ""
+                            }
+                        }
+                    )
+                }
+                if (showClientPicker) {
+                    val saved = remember(allJobsForClients) {
+                        ClientRepository.getClients(allJobsForClients)
+                    }
+                    Column(
+                        modifier = Modifier.fillMaxWidth().background(ConsoleTheme.surface).padding(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (saved.isNotEmpty()) {
+                            BasicTextField(
+                                value = clientPickerSearch, onValueChange = { clientPickerSearch = it },
+                                textStyle = ConsoleTheme.bodySmall, cursorBrush = SolidColor(ConsoleTheme.cursor),
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth().background(ConsoleTheme.background).padding(8.dp),
+                                decorationBox = { inner ->
+                                    Box {
+                                        if (clientPickerSearch.isEmpty()) Text(
+                                            "Search saved clients...",
+                                            style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder)
+                                        )
+                                        inner()
+                                    }
+                                }
+                            )
+                            saved
+                                .filter { clientPickerSearch.isBlank() || it.name.contains(clientPickerSearch, ignoreCase = true) }
+                                .take(6)
+                                .forEach { c ->
+                                    Text(
+                                        text = "• ${c.name}" + if (c.jobCount > 0) "  (${c.jobCount})" else "",
+                                        style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.accent),
+                                        modifier = Modifier.fillMaxWidth().clickable {
+                                            viewModel.setClient(job.id, c.name, c.phone, c.address)
+                                            showClientPicker = false
+                                        }.padding(vertical = 4.dp)
+                                    )
+                                }
+                            ConsoleSeparator()
+                        }
+                        Text("OR ADD NEW", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+                        BasicTextField(
+                            value = clientNewName, onValueChange = { clientNewName = it },
+                            textStyle = ConsoleTheme.body, cursorBrush = SolidColor(ConsoleTheme.cursor), singleLine = true,
+                            modifier = Modifier.fillMaxWidth().background(ConsoleTheme.background).padding(8.dp),
+                            decorationBox = { inner ->
+                                Box {
+                                    if (clientNewName.isEmpty()) Text(
+                                        "Client name (e.g. Aegis Assure Inc)",
+                                        style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder)
+                                    )
+                                    inner()
+                                }
+                            }
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            BasicTextField(
+                                value = clientNewPhone, onValueChange = { clientNewPhone = it },
+                                textStyle = ConsoleTheme.bodySmall, cursorBrush = SolidColor(ConsoleTheme.cursor), singleLine = true,
+                                modifier = Modifier.weight(1f).background(ConsoleTheme.background).padding(8.dp),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                decorationBox = { inner ->
+                                    Box {
+                                        if (clientNewPhone.isEmpty()) Text(
+                                            "Phone (optional)",
+                                            style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder)
+                                        )
+                                        inner()
+                                    }
+                                }
+                            )
+                            BasicTextField(
+                                value = clientNewAddress, onValueChange = { clientNewAddress = it },
+                                textStyle = ConsoleTheme.bodySmall, cursorBrush = SolidColor(ConsoleTheme.cursor), singleLine = true,
+                                modifier = Modifier.weight(1f).background(ConsoleTheme.background).padding(8.dp),
+                                decorationBox = { inner ->
+                                    Box {
+                                        if (clientNewAddress.isEmpty()) Text(
+                                            "Address (optional)",
+                                            style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder)
+                                        )
+                                        inner()
+                                    }
+                                }
+                            )
+                        }
+                        Text(
+                            text = "[SAVE CLIENT]",
+                            style = ConsoleTheme.action.copy(
+                                color = if (clientNewName.isNotBlank()) ConsoleTheme.success else ConsoleTheme.textDim
+                            ),
+                            modifier = Modifier.clickable {
+                                if (clientNewName.isNotBlank()) {
+                                    if (clientNewPhone.isNotBlank() || clientNewAddress.isNotBlank()) {
+                                        ClientRepository.saveClientOverride(
+                                            clientNewName.trim(), clientNewName.trim(),
+                                            clientNewPhone.trim(), clientNewAddress.trim()
+                                        )
+                                    }
+                                    viewModel.setClient(
+                                        job.id,
+                                        clientNewName.trim(),
+                                        clientNewPhone.trim(),
+                                        clientNewAddress.trim()
+                                    )
+                                    showClientPicker = false
+                                }
+                            }
+                        )
+                    }
+                }
+
                 // ═══════════════════════════════════════════════════
                 // JOB DETAILS
                 // ═══════════════════════════════════════════════════
@@ -955,18 +1126,40 @@ private fun JobWorkflowDialog(
                     )
                 }
 
+                val expandedNotes = remember { mutableStateMapOf<Long, Boolean>() }
                 job.workLog.forEach { note ->
+                    val isLong = note.text.length > 140 || note.text.count { it == '\n' } >= 2
+                    val expanded = expandedNotes[note.timestamp] == true
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(ConsoleTheme.surface)
+                            .clickable(enabled = isLong) {
+                                expandedNotes[note.timestamp] = !expanded
+                            }
                             .padding(10.dp)
                     ) {
-                        Text(text = note.text, style = ConsoleTheme.body)
                         Text(
-                            text = formatTimestamp(note.timestamp),
-                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                            text = note.text,
+                            style = ConsoleTheme.body,
+                            maxLines = if (!isLong || expanded) Int.MAX_VALUE else 2,
+                            overflow = TextOverflow.Ellipsis
                         )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = formatTimestamp(note.timestamp),
+                                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                            )
+                            if (isLong) {
+                                Text(
+                                    text = if (expanded) "[COLLAPSE]" else "[EXPAND]",
+                                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent)
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -1321,11 +1514,15 @@ private enum class JobDialogStep {
 @Composable
 private fun CreateJobDialogWithPreview(
     onDismiss: () -> Unit,
-    onCreate: (String, String, Priority, String, Int, List<CrewMember>, List<Material>, Long?, Long?) -> Unit,
+    onCreate: (String, String, Priority, String, Int, List<CrewMember>, List<Material>, Long?, Long?, String, String, String) -> Unit,
     initialTitle: String = "",
     initialDescription: String = "",
     initialCrewSize: Int = 1,
-    initialMaterials: List<Material> = emptyList()
+    initialMaterials: List<Material> = emptyList(),
+    initialClientName: String = "",
+    initialClientPhone: String = "",
+    initialClientAddress: String = "",
+    savedClients: List<ClientInfo> = emptyList()
 ) {
     var currentStep by remember { mutableStateOf(JobDialogStep.EDIT) }
 
@@ -1339,15 +1536,24 @@ private fun CreateJobDialogWithPreview(
     var newMemberOccupation by remember { mutableStateOf("") }
     var materials by remember { mutableStateOf(initialMaterials) }
     var newMaterialName by remember { mutableStateOf("") }
-    
+
+    // Client fields
+    var clientName by remember { mutableStateOf(initialClientName) }
+    var clientPhone by remember { mutableStateOf(initialClientPhone) }
+    var clientAddress by remember { mutableStateOf(initialClientAddress) }
+    var clientPickerOpen by remember { mutableStateOf(false) }
+    var clientSearch by remember { mutableStateOf("") }
+
     // Date fields
     var startDateStr by remember { mutableStateOf("") }
     var endDateStr by remember { mutableStateOf("") }
-    
+
     // Track if user has entered any data (for dismiss protection)
-    val hasEnteredData = title.isNotEmpty() || description.isNotEmpty() || 
-                         expenses.isNotEmpty() || materials.isNotEmpty() || 
-                         crewMembers.isNotEmpty()
+    val hasEnteredData = title.isNotEmpty() || description.isNotEmpty() ||
+                         expenses.isNotEmpty() || materials.isNotEmpty() ||
+                         crewMembers.isNotEmpty() ||
+                         clientName.isNotEmpty() || clientPhone.isNotEmpty() ||
+                         clientAddress.isNotEmpty()
     
     // Warning flash state when trying to dismiss with data
     var showWarningFlash by remember { mutableStateOf(false) }
@@ -1457,6 +1663,128 @@ private fun CreateJobDialogWithPreview(
                                         else -> ConsoleTheme.textMuted }
                                 ),
                                 modifier = Modifier.clickable { priority = p }
+                            )
+                        }
+                    }
+
+                    // Client
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "CLIENT (or N/A)", style = ConsoleTheme.captionBold)
+                        if (savedClients.isNotEmpty()) {
+                            Text(
+                                text = if (clientPickerOpen) "[CLOSE]" else "[Choose saved profile ▾]",
+                                style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                                modifier = Modifier.clickable { clientPickerOpen = !clientPickerOpen }
+                            )
+                        }
+                    }
+                    if (clientPickerOpen && savedClients.isNotEmpty()) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().background(ConsoleTheme.surface).padding(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            BasicTextField(
+                                value = clientSearch, onValueChange = { clientSearch = it },
+                                textStyle = ConsoleTheme.bodySmall, cursorBrush = SolidColor(ConsoleTheme.cursor),
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth().background(ConsoleTheme.background).padding(8.dp),
+                                decorationBox = { innerTextField ->
+                                    Box {
+                                        if (clientSearch.isEmpty()) Text(
+                                            "Search clients...",
+                                            style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder)
+                                        )
+                                        innerTextField()
+                                    }
+                                }
+                            )
+                            val filtered = savedClients.filter {
+                                clientSearch.isBlank() || it.name.contains(clientSearch, ignoreCase = true)
+                            }
+                            if (filtered.isEmpty()) {
+                                Text(
+                                    text = "No matches. Type below to add new.",
+                                    style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted)
+                                )
+                            } else {
+                                filtered.take(8).forEach { c ->
+                                    Text(
+                                        text = "• ${c.name}" + if (c.jobCount > 0) "  (${c.jobCount} job${if (c.jobCount == 1) "" else "s"})" else "",
+                                        style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.accent),
+                                        modifier = Modifier.fillMaxWidth().clickable {
+                                            clientName = c.name
+                                            clientPhone = c.phone
+                                            clientAddress = c.address
+                                            clientPickerOpen = false
+                                            clientSearch = ""
+                                        }.padding(vertical = 4.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "[+ NEW CLIENT — clear and type below]",
+                                style = ConsoleTheme.action.copy(color = ConsoleTheme.warning),
+                                modifier = Modifier.clickable {
+                                    clientName = ""
+                                    clientPhone = ""
+                                    clientAddress = ""
+                                    clientPickerOpen = false
+                                    clientSearch = ""
+                                }.padding(top = 4.dp)
+                            )
+                        }
+                    }
+                    BasicTextField(
+                        value = clientName, onValueChange = { clientName = it },
+                        textStyle = ConsoleTheme.body, cursorBrush = SolidColor(ConsoleTheme.cursor), singleLine = true,
+                        modifier = Modifier.fillMaxWidth().background(inputBorderColor).padding(2.dp)
+                            .background(ConsoleTheme.surface).padding(10.dp),
+                        decorationBox = { innerTextField ->
+                            Box {
+                                if (clientName.isEmpty()) Text(
+                                    "Client name (e.g. Aegis Assure Inc)",
+                                    style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder)
+                                )
+                                innerTextField()
+                            }
+                        }
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            BasicTextField(
+                                value = clientPhone, onValueChange = { clientPhone = it },
+                                textStyle = ConsoleTheme.bodySmall, cursorBrush = SolidColor(ConsoleTheme.cursor), singleLine = true,
+                                modifier = Modifier.fillMaxWidth().background(ConsoleTheme.surface).padding(8.dp),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                decorationBox = { innerTextField ->
+                                    Box {
+                                        if (clientPhone.isEmpty()) Text(
+                                            "Phone (optional)",
+                                            style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder)
+                                        )
+                                        innerTextField()
+                                    }
+                                }
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            BasicTextField(
+                                value = clientAddress, onValueChange = { clientAddress = it },
+                                textStyle = ConsoleTheme.bodySmall, cursorBrush = SolidColor(ConsoleTheme.cursor), singleLine = true,
+                                modifier = Modifier.fillMaxWidth().background(ConsoleTheme.surface).padding(8.dp),
+                                decorationBox = { innerTextField ->
+                                    Box {
+                                        if (clientAddress.isEmpty()) Text(
+                                            "Address (optional)",
+                                            style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder)
+                                        )
+                                        innerTextField()
+                                    }
+                                }
                             )
                         }
                     }
@@ -1602,9 +1930,17 @@ private fun CreateJobDialogWithPreview(
                     
                     // Created timestamp (will be set on create)
                     Text(text = "Created: ${formatShortDate(System.currentTimeMillis())}", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
-                    
+
                     ConsoleSeparator()
-                    
+
+                    // Client
+                    if (clientName.isNotEmpty()) {
+                        Text(text = "CLIENT", style = ConsoleTheme.captionBold)
+                        Text(text = clientName, style = ConsoleTheme.body)
+                        if (clientPhone.isNotEmpty()) Text(text = clientPhone, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted))
+                        if (clientAddress.isNotEmpty()) Text(text = clientAddress, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted))
+                    }
+
                     // Description
                     if (description.isNotEmpty()) {
                         Text(text = "DESCRIPTION", style = ConsoleTheme.captionBold)
@@ -1670,8 +2006,9 @@ private fun CreateJobDialogWithPreview(
                     text = "CREATE JOB",
                     style = ConsoleTheme.action.copy(color = ConsoleTheme.success),
                     modifier = Modifier.clickable {
-                        onCreate(title, description, priority, expenses, crewSize.toIntOrNull() ?: 1, 
-                                 crewMembers, materials, parseDate(startDateStr), parseDate(endDateStr))
+                        onCreate(title, description, priority, expenses, crewSize.toIntOrNull() ?: 1,
+                                 crewMembers, materials, parseDate(startDateStr), parseDate(endDateStr),
+                                 clientName.trim(), clientPhone.trim(), clientAddress.trim())
                     }
                 )
             }
