@@ -66,6 +66,8 @@ describeDb('POST /api/invoices — idempotency', () => {
     const f = await createForemanAndLogin('idem-diff');
     const a = await request(app).post('/api/invoices').set('Authorization', `Bearer ${f.token}`).send({ idempotencyKey: 'key-a', clientName: 'A Co' });
     const b = await request(app).post('/api/invoices').set('Authorization', `Bearer ${f.token}`).send({ idempotencyKey: 'key-b', clientName: 'B Co' });
+    expect(a.status).toBe(201);
+    expect(b.status).toBe(201);
     expect(a.body.invoice.id).not.toBe(b.body.invoice.id);
   });
 });

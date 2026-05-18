@@ -146,16 +146,6 @@ export async function create(input: {
 }): Promise<Invoice> {
   const db = requirePg();
 
-  if (input.idempotencyKey) {
-    const { rows: existing } = await db.query(
-      `SELECT * FROM invoices
-         WHERE organization_id = $1 AND idempotency_key = $2 AND is_deleted = FALSE
-         LIMIT 1`,
-      [input.organizationId, input.idempotencyKey],
-    );
-    if (existing[0]) return mapInvoice(existing[0]);
-  }
-
   // Up to 3 attempts in case of a concurrent number collision (UNIQUE).
   for (let attempt = 0; attempt < 3; attempt++) {
     const invoiceNumber = await nextInvoiceNumber(input.organizationId);
@@ -185,6 +175,9 @@ export async function create(input: {
           [input.organizationId, input.idempotencyKey],
         );
         if (winner[0]) return mapInvoice(winner[0]);
+        // 23505 fired on idem_unique but the winning row is gone (concurrent
+        // soft-delete?). Don't loop into another doomed INSERT.
+        throw new Error(`idempotency race: row for key ${input.idempotencyKey} vanished`);
       }
       if (e?.code === '23505' && attempt < 2) continue;     // PK / unique number collision
       throw e;
