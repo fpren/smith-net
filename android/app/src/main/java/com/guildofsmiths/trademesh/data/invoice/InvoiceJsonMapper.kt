@@ -166,10 +166,12 @@ object InvoiceJsonMapper {
     }
 
     private fun formatMoney(amount: Double): String =
-        BigDecimal(amount).setScale(2, RoundingMode.HALF_UP).toPlainString()
+        BigDecimal(amount.toString()).setScale(2, RoundingMode.HALF_UP).toPlainString()
 
     private fun formatTaxRate(percent: Double): String =
-        BigDecimal(percent / 100.0).setScale(4, RoundingMode.HALF_UP).toPlainString()
+        BigDecimal(percent.toString())
+            .divide(BigDecimal("100"), 4, RoundingMode.HALF_UP)
+            .toPlainString()
 
     private fun formatIso(epochMs: Long): String =
         Instant.ofEpochMilli(epochMs).toString()
