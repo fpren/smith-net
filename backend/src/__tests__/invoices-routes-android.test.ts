@@ -1,0 +1,71 @@
+/**
+ * /api/invoices — Android idempotency tests.
+ * Mirrors invoices-routes.test.ts in shape.
+ */
+
+import express from 'express';
+import request from 'supertest';
+import cookieParser from 'cookie-parser';
+import { authRouter } from '../authRoutes';
+import { invoicesRouter } from '../invoicesRoutes';
+import { authenticateToken, generateTokens, UserRole } from '../auth';
+import { createUserAndProfile } from '../jobsService';
+import { pg, isPgEnabled } from '../db';
+
+const describeDb = isPgEnabled() ? describe : describe.skip;
+
+function buildApp() {
+  const app = express();
+  app.use(express.json());
+  app.use(cookieParser());
+  app.use('/api/auth', authRouter);
+  app.use('/api', authenticateToken, invoicesRouter);
+  return app;
+}
+
+async function createForemanAndLogin(suffix: string) {
+  const email = `foreman-andinv-${suffix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.com`;
+  const user = await createUserAndProfile({
+    email,
+    password: 'password123',
+    displayName: `Foreman ${suffix}`,
+    role: UserRole.FOREMAN,
+  });
+  const { accessToken } = await generateTokens(user);
+  return { id: user.id, token: accessToken };
+}
+
+afterEach(async () => {
+  if (!isPgEnabled() || !pg) return;
+  await pg.query(`DELETE FROM invoice_line_items`);
+  await pg.query(`DELETE FROM invoices`);
+  await pg.query(`DELETE FROM profiles WHERE email LIKE 'foreman-andinv-%' OR email LIKE 'solo-andinv-%'`);
+  await pg.query(`DELETE FROM users    WHERE email LIKE 'foreman-andinv-%' OR email LIKE 'solo-andinv-%'`);
+});
+
+afterAll(async () => { await pg?.end(); });
+
+describeDb('POST /api/invoices — idempotency', () => {
+  const app = buildApp();
+
+  it('returns the same row for a repeated idempotencyKey', async () => {
+    const f = await createForemanAndLogin('idem-rep');
+    const idemKey = 'fixed-uuid-aaaaaaaaaaaaaaaaaaaaaaa';
+    const body = { idempotencyKey: idemKey, clientName: 'Acme Roofing', clientEmail: 'ops@acme.com', notes: 'first' };
+
+    const first = await request(app).post('/api/invoices').set('Authorization', `Bearer ${f.token}`).send(body);
+    expect([200, 201]).toContain(first.status);
+
+    const second = await request(app).post('/api/invoices').set('Authorization', `Bearer ${f.token}`).send({ ...body, notes: 'second' });
+    expect(second.status).toBe(200);
+    expect(second.body.invoice.id).toBe(first.body.invoice.id);
+    expect(second.body.invoice.notes).toBe('first');
+  });
+
+  it('a different idempotencyKey produces a new row', async () => {
+    const f = await createForemanAndLogin('idem-diff');
+    const a = await request(app).post('/api/invoices').set('Authorization', `Bearer ${f.token}`).send({ idempotencyKey: 'key-a', clientName: 'A Co' });
+    const b = await request(app).post('/api/invoices').set('Authorization', `Bearer ${f.token}`).send({ idempotencyKey: 'key-b', clientName: 'B Co' });
+    expect(a.body.invoice.id).not.toBe(b.body.invoice.id);
+  });
+});

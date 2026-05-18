@@ -30,6 +30,8 @@ export interface Invoice {
   taxAmount: number;
   totalDue: number;
   notes: string | null;
+  idempotencyKey: string | null;
+  summary: unknown | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -68,6 +70,8 @@ function mapInvoice(row: any): Invoice {
     taxAmount: Number(row.tax_amount),
     totalDue: Number(row.total_due),
     notes: row.notes,
+    idempotencyKey: row.idempotency_key ?? null,
+    summary: row.summary ?? null,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
   };
@@ -137,8 +141,21 @@ export async function create(input: {
   clientEmail?: string | null;
   dueDate?: Date | null;
   notes?: string | null;
+  idempotencyKey?: string | null;
+  summary?: unknown;
 }): Promise<Invoice> {
   const db = requirePg();
+
+  if (input.idempotencyKey) {
+    const { rows: existing } = await db.query(
+      `SELECT * FROM invoices
+         WHERE organization_id = $1 AND idempotency_key = $2 AND is_deleted = FALSE
+         LIMIT 1`,
+      [input.organizationId, input.idempotencyKey],
+    );
+    if (existing[0]) return mapInvoice(existing[0]);
+  }
+
   // Up to 3 attempts in case of a concurrent number collision (UNIQUE).
   for (let attempt = 0; attempt < 3; attempt++) {
     const invoiceNumber = await nextInvoiceNumber(input.organizationId);
@@ -146,22 +163,48 @@ export async function create(input: {
       const { rows } = await db.query(
         `INSERT INTO invoices (
            organization_id, created_by, invoice_number,
-           client_name, client_email, due_date, notes
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+           client_name, client_email, due_date, notes,
+           idempotency_key, summary
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
          RETURNING *`,
         [
           input.organizationId, input.createdBy, invoiceNumber,
           input.clientName ?? null, input.clientEmail ?? null,
           input.dueDate ?? null, input.notes ?? null,
+          input.idempotencyKey ?? null,
+          input.summary != null ? JSON.stringify(input.summary) : null,
         ],
       );
       return mapInvoice(rows[0]);
     } catch (e: any) {
-      if (e?.code === '23505' && attempt < 2) continue;     // PK / unique
+      // Idempotency race: another caller won between our lookup and this insert.
+      if (e?.code === '23505' && e?.constraint === 'invoices_org_idem_unique' && input.idempotencyKey) {
+        const { rows: winner } = await db.query(
+          `SELECT * FROM invoices
+             WHERE organization_id = $1 AND idempotency_key = $2 AND is_deleted = FALSE`,
+          [input.organizationId, input.idempotencyKey],
+        );
+        if (winner[0]) return mapInvoice(winner[0]);
+      }
+      if (e?.code === '23505' && attempt < 2) continue;     // PK / unique number collision
       throw e;
     }
   }
   throw new Error('Failed to generate unique invoice number after 3 attempts');
+}
+
+export async function findByIdempotencyKey(
+  organizationId: string,
+  idempotencyKey: string,
+): Promise<Invoice | null> {
+  const db = requirePg();
+  const { rows } = await db.query(
+    `SELECT * FROM invoices
+       WHERE organization_id = $1 AND idempotency_key = $2 AND is_deleted = FALSE
+       LIMIT 1`,
+    [organizationId, idempotencyKey],
+  );
+  return rows[0] ? mapInvoice(rows[0]) : null;
 }
 
 export async function update(

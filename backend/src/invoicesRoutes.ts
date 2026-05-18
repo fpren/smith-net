@@ -40,6 +40,12 @@ invoicesRouter.post('/invoices', validateBody(CreateInvoiceBody), async (req: Au
     const o = org(req);
     if (!o) return res.status(401).json({ error: 'user missing organization_id' });
     const body = req.body as CreateInvoiceBody;
+
+    if (body.idempotencyKey) {
+      const existing = await invoicesService.findByIdempotencyKey(o, body.idempotencyKey);
+      if (existing) return res.status(200).json({ invoice: existing });
+    }
+
     const invoice = await invoicesService.create({
       organizationId: o,
       createdBy: req.user!.id,
@@ -47,6 +53,8 @@ invoicesRouter.post('/invoices', validateBody(CreateInvoiceBody), async (req: Au
       clientEmail: body.clientEmail,
       dueDate: body.dueDate ? new Date(body.dueDate) : null,
       notes: body.notes,
+      idempotencyKey: body.idempotencyKey,
+      summary: body.summary,
     });
     res.status(201).json({ invoice });
   } catch (e: any) {

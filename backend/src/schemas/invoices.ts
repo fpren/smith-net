@@ -1,10 +1,12 @@
 import { z } from 'zod';
 
 export const CreateInvoiceBody = z.object({
-  clientName:  z.string().trim().max(200).optional(),
-  clientEmail: z.string().trim().email().max(200).optional(),
-  dueDate:     z.string().datetime().optional(),
-  notes:       z.string().trim().max(5000).optional(),
+  clientName:     z.string().trim().max(200).optional(),
+  clientEmail:    z.string().trim().email().max(200).optional(),
+  dueDate:        z.string().datetime().optional(),
+  notes:          z.string().trim().max(5000).optional(),
+  idempotencyKey: z.string().trim().min(1).max(128).optional(),
+  summary:        z.unknown().optional(),
 }).strict();
 export type CreateInvoiceBody = z.infer<typeof CreateInvoiceBody>;
 
