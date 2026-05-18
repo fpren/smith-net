@@ -66,8 +66,8 @@ android {
             // Debug builds prefer the Hetzner relay via public Tailscale Funnel URL; Mac Mini LAN is fallback.
             buildConfigField("String", "BACKEND_URL_PRIMARY", "\"https://ubuntu-8gb-ash-1.tail2523e7.ts.net\"")
             buildConfigField("String", "BACKEND_URL_FALLBACK", "\"http://192.168.8.169:3030\"")
-            // Android emulator: 10.0.2.2 is the host machine's loopback (127.0.0.1)
-            buildConfigField("String", "BACKEND_URL", "\"http://10.0.2.2:3030\"")
+            // USB-tethered real device: 127.0.0.1 + `adb reverse tcp:3030 tcp:3030` maps to host loopback
+            buildConfigField("String", "BACKEND_URL", "\"http://127.0.0.1:3030\"")
         }
         release {
             isMinifyEnabled = false
@@ -137,7 +137,11 @@ dependencies {
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
-    
+
+    // WorkManager -- drains the InvoicesOutbox in the background, survives
+    // process death. See docs/superpowers/specs/2026-05-17-android-invoice-wiring-design.md.
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+
     // OkHttp for WebSocket
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     
