@@ -168,6 +168,10 @@ dependencies {
     // Real org.json on test classpath; otherwise android.jar's stubs return null
     // for toString() under unitTests.isReturnDefaultValues = true.
     testImplementation("org.json:json:20231013")
+    // Robolectric for Room unit tests (PendingInvoicePushDaoTest and future DAO tests)
+    testImplementation("org.robolectric:robolectric:4.11.1")
+    testImplementation("androidx.test.ext:junit:1.1.5")
+    testImplementation("androidx.test:core:1.5.0")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     androidTestImplementation(platform("androidx.compose:compose-bom:2023.10.01"))
