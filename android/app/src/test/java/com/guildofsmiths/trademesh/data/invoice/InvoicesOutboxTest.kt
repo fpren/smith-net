@@ -41,8 +41,8 @@ class FakeInvoicesApi : InvoicesApi {
         calls.add(Call("CREATE", key))
         return createBehavior(key)
     }
-    override suspend fun addLineItem(backendInvoiceId: String, item: InvoiceLineItem) {
-        calls.add(Call("LINE", backendInvoiceId))
+    override suspend fun addLineItem(backendInvoiceId: String, item: InvoiceLineItem, clientItemId: String) {
+        calls.add(Call("LINE:$clientItemId", backendInvoiceId))
         lineItemBehavior(backendInvoiceId, item)
     }
     override suspend fun setStatus(backendInvoiceId: String, status: String) {
@@ -195,6 +195,46 @@ class InvoicesOutboxTest {
         worker.drainOnce()
 
         assertTrue(api.calls.any { it.op == "DELETE" && it.arg == "srv-i" })
+    }
+
+    @Test fun partial_create_failure_does_not_duplicate_line_items_on_retry() = runBlocking {
+        // Invoice with 2 line items.
+        val inv = sampleInvoice("inv-partial").copy(
+            lineItems = listOf(
+                InvoiceLineItem("LAB-01", "Labor",     4.0, "hr", 85.0,  340.0, LineItemCategory.LABOR),
+                InvoiceLineItem("MAT-01", "Materials", 1.0, "lot", 230.0, 230.0, LineItemCategory.MATERIALS),
+            ),
+        )
+        outbox.enqueueCreate(inv)
+
+        // First drain: CREATE succeeds, addLineItem #1 succeeds, addLineItem #2 throws.
+        api.createBehavior = { _ -> "srv-partial" }
+        var lineCount = 0
+        api.lineItemBehavior = { _, _ ->
+            lineCount += 1
+            if (lineCount == 2) throw java.io.IOException("HTTP 503")
+        }
+        worker.drainOnce()
+
+        val rowAfter1 = dao.findById("inv-partial")!!
+        assertEquals("pending", rowAfter1.status)  // reverted by transient failure
+
+        // Second drain: CREATE replays (idempotent server-side), then BOTH line items
+        // retry — but the first one carries the same clientItemId, so the backend
+        // (if it were real) would dedup. The fake records every call we make; we
+        // verify the worker invoked addLineItem with stable clientItemIds.
+        api.lineItemBehavior = { _, _ -> /* no throw this time */ }
+        worker.drainOnce()
+
+        // Each line item was called twice (once on first drain, once on retry).
+        // Both calls used the same clientItemId. Verify by inspecting Call.op strings.
+        val lineCalls = api.calls.filter { it.op.startsWith("LINE:") }
+        assertEquals(4, lineCalls.size)  // 2 items × 2 attempts
+        val uniqueIds = lineCalls.map { it.op.removePrefix("LINE:") }.toSet()
+        assertEquals(2, uniqueIds.size)  // exactly 2 distinct clientItemIds
+        assertTrue(uniqueIds.all { it.startsWith("inv-partial-li-") })
+
+        assertEquals("done", dao.findById("inv-partial")!!.status)
     }
 
     private fun sampleInvoice(id: String): Invoice = Invoice(

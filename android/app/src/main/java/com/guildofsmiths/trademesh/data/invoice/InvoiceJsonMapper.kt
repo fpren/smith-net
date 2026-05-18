@@ -48,13 +48,14 @@ object InvoiceJsonMapper {
     }
 
     /** Body for POST /api/invoices/{id}/line-items. */
-    fun lineItemBody(li: InvoiceLineItem): String {
+    fun lineItemBody(li: InvoiceLineItem, clientItemId: String): String {
         val o = JSONObject()
-        o.put("description", li.description)
-        o.put("quantity",    li.quantity)
-        o.put("unit",        li.unit)
-        o.put("rate",        formatMoney(li.rate))
-        o.put("category",    li.category.name.lowercase())
+        o.put("description",  li.description)
+        o.put("quantity",     li.quantity)
+        o.put("unit",         li.unit)
+        o.put("rate",         formatMoney(li.rate))
+        o.put("category",     li.category.name.lowercase())
+        o.put("clientItemId", clientItemId)
         return o.toString()
     }
 
@@ -125,8 +126,12 @@ object InvoiceJsonMapper {
         // CREATE row off Room. The server does not read this -- it reads from
         // /line-items POSTs instead.
         val full = JSONArray()
-        inv.lineItems.forEach {
+        inv.lineItems.forEachIndexed { index, it ->
             val o = JSONObject()
+            // Stable per-invoice line-item id; lets the worker retry partial-CREATE
+            // sequences without duplicating items server-side. Derived from
+            // invoice.id + index so it survives outbox roundtrip.
+            o.put("clientItemId", "${inv.id}-li-$index")
             o.put("code", it.code)
             o.put("description", it.description)
             o.put("quantity", it.quantity)

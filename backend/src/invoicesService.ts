@@ -9,6 +9,7 @@
 // tax_amount / total_due inside the same transaction, so the invoice row
 // is the source of truth for clients.
 
+import { randomUUID } from 'crypto';
 import { pg, isPgEnabled } from './db';
 
 export type InvoiceStatus =
@@ -310,28 +311,57 @@ export async function addLineItem(
     unit?: string;
     rate: number;
     category?: LineCategory;
+    clientItemId?: string;
   },
 ): Promise<InvoiceLineItem | null> {
   const db = requirePg();
   if (!(await assertOwns(invoiceId, organizationId))) return null;
 
+  // Idempotency: if clientItemId is provided and already exists for this invoice, return that row.
+  if (input.clientItemId) {
+    const { rows: existing } = await db.query(
+      `SELECT * FROM invoice_line_items
+         WHERE invoice_id = $1 AND client_item_id = $2
+         LIMIT 1`,
+      [invoiceId, input.clientItemId],
+    );
+    if (existing[0]) return mapLineItem(existing[0]);
+  }
+
   const qty = input.quantity ?? 1;
   const total = +(qty * input.rate).toFixed(2);
+  const clientItemId = input.clientItemId ?? randomUUID();
 
   const { rows } = await db.query(
     `INSERT INTO invoice_line_items (
-       invoice_id, description, quantity, unit, rate, total, category, sort_order
+       invoice_id, description, quantity, unit, rate, total, category, sort_order, client_item_id
      ) VALUES (
        $1, $2, $3, $4, $5, $6, $7,
-       COALESCE((SELECT MAX(sort_order) + 1 FROM invoice_line_items WHERE invoice_id = $1), 0)
+       COALESCE((SELECT MAX(sort_order) + 1 FROM invoice_line_items WHERE invoice_id = $1), 0),
+       $8
      )
+     ON CONFLICT (invoice_id, client_item_id) DO NOTHING
      RETURNING *`,
     [
       invoiceId, input.description, qty,
       input.unit ?? 'ea', input.rate, total,
       input.category ?? 'other',
+      clientItemId,
     ],
   );
+
+  // ON CONFLICT DO NOTHING with RETURNING returns no rows if the conflict fired.
+  // In that case re-fetch the existing row (idempotency replay — totals are
+  // already correct, no recompute needed).
+  if (rows.length === 0) {
+    const { rows: existing } = await db.query(
+      `SELECT * FROM invoice_line_items WHERE invoice_id = $1 AND client_item_id = $2`,
+      [invoiceId, clientItemId],
+    );
+    if (existing[0]) return mapLineItem(existing[0]);
+    return null;
+  }
+
   await recomputeTotals(invoiceId);
   return mapLineItem(rows[0]);
 }

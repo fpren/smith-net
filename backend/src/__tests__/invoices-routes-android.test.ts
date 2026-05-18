@@ -141,6 +141,57 @@ describeDb('POST /api/invoices — taxRate', () => {
   });
 });
 
+describeDb('POST /api/invoices/:id/line-items — clientItemId idempotency', () => {
+  const app = buildApp();
+
+  it('the same clientItemId on the same invoice returns the existing row', async () => {
+    const f = await createForemanAndLogin('liidem');
+    const created = await request(app)
+      .post('/api/invoices')
+      .set('Authorization', `Bearer ${f.token}`)
+      .send({ idempotencyKey: 'li-inv', clientName: 'X' });
+    const invoiceId = created.body.invoice.id;
+
+    const a = await request(app)
+      .post(`/api/invoices/${invoiceId}/line-items`)
+      .set('Authorization', `Bearer ${f.token}`)
+      .send({ description: 'Labor', quantity: 4, rate: 85, category: 'labor', clientItemId: 'li-1' });
+    expect(a.status).toBe(201);
+    const aId = a.body.lineItem.id;
+
+    // Replay: same clientItemId, even with different description — gets the same row.
+    const b = await request(app)
+      .post(`/api/invoices/${invoiceId}/line-items`)
+      .set('Authorization', `Bearer ${f.token}`)
+      .send({ description: 'Different', quantity: 99, rate: 999, category: 'other', clientItemId: 'li-1' });
+    expect(b.status).toBe(201);
+    expect(b.body.lineItem.id).toBe(aId);
+    expect(b.body.lineItem.description).toBe('Labor');  // first write wins
+
+    // Totals from the invoice should reflect only the first add, not two.
+    const got = await request(app)
+      .get(`/api/invoices/${invoiceId}`)
+      .set('Authorization', `Bearer ${f.token}`);
+    expect(got.body.lineItems).toHaveLength(1);
+    expect(Number(got.body.invoice.subtotal)).toBe(340);
+  });
+
+  it('different clientItemIds on the same invoice produce two rows', async () => {
+    const f = await createForemanAndLogin('lidiff');
+    const created = await request(app)
+      .post('/api/invoices')
+      .set('Authorization', `Bearer ${f.token}`)
+      .send({ idempotencyKey: 'li-inv-2', clientName: 'X' });
+    const id = created.body.invoice.id;
+
+    await request(app).post(`/api/invoices/${id}/line-items`).set('Authorization', `Bearer ${f.token}`).send({ description: 'A', rate: 10, clientItemId: 'ci-a' });
+    await request(app).post(`/api/invoices/${id}/line-items`).set('Authorization', `Bearer ${f.token}`).send({ description: 'B', rate: 20, clientItemId: 'ci-b' });
+
+    const got = await request(app).get(`/api/invoices/${id}`).set('Authorization', `Bearer ${f.token}`);
+    expect(got.body.lineItems).toHaveLength(2);
+  });
+});
+
 describeDb('POST /api/invoices — solo tier', () => {
   const app = buildApp();
 

@@ -31,7 +31,7 @@ interface InvoicesApi {
     suspend fun createInvoiceWithPayload(payloadJson: String): String
 
     /** Adds a single line item to a backend invoice. */
-    suspend fun addLineItem(backendInvoiceId: String, item: InvoiceLineItem)
+    suspend fun addLineItem(backendInvoiceId: String, item: InvoiceLineItem, clientItemId: String)
 
     /** PATCH /api/invoices/{id}/status. */
     suspend fun setStatus(backendInvoiceId: String, status: String)
@@ -65,8 +65,8 @@ class InvoicesApiClient(private val client: OkHttpClient) : InvoicesApi {
         }
     }
 
-    override suspend fun addLineItem(backendInvoiceId: String, item: InvoiceLineItem) = withContext(Dispatchers.IO) {
-        val body = InvoiceJsonMapper.lineItemBody(item).toRequestBody(JSON)
+    override suspend fun addLineItem(backendInvoiceId: String, item: InvoiceLineItem, clientItemId: String) = withContext(Dispatchers.IO) {
+        val body = InvoiceJsonMapper.lineItemBody(item, clientItemId).toRequestBody(JSON)
         val req = Request.Builder()
             .url("$baseUrl/api/invoices/$backendInvoiceId/line-items")
             .post(body)

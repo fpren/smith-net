@@ -26,11 +26,12 @@ export const SetStatusBody = z.object({
 export type SetStatusBody = z.infer<typeof SetStatusBody>;
 
 export const AddLineItemBody = z.object({
-  description: z.string().trim().min(1).max(500),
-  quantity:    z.number().positive().max(1_000_000).optional(),
-  unit:        z.string().trim().min(1).max(20).optional(),
-  rate:        z.number().min(0).max(1_000_000),
-  category:    z.enum(['labor', 'materials', 'travel', 'change_order', 'other']).optional(),
+  description:  z.string().trim().min(1).max(500),
+  quantity:     z.number().positive().max(1_000_000).optional(),
+  unit:         z.string().trim().min(1).max(20).optional(),
+  rate:         z.number().min(0).max(1_000_000),
+  category:     z.enum(['labor', 'materials', 'travel', 'change_order', 'other']).optional(),
+  clientItemId: z.string().trim().min(1).max(128).optional(),
 }).strict();
 export type AddLineItemBody = z.infer<typeof AddLineItemBody>;
 

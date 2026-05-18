@@ -48,12 +48,13 @@ class InvoiceJsonMapperTest {
             total = 340.0,
             category = LineItemCategory.LABOR,
         )
-        val body = JSONObject(InvoiceJsonMapper.lineItemBody(li))
-        assertEquals("Labor", body.getString("description"))
-        assertEquals(4.0,     body.getDouble("quantity"), 0.0001)
-        assertEquals("hr",    body.getString("unit"))
-        assertEquals("85.00", body.getString("rate"))
-        assertEquals("labor", body.getString("category"))
+        val body = JSONObject(InvoiceJsonMapper.lineItemBody(li, clientItemId = "inv-1-li-0"))
+        assertEquals("Labor",       body.getString("description"))
+        assertEquals(4.0,           body.getDouble("quantity"), 0.0001)
+        assertEquals("hr",          body.getString("unit"))
+        assertEquals("85.00",       body.getString("rate"))
+        assertEquals("labor",       body.getString("category"))
+        assertEquals("inv-1-li-0",  body.getString("clientItemId"))
     }
 
     @Test fun statusBody_lowercases_enum() {

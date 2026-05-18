@@ -73,8 +73,8 @@ class InvoicesPushWorker(
     private suspend fun executeCreate(row: PendingInvoicePushEntity) {
         val payloadJson = row.payloadJson ?: error("CREATE row missing payload")
         val backendId = api.createInvoiceWithPayload(payloadJson)
-        val lineItems = parseLineItems(payloadJson)
-        lineItems.forEach { api.addLineItem(backendId, it) }
+        val items = parseLineItems(payloadJson)
+        items.forEach { api.addLineItem(backendId, it.item, it.clientItemId) }
         dao.markDone(row.id, backendId, clock.now())
     }
 
@@ -107,19 +107,27 @@ class InvoicesPushWorker(
         }
     }
 
+    private data class LineItemWithId(val item: InvoiceLineItem, val clientItemId: String)
+
     /**
      * Reconstitute the line items array from the stored payload. The wire body
      * is sent as-is via createInvoiceWithPayload; this helper only exists so
      * the worker can iterate line items for the follow-up POST /line-items calls.
+     *
+     * Each entry carries the stable clientItemId from summary.fullLineItems so
+     * the worker can retry partial-CREATE sequences idempotently — the backend
+     * dedups on (invoice_id, client_item_id).
      */
-    private fun parseLineItems(payloadJson: String): List<InvoiceLineItem> {
+    private fun parseLineItems(payloadJson: String): List<LineItemWithId> {
         val root: JsonObject = Json.parseToJsonElement(payloadJson).jsonObject
         val summary = root["summary"]!!.jsonObject
         val full    = summary["fullLineItems"]?.jsonArray ?: error("missing summary.fullLineItems")
 
         return full.map { el ->
             val o = el.jsonObject
-            InvoiceLineItem(
+            val clientItemId = o["clientItemId"]?.jsonPrimitive?.content
+                ?: error("missing clientItemId on fullLineItems entry")
+            val item = InvoiceLineItem(
                 code        = o["code"]?.jsonPrimitive?.content ?: "",
                 description = o["description"]?.jsonPrimitive?.content ?: "",
                 quantity    = o["quantity"]?.jsonPrimitive?.content?.toDoubleOrNull() ?: 0.0,
@@ -132,6 +140,7 @@ class InvoicesPushWorker(
                     )
                 }.getOrDefault(LineItemCategory.OTHER),
             )
+            LineItemWithId(item, clientItemId)
         }
     }
 }
