@@ -11,6 +11,8 @@ import { JobDetailRoute } from './console/routes/JobDetailRoute';
 import { MapRoute } from './console/routes/MapRoute';
 import { CrewRoute } from './console/routes/CrewRoute';
 import { CommRoute } from './console/routes/CommRoute';
+import { InvoicesListRoute } from './console/routes/InvoicesListRoute';
+import { InvoiceDetailRoute } from './console/routes/InvoiceDetailRoute';
 import { AdminRoute } from './console/routes/AdminRoute';
 import { RequireAdmin } from './console/auth/RequireAdmin';
 import { RequireForemanTier } from './console/auth/RequireForemanTier';
@@ -42,6 +44,8 @@ export default function App() {
         <Route path="jobs/:id" element={<RequireForemanTier><JobDetailRoute /></RequireForemanTier>} />
         <Route path="crew" element={<RequireForemanTier><CrewRoute /></RequireForemanTier>} />
         <Route path="comm" element={<CommRoute />} />
+        <Route path="invoices" element={<RequireForemanTier><InvoicesListRoute /></RequireForemanTier>} />
+        <Route path="invoices/:id" element={<RequireForemanTier><InvoiceDetailRoute /></RequireForemanTier>} />
         <Route path="admin" element={<RequireAdmin><AdminRoute /></RequireAdmin>} />
       </Route>
     </Routes>

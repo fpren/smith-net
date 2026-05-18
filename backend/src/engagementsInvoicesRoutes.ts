@@ -52,26 +52,10 @@ engagementsInvoicesRouter.get('/engagements/:id', (_req: Request, res: Response)
   res.status(404).json({ error: 'Engagement not found' });
 });
 
-// INVOICES
-engagementsInvoicesRouter.get('/invoices', (_req: Request, res: Response) => {
-  // TODO: Fetch invoices from database
-  res.json([]);
-});
-
-engagementsInvoicesRouter.get('/invoices/:id', (_req: Request, res: Response) => {
-  // TODO: Fetch invoice from database
-  res.status(404).json({ error: 'Invoice not found' });
-});
-
-engagementsInvoicesRouter.patch('/invoices/:id/status', (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { status } = req.body;
-
-  // TODO: Update invoice status
-  console.log('[API] Updated invoice', id, 'status to:', status);
-
-  res.json({ status: 'updated' });
-});
+// INVOICES — moved to backend/src/invoicesRoutes.ts (migration 017).
+// The previously stubbed GET /invoices, GET /invoices/:id, and PATCH
+// /invoices/:id/status now have real persistence; this router keeps
+// only engagements + invoice-links + wages.
 
 // INVOICE LINKS
 engagementsInvoicesRouter.post('/invoice-links', async (req: Request, res: Response) => {

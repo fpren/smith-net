@@ -257,6 +257,175 @@ export const handlers = [
     })
   ),
 
+  // Invoices (migration 017 + invoicesRoutes.ts).
+  http.get('/api/invoices', () =>
+    HttpResponse.json({
+      invoices: [
+        {
+          id: 'inv-1',
+          organizationId: 'org-1',
+          createdBy: 'user-1',
+          invoiceNumber: 'INV-2026-0001',
+          clientName: 'Acme Roofing',
+          clientEmail: 'ops@acme.com',
+          issueDate: '2026-05-11T10:00:00Z',
+          dueDate: null,
+          status: 'draft',
+          subtotal: 0,
+          taxRate: 0,
+          taxAmount: 0,
+          totalDue: 0,
+          notes: null,
+          createdAt: '2026-05-11T10:00:00Z',
+          updatedAt: '2026-05-11T10:00:00Z',
+        },
+      ],
+    }),
+  ),
+
+  http.post('/api/invoices', async ({ request }) => {
+    const body = (await request.json()) as { clientName?: string; clientEmail?: string };
+    return HttpResponse.json(
+      {
+        invoice: {
+          id: 'inv-new',
+          organizationId: 'org-1',
+          createdBy: 'user-1',
+          invoiceNumber: 'INV-2026-0002',
+          clientName: body.clientName ?? null,
+          clientEmail: body.clientEmail ?? null,
+          issueDate: '2026-05-11T11:00:00Z',
+          dueDate: null,
+          status: 'draft',
+          subtotal: 0,
+          taxRate: 0,
+          taxAmount: 0,
+          totalDue: 0,
+          notes: null,
+          createdAt: '2026-05-11T11:00:00Z',
+          updatedAt: '2026-05-11T11:00:00Z',
+        },
+      },
+      { status: 201 },
+    );
+  }),
+
+  http.get('/api/invoices/:id', ({ params }) =>
+    HttpResponse.json({
+      invoice: {
+        id: params.id,
+        organizationId: 'org-1',
+        createdBy: 'user-1',
+        invoiceNumber: 'INV-2026-0001',
+        clientName: 'Acme Roofing',
+        clientEmail: 'ops@acme.com',
+        issueDate: '2026-05-11T10:00:00Z',
+        dueDate: null,
+        status: 'draft',
+        subtotal: 0,
+        taxRate: 0,
+        taxAmount: 0,
+        totalDue: 0,
+        notes: null,
+        createdAt: '2026-05-11T10:00:00Z',
+        updatedAt: '2026-05-11T10:00:00Z',
+      },
+      lineItems: [],
+    }),
+  ),
+
+  http.patch('/api/invoices/:id', async ({ params, request }) => {
+    const body = (await request.json()) as any;
+    return HttpResponse.json({
+      invoice: {
+        id: params.id,
+        organizationId: 'org-1',
+        createdBy: 'user-1',
+        invoiceNumber: 'INV-2026-0001',
+        clientName: body.clientName ?? 'Acme Roofing',
+        clientEmail: body.clientEmail ?? null,
+        issueDate: '2026-05-11T10:00:00Z',
+        dueDate: body.dueDate ?? null,
+        status: 'draft',
+        subtotal: 0,
+        taxRate: body.taxRate ?? 0,
+        taxAmount: 0,
+        totalDue: 0,
+        notes: body.notes ?? null,
+        createdAt: '2026-05-11T10:00:00Z',
+        updatedAt: '2026-05-11T12:00:00Z',
+      },
+    });
+  }),
+
+  http.patch('/api/invoices/:id/status', async ({ params, request }) => {
+    const body = (await request.json()) as { status: string };
+    return HttpResponse.json({
+      invoice: {
+        id: params.id,
+        organizationId: 'org-1',
+        createdBy: 'user-1',
+        invoiceNumber: 'INV-2026-0001',
+        clientName: 'Acme Roofing',
+        clientEmail: 'ops@acme.com',
+        issueDate: '2026-05-11T10:00:00Z',
+        dueDate: null,
+        status: body.status,
+        subtotal: 0,
+        taxRate: 0,
+        taxAmount: 0,
+        totalDue: 0,
+        notes: null,
+        createdAt: '2026-05-11T10:00:00Z',
+        updatedAt: '2026-05-11T13:00:00Z',
+      },
+    });
+  }),
+
+  http.delete('/api/invoices/:id', () => new HttpResponse(null, { status: 204 })),
+
+  http.post('/api/invoices/:id/line-items', async ({ params, request }) => {
+    const body = (await request.json()) as { description: string; quantity?: number; unit?: string; rate: number; category?: string };
+    const qty = body.quantity ?? 1;
+    return HttpResponse.json(
+      {
+        lineItem: {
+          id: 'li-new',
+          invoiceId: params.id,
+          description: body.description,
+          quantity: qty,
+          unit: body.unit ?? 'ea',
+          rate: body.rate,
+          total: qty * body.rate,
+          category: body.category ?? 'other',
+          sortOrder: 0,
+          createdAt: '2026-05-11T11:30:00Z',
+        },
+      },
+      { status: 201 },
+    );
+  }),
+
+  http.patch('/api/line-items/:itemId', async ({ params, request }) => {
+    const body = (await request.json()) as any;
+    return HttpResponse.json({
+      lineItem: {
+        id: params.itemId,
+        invoiceId: 'inv-1',
+        description: body.description ?? 'Edited',
+        quantity: body.quantity ?? 1,
+        unit: body.unit ?? 'ea',
+        rate: body.rate ?? 10,
+        total: (body.quantity ?? 1) * (body.rate ?? 10),
+        category: body.category ?? 'other',
+        sortOrder: body.sortOrder ?? 0,
+        createdAt: '2026-05-11T11:30:00Z',
+      },
+    });
+  }),
+
+  http.delete('/api/line-items/:itemId', () => new HttpResponse(null, { status: 204 })),
+
   // Per-job tasks (migration 016 + tasksRoutes.ts).
   http.get('/api/jobs/:jobId/tasks', ({ params }) =>
     HttpResponse.json({

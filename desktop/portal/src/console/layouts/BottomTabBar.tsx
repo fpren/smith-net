@@ -42,6 +42,7 @@ export function BottomTabBar() {
     >
       {hasForemanTier() && <TabLink to="/console" label="Map" end />}
       {hasForemanTier() && <TabLink to="/console/jobs" label="Jobs" />}
+      {hasForemanTier() && <TabLink to="/console/invoices" label="Invoices" />}
       {hasForemanTier() && <TabLink to="/console/crew" label="Crew" />}
       <TabLink to="/console/comm" label="Comm" />
       {user.role === 'admin' && <TabLink to="/console/admin" label="Admin" />}
