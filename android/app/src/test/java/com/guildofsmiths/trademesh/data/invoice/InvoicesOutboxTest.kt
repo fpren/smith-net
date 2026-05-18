@@ -25,14 +25,21 @@ class FakeInvoicesApi : InvoicesApi {
     data class Call(val op: String, val arg: String)
     val calls = mutableListOf<Call>()
 
-    var createBehavior: (Invoice) -> String = { _ -> "srv-${calls.size}" }
+    /** Captures the raw payload JSON the worker submits, so tests can verify it. */
+    val createPayloads = mutableListOf<String>()
+
+    /** Per-op behavior: throw, return, etc. createBehavior receives the parsed idempotencyKey. */
+    var createBehavior: (idempotencyKey: String) -> String = { _ -> "srv-${calls.size}" }
     var lineItemBehavior: (String, InvoiceLineItem) -> Unit = { _, _ -> }
     var statusBehavior: (String, String) -> Unit = { _, _ -> }
     var deleteBehavior: (String) -> Unit = { _ -> }
 
-    override suspend fun createInvoice(invoice: Invoice): String {
-        calls.add(Call("CREATE", invoice.id))
-        return createBehavior(invoice)
+    override suspend fun createInvoiceWithPayload(payloadJson: String): String {
+        createPayloads.add(payloadJson)
+        // Extract idempotencyKey from the payload for the test's Call.arg
+        val key = org.json.JSONObject(payloadJson).getString("idempotencyKey")
+        calls.add(Call("CREATE", key))
+        return createBehavior(key)
     }
     override suspend fun addLineItem(backendInvoiceId: String, item: InvoiceLineItem) {
         calls.add(Call("LINE", backendInvoiceId))
@@ -88,6 +95,12 @@ class InvoicesOutboxTest {
         val row = dao.findById("inv-b")!!
         assertEquals("done",  row.status)
         assertEquals("srv-b", row.backendId)
+
+        // Wire body sent to backend matches what was enqueued (full fields,
+        // not a re-serialized stub with empty clientName/etc).
+        assertEquals(1, api.createPayloads.size)
+        val sent = org.json.JSONObject(api.createPayloads[0])
+        assertEquals("Acme", sent.getString("clientName"))
     }
 
     @Test fun worker_drain_500_reverts_to_pending_increments_attempts() = runBlocking {

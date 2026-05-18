@@ -7,9 +7,7 @@ import com.guildofsmiths.trademesh.db.AppDatabase
 import com.guildofsmiths.trademesh.db.PendingInvoicePushDao
 import com.guildofsmiths.trademesh.db.PendingInvoicePushEntity
 import com.guildofsmiths.trademesh.service.HttpClientFactory
-import com.guildofsmiths.trademesh.ui.invoice.Invoice
 import com.guildofsmiths.trademesh.ui.invoice.InvoiceLineItem
-import com.guildofsmiths.trademesh.ui.invoice.InvoiceMode
 import com.guildofsmiths.trademesh.ui.invoice.LineItemCategory
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -73,9 +71,10 @@ class InvoicesPushWorker(
     }
 
     private suspend fun executeCreate(row: PendingInvoicePushEntity) {
-        val invoice = deserializeInvoice(row.payloadJson ?: error("CREATE row missing payload"))
-        val backendId = api.createInvoice(invoice)
-        invoice.lineItems.forEach { api.addLineItem(backendId, it) }
+        val payloadJson = row.payloadJson ?: error("CREATE row missing payload")
+        val backendId = api.createInvoiceWithPayload(payloadJson)
+        val lineItems = parseLineItems(payloadJson)
+        lineItems.forEach { api.addLineItem(backendId, it) }
         dao.markDone(row.id, backendId, clock.now())
     }
 
@@ -109,22 +108,16 @@ class InvoicesPushWorker(
     }
 
     /**
-     * Reconstitute an Invoice from the JSON the mapper wrote to the outbox.
-     * For CREATE we need:
-     *   - id (= idempotencyKey, so the retry path sends the same key)
-     *   - the line items (from summary.fullLineItems)
-     * Everything else the mapper re-derives from this minimal carrier when
-     * called by createBody — but we do NOT call createBody again; we go
-     * straight to the API. The fields below are the ones api.createInvoice
-     * and api.addLineItem actually need.
+     * Reconstitute the line items array from the stored payload. The wire body
+     * is sent as-is via createInvoiceWithPayload; this helper only exists so
+     * the worker can iterate line items for the follow-up POST /line-items calls.
      */
-    private fun deserializeInvoice(payloadJson: String): Invoice {
+    private fun parseLineItems(payloadJson: String): List<InvoiceLineItem> {
         val root: JsonObject = Json.parseToJsonElement(payloadJson).jsonObject
-        val idemKey = root["idempotencyKey"]!!.jsonPrimitive.content
         val summary = root["summary"]!!.jsonObject
         val full    = summary["fullLineItems"]?.jsonArray ?: error("missing summary.fullLineItems")
 
-        val lineItems = full.map { el ->
+        return full.map { el ->
             val o = el.jsonObject
             InvoiceLineItem(
                 code        = o["code"]?.jsonPrimitive?.content ?: "",
@@ -140,23 +133,6 @@ class InvoicesPushWorker(
                 }.getOrDefault(LineItemCategory.OTHER),
             )
         }
-
-        // Build a minimal Invoice carrier. The id (== idempotencyKey) is the
-        // only field the ApiClient.createInvoice path actually re-emits on the wire
-        // (because the wire body was already serialized as payloadJson and we
-        // just POST that). But ApiClient calls InvoiceJsonMapper.createBody
-        // itself, so we need a "real-looking" Invoice with at least id and lineItems.
-        return Invoice(
-            id = idemKey,
-            invoiceNumber = "",
-            issueDate = 0L,
-            dueDate = 0L,
-            mode = InvoiceMode.SOLO,
-            fromName = "",
-            jobId = "",
-            jobTitle = "",
-            lineItems = lineItems,
-        )
     }
 }
 

@@ -3,7 +3,6 @@ package com.guildofsmiths.trademesh.data.invoice
 
 import android.util.Log
 import com.guildofsmiths.trademesh.BuildConfig
-import com.guildofsmiths.trademesh.ui.invoice.Invoice
 import com.guildofsmiths.trademesh.ui.invoice.InvoiceLineItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -19,8 +18,17 @@ import org.json.JSONObject
  * following the PresenceApiClient pattern.
  */
 interface InvoicesApi {
-    /** Returns the server's backend invoice id. Throws ApiClientError on 4xx; throws IOException on 5xx / transient. */
-    suspend fun createInvoice(invoice: Invoice): String
+    /**
+     * Posts a pre-serialized invoice body (built by InvoiceJsonMapper.createBody
+     * at enqueue time and stored in the outbox row). Returns the server's
+     * backend invoice id. Throws ApiClientError on 4xx; IOException on 5xx / transient.
+     *
+     * This variant exists because the worker reads payloadJson back from the
+     * outbox; passing the structured Invoice object would force a re-build
+     * with empty fields (everything except id + lineItems is lost when the
+     * row is read back).
+     */
+    suspend fun createInvoiceWithPayload(payloadJson: String): String
 
     /** Adds a single line item to a backend invoice. */
     suspend fun addLineItem(backendInvoiceId: String, item: InvoiceLineItem)
@@ -44,8 +52,8 @@ class InvoicesApiClient(private val client: OkHttpClient) : InvoicesApi {
 
     private val baseUrl: String get() = BuildConfig.BACKEND_URL
 
-    override suspend fun createInvoice(invoice: Invoice): String = withContext(Dispatchers.IO) {
-        val body = InvoiceJsonMapper.createBody(invoice).toRequestBody(JSON)
+    override suspend fun createInvoiceWithPayload(payloadJson: String): String = withContext(Dispatchers.IO) {
+        val body = payloadJson.toRequestBody(JSON)
         val req = Request.Builder().url("$baseUrl/api/invoices").post(body).build()
         client.newCall(req).execute().use { res ->
             if (res.code in 400..499) {
