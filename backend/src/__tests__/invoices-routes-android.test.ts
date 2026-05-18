@@ -127,6 +127,20 @@ describeDb('POST /api/invoices — idempotency', () => {
   });
 });
 
+describeDb('POST /api/invoices — taxRate', () => {
+  const app = buildApp();
+
+  it('persists taxRate on create', async () => {
+    const f = await createForemanAndLogin('tax');
+    const created = await request(app)
+      .post('/api/invoices')
+      .set('Authorization', `Bearer ${f.token}`)
+      .send({ idempotencyKey: 'tax-1', clientName: 'X', taxRate: 0.0825 });
+    expect([200, 201]).toContain(created.status);
+    expect(Number(created.body.invoice.taxRate)).toBe(0.0825);
+  });
+});
+
 describeDb('POST /api/invoices — solo tier', () => {
   const app = buildApp();
 

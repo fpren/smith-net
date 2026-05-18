@@ -143,6 +143,7 @@ export async function create(input: {
   notes?: string | null;
   idempotencyKey?: string | null;
   summary?: unknown;
+  taxRate?: number | null;
 }): Promise<Invoice> {
   const db = requirePg();
 
@@ -154,8 +155,9 @@ export async function create(input: {
         `INSERT INTO invoices (
            organization_id, created_by, invoice_number,
            client_name, client_email, due_date, notes,
-           idempotency_key, summary
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+           idempotency_key, summary,
+           tax_rate
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
          RETURNING *`,
         [
           input.organizationId, input.createdBy, invoiceNumber,
@@ -163,6 +165,7 @@ export async function create(input: {
           input.dueDate ?? null, input.notes ?? null,
           input.idempotencyKey ?? null,
           input.summary != null ? JSON.stringify(input.summary) : null,
+          input.taxRate ?? 0,
         ],
       );
       return mapInvoice(rows[0]);

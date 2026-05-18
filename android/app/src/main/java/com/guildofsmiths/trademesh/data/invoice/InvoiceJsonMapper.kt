@@ -41,6 +41,8 @@ object InvoiceJsonMapper {
         if (inv.toEmail.isNotEmpty()) o.put("clientEmail", inv.toEmail)
         if (inv.dueDate > 0L)         o.put("dueDate",     formatIso(inv.dueDate))
         if (inv.notes.isNotEmpty())   o.put("notes",       inv.notes)
+        // Tax rate: apk side is percent (8.25); backend column is fraction (0.0825).
+        if (inv.taxRate > 0.0)        o.put("taxRate",     formatTaxRateNumeric(inv.taxRate))
         o.put("summary", buildSummary(inv))
         return o.toString()
     }
@@ -172,6 +174,12 @@ object InvoiceJsonMapper {
         BigDecimal(percent.toString())
             .divide(BigDecimal("100"), 4, RoundingMode.HALF_UP)
             .toPlainString()
+
+    /** Tax rate as a Number for the JSON body — backend wants a numeric, not a string. */
+    private fun formatTaxRateNumeric(percent: Double): Double =
+        BigDecimal(percent.toString())
+            .divide(BigDecimal("100"), 4, RoundingMode.HALF_UP)
+            .toDouble()
 
     private fun formatIso(epochMs: Long): String =
         Instant.ofEpochMilli(epochMs).toString()

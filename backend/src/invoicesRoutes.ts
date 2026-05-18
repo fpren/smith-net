@@ -57,6 +57,7 @@ invoicesRouter.post('/invoices', validateBody(CreateInvoiceBody), async (req: Au
       notes: body.notes,
       idempotencyKey: body.idempotencyKey,
       summary: body.summary,
+      taxRate: body.taxRate,
     });
     res.status(201).json({ invoice });
   } catch (e: any) {

@@ -68,6 +68,19 @@ class InvoiceJsonMapperTest {
         assertEquals("INV-2026-05-0001-CREW-WEEK", summary.getString("apkInvoiceNumber"))
     }
 
+    @Test fun createBody_emits_taxRate_as_fraction_not_percent() {
+        val inv = sampleInvoice().copy(taxRate = 8.25)
+        val body = JSONObject(InvoiceJsonMapper.createBody(inv))
+        // Wire format: numeric fraction (0.0825), not string, not percent.
+        assertEquals(0.0825, body.getDouble("taxRate"), 0.00001)
+    }
+
+    @Test fun createBody_omits_taxRate_when_zero() {
+        val inv = sampleInvoice().copy(taxRate = 0.0)
+        val body = JSONObject(InvoiceJsonMapper.createBody(inv))
+        assertFalse(body.has("taxRate"))
+    }
+
     private fun sampleInvoice(): Invoice = Invoice(
         id = "inv-uuid-aaaa",
         invoiceNumber = "INV-2026-05-0001",

@@ -7,6 +7,7 @@ export const CreateInvoiceBody = z.object({
   notes:          z.string().trim().max(5000).optional(),
   idempotencyKey: z.string().trim().min(1).max(128).optional(),
   summary:        z.unknown().optional(),
+  taxRate:        z.number().min(0).max(1).optional(),
 }).strict();
 export type CreateInvoiceBody = z.infer<typeof CreateInvoiceBody>;
 
