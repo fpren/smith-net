@@ -79,3 +79,43 @@ endif()
 target_compile_definitions(llama_jni PRIVATE
     $<$<BOOL:${USE_STUB}>:LLAMA_STUB>
 )
+
+# ════════════════════════════════════════════════════════════════════════════
+# SmithNet WASM core ("ROM") JNI bridge -- runs the shared smithcore.wasm.
+# ════════════════════════════════════════════════════════════════════════════
+# Mirrors the llama stub pattern: if WAMR is not vendored at cpp/wamr, build a
+# stub so the project still links and SmithCore.kt falls back to legacy vclock.
+# Vendor with: git clone --depth 1 https://github.com/bytecodealliance/wasm-micro-runtime cpp/wamr
+set(WAMR_DIR "${CMAKE_CURRENT_SOURCE_DIR}/wamr")
+
+add_library(smithcore_jni SHARED ${CMAKE_CURRENT_SOURCE_DIR}/smithcore_jni.cpp)
+target_link_libraries(smithcore_jni ${log-lib})
+
+if(EXISTS "${WAMR_DIR}/core/iwasm/include/wasm_export.h")
+    message(STATUS "WAMR found at ${WAMR_DIR} -- building real smithcore_jni")
+    enable_language(C)  # WAMR runtime is C
+
+    set(WAMR_BUILD_PLATFORM "android")
+    if(${ANDROID_ABI} STREQUAL "arm64-v8a")
+        set(WAMR_BUILD_TARGET "AARCH64")
+    elseif(${ANDROID_ABI} STREQUAL "armeabi-v7a")
+        set(WAMR_BUILD_TARGET "ARMV7")
+    endif()
+    # Fast interpreter only: iOS will reuse this config (App Store forbids JIT),
+    # and the ROM has zero imports so no WASI/libc layer is needed.
+    set(WAMR_BUILD_INTERP 1)
+    set(WAMR_BUILD_FAST_INTERP 1)
+    set(WAMR_BUILD_AOT 0)
+    set(WAMR_BUILD_JIT 0)
+    set(WAMR_BUILD_LIBC_BUILTIN 0)
+    set(WAMR_BUILD_LIBC_WASI 0)
+    set(WAMR_BUILD_MULTI_MODULE 0)
+
+    include(${WAMR_DIR}/build-scripts/runtime_lib.cmake)
+    add_library(vmlib STATIC ${WAMR_RUNTIME_LIB_SOURCE})
+    target_include_directories(smithcore_jni PRIVATE ${WAMR_DIR}/core/iwasm/include)
+    target_compile_definitions(smithcore_jni PRIVATE SMITHCORE_WAMR)
+    target_link_libraries(smithcore_jni vmlib)
+else()
+    message(WARNING "WAMR not found at ${WAMR_DIR} -- building smithcore_jni STUB (legacy vclock fallback)")
+endif()

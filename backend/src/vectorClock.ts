@@ -1,4 +1,5 @@
 import { VectorClockState } from './types';
+import { isSmithCoreReady, vclockMerge, vclockCompare } from './core/smithCore';
 
 export function createClock(): VectorClockState {
   return {};
@@ -8,7 +9,17 @@ export function increment(clock: VectorClockState, deviceId: string): VectorCloc
   return { ...clock, [deviceId]: (clock[deviceId] || 0) + 1 };
 }
 
-export function merge(a: VectorClockState, b: VectorClockState): VectorClockState {
+// SMITHCORE_ENABLED routes merge/compare through the shared wasm ROM so the
+// server and the Android client compute causal order with one implementation.
+// Readiness-gated: if the ROM has not been instantiated (initSmithCore at boot)
+// we fall back to the legacy TS path below instead of crashing.
+function smithCoreActive(): boolean {
+  return process.env.SMITHCORE_ENABLED === '1' && isSmithCoreReady();
+}
+
+// Pure legacy implementations. Kept exported so the parity gate can compare the
+// ROM against them directly regardless of the SMITHCORE_ENABLED flag.
+export function mergeLocal(a: VectorClockState, b: VectorClockState): VectorClockState {
   const result: VectorClockState = { ...a };
   for (const [deviceId, count] of Object.entries(b)) {
     result[deviceId] = Math.max(result[deviceId] || 0, count);
@@ -17,7 +28,7 @@ export function merge(a: VectorClockState, b: VectorClockState): VectorClockStat
 }
 
 // Returns: -1 if a < b, 1 if a > b, 0 if concurrent
-export function compare(a: VectorClockState, b: VectorClockState): -1 | 0 | 1 {
+export function compareLocal(a: VectorClockState, b: VectorClockState): -1 | 0 | 1 {
   const allKeys = new Set([...Object.keys(a), ...Object.keys(b)]);
   let aGreater = false;
   let bGreater = false;
@@ -32,6 +43,14 @@ export function compare(a: VectorClockState, b: VectorClockState): -1 | 0 | 1 {
   if (aGreater && !bGreater) return 1;
   if (bGreater && !aGreater) return -1;
   return 0; // concurrent
+}
+
+export function merge(a: VectorClockState, b: VectorClockState): VectorClockState {
+  return smithCoreActive() ? vclockMerge(a, b) : mergeLocal(a, b);
+}
+
+export function compare(a: VectorClockState, b: VectorClockState): -1 | 0 | 1 {
+  return smithCoreActive() ? vclockCompare(a, b) : compareLocal(a, b);
 }
 
 export function serialize(clock: VectorClockState): string {

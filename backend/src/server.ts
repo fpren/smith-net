@@ -37,6 +37,7 @@ import { reconcile, acceptClientMessages } from './reconciliationEngine';
 import { invoiceLinkService } from './invoiceLinks';
 import { v4 as uuidv4 } from 'uuid';
 import { withRequestContext, requestLogger } from './log';
+import { initSmithCore, smithCoreWasmPath } from './core/smithCore';
 
 const PORT = process.env.PORT || 3030;
 
@@ -312,6 +313,20 @@ setupWsServer(server, wss, (ws, identity) => {
     console.error('[wsHandler.onConnection] unhandled error:', err);
   });
 });
+
+// Load the shared wasm ROM so vector-clock merge/compare run through the same
+// implementation as the Android client (one-ROM determinism). Opt-in via
+// SMITHCORE_ENABLED=1; vectorClock.ts is readiness-gated, so until this resolves
+// (or if it fails) merge/compare degrade to the proven-identical legacy TS path.
+if (process.env.SMITHCORE_ENABLED === '1') {
+  initSmithCore()
+    .then(() => {
+      requestLogger().info({ event: 'smithcore_ready', wasm: smithCoreWasmPath() }, 'smithcore ROM loaded');
+    })
+    .catch((err) => {
+      requestLogger().error({ err, event: 'smithcore_init_failed' }, 'smithcore ROM failed to load; using legacy vclock');
+    });
+}
 
 // Initialize channel registry (async — loads channels from pg).
 // Non-blocking on the server.listen path: errors surface via .catch.
