@@ -1,0 +1,129 @@
+name: APK size delta (WASM core)
+
+# M1.5 gate: measure what the WASM "ROM" + WAMR add to the shipped APK.
+# - On PRs targeting the experiment branch: baseline = PR base, variant = PR head;
+#   posts a sticky comment with download/install/per-ABI deltas.
+# - Manual dispatch: defaults to "experiment minus the core" vs "experiment", i.e.
+#   the one-time absolute cost of the core. Override the refs as needed.
+#
+# Builds are heavy (two Android release builds, two ABIs, WAMR compiled per ABI).
+# That is inherent to measuring real APK size; reruns are sped up by gradle cache.
+# Only first-party actions (actions/*) + the runner's preinstalled Android SDK.
+#
+# Security: all GitHub event data is passed via env: and quoted in shell, never
+# interpolated into run: scripts (avoids workflow command injection).
+
+on:
+  pull_request:
+    branches: ["experiment/**"]
+    paths:
+      - "core/**"
+      - "android/**"
+      - "tools/measure-apk-size.sh"
+      - ".github/workflows/apk-size-delta.yml"
+  workflow_dispatch:
+    inputs:
+      baseline_ref:
+        description: "Baseline git ref (no core)"
+        default: "experiment/smithcore-rom~1"
+      variant_ref:
+        description: "Variant git ref (with core)"
+        default: "experiment/smithcore-rom"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: apk-size-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  size-delta:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # need both base and head history for the worktrees
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Install pinned NDK + CMake (match android/app/build.gradle.kts)
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-34" "build-tools;34.0.0" \
+            "ndk;25.2.9519653" "cmake;3.22.1" >/dev/null
+
+      - name: Resolve baseline / variant refs
+        id: refs
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          INPUT_BASELINE: ${{ github.event.inputs.baseline_ref }}
+          INPUT_VARIANT: ${{ github.event.inputs.variant_ref }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            git fetch -q origin "$BASE_REF" "$HEAD_SHA"
+            echo "base=$(git rev-parse "origin/$BASE_REF")" >> "$GITHUB_OUTPUT"
+            echo "head=$(git rev-parse "$HEAD_SHA")" >> "$GITHUB_OUTPUT"
+          else
+            echo "base=$(git rev-parse "$INPUT_BASELINE")" >> "$GITHUB_OUTPUT"
+            echo "head=$(git rev-parse "$INPUT_VARIANT")" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build baseline + variant APKs (clean worktrees, WAMR vendored)
+        env:
+          BASE_SHA: ${{ steps.refs.outputs.base }}
+          HEAD_SHA: ${{ steps.refs.outputs.head }}
+        run: |
+          set -euxo pipefail
+          build() { # <commit-sha> <output-name>
+            local sha="$1" out="$2" wt="/tmp/wt-$2"
+            git worktree add --detach "$wt" "$sha"
+            # Vendor WAMR so any checkout that has the smithcore_jni target builds
+            # the REAL runtime (harmless where the target is absent).
+            git clone --depth 1 https://github.com/bytecodealliance/wasm-micro-runtime \
+              "$wt/android/app/src/main/cpp/wamr"
+            ( cd "$wt/android" && chmod +x gradlew && ./gradlew :app:assembleRelease --no-daemon )
+            cp "$wt/android/app/build/outputs/apk/release/app-release-unsigned.apk" \
+               "$GITHUB_WORKSPACE/$out"
+          }
+          build "$BASE_SHA" baseline.apk
+          build "$HEAD_SHA" variant.apk
+
+      - name: Measure size delta
+        run: tools/measure-apk-size.sh baseline.apk variant.apk | tee size-report.txt
+
+      - name: Write job summary
+        run: |
+          {
+            echo '### WASM core APK size delta'
+            echo '```'
+            cat size-report.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upsert sticky PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- apk-size-delta -->';
+            const report = fs.readFileSync('size-report.txt', 'utf8');
+            const body = `${marker}\n## WASM core APK size delta\n\n\`\`\`\n${report}\n\`\`\``;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number });
+            const prev = comments.find(c => c.body && c.body.includes(marker));
+            if (prev) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: prev.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
