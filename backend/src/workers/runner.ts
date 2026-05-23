@@ -18,6 +18,7 @@ import { tick as queueWatcherTick, INTERVAL_MS as QUEUE_WATCHER_MS } from '../da
 import { tick as cleanupTick, INTERVAL_MS as CLEANUP_MS } from '../daemons/cleanupDaemon';
 import { tick as presenceWatcherTick, INTERVAL_MS as PRESENCE_WATCHER_MS } from '../daemons/presenceWatcherDaemon';
 import { baseLogger } from '../log';
+import { initSmithCore } from '../core/smithCore';
 
 const WORKER_ID = `${process.pid}@${process.env.HOSTNAME ?? 'host'}`;
 const REGISTERED_KINDS = ['geocode', 'audit_flush', 'email'];
@@ -52,12 +53,27 @@ async function daemonLoop(name: string, intervalMs: number, fn: () => Promise<vo
   baseLogger.info({ event: 'daemon_loop_stopped', name }, 'daemon loop stopped');
 }
 
-baseLogger.info({ event: 'worker_starting', workerId: WORKER_ID }, 'worker starting');
-void loop('geocode', geocodeTick);
-void loop('audit_flush', auditFlushTick);
-void loop('email', emailTick);
+async function main() {
+  baseLogger.info({ event: 'worker_starting', workerId: WORKER_ID }, 'worker starting');
 
-void daemonLoop('heartbeat',     HEARTBEAT_MS,     () => heartbeatTick(WORKER_ID, REGISTERED_KINDS));
-void daemonLoop('queue_watcher', QUEUE_WATCHER_MS, queueWatcherTick);
-void daemonLoop('cleanup',          CLEANUP_MS,          cleanupTick);
-void daemonLoop('presence_watcher', PRESENCE_WATCHER_MS, presenceWatcherTick);
+  try {
+    await initSmithCore();
+    baseLogger.info({ event: 'smithcore_ready' }, 'smithcore ROM loaded');
+  } catch (e) {
+    baseLogger.warn({ event: 'smithcore_init_failed', err: e }, 'smithcore ROM not loaded; falling back to node crypto');
+  }
+
+  void loop('geocode', geocodeTick);
+  void loop('audit_flush', auditFlushTick);
+  void loop('email', emailTick);
+
+  void daemonLoop('heartbeat',     HEARTBEAT_MS,     () => heartbeatTick(WORKER_ID, REGISTERED_KINDS));
+  void daemonLoop('queue_watcher', QUEUE_WATCHER_MS, queueWatcherTick);
+  void daemonLoop('cleanup',          CLEANUP_MS,          cleanupTick);
+  void daemonLoop('presence_watcher', PRESENCE_WATCHER_MS, presenceWatcherTick);
+}
+
+main().catch((e) => {
+  baseLogger.fatal({ event: 'worker_main_error', err: e }, 'worker failed to start');
+  process.exit(1);
+});
