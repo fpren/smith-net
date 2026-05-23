@@ -18,6 +18,7 @@ import { tick as queueWatcherTick, INTERVAL_MS as QUEUE_WATCHER_MS } from '../da
 import { tick as cleanupTick, INTERVAL_MS as CLEANUP_MS } from '../daemons/cleanupDaemon';
 import { tick as presenceWatcherTick, INTERVAL_MS as PRESENCE_WATCHER_MS } from '../daemons/presenceWatcherDaemon';
 import { tick as trialExpirerTick, INTERVAL_MS as TRIAL_EXPIRER_MS } from '../daemons/trialExpirerDaemon';
+import { tick as founderSeatsExpirerTick, INTERVAL_MS as FOUNDER_SEATS_EXPIRER_MS } from '../daemons/founderSeatsExpirerDaemon';
 import { baseLogger } from '../log';
 import { initSmithCore } from '../core/smithCore';
 
@@ -73,6 +74,7 @@ async function main() {
   void daemonLoop('cleanup',          CLEANUP_MS,          cleanupTick);
   void daemonLoop('presence_watcher', PRESENCE_WATCHER_MS, presenceWatcherTick);
   void daemonLoop('trial_expirer', TRIAL_EXPIRER_MS, trialExpirerTick);
+  void daemonLoop('founder_seats_expirer', FOUNDER_SEATS_EXPIRER_MS, founderSeatsExpirerTick);
 }
 
 main().catch((e) => {
