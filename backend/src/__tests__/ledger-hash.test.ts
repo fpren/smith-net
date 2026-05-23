@@ -1,7 +1,10 @@
 import * as crypto from 'crypto';
-import { SummaryArtifact } from '../types';
+import { SummaryArtifact, LedgerEntry } from '../types';
 import { encodeLedgerArtifactV2, ledgerHashV2 } from '../ledgerCanonical';
 import { initSmithCore, sha256 as romSha256 } from '../core/smithCore';
+import {
+  computeHashV1, computeHashV2, computeHashForVersion, verifyHash,
+} from '../ledgerAuthority';
 
 function emptyArtifact(): SummaryArtifact {
   return {
@@ -67,5 +70,54 @@ describe('v2 canonical encoding', () => {
     } finally {
       delete process.env.SMITHCORE_ENABLED;
     }
+  });
+});
+
+describe('hash versioning', () => {
+  it('computeHashV1 still matches the documented legacy algorithm', () => {
+    const a = sampleArtifact();
+    const canonical = JSON.stringify({
+      serial: a.serial, intentVersionId: a.intentVersionId, scopeStatement: a.scopeStatement,
+      workPerformed: a.workPerformed, laborRecorded: a.laborRecorded,
+      totalHours: a.totalHours, totalCost: a.totalCost,
+      jobIds: [...a.jobIds].sort(), timeEntryIds: [...a.timeEntryIds].sort(),
+    });
+    const ref = crypto.createHash('sha256').update(canonical).digest('hex');
+    expect(computeHashV1(a)).toBe(ref);
+  });
+
+  it('computeHashForVersion dispatches and rejects unknown versions', () => {
+    const a = sampleArtifact();
+    expect(computeHashForVersion(a, 1)).toBe(computeHashV1(a));
+    expect(computeHashForVersion(a, 2)).toBe(computeHashV2(a));
+    expect(() => computeHashForVersion(a, 99)).toThrow(/hash_version/);
+  });
+
+  it('verifyHash validates a good entry and flags a tampered artifact', () => {
+    const a = sampleArtifact();
+    const entry = {
+      id: 'e', artifactSerial: a.serial, artifactId: a.id,
+      sha256Hash: computeHashV2(a), actorUuid: 'u', sealedAt: 0, hashVersion: 2,
+    } as LedgerEntry;
+    expect(verifyHash(entry, a).valid).toBe(true);
+    expect(verifyHash(entry, { ...a, totalCost: a.totalCost + 1 }).valid).toBe(false);
+  });
+
+  it('verifyHash on a legacy (v1) entry recomputes under v1', () => {
+    const a = sampleArtifact();
+    const entry = {
+      id: 'e', artifactSerial: a.serial, artifactId: a.id,
+      sha256Hash: computeHashV1(a), actorUuid: 'u', sealedAt: 0, hashVersion: 1,
+    } as LedgerEntry;
+    expect(verifyHash(entry, a).valid).toBe(true);
+  });
+
+  it('verifyHash flags a tampered artifact for a legacy (v1) entry', () => {
+    const a = sampleArtifact();
+    const entry = {
+      id: 'e', artifactSerial: a.serial, artifactId: a.id,
+      sha256Hash: computeHashV1(a), actorUuid: 'u', sealedAt: 0, hashVersion: 1,
+    } as LedgerEntry;
+    expect(verifyHash(entry, { ...a, scopeStatement: a.scopeStatement + ' X' }).valid).toBe(false);
   });
 });

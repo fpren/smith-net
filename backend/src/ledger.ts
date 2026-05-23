@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { SummaryArtifact, LedgerEntry } from './types';
-import { validateSealing, validateAmendment, computeHash } from './ledgerAuthority';
+import { validateSealing, validateAmendment, computeHashV2 } from './ledgerAuthority';
 import { pg, isPgEnabled } from './db';
 
 function requirePg() {
@@ -15,7 +15,7 @@ export async function seal(
   const validation = validateSealing(artifact);
   if (!validation.valid) return { error: validation.message };
 
-  const hash = computeHash(artifact);
+  const hash = computeHashV2(artifact);
   const entry: LedgerEntry = {
     id: uuidv4(), artifactSerial: artifact.serial, artifactId: artifact.id,
     sha256Hash: hash, actorUuid, sealedAt: Date.now(),
@@ -42,7 +42,7 @@ export async function amend(
   const validation = validateAmendment(newArtifact, priorEntry);
   if (!validation.valid) return { error: validation.message };
 
-  const hash = computeHash(newArtifact);
+  const hash = computeHashV2(newArtifact);
   const newEntry: LedgerEntry = {
     id: uuidv4(), artifactSerial: newArtifact.serial, artifactId: newArtifact.id,
     sha256Hash: hash, actorUuid, supersedes: priorEntryId, sealedAt: Date.now(),

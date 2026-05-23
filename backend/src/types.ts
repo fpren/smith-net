@@ -592,6 +592,7 @@ export interface LedgerEntry {
   supersedes?: string;
   supersededBy?: string;
   sealedAt: number;
+  hashVersion?: number;
 }
 
 export interface IntentAuthorityResult {
