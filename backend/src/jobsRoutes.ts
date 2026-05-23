@@ -7,6 +7,7 @@ import * as jobsService from './jobsService';
 import * as tasksService from './tasksService';
 import { requestLogger } from './log';
 import { validateBody } from './middleware/validate';
+import { requireCap } from './middleware/requireCap';
 import { CreateJobBody, UpdateJobBody, StatusChangeBody, AssignCrewBody } from './schemas/jobs';
 
 export const jobsRouter = Router();
@@ -60,7 +61,11 @@ jobsRouter.get('/:id/tasks', requireJobOwner, async (req: JobOwnerRequest, res: 
 // POST /api/jobs — create
 // ════════════════════════════════════════════════════════════════════
 
-jobsRouter.post('/', validateBody(CreateJobBody), async (req: AuthenticatedRequest, res: Response) => {
+jobsRouter.post(
+  '/',
+  validateBody(CreateJobBody),
+  requireCap({ capKey: 'active_jobs', gateId: 'active_job_cap', count: jobsService.countActive }),
+  async (req: AuthenticatedRequest, res: Response) => {
   try {
     const body = req.body as CreateJobBody;
     const job = await jobsService.create({

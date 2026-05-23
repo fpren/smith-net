@@ -123,6 +123,17 @@ export async function listByForeman(foremanId: string): Promise<Job[]> {
   return rows.map(mapJobRow);
 }
 
+/** Count active (non-terminal) jobs for a foreman. Used by the active_jobs cap. */
+export async function countActive(foremanId: string): Promise<number> {
+  const db = requirePg();
+  const { rows } = await db.query(
+    `SELECT COUNT(*)::int AS c FROM jobs
+       WHERE foreman_id = $1 AND status NOT IN ('complete', 'cancelled')`,
+    [foremanId]
+  );
+  return rows[0].c;
+}
+
 export async function getById(jobId: string): Promise<Job | null> {
   const db = requirePg();
   const { rows } = await db.query(`SELECT * FROM jobs WHERE id = $1`, [jobId]);
