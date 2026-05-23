@@ -23,6 +23,16 @@ export const CAPS_BY_TIER: Record<Tier, number> = {
   enterprise: (1 << B.plan_compiler) | (1 << B.cord_state_model) | (1 << B.smithai_on_device) | (1 << B.advanced_template) | (1 << B.enterprise_template) | (1 << B.crew_multiuser),
 };
 
+export type CapKey = 'active_jobs' | 'pdf_sends_per_month';
+
+/** Numeric per-tier caps. null = unlimited. Mirrors the tier-gating skill cap matrix. */
+export const CAP_LIMITS_BY_TIER: Record<Tier, Record<CapKey, number | null>> = {
+  open:       { active_jobs: 1,    pdf_sends_per_month: 5 },
+  solo:       { active_jobs: null, pdf_sends_per_month: null },
+  advanced:   { active_jobs: null, pdf_sends_per_month: null },
+  enterprise: { active_jobs: null, pdf_sends_per_month: null },
+};
+
 function coreActive(): boolean {
   return process.env.SMITHCORE_ENABLED === '1' && isSmithCoreReady();
 }
