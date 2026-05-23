@@ -87,5 +87,9 @@ legacy path (proven identical by the parity gate) instead of failing.
 
 ## Status
 
-- M1 (this pilot): vector clock + SHA-256 through the ROM; backend wired + green.
-- Next: M2 ledger/audit hash, M3 mesh + packed structs, M4 entitlements bitmask, M5 portal/iOS/Pi shells.
+- M1: vector clock + SHA-256 through the ROM; backend wired + green.
+- M1.5: APK size-delta CI gate.
+- M2: ledger seal (canonical v2 encoding) + audit-chain checksum hash through the
+  ROM; per-entry hash_version with version-aware /api/ledger/verify; golden-vector
+  parity across the TS + Kotlin encoders.
+- Next: M3 mesh + packed structs, M4 entitlements bitmask, M5 portal/iOS/Pi shells.
