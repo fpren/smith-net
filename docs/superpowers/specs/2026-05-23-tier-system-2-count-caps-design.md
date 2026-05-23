@@ -172,17 +172,23 @@ export async function countSendsThisMonth(userId: string): Promise<number> {
   return rows[0].c;
 }
 
-/** Record one send action. Caller sets invoice status='sent' in the same tx. */
-export async function recordSend(invoiceId: string, sentBy: string): Promise<void> {
-  const db = requirePg();
-  await db.query(
-    `INSERT INTO invoice_sends (invoice_id, sent_by) VALUES ($1, $2)`,
-    [invoiceId, sentBy],
-  );
-}
+export interface SendResult { invoiceId: string; sentAt: Date; }
+
+/**
+ * Atomically mark an invoice 'sent' (org-fenced, mirroring invoicesService's
+ * tenant scope) and append one invoice_sends row. Returns null when no invoice
+ * matches the org + id + not-deleted fence (route -> 404). Both writes land or
+ * neither. The status update + send-log insert are one transaction; the
+ * transaction lives in the service (matching the codebase, e.g.
+ * jobsService.createUserAndProfile), not the route.
+ */
+export async function sendInvoice(
+  invoiceId: string, organizationId: string, sentBy: string,
+): Promise<SendResult | null> { /* BEGIN; UPDATE invoices ... RETURNING id (0 -> ROLLBACK,null);
+                                   INSERT invoice_sends RETURNING sent_at; COMMIT */ }
 ```
 
-The send route performs the status update + `recordSend` in a single transaction (see §7).
+`requirePg` is a private helper defined inside this service (mirroring `jobsService.ts`); `db.ts` exports `pg`/`isPgEnabled`, not `requirePg`. The cap counter (`countSendsThisMonth`) and the send mutation (`sendInvoice`) both live here — the "send" domain — while the count is the cap's concern.
 
 ---
 
@@ -214,10 +220,9 @@ Idempotent (`IF NOT EXISTS`), consistent with the existing migration style.
 - **Schema:** `SendInvoiceBody = z.object({}).strict()` (no inputs in this minimal version; `.strict()` rejects unknown fields per the security skill). Place with the other invoice schemas.
 - **Middleware order:** `validateBody(SendInvoiceBody)` -> `requireCap({ capKey:'pdf_sends_per_month', gateId:'pdf_send_cap', count: invoiceSendsService.countSendsThisMonth })`. (`authenticateToken` is already applied to the parent `apiRouter`.)
 - **Handler:**
-  1. Load the invoice by `:id`. If missing -> 404.
-  2. **Ownership/scope:** mirror the existing `PATCH /api/invoices/:id` check exactly (do not invent a new rule) — read that handler and apply the same `created_by`/`organization_id` scoping; on mismatch return the same status that handler uses (404/403).
-  3. In a single transaction: `UPDATE invoices SET status='sent', updated_at=now() WHERE id=$1` and `invoiceSendsService.recordSend(id, req.user.id)`.
-  4. Return 200 with the send result (e.g. `{ ok: true, invoice_id, sent_at }`).
+  1. `o = org(req)` (the existing local helper = `req.user.organizationId`); if `!o` -> 401, matching the other invoice routes.
+  2. Call `invoiceSendsService.sendInvoice(req.params.id, o, req.user!.id)`. The tenant fence is the UPDATE's WHERE (`organization_id = o AND is_deleted = false`), mirroring how every other invoice route is scoped (`getByIdScoped` / `update(id, o, ...)`) — no separate ownership rule is invented.
+  3. If it returns `null` -> 404 (no invoice in this org). Otherwise 200 with `{ ok: true, invoiceId, sentAt }`.
 
 `requireCap` counts **before** the insert, so the Nth send (where N = limit) is the last allowed: at `current = limit - 1` it passes and becomes `limit`; the next attempt sees `current = limit` and is refused. Open tier therefore gets exactly `limit` sends per month.
 
@@ -262,7 +267,7 @@ Optionally assert `CAP_LIMITS_BY_TIER` values directly (open = {1, 5}; solo/adv/
 
 ## 11. Risks / open items
 
-1. **Send route ownership:** must mirror the existing `PATCH /:id` scope exactly; a looser check would let a user send another tenant's invoice. The plan instructs the implementer to read and copy that handler's check rather than invent one (security skill: cross-tenant isolation).
+1. **Send route ownership:** the tenant fence is `organization_id = o AND is_deleted = false` in `sendInvoice`'s UPDATE WHERE — the same `org(req)` scope every other invoice route uses. A row outside the org never matches, so it returns null -> 404; no separate, drift-prone ownership check is invented (security skill: cross-tenant isolation). The per-user send count (`sent_by`) is independent of the org fence.
 2. **Re-send semantics:** each send press inserts a new `invoice_sends` row, so re-sending the same invoice counts toward the cap (intended — prevents bypass by re-send).
 3. **Month boundary:** the window uses UTC first-of-month computed in JS; deterministic across server timezones. Caps reset at UTC month rollover.
 4. **No DB harness here:** the migration, counters, and route are deferred-verify; the middleware + config + `lowestUnlimitedTierFor` are the verifiable core.
