@@ -82,3 +82,10 @@ i32 sc_sha256(i32 d, i32 l, i32 o) {
     sc_sha256_raw(P(d), (u32)l, P(o));
     return 0;
 }
+
+/* --- ledger --- */
+__attribute__((export_name("sc_ledger_encode")))
+i32 sc_ledger_encode(i32 in, i32 il, i32 o, i32 oc) {
+    if (il < 0 || oc < 0) return SC_ERR;
+    return ledger_encode(P(in), il, P(o), oc);
+}

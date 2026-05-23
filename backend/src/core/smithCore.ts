@@ -33,11 +33,12 @@ interface CoreExports {
   sc_vclock_compare(a: number, al: number, b: number, bl: number): number;
   sc_vclock_canon(i: number, il: number, o: number, oc: number): number;
   sc_sha256(d: number, l: number, o: number): number;
+  sc_ledger_encode(i: number, il: number, o: number, oc: number): number;
 }
 
 const SC_ERR = -1;
 const SC_CMP_ERR = 2;
-const EXPECTED_ABI = 1;
+const EXPECTED_ABI = 2;
 
 let _ex: CoreExports | null = null;
 
@@ -156,4 +157,19 @@ export function sha256(data: Buffer): Buffer {
   const rc = e.sc_sha256(dp, data.length, op);
   if (rc !== 0) throw new Error('sc_sha256 failed');
   return Buffer.from(mem().slice(op, op + 32));
+}
+
+/** Canonical v2 ledger encode via the ROM. Input is the host-packed field
+ *  buffer (see ledgerCanonical.packLedgerInput / smithcore.h). Returns the
+ *  canonical bytes. */
+export function ledgerEncode(input: Buffer): Buffer {
+  const e = core();
+  e.sc_reset();
+  const ip = stage(input);
+  const cap = input.length + 8; // +5 header; sorting never grows total size
+  const op = e.sc_alloc(cap);
+  if (op === 0) throw new Error('smithcore arena OOM');
+  const n = e.sc_ledger_encode(ip, input.length, op, cap);
+  if (n === SC_ERR || n < 0) throw new Error('sc_ledger_encode failed');
+  return Buffer.from(mem().slice(op, op + n));
 }

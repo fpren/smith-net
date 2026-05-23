@@ -32,9 +32,10 @@ typedef unsigned char  u8;
 typedef unsigned short u16;
 typedef unsigned int   u32;
 typedef unsigned long long u64;
+typedef long long      i64;
 typedef int            i32;
 
-#define SC_VERSION 1
+#define SC_VERSION 2
 
 /* Sentinel returned by size-producing exports when out_cap is too small or a
  * buffer fails to parse. Callers must treat any negative return as an error. */
@@ -62,5 +63,19 @@ i32 sc_vclock_canon(i32 in_ptr, i32 in_len, i32 out_ptr, i32 out_cap);
 /* --- sha256 (scaffold for M2 ledger/audit; also a strong parity probe) --- */
 /* Writes 32 raw bytes to out32_ptr. Returns 0, or SC_ERR. */
 i32 sc_sha256(i32 data_ptr, i32 data_len, i32 out32_ptr);
+
+/* --- ledger (M3a packed struct) --- */
+/* Encode a ledger artifact to canonical v2 bytes. The host packs the fields
+ * into the input buffer below (little-endian; string = [u32 len][bytes];
+ * strarray = [u32 count] then count strings):
+ *   serial, intentVersionId, scopeStatement            ; 3x string
+ *   workPerformed, laborRecorded, materialsUsed, contextualNotes ; 4x strarray (insertion order)
+ *   totalCostCents, totalHoursCenti                     ; 2x i64 LE
+ *   jobIds, timeEntryIds, chatMessageIds                ; 3x strarray (UNSORTED; core sorts)
+ * Output is the canonical v2 form: "SMC" + 0x01 + 0x02, fields 1-9 verbatim,
+ * then the three id arrays sorted ascending by unsigned utf-8 bytes. The
+ * encoding format is byte-identical to the M2 host encoder (golden vectors).
+ * Returns out_len, or SC_ERR. */
+i32 sc_ledger_encode(i32 in_ptr, i32 in_len, i32 out_ptr, i32 out_cap);
 
 #endif /* SMITHCORE_H */
