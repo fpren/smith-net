@@ -92,4 +92,7 @@ legacy path (proven identical by the parity gate) instead of failing.
 - M2: ledger seal (canonical v2 encoding) + audit-chain checksum hash through the
   ROM; per-entry hash_version with version-aware /api/ledger/verify; golden-vector
   parity across the TS + Kotlin encoders.
-- Next: M3 mesh + packed structs, M4 entitlements bitmask, M5 portal/iOS/Pi shells.
+- M3a: v2 ledger encoder moved into the ROM (sc_ledger_encode, ABI 2); backend
+  delegates with the host encoder as readiness fallback; C output proven == the
+  M2 golden vectors. Android JNI delegation deferred.
+- Next: M3b mesh; then M4 entitlements bitmask, M5 portal/iOS/Pi shells.
