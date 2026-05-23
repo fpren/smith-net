@@ -8,6 +8,8 @@
 
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
+import { resolveEntitlements } from './tierResolver';
+import type { Tier } from './entitlements';
 
 // ════════════════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -233,6 +235,8 @@ export interface TokenPayload {
   email: string;
   role: UserRole;
   type: 'access' | 'refresh';
+  tier?: Tier;
+  entitlementsHash?: string;
 }
 
 export interface AuthTokens {
@@ -256,11 +260,14 @@ export const userStore = usersService;
 // ════════════════════════════════════════════════════════════════════
 
 export async function generateTokens(user: StoredUser): Promise<AuthTokens> {
+  const ent = resolveEntitlements(user.role);
   const accessPayload: TokenPayload = {
     userId: user.id,
     email: user.email,
     role: user.role,
     type: 'access',
+    tier: ent.tier,
+    entitlementsHash: ent.entitlementsHash,
   };
 
   const refreshPayload: TokenPayload = {

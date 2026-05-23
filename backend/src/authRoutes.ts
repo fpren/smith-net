@@ -27,6 +27,7 @@ import { isEmailLive } from './emailService';
 import { enqueue } from './queue/queue';
 import { requestLogger } from './log';
 import { validateBody, validateQuery } from './middleware/validate';
+import { resolveEntitlements } from './tierResolver';
 import {
   RegisterBody,
   LoginBody,
@@ -268,6 +269,14 @@ authRouter.post('/resend-verification', authenticateToken, async (req: Authentic
 
 authRouter.get('/me', authenticateToken, (req: AuthenticatedRequest, res: Response) => {
   res.json({ user: req.user });
+});
+
+// Returns the CURRENT entitlements for the user's role (re-derived live from
+// tierResolver). This is intentionally "current policy for this role", which may
+// differ from the token-stamped entitlementsHash if tier policy changes
+// mid-session -- the live policy wins here by design.
+authRouter.get('/me/entitlements', authenticateToken, (req: AuthenticatedRequest, res: Response) => {
+  res.json(resolveEntitlements(req.user!.role));
 });
 
 // ════════════════════════════════════════════════════════════════════
