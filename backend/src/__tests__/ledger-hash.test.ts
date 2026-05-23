@@ -1,4 +1,6 @@
 import * as crypto from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
 import { SummaryArtifact, LedgerEntry } from '../types';
 import { encodeLedgerArtifactV2, ledgerHashV2 } from '../ledgerCanonical';
 import { initSmithCore, sha256 as romSha256 } from '../core/smithCore';
@@ -119,5 +121,28 @@ describe('hash versioning', () => {
       sha256Hash: computeHashV1(a), actorUuid: 'u', sealedAt: 0, hashVersion: 1,
     } as LedgerEntry;
     expect(verifyHash(entry, { ...a, scopeStatement: a.scopeStatement + ' X' }).valid).toBe(false);
+  });
+});
+
+describe('golden vectors (the roms.sha1 analog)', () => {
+  const coreGoldenPath = path.resolve(__dirname, '../../../core/testdata/ledger-golden.json');
+  const androidGoldenPath = path.resolve(
+    __dirname, '../../../android/app/src/androidTest/assets/ledger-golden.json');
+
+  it('encoder + hash reproduce every committed golden vector', () => {
+    const golden = JSON.parse(fs.readFileSync(coreGoldenPath, 'utf8'));
+    for (const v of golden.vectors) {
+      const a = { id: 'x', createdAt: 0, ...v.artifact } as SummaryArtifact;
+      expect(`${v.label}:${encodeLedgerArtifactV2(a).toString('hex')}`)
+        .toBe(`${v.label}:${v.canonicalHex}`);
+      expect(`${v.label}:${crypto.createHash('sha256').update(Buffer.from(v.canonicalHex, 'hex')).digest('hex')}`)
+        .toBe(`${v.label}:${v.hashHex}`);
+    }
+  });
+
+  it('the Android golden copy is byte-identical (drift guard)', () => {
+    const core = fs.readFileSync(coreGoldenPath);
+    const android = fs.readFileSync(androidGoldenPath);
+    expect(core.equals(android)).toBe(true);
   });
 });

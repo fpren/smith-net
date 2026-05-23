@@ -1,0 +1,108 @@
+{
+  "vectors": [
+    {
+      "label": "empty",
+      "artifact": {
+        "serial": "",
+        "intentVersionId": "",
+        "scopeStatement": "",
+        "workPerformed": [],
+        "laborRecorded": [],
+        "materialsUsed": [],
+        "contextualNotes": [],
+        "totalCost": 0,
+        "totalHours": 0,
+        "jobIds": [],
+        "timeEntryIds": [],
+        "chatMessageIds": []
+      },
+      "canonicalHex": "534d4301020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "hashHex": "2c2a9d4b5c03daa12b209075ab0b4c36c240775d1b550c47d4641225b9f2a6e9"
+    },
+    {
+      "label": "simple",
+      "artifact": {
+        "serial": "SA-001",
+        "intentVersionId": "iv-1",
+        "scopeStatement": "Fix sink",
+        "workPerformed": [
+          "replaced trap"
+        ],
+        "laborRecorded": [
+          "u1: 30 min"
+        ],
+        "materialsUsed": [
+          "P-trap"
+        ],
+        "contextualNotes": [
+          "note"
+        ],
+        "totalCost": 27.5,
+        "totalHours": 0.5,
+        "jobIds": [
+          "job-2",
+          "job-1"
+        ],
+        "timeEntryIds": [
+          "te-1"
+        ],
+        "chatMessageIds": []
+      },
+      "canonicalHex": "534d4301020600000053412d3030310400000069762d31080000004669782073696e6b010000000d0000007265706c616365642074726170010000000a00000075313a203330206d696e0100000006000000502d7472617001000000040000006e6f7465be0a000000000000320000000000000002000000050000006a6f622d31050000006a6f622d32010000000400000074652d3100000000",
+      "hashHex": "5740386b8c49249d265aa19ba38b500dddfe3a804c6d7f965f96ef45ce80ee67"
+    },
+    {
+      "label": "utf8",
+      "artifact": {
+        "serial": "SA-café",
+        "intentVersionId": "iv-é",
+        "scopeStatement": "café ☕🔥",
+        "workPerformed": [
+          "日本語"
+        ],
+        "laborRecorded": [
+          "naïve"
+        ],
+        "materialsUsed": [
+          "Москва"
+        ],
+        "contextualNotes": [
+          "café"
+        ],
+        "totalCost": 100.1,
+        "totalHours": 1.25,
+        "jobIds": [
+          "café",
+          "ab"
+        ],
+        "timeEntryIds": [
+          "té-1"
+        ],
+        "chatMessageIds": [
+          "m1"
+        ]
+      },
+      "canonicalHex": "534d4301020800000053412d636166c3a90500000069762dc3a90d000000636166c3a920e29895f09f94a50100000009000000e697a5e69cace8aa9e01000000060000006e61c3af7665010000000c000000d09cd0bed181d0bad0b2d0b00100000005000000636166c3a91a270000000000007d000000000000000200000002000000616205000000636166c3a9010000000500000074c3a92d3101000000020000006d31",
+      "hashHex": "7a8473ed90914d98974f0dd9d675312322845907170931d20eb5f77976d057ba"
+    },
+    {
+      "label": "big",
+      "artifact": {
+        "serial": "SA-BIG",
+        "intentVersionId": "iv-9",
+        "scopeStatement": "big",
+        "workPerformed": [],
+        "laborRecorded": [],
+        "materialsUsed": [],
+        "contextualNotes": [],
+        "totalCost": 1234567.89,
+        "totalHours": 1234.56,
+        "jobIds": [],
+        "timeEntryIds": [],
+        "chatMessageIds": []
+      },
+      "canonicalHex": "534d4301020600000053412d4249470400000069762d39030000006269670000000000000000000000000000000015cd5b070000000040e2010000000000000000000000000000000000",
+      "hashHex": "1ce5c02c12a58100991623bf5ccbddd82df264db1e534ad770c40ceefd9a187b"
+    }
+  ]
+}
