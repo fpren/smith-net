@@ -15,6 +15,7 @@ import { synthesize, getArtifact } from './synthesizer';
 import { validateSynthesisInputs } from './synthesisAuthority';
 import { seal, amend, getLedgerEntry, verifyLedgerEntry } from './ledger';
 import { auditLog, AuditAction } from './auditLog';
+import { requireEntitlement } from './middleware/requireEntitlement';
 
 export const phase0Router = Router();
 
@@ -26,7 +27,7 @@ phase0Router.post('/intent-authority/validate-creation', (req: Request, res: Res
   res.json(result);
 });
 
-phase0Router.post('/intents', async (req: Request, res: Response) => {
+phase0Router.post('/intents', requireEntitlement('plan_compiler', 'plan_compiler'), async (req: Request, res: Response) => {
   try {
     const { scopeStatement, parties, createdBy, intendedJobIds } = req.body;
     const result = await createIntent(scopeStatement, parties, createdBy, intendedJobIds);
@@ -37,7 +38,7 @@ phase0Router.post('/intents', async (req: Request, res: Response) => {
   }
 });
 
-phase0Router.post('/intents/:intentId/versions/:versionId/propose', async (req: Request, res: Response) => {
+phase0Router.post('/intents/:intentId/versions/:versionId/propose', requireEntitlement('plan_compiler', 'plan_compiler'), async (req: Request, res: Response) => {
   try {
     const result = await proposeIntent(req.params.versionId);
     if ('error' in result) return res.status(400).json(result);
@@ -47,7 +48,7 @@ phase0Router.post('/intents/:intentId/versions/:versionId/propose', async (req: 
   }
 });
 
-phase0Router.post('/intents/:intentId/versions/:versionId/confirm', async (req: Request, res: Response) => {
+phase0Router.post('/intents/:intentId/versions/:versionId/confirm', requireEntitlement('plan_compiler', 'plan_compiler'), async (req: Request, res: Response) => {
   try {
     const { confirmerId } = req.body;
     const result = await confirmIntent(req.params.versionId, confirmerId);
@@ -58,7 +59,7 @@ phase0Router.post('/intents/:intentId/versions/:versionId/confirm', async (req: 
   }
 });
 
-phase0Router.post('/intents/:intentId/versions', async (req: Request, res: Response) => {
+phase0Router.post('/intents/:intentId/versions', requireEntitlement('plan_compiler', 'plan_compiler'), async (req: Request, res: Response) => {
   try {
     const { priorVersionId, scopeStatement, parties, intendedJobIds, createdBy } = req.body;
     const result = await createNewVersion(
@@ -79,7 +80,7 @@ phase0Router.post('/synthesis-authority/validate-inputs', (req: Request, res: Re
   res.json(result);
 });
 
-phase0Router.post('/synthesize', async (req: Request, res: Response) => {
+phase0Router.post('/synthesize', requireEntitlement('plan_compiler', 'plan_compiler'), async (req: Request, res: Response) => {
   try {
     const { intentVersion, jobIds, timeEntryIds, approvedChatMessageIds } = req.body;
     const result = await synthesize(intentVersion, jobIds, timeEntryIds, approvedChatMessageIds);
@@ -98,7 +99,7 @@ phase0Router.get('/artifacts/:id', async (req: Request, res: Response) => {
 
 // LEDGER AUTHORITY + LEDGER
 
-phase0Router.post('/ledger/seal', async (req: Request, res: Response) => {
+phase0Router.post('/ledger/seal', requireEntitlement('plan_compiler', 'plan_compiler'), async (req: Request, res: Response) => {
   try {
     const { artifactId, actorUuid } = req.body;
     const artifact = await getArtifact(artifactId);
@@ -111,7 +112,7 @@ phase0Router.post('/ledger/seal', async (req: Request, res: Response) => {
   }
 });
 
-phase0Router.post('/ledger/amend', async (req: Request, res: Response) => {
+phase0Router.post('/ledger/amend', requireEntitlement('plan_compiler', 'plan_compiler'), async (req: Request, res: Response) => {
   try {
     const { newArtifactId, priorEntryId, actorUuid } = req.body;
     const artifact = await getArtifact(newArtifactId);
@@ -161,7 +162,7 @@ phase0Router.get('/ledger/:id', async (req: Request, res: Response) => {
 
 // SMALL PROJECT FLOW
 
-phase0Router.post('/small-project/synthesize-and-generate-intent', async (req: Request, res: Response) => {
+phase0Router.post('/small-project/synthesize-and-generate-intent', requireEntitlement('plan_compiler', 'plan_compiler'), async (req: Request, res: Response) => {
   try {
     const { jobIds, timeEntryIds, actorUuid } = req.body;
     const intentResult = await autoGenerateIntent(jobIds, timeEntryIds, actorUuid);
@@ -176,7 +177,7 @@ phase0Router.post('/small-project/synthesize-and-generate-intent', async (req: R
   }
 });
 
-phase0Router.post('/small-project/confirm-and-seal', async (req: Request, res: Response) => {
+phase0Router.post('/small-project/confirm-and-seal', requireEntitlement('plan_compiler', 'plan_compiler'), async (req: Request, res: Response) => {
   try {
     const { intentVersionId, confirmerId, jobIds, timeEntryIds, approvedChatMessageIds } = req.body;
     const confirmed = await confirmIntent(intentVersionId, confirmerId);
