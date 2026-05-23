@@ -16,6 +16,8 @@ import {
   LoginResult,
   validatePassword,
 } from './auth';
+import type { Tier } from './entitlements';
+import { roleToTier } from './tierResolver';
 
 const SALT_ROUNDS = 10;
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -34,6 +36,7 @@ interface UserRow {
   password_hash: string;
   display_name: string;
   role: string;
+  tier: string;
   organization_id: string | null;
   is_active: boolean;
   mfa_enabled: boolean;
@@ -57,6 +60,7 @@ function rowToUser(r: UserRow): StoredUser {
     passwordHash: r.password_hash,
     displayName: r.display_name,
     role: r.role as UserRole,
+    tier: (r.tier as Tier) ?? 'open',
     organizationId: r.organization_id ?? undefined,
     isActive: r.is_active,
     mfaEnabled: r.mfa_enabled,
@@ -104,12 +108,12 @@ class UsersService {
     // is a follow-up plan; for now organization_id always equals id at create.
     const result = await db.query<UserRow>(
       `INSERT INTO users (
-         id, email, password_hash, display_name, role, organization_id,
+         id, email, password_hash, display_name, role, tier, organization_id,
          is_active, mfa_enabled, failed_login_count,
          email_verification_token, email_verification_expires_at
-       ) VALUES ($1, $2, $3, $4, $5, $1, TRUE, FALSE, 0, $6, $7)
+       ) VALUES ($1, $2, $3, $4, $5, $8, $1, TRUE, FALSE, 0, $6, $7)
        RETURNING *`,
-      [id, email.toLowerCase(), passwordHash, displayName, role, token, expires]
+      [id, email.toLowerCase(), passwordHash, displayName, role, token, expires, roleToTier(role)]
     );
 
     requestLogger().info({ event: 'user_created', email, role }, 'user created');
@@ -284,6 +288,7 @@ class UsersService {
       passwordHash: 'password_hash',
       displayName: 'display_name',
       role: 'role',
+      tier: 'tier',
       organizationId: 'organization_id',
       isActive: 'is_active',
       mfaEnabled: 'mfa_enabled',
@@ -331,13 +336,13 @@ class UsersService {
 
     const result = await db.query(
       `INSERT INTO users (
-         id, email, password_hash, display_name, role, organization_id,
+         id, email, password_hash, display_name, role, tier, organization_id,
          is_active, mfa_enabled, failed_login_count,
          email_verified_at
-       ) VALUES ('admin-001', 'admin@smithnet.local', $1, 'System Admin', 'admin', 'admin-001',
+       ) VALUES ('admin-001', 'admin@smithnet.local', $1, 'System Admin', 'admin', $2, 'admin-001',
                  TRUE, FALSE, 0, NOW())
        ON CONFLICT (id) DO NOTHING`,
-      [passwordHash]
+      [passwordHash, roleToTier('admin')]
     );
 
     if ((result.rowCount ?? 0) > 0) {

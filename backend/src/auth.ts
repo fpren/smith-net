@@ -199,6 +199,7 @@ export interface StoredUser {
   passwordHash: string;
   displayName: string;
   role: UserRole;
+  tier: Tier;
   organizationId?: string;
   createdAt: number;
   updatedAt: number;
@@ -224,6 +225,7 @@ export interface PublicUser {
   email: string;
   displayName: string;
   role: UserRole;
+  tier: Tier;
   organizationId?: string;
   permissions: Permission[];
   // F1.4: clients use this to render the "verify your email" banner and gate UX.
@@ -373,6 +375,7 @@ export function toPublicUser(user: StoredUser): PublicUser {
     email: user.email,
     displayName: user.displayName,
     role: user.role,
+    tier: user.tier,
     organizationId: user.organizationId,
     permissions: getRolePermissions(user.role),
     emailVerified: !!user.emailVerifiedAt,
