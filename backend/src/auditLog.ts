@@ -10,6 +10,7 @@ import path from 'path';
 import { pg, isPgEnabled } from './db';
 import { requestLogger } from './log';
 import { enqueue } from './queue/queue';
+import { sha256HexGated } from './sha256Gate';
 
 // ════════════════════════════════════════════════════════════════════
 // AUDIT ACTIONS
@@ -190,7 +191,6 @@ class AuditLogManager {
   }
 
   private generateChecksum(entry: Omit<AuditEntry, 'checksum'>): string {
-    const crypto = require('crypto');
     const body = JSON.stringify({
       id: entry.id,
       timestamp: entry.timestamp,
@@ -200,7 +200,7 @@ class AuditLogManager {
       metadata: entry.metadata,
     });
     const seed = (entry.prevChecksum ?? '') + body;
-    return crypto.createHash('sha256').update(seed).digest('hex');
+    return sha256HexGated(Buffer.from(seed, 'utf8'));
   }
 
   /**

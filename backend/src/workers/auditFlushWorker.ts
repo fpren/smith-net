@@ -6,11 +6,11 @@
 // pg_advisory_xact_lock(42), INSERTs into audit_entries, and mirrors the
 // row into auditLog's in-memory cache + JSONL via bufferFromWorker.
 
-import crypto from 'crypto';
 import { pg, isPgEnabled } from '../db';
 import { claimNext, complete, fail } from '../queue/queue';
 import { auditLog, AuditAction, AuditEntry } from '../auditLog';
 import { requestLogger } from '../log';
+import { sha256HexGated } from '../sha256Gate';
 
 const KIND = 'audit_flush';
 
@@ -37,7 +37,7 @@ function computeHash(prev: string | null, p: AuditFlushPayload): string {
     targetId: p.targetId ?? undefined,
     metadata: p.metadata,
   });
-  return crypto.createHash('sha256').update((prev ?? '') + body).digest('hex');
+  return sha256HexGated(Buffer.from((prev ?? '') + body, 'utf8'));
 }
 
 export async function tick(workerId: string): Promise<boolean> {
