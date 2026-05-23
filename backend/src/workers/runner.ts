@@ -17,6 +17,7 @@ import { tick as heartbeatTick, INTERVAL_MS as HEARTBEAT_MS } from '../daemons/h
 import { tick as queueWatcherTick, INTERVAL_MS as QUEUE_WATCHER_MS } from '../daemons/queueWatcherDaemon';
 import { tick as cleanupTick, INTERVAL_MS as CLEANUP_MS } from '../daemons/cleanupDaemon';
 import { tick as presenceWatcherTick, INTERVAL_MS as PRESENCE_WATCHER_MS } from '../daemons/presenceWatcherDaemon';
+import { tick as trialExpirerTick, INTERVAL_MS as TRIAL_EXPIRER_MS } from '../daemons/trialExpirerDaemon';
 import { baseLogger } from '../log';
 import { initSmithCore } from '../core/smithCore';
 
@@ -71,6 +72,7 @@ async function main() {
   void daemonLoop('queue_watcher', QUEUE_WATCHER_MS, queueWatcherTick);
   void daemonLoop('cleanup',          CLEANUP_MS,          cleanupTick);
   void daemonLoop('presence_watcher', PRESENCE_WATCHER_MS, presenceWatcherTick);
+  void daemonLoop('trial_expirer', TRIAL_EXPIRER_MS, trialExpirerTick);
 }
 
 main().catch((e) => {
