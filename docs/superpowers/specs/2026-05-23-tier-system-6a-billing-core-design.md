@@ -84,6 +84,9 @@ import { Tier, TIER_CODE } from './entitlements';
 export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'canceled' | 'expired';
 export type SubscriptionProvider = 'stripe' | 'play_billing' | 'manual';
 
+/** A subscription always carries a paid tier; matches the migration CHECK. */
+export type PaidTier = Exclude<Tier, 'open'>;
+
 /** Highest tier among the given access-granting tiers; 'open' if none. */
 export function highestTier(tiers: Tier[]): Tier {
   let best: Tier = 'open';
@@ -104,7 +107,7 @@ export interface SubscriptionEvent {
   userId: string;
   provider: SubscriptionProvider;
   providerSubscriptionId: string;
-  tier: Tier;
+  tier: PaidTier;
   status: SubscriptionStatus;
   cadence?: 'monthly' | 'annual';
   currentPeriodStart?: Date | null;
