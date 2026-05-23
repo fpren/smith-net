@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../auth';
 import { Tier, CapKey, CAP_LIMITS_BY_TIER } from '../entitlements';
+import { emitGateHit } from '../telemetryService';
 
 const TIER_ASC: Tier[] = ['open', 'solo', 'advanced', 'enterprise'];
 
@@ -31,6 +32,7 @@ export function requireCap(cfg: CapConfig) {
     try {
       const current = await cfg.count(req.user.id);
       if (current >= limit) {
+        await emitGateHit(req.user.id, `gate_hit.${cfg.gateId}`, req.user.tier, { limit, current });
         return res.status(403).json({
           error: `Tier cap reached: ${cfg.gateId}`,
           code: 'tier_gate_exceeded',
