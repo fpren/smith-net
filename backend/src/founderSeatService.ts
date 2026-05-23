@@ -91,6 +91,17 @@ export async function reserve(bonusId: FounderBonusId, userId: string): Promise<
   }
 }
 
+/** Claim a held seat after payment. True if the seat was held by this user. */
+export async function claim(seatId: string, userId: string): Promise<boolean> {
+  const db = requirePg();
+  const r = await db.query(
+    `UPDATE founder_seats SET status = 'claimed', claimed_by = $2, claimed_at = now()
+       WHERE id = $1 AND status = 'held' AND held_by = $2`,
+    [seatId, userId],
+  );
+  return (r.rowCount ?? 0) > 0;
+}
+
 /** Flip expired holds back to available. Returns the number released. */
 export async function releaseExpiredHolds(): Promise<number> {
   const db = requirePg();
