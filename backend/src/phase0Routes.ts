@@ -13,7 +13,8 @@ import { createIntent, proposeIntent, confirmIntent, createNewVersion, autoGener
 import { validateIntentCreation } from './intentAuthority';
 import { synthesize, getArtifact } from './synthesizer';
 import { validateSynthesisInputs } from './synthesisAuthority';
-import { seal, amend, getLedgerEntry } from './ledger';
+import { seal, amend, getLedgerEntry, verifyLedgerEntry } from './ledger';
+import { auditLog, AuditAction } from './auditLog';
 
 export const phase0Router = Router();
 
@@ -120,6 +121,35 @@ phase0Router.post('/ledger/amend', async (req: Request, res: Response) => {
     res.status(201).json(result);
   } catch (err) {
     res.status(500).json({ error: 'Amendment failed' });
+  }
+});
+
+// VERIFY: recompute a sealed entry's hash and compare (tamper detection).
+phase0Router.get('/ledger/verify/:id', async (req: Request, res: Response) => {
+  try {
+    const result = await verifyLedgerEntry(req.params.id);
+    if ('error' in result) {
+      // Missing entry is a 404; a missing sealed artifact for an existing entry
+      // is an internal integrity violation, not a "not found".
+      const status = result.error === 'Ledger entry not found' ? 404 : 500;
+      return res.status(status).json(result);
+    }
+    if (!result.valid) {
+      try {
+        await auditLog.log(AuditAction.SECURITY_ALERT, 'system', {
+          reason: 'ledger_verify_mismatch',
+          entryId: req.params.id,
+          expected: result.expected,
+          actual: result.actual,
+          hashVersion: result.hashVersion,
+        });
+      } catch (auditErr) {
+        // best-effort: an audit write failure must not mask the verify result
+      }
+    }
+    return res.status(200).json(result);
+  } catch (err) {
+    return res.status(500).json({ error: 'Ledger verification failed' });
   }
 });
 
