@@ -34,11 +34,12 @@ interface CoreExports {
   sc_vclock_canon(i: number, il: number, o: number, oc: number): number;
   sc_sha256(d: number, l: number, o: number): number;
   sc_ledger_encode(i: number, il: number, o: number, oc: number): number;
+  sc_entitlements_encode(i: number, il: number, o: number, oc: number): number;
 }
 
 const SC_ERR = -1;
 const SC_CMP_ERR = 2;
-const EXPECTED_ABI = 2;
+const EXPECTED_ABI = 3;
 
 let _ex: CoreExports | null = null;
 
@@ -171,5 +172,18 @@ export function ledgerEncode(input: Buffer): Buffer {
   if (op === 0) throw new Error('smithcore arena OOM');
   const n = e.sc_ledger_encode(ip, input.length, op, cap);
   if (n === SC_ERR || n < 0) throw new Error('sc_ledger_encode failed');
+  return Buffer.from(mem().slice(op, op + n));
+}
+
+/** Canonical entitlements record encode via the ROM. Input is the host-packed
+ *  [u8 tierCode][u32 bitmask LE] buffer; returns [0x01][tierCode][bitmask LE]. */
+export function entitlementsEncode(input: Buffer): Buffer {
+  const e = core();
+  e.sc_reset();
+  const ip = stage(input);
+  const op = e.sc_alloc(8);
+  if (op === 0) throw new Error('smithcore arena OOM');
+  const n = e.sc_entitlements_encode(ip, input.length, op, 8);
+  if (n === SC_ERR || n < 0) throw new Error('sc_entitlements_encode failed');
   return Buffer.from(mem().slice(op, op + n));
 }

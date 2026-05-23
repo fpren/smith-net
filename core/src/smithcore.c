@@ -89,3 +89,10 @@ i32 sc_ledger_encode(i32 in, i32 il, i32 o, i32 oc) {
     if (il < 0 || oc < 0) return SC_ERR;
     return ledger_encode(P(in), il, P(o), oc);
 }
+
+/* --- entitlements --- */
+__attribute__((export_name("sc_entitlements_encode")))
+i32 sc_entitlements_encode(i32 in, i32 il, i32 o, i32 oc) {
+    if (il < 0 || oc < 0) return SC_ERR;
+    return entitlements_encode(P(in), il, P(o), oc);
+}

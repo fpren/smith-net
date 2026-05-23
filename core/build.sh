@@ -50,7 +50,7 @@ mkdir -p dist
   -Wl,--no-entry \
   -Wl,--export-dynamic \
   -Wl,--strip-all \
-  src/sha256.c src/vclock.c src/ledger.c src/smithcore.c \
+  src/sha256.c src/vclock.c src/ledger.c src/entitlements.c src/smithcore.c \
   -o dist/smithcore.wasm
 
 SHA="$(shasum -a 256 dist/smithcore.wasm | awk '{print $1}')"

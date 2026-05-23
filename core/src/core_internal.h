@@ -18,4 +18,8 @@ i32 vc_canon(const u8 *in, i32 in_len, u8 *out, i32 out_cap);
  * canonical bytes (header + verbatim prefix + sorted id arrays). out_len/-1. */
 i32 ledger_encode(const u8 *in, i32 in_len, u8 *out, i32 out_cap);
 
+/* entitlements.c -- canonical entitlements record. in = [tierCode][bitmask LE];
+ * out = [0x01][tierCode][bitmask LE] (6 bytes). out_len/-1. */
+i32 entitlements_encode(const u8 *in, i32 in_len, u8 *out, i32 out_cap);
+
 #endif

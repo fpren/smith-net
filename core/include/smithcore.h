@@ -35,7 +35,7 @@ typedef unsigned long long u64;
 typedef long long      i64;
 typedef int            i32;
 
-#define SC_VERSION 2
+#define SC_VERSION 3
 
 /* Sentinel returned by size-producing exports when out_cap is too small or a
  * buffer fails to parse. Callers must treat any negative return as an error. */
@@ -77,5 +77,13 @@ i32 sc_sha256(i32 data_ptr, i32 data_len, i32 out32_ptr);
  * encoding format is byte-identical to the M2 host encoder (golden vectors).
  * Returns out_len, or SC_ERR. */
 i32 sc_ledger_encode(i32 in_ptr, i32 in_len, i32 out_ptr, i32 out_cap);
+
+/* --- entitlements (M4 packed bitmask) --- */
+/* Encode the canonical entitlements record. Input (host-packed, little-endian):
+ *   [u8 tierCode][u32 bitmask]
+ * Output: [u8 format=0x01][u8 tierCode][u32 bitmask LE]  (6 bytes).
+ * The host owns the tier->bits policy; the core owns the byte layout.
+ * Returns out_len (6), or SC_ERR. */
+i32 sc_entitlements_encode(i32 in_ptr, i32 in_len, i32 out_ptr, i32 out_cap);
 
 #endif /* SMITHCORE_H */
