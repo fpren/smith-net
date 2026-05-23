@@ -1,0 +1,32 @@
+{
+  "vectors": [
+    {
+      "tier": "open",
+      "tierCode": 0,
+      "bitmask": 0,
+      "recordHex": "010000000000",
+      "hashHex": "36c159d76b52e03e496363607c5940227f62f4e048df344b050159bc97bba3d7"
+    },
+    {
+      "tier": "solo",
+      "tierCode": 1,
+      "bitmask": 3,
+      "recordHex": "010103000000",
+      "hashHex": "4473d9c733278be98603a485cfbb276a7f1d7c73c79021a338536d95bf23e22d"
+    },
+    {
+      "tier": "advanced",
+      "tierCode": 2,
+      "bitmask": 15,
+      "recordHex": "01020f000000",
+      "hashHex": "2c3f9cff0d8da9c0b093e1d9ce1c2e8e1b5e2f71d1a7c9b0fce1ed45764fa5e0"
+    },
+    {
+      "tier": "enterprise",
+      "tierCode": 3,
+      "bitmask": 63,
+      "recordHex": "01033f000000",
+      "hashHex": "7bb0a6f3803309c22adf31f9c64a48a7fec09905f623f628f03dcba78365f87a"
+    }
+  ]
+}
