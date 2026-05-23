@@ -18,6 +18,7 @@ import { proposalsRouter, proposalPublicRouter as _proposalPublicRouter } from '
 import { tasksRouter } from './tasksRoutes';
 import { invoicesRouter } from './invoicesRoutes';
 import { telemetryRouter } from './telemetryRoutes';
+import { meRouter } from './meRoutes';
 
 export const apiRouter = Router();
 
@@ -34,6 +35,7 @@ apiRouter.use(proposalsRouter);
 apiRouter.use(tasksRouter);
 apiRouter.use(invoicesRouter);
 apiRouter.use(telemetryRouter);
+apiRouter.use(meRouter);
 
 // Phase 4 Slice 4 (ADR-0001): Phase-0 routes (intents/synthesize/ledger/
 // small-project) are feature-flagged off by default. Their implementation
