@@ -1,8 +1,8 @@
 import { Tier, TIER_CODE, CAPS_BY_TIER, entitlementsHash } from './entitlements';
 
-/** Provisional: derive tier from role until a real profiles.tier / billing source
- *  exists. Single source of truth -- no consumer reads tier elsewhere. UserRole
- *  values are strings ('solo','team','lead','foreman','enterprise','admin'). */
+/** Maps a role to a tier. Used for the 021 migration backfill and the
+ *  insert-time default in usersService (new rows). The authoritative tier is the
+ *  users.tier column; this is the seed mapping, not a per-request source. */
 export function roleToTier(role: string): Tier {
   switch (role) {
     case 'solo': return 'solo';
@@ -21,8 +21,7 @@ export interface ResolvedEntitlements {
   entitlementsHash: string;
 }
 
-export function resolveEntitlements(role: string): ResolvedEntitlements {
-  const tier = roleToTier(role);
+export function resolveEntitlements(tier: Tier): ResolvedEntitlements {
   const bitmask = CAPS_BY_TIER[tier];
   return { tier, bitmask, entitlementsHash: entitlementsHash(TIER_CODE[tier], bitmask) };
 }

@@ -56,8 +56,8 @@ describe('M4: entitlements bitmask + hash parity', () => {
     expect(roleToTier('nope')).toBe('open');
   });
 
-  it('resolveEntitlements composes tier + bitmask + hash (foreman -> advanced)', () => {
-    const e = resolveEntitlements('foreman');
+  it('resolveEntitlements composes tier + bitmask + hash (tier-based)', () => {
+    const e = resolveEntitlements('advanced');
     expect(e.tier).toBe('advanced');
     expect(e.bitmask).toBe(15);
     expect(e.entitlementsHash).toBe(entitlementsHash(TIER_CODE.advanced, 15));

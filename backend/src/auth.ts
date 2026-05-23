@@ -262,7 +262,7 @@ export const userStore = usersService;
 // ════════════════════════════════════════════════════════════════════
 
 export async function generateTokens(user: StoredUser): Promise<AuthTokens> {
-  const ent = resolveEntitlements(user.role);
+  const ent = resolveEntitlements(user.tier);
   const accessPayload: TokenPayload = {
     userId: user.id,
     email: user.email,

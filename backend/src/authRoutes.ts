@@ -271,12 +271,12 @@ authRouter.get('/me', authenticateToken, (req: AuthenticatedRequest, res: Respon
   res.json({ user: req.user });
 });
 
-// Returns the CURRENT entitlements for the user's role (re-derived live from
-// tierResolver). This is intentionally "current policy for this role", which may
+// Returns the CURRENT entitlements for the user's tier (re-derived live from
+// tierResolver). This is intentionally "current policy for this tier", which may
 // differ from the token-stamped entitlementsHash if tier policy changes
 // mid-session -- the live policy wins here by design.
 authRouter.get('/me/entitlements', authenticateToken, (req: AuthenticatedRequest, res: Response) => {
-  res.json(resolveEntitlements(req.user!.role));
+  res.json(resolveEntitlements(req.user!.tier));
 });
 
 // ════════════════════════════════════════════════════════════════════
