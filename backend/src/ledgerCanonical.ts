@@ -4,6 +4,9 @@ import { sha256HexGated } from './sha256Gate';
 const ABI = 0x01;
 const FORMAT_V2 = 0x02;
 
+/** The ledger hash format version stamped on new seals; matches FORMAT_V2 / computeHashV2. */
+export const CURRENT_HASH_VERSION = 2;
+
 function encStr(s: string): Buffer {
   const b = Buffer.from(s, 'utf8');
   const len = Buffer.allocUnsafe(4);
