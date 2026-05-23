@@ -95,4 +95,10 @@ legacy path (proven identical by the parity gate) instead of failing.
 - M3a: v2 ledger encoder moved into the ROM (sc_ledger_encode, ABI 2); backend
   delegates with the host encoder as readiness fallback; C output proven == the
   M2 golden vectors. Android JNI delegation deferred.
-- Next: M3b mesh; then M4 entitlements bitmask, M5 portal/iOS/Pi shells.
+- M3b (mesh): deferred -- Android+crypto, not a ROM fit, no current consumer.
+- M4: entitlements bitmask (per-tier, append-only) + canonical record via
+  sc_entitlements_encode (ABI 3), hashed through the ROM; tierResolver derives
+  tier from role (provisional) and stamps tier + entitlementsHash JWT claims +
+  GET /api/auth/me/entitlements; per-tier golden parity. Enforcement/client/
+  profiles.tier deferred.
+- Next: M5 portal/iOS/Pi shells (+ the deferred Android JNI delegations).
