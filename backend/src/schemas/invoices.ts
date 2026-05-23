@@ -44,3 +44,6 @@ export const UpdateLineItemBody = z.object({
   sortOrder:   z.number().int().min(0).optional(),
 }).strict();
 export type UpdateLineItemBody = z.infer<typeof UpdateLineItemBody>;
+
+export const SendInvoiceBody = z.object({}).strict();
+export type SendInvoiceBody = z.infer<typeof SendInvoiceBody>;

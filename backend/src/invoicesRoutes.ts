@@ -10,10 +10,12 @@ import { AuthenticatedRequest } from './auth';
 import { validateBody } from './middleware/validate';
 import {
   CreateInvoiceBody, UpdateInvoiceBody, SetStatusBody,
-  AddLineItemBody, UpdateLineItemBody,
+  AddLineItemBody, UpdateLineItemBody, SendInvoiceBody,
 } from './schemas/invoices';
 import * as invoicesService from './invoicesService';
 import { requestLogger } from './log';
+import * as invoiceSendsService from './invoiceSendsService';
+import { requireCap } from './middleware/requireCap';
 
 export const invoicesRouter = Router();
 // NOTE: requireConsoleTier intentionally removed. Solo workers post their
@@ -112,6 +114,28 @@ invoicesRouter.patch('/invoices/:id/status', validateBody(SetStatusBody), async 
     res.status(500).json({ error: 'Failed to update invoice status' });
   }
 });
+
+invoicesRouter.post(
+  '/invoices/:id/send',
+  validateBody(SendInvoiceBody),
+  requireCap({
+    capKey: 'pdf_sends_per_month',
+    gateId: 'pdf_send_cap',
+    count: invoiceSendsService.countSendsThisMonth,
+  }),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const o = org(req);
+      if (!o) return res.status(401).json({ error: 'user missing organization_id' });
+      const result = await invoiceSendsService.sendInvoice(req.params.id, o, req.user!.id);
+      if (!result) return res.status(404).json({ error: 'Invoice not found' });
+      res.json({ ok: true, invoiceId: result.invoiceId, sentAt: result.sentAt });
+    } catch (e: any) {
+      requestLogger().error({ event: 'invoice_send_error', err: e }, 'invoice send error');
+      res.status(500).json({ error: 'Failed to send invoice' });
+    }
+  }
+);
 
 invoicesRouter.delete('/invoices/:id', async (req: AuthenticatedRequest, res: Response) => {
   try {
