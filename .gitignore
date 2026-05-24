@@ -56,3 +56,9 @@ google-services.json
 
 # Runtime artifacts
 backend/audit/audit-*.jsonl
+
+# Build artifacts, local tooling, and dev screenshots (kept out of source)
+node_modules/
+.claude/scheduled_tasks.lock
+.sigma/
+/*.png
