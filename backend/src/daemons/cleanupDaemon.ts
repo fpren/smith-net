@@ -11,6 +11,7 @@ import { requestLogger } from '../log';
 export const INTERVAL_MS = 24 * 60 * 60 * 1000;
 const DEAD_JOB_RETENTION_DAYS = 30;
 const STALE_HEARTBEAT_RETENTION_HOURS = 24;
+const GATE_HIT_RETENTION_DAYS = 90;
 
 export async function tick(): Promise<void> {
   if (!isPgEnabled() || !pg) return;
@@ -42,6 +43,18 @@ export async function tick(): Promise<void> {
     requestLogger().info(
       { event: 'stale_heartbeats_purged', count: heartbeats.rowCount },
       'purged worker_heartbeats older than retention'
+    );
+  }
+
+  const gateHits = await pg.query(
+    `DELETE FROM gate_hit_events
+      WHERE occurred_at < NOW() - ($1::int * INTERVAL '1 day')`,
+    [GATE_HIT_RETENTION_DAYS],
+  );
+  if ((gateHits.rowCount ?? 0) > 0) {
+    requestLogger().info(
+      { event: 'gate_hit_events_purged', count: gateHits.rowCount },
+      'purged gate_hit_events older than retention',
     );
   }
 
