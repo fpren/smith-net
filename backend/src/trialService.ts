@@ -1,12 +1,14 @@
 // backend/src/trialService.ts
 //
-// Sub-project 4: trials against users.tier (the single tier source). Pure
-// helpers (durations, upgrade direction) + two transactional ops. startTrial
-// raises users.tier and records the trial atomically; expireDueTrials reverts
-// the tier to previous_tier with a "still on trial tier" guard.
+// Sub-project 4: trials against users.tier. Pure helpers (durations, upgrade
+// direction) + two transactional ops. startTrial raises users.tier and records
+// the trial atomically; expireDueTrials marks a due trial expired then recomputes
+// users.tier from the remaining active sources via the shared
+// billingService.recomputeUserTier authority.
 
 import { pg, isPgEnabled } from './db';
 import { Tier, TIER_CODE } from './entitlements';
+import { recomputeUserTier } from './billingService';
 
 function requirePg() {
   if (!isPgEnabled() || !pg) throw new Error('[TrialService] Postgres client not initialized');
@@ -84,19 +86,20 @@ export async function startTrial(
 export interface ExpiredTrial {
   userId: string;
   tier: TrialTier;
-  previousTier: Tier;
+  newTier: Tier;
 }
 
 /**
- * Revert each due trial: set users.tier back to previous_tier ONLY if the user
- * is still on the trial tier (guard against a later upgrade), mark the row
- * expired. Each row is its own transaction. Returns the processed rows for
- * telemetry.
+ * Expire each due trial: mark the row expired, then recompute users.tier from
+ * the remaining active sources (other active subscriptions/trials, else open)
+ * via the shared recomputeUserTier authority -- so a user who upgraded during
+ * the trial keeps their paid tier. Each row is its own transaction. Returns the
+ * processed rows (with the recomputed newTier) for telemetry.
  */
 export async function expireDueTrials(limit = 200): Promise<ExpiredTrial[]> {
   const db = requirePg();
-  const due = await db.query<{ id: string; user_id: string; tier: string; previous_tier: string }>(
-    `SELECT id, user_id, tier, previous_tier FROM trials
+  const due = await db.query<{ id: string; user_id: string; tier: string }>(
+    `SELECT id, user_id, tier FROM trials
        WHERE status = 'active' AND expires_at <= now()
        ORDER BY expires_at ASC
        LIMIT $1`,
@@ -107,17 +110,10 @@ export async function expireDueTrials(limit = 200): Promise<ExpiredTrial[]> {
     const client = await db.connect();
     try {
       await client.query('BEGIN');
-      await client.query(
-        `UPDATE users SET tier = $1, updated_at = now() WHERE id = $2 AND tier = $3`,
-        [row.previous_tier, row.user_id, row.tier],
-      );
       await client.query(`UPDATE trials SET status = 'expired' WHERE id = $1`, [row.id]);
+      const newTier = await recomputeUserTier(client, row.user_id);
       await client.query('COMMIT');
-      processed.push({
-        userId: row.user_id,
-        tier: row.tier as TrialTier,
-        previousTier: row.previous_tier as Tier,
-      });
+      processed.push({ userId: row.user_id, tier: row.tier as TrialTier, newTier });
     } catch (e) {
       await client.query('ROLLBACK');
       throw e;

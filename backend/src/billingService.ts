@@ -4,6 +4,7 @@
 // + (added in Task 2) the transactional applySubscriptionEvent. No provider SDK;
 // the Stripe/Play adapters (6b) normalize webhooks into applySubscriptionEvent.
 
+import type { PoolClient } from 'pg';
 import { Tier, TIER_CODE } from './entitlements';
 import { pg, isPgEnabled } from './db';
 import { emitGateHit } from './telemetryService';
@@ -51,6 +52,22 @@ export interface SubscriptionEvent {
 function requirePg() {
   if (!isPgEnabled() || !pg) throw new Error('[BillingService] Postgres client not initialized');
   return pg;
+}
+
+/**
+ * The single tier authority: set users.tier to the highest tier across the
+ * user's active subscriptions AND active trials. Runs in the caller's tx.
+ */
+export async function recomputeUserTier(client: PoolClient, userId: string): Promise<Tier> {
+  const rows = await client.query<{ tier: string }>(
+    `SELECT tier FROM subscriptions WHERE user_id = $1 AND status IN ('trialing', 'active', 'past_due')
+     UNION ALL
+     SELECT tier FROM trials WHERE user_id = $1 AND status = 'active' AND expires_at > now()`,
+    [userId],
+  );
+  const next = highestTier(rows.rows.map((r) => r.tier as Tier));
+  await client.query(`UPDATE users SET tier = $1, updated_at = now() WHERE id = $2`, [next, userId]);
+  return next;
 }
 
 /**
@@ -110,17 +127,7 @@ export async function applySubscriptionEvent(
       ],
     );
 
-    const tiers = await client.query<{ tier: string }>(
-      `SELECT tier FROM subscriptions
-         WHERE user_id = $1 AND status IN ('trialing', 'active', 'past_due')
-       UNION ALL
-       SELECT tier FROM trials
-         WHERE user_id = $1 AND status = 'active' AND expires_at > now()`,
-      [event.userId],
-    );
-    after = highestTier(tiers.rows.map((r) => r.tier as Tier));
-
-    await client.query(`UPDATE users SET tier = $1, updated_at = now() WHERE id = $2`, [after, event.userId]);
+    after = await recomputeUserTier(client, event.userId);
     await client.query('COMMIT');
   } catch (e) {
     await client.query('ROLLBACK');

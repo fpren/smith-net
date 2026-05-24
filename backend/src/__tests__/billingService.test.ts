@@ -1,4 +1,4 @@
-import { highestTier, tierTransitionEvent } from '../billingService';
+import { highestTier, tierTransitionEvent, recomputeUserTier } from '../billingService';
 
 describe('highestTier', () => {
   it('returns open for an empty list', () => {
@@ -31,5 +31,28 @@ describe('tierTransitionEvent', () => {
   it('returns null when unchanged', () => {
     expect(tierTransitionEvent('solo', 'solo')).toBeNull();
     expect(tierTransitionEvent('open', 'open')).toBeNull();
+  });
+});
+
+function mockClient(tierRows: { tier: string }[]) {
+  const calls: { sql: string; params?: unknown[] }[] = [];
+  const query = async (sql: string, params?: unknown[]) => {
+    calls.push({ sql, params });
+    return { rows: /SELECT tier/.test(sql) ? tierRows : [] };
+  };
+  return { query, calls };
+}
+
+describe('recomputeUserTier', () => {
+  it('writes the highest active tier and returns it', async () => {
+    const c = mockClient([{ tier: 'solo' }, { tier: 'advanced' }]);
+    const t = await recomputeUserTier(c as never, 'u1');
+    expect(t).toBe('advanced');
+    const update = c.calls.find((x) => /UPDATE users/.test(x.sql));
+    expect(update?.params).toEqual(['advanced', 'u1']);
+  });
+  it('falls back to open when there is no active source', async () => {
+    const c = mockClient([]);
+    expect(await recomputeUserTier(c as never, 'u1')).toBe('open');
   });
 });

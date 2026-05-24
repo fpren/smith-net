@@ -1,8 +1,8 @@
 // backend/src/daemons/trialExpirerDaemon.ts
 //
-// Sub-project 4: hourly trial expiry. Reverts users.tier to each due trial's
-// previous_tier and emits tier_upgrade.trial_expired. Mirrors cleanupDaemon
-// (exports INTERVAL_MS + tick; registered in workers/runner.ts).
+// Sub-project 4: hourly trial expiry. Expires each due trial and recomputes
+// users.tier from the remaining active sources, emitting tier_upgrade.trial_expired.
+// Mirrors cleanupDaemon (exports INTERVAL_MS + tick; registered in workers/runner.ts).
 
 import { isPgEnabled, pg } from '../db';
 import { expireDueTrials } from '../trialService';
@@ -15,7 +15,7 @@ export async function tick(): Promise<void> {
   if (!isPgEnabled() || !pg) return;
   const expired = await expireDueTrials();
   for (const t of expired) {
-    await emitGateHit(t.userId, 'tier_upgrade.trial_expired', t.previousTier, { trial_tier: t.tier });
+    await emitGateHit(t.userId, 'tier_upgrade.trial_expired', t.newTier, { trial_tier: t.tier });
   }
   if (expired.length > 0) {
     requestLogger().info({ event: 'trials_expired', count: expired.length }, 'expired due trials');
