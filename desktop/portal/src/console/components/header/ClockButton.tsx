@@ -37,8 +37,8 @@ export function ClockButton() {
   }
 
   const label = busy
-    ? (onClock ? '[Clocking out…]' : '[Clocking in…]')
-    : (onClock ? '● ON CLOCK · [Clock out]' : '○ OFF CLOCK · [Clock in]');
+    ? (onClock ? 'clocking out…' : 'clocking in…')
+    : (onClock ? '● ON CLOCK · clock out' : '○ OFF CLOCK · clock in');
 
   return (
     <button
@@ -46,7 +46,7 @@ export function ClockButton() {
       onClick={toggle}
       disabled={busy}
       className={
-        'text-xs font-mono px-2 py-1 border transition-colors ' +
+        'rounded-full text-xs font-mono px-3 py-1 border transition-colors ' +
         (onClock
           ? 'text-console-ok border-console-ok hover:bg-console-ok hover:text-console-bg'
           : 'text-console-text-muted border-console-border hover:text-console-accent hover:border-console-accent') +

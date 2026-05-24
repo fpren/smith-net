@@ -23,7 +23,7 @@ export function ShareLocationToggle() {
         type="button"
         onClick={onClick}
         disabled={isTransitioning}
-        className={`text-xs px-2 py-1 border ${colorClass} disabled:opacity-50`}
+        className={`rounded-full font-mono text-xs px-3 py-1 border ${colorClass} disabled:opacity-50`}
       >
         {label}
       </button>

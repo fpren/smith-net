@@ -9,7 +9,7 @@ interface Props {
   onChange: (mode: FilterMode) => void;
 }
 
-const BASE = 'px-3 py-1 text-xs font-mono border';
+const BASE = 'rounded-full px-3 py-1 text-xs font-mono border';
 const ACTIVE = 'bg-console-accent text-white border-console-accent';
 const INACTIVE = 'bg-console-surface text-console-text border-console-border hover:bg-console-bg';
 

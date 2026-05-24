@@ -63,6 +63,21 @@ export const commClient = {
     return { ok: true };
   },
 
+  createChannel: async (input: {
+    name: string;
+    type: Channel['type'];
+    visibility?: string;
+    memberIds?: string[];
+  }): Promise<CommResult<{ channel: Channel }>> => {
+    const r = await fetchJson('/api/channels', { method: 'POST', body: input });
+    if (!r.ok) return r;
+    // POST /channels responds with the bare channel object (res.json(channel));
+    // tolerate a { channel } wrapper too.
+    const data = r.data as any;
+    const channel = (data && data.channel ? data.channel : data) as Channel;
+    return { ok: true, channel };
+  },
+
   send: async (channelId: string, content: string): Promise<CommResult<{ message: Message }>> => {
     const r = await fetchJson('/api/messages/inject', {
       method: 'POST',

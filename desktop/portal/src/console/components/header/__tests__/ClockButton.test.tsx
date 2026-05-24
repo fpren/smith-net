@@ -8,7 +8,7 @@ describe('ClockButton', () => {
   it('renders OFF CLOCK + [Clock in] when /api/shifts/current returns null', async () => {
     server.use(http.get('/api/shifts/current', () => HttpResponse.json({ shift: null })));
     render(<ClockButton />);
-    await waitFor(() => expect(screen.getByText(/Clock in/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/clock in/i)).toBeInTheDocument());
     expect(screen.getByLabelText(/Clock in/i)).toBeInTheDocument();
   });
 
@@ -21,7 +21,7 @@ describe('ClockButton', () => {
       ),
     );
     render(<ClockButton />);
-    await waitFor(() => expect(screen.getByText(/Clock out/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/clock out/i)).toBeInTheDocument());
   });
 
   it('clicking [Clock in] hits /api/shifts/start and flips to ON CLOCK', async () => {
@@ -29,7 +29,7 @@ describe('ClockButton', () => {
     // GET handler to return an open shift on the post-action refresh.
     server.use(http.get('/api/shifts/current', () => HttpResponse.json({ shift: null })));
     render(<ClockButton />);
-    await waitFor(() => expect(screen.getByText(/Clock in/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/clock in/i)).toBeInTheDocument());
 
     server.use(
       http.post('/api/shifts/start', () => {
@@ -48,7 +48,7 @@ describe('ClockButton', () => {
     );
 
     fireEvent.click(screen.getByLabelText(/Clock in/i));
-    await waitFor(() => expect(screen.getByText(/Clock out/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/clock out/i)).toBeInTheDocument());
   });
 
   it('surfaces a toast on a failed start', async () => {
@@ -59,9 +59,9 @@ describe('ClockButton', () => {
       ),
     );
     render(<ClockButton />);
-    await waitFor(() => expect(screen.getByText(/Clock in/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/clock in/i)).toBeInTheDocument());
     fireEvent.click(screen.getByLabelText(/Clock in/i));
     // Stays as Clock in because the start failed.
-    await waitFor(() => expect(screen.getByText(/Clock in/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/clock in/i)).toBeInTheDocument());
   });
 });

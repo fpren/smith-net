@@ -23,7 +23,7 @@ export const Button = forwardRef<HTMLButtonElement, Props>(function Button(
       ref={ref}
       className={twMerge(
         clsx(
-          'px-4 py-2 font-mono text-sm transition-opacity disabled:opacity-50 disabled:cursor-not-allowed',
+          'rounded-full px-4 py-2 font-mono text-sm transition-opacity disabled:opacity-50 disabled:cursor-not-allowed',
           VARIANT_CLASSES[variant],
           className
         )
