@@ -1,12 +1,20 @@
 import { ReactNode, useEffect, useState } from 'react';
+import { NavLink } from 'react-router-dom';
 import { useCurrentTime } from '../../hooks/useCurrentTime';
 import { ClockButton } from '../header/ClockButton';
 import { ShareLocationToggle } from '../header/ShareLocationToggle';
 import { useJobsPolling } from '../../hooks/useJobsPolling';
 import { useJobsStore } from '../../stores/jobsStore';
 import { tasksClient, type Task } from '../../api/tasksClient';
+import type { JobStatus } from '../../api/jobsClient';
 import { useAdminHealth } from '../../hooks/useAdminHealth';
 import { useAdminHealthStore } from '../../stores/adminHealthStore';
+import { useCrewPositionsPolling } from '../../hooks/useCrewPositionsPolling';
+import { useCrewPositionsStore } from '../../stores/crewPositionsStore';
+import { useInvoicesPolling } from '../../hooks/useInvoicesPolling';
+import { useInvoicesStore } from '../../stores/invoicesStore';
+import type { InvoiceStatus } from '../../api/invoicesClient';
+import { MapCanvas } from '../map/MapCanvas';
 
 // Two dashboard MODULES that the app has but the portal has no full route for
 // (Android: the TIME CLOCK and the TODAY'S TASKS module). Built from real portal
@@ -22,6 +30,29 @@ function ModuleCard({ title, right, children }: { title: string; right?: ReactNo
         {right}
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto font-sans text-[13px] text-console-text">{children}</div>
+    </div>
+  );
+}
+
+// MAP PREVIEW -- a chrome-less locator map (just the canvas, with job + crew
+// markers). NO + Create Job / stats / job side-panel: the Jobs card is the single
+// place to create + manage jobs. The full map screen (with create) lives at /console.
+const ALL_STATUSES: JobStatus[] = ['planned', 'in_progress', 'complete', 'cancelled'];
+
+export function MapPreview() {
+  useJobsPolling('list');
+  useCrewPositionsPolling();
+  const jobs = useJobsStore((s) => s.jobs);
+  const positions = useCrewPositionsStore((s) => s.positions);
+  return (
+    <div className="h-full w-full relative">
+      <MapCanvas
+        jobs={jobs}
+        crewPositions={positions}
+        visibleStatuses={ALL_STATUSES}
+        selectedJobId={null}
+        onSelectJob={() => {}}
+      />
     </div>
   );
 }
@@ -162,5 +193,131 @@ export function SystemCard() {
         <div className="text-console-text-muted">Idle.</div>
       )}
     </ModuleCard>
+  );
+}
+
+// ── Summary panels with a status DROPDOWN ──────────────────────────────────
+// Instead of cramming a full scrolling list into a small card, these show a
+// status <select> (counts in each option = "all visible"), and only the chosen
+// status's rows list below. [open] goes to the full screen to create/manage.
+
+function PanelHeader({ title, to }: { title: string; to: string }) {
+  return (
+    <div className="flex items-center justify-between mb-2 shrink-0">
+      <span className="font-mono text-[11px] uppercase tracking-wide font-medium text-console-text-muted">{title}</span>
+      <NavLink to={to} className="font-mono text-[11px] text-console-accent hover:underline">
+        [open]
+      </NavLink>
+    </div>
+  );
+}
+
+const SELECT_CLASS =
+  'shrink-0 w-full bg-console-bg border border-console-border rounded px-2 py-1 text-xs font-mono text-console-text focus:border-console-accent outline-none mb-2';
+
+const JOB_STATUS_LABELS: Record<JobStatus, string> = {
+  planned: 'Planned',
+  in_progress: 'In progress',
+  complete: 'Complete',
+  cancelled: 'Cancelled',
+};
+const JOB_STATUS_DOT: Record<JobStatus, string> = {
+  planned: 'text-console-text-muted',
+  in_progress: 'text-console-warn',
+  complete: 'text-console-ok',
+  cancelled: 'text-console-text-muted',
+};
+
+export function JobsCard() {
+  useJobsPolling('list');
+  const jobs = useJobsStore((s) => s.jobs);
+  const [filter, setFilter] = useState<'all' | JobStatus>('all');
+  const count = (s: JobStatus) => jobs.filter((j) => j.status === s).length;
+  const shown = filter === 'all' ? jobs : jobs.filter((j) => j.status === filter);
+  return (
+    <div className="h-full flex flex-col min-h-0">
+      <PanelHeader title="Jobs" to="/console/jobs" />
+      <select
+        className={SELECT_CLASS}
+        value={filter}
+        onChange={(e) => setFilter(e.target.value as 'all' | JobStatus)}
+      >
+        <option value="all">All ({jobs.length})</option>
+        {(Object.keys(JOB_STATUS_LABELS) as JobStatus[]).map((s) => (
+          <option key={s} value={s}>
+            {JOB_STATUS_LABELS[s]} ({count(s)})
+          </option>
+        ))}
+      </select>
+      <div className="flex-1 min-h-0 overflow-y-auto font-sans text-[13px] text-console-text">
+        {shown.length === 0 ? (
+          <div className="text-console-text-muted">No jobs.</div>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            {shown.map((j) => (
+              <div key={j.id} className="flex items-center gap-2">
+                <span className={`text-[10px] leading-none ${JOB_STATUS_DOT[j.status]}`}>●</span>
+                <span className="truncate">{j.title}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const INVOICE_STATUSES: InvoiceStatus[] = [
+  'draft', 'issued', 'sent', 'viewed', 'paid', 'overdue', 'disputed', 'cancelled',
+];
+const INVOICE_STATUS_DOT: Record<InvoiceStatus, string> = {
+  draft: 'text-console-text-muted',
+  issued: 'text-console-text-muted',
+  sent: 'text-console-accent',
+  viewed: 'text-console-accent',
+  paid: 'text-console-ok',
+  overdue: 'text-console-warn',
+  disputed: 'text-console-warn',
+  cancelled: 'text-console-text-muted',
+};
+
+export function InvoicesCard() {
+  useInvoicesPolling('list');
+  const invoices = useInvoicesStore((s) => s.invoices);
+  const [filter, setFilter] = useState<'all' | InvoiceStatus>('all');
+  const count = (s: InvoiceStatus) => invoices.filter((i) => i.status === s).length;
+  const shown = filter === 'all' ? invoices : invoices.filter((i) => i.status === filter);
+  return (
+    <div className="h-full flex flex-col min-h-0">
+      <PanelHeader title="Invoices" to="/console/invoices" />
+      <select
+        className={SELECT_CLASS}
+        value={filter}
+        onChange={(e) => setFilter(e.target.value as 'all' | InvoiceStatus)}
+      >
+        <option value="all">All ({invoices.length})</option>
+        {INVOICE_STATUSES.map((s) => (
+          <option key={s} value={s}>
+            {s[0].toUpperCase() + s.slice(1)} ({count(s)})
+          </option>
+        ))}
+      </select>
+      <div className="flex-1 min-h-0 overflow-y-auto font-sans text-[13px] text-console-text">
+        {shown.length === 0 ? (
+          <div className="text-console-text-muted">No invoices.</div>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            {shown.map((inv) => (
+              <div key={inv.id} className="flex items-center gap-2">
+                <span className={`text-[10px] leading-none ${INVOICE_STATUS_DOT[inv.status]}`}>●</span>
+                <span className="truncate">{inv.invoiceNumber}</span>
+                <span className="text-console-text-muted truncate">{inv.clientName ?? ''}</span>
+                <span className="ml-auto tabular-nums pl-2">${Math.round(inv.totalDue).toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

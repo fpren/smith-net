@@ -41,6 +41,21 @@ async function getJson<T>(path: string): Promise<AuthResult<T>> {
   return { ok: true, ...data } as AuthResult<T>;
 }
 
+async function patchJson<T>(path: string, body: unknown): Promise<AuthResult<T>> {
+  const res = await fetch(path, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({ error: res.statusText }));
+    return { ok: false, status: res.status, error: errBody.error || 'Request failed' };
+  }
+  const data = (await res.json()) as T;
+  return { ok: true, ...data } as AuthResult<T>;
+}
+
 export const authClient = {
   login: (email: string, password: string) =>
     postJson<AuthLoginResponse>('/api/auth/login', { email, password }),
@@ -55,6 +70,13 @@ export const authClient = {
     ),
 
   me: () => getJson<UserResponse>('/api/auth/me'),
+
+  updateProfile: (displayName: string) =>
+    patchJson<UserResponse>('/api/auth/me', { displayName }),
+
+  // Self-service WORK MODE switch (backend whitelist: solo | foreman only).
+  updateWorkMode: (mode: 'solo' | 'foreman') =>
+    patchJson<UserResponse>('/api/users/me/work-mode', { mode }),
 
   logout: () => postJson<{ success: boolean }>('/api/auth/logout', {}),
 };

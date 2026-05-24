@@ -53,7 +53,7 @@ export function accentForId(id: string): string {
 /** Stable accent color for a user role. Used by Chip in CrewCard etc. */
 export function colorForRole(role: string): string {
   switch (role) {
-    case 'admin':      return '#8C3A3A'; // brick
+    case 'admin':      return '#6E6A63'; // muted warm gray (system) -- calm, not alarming
     case 'enterprise': return '#3A6E8C'; // dusty blue
     case 'foreman':    return '#9A6F2E'; // accent gold
     case 'lead':       return '#6B4F8C'; // muted purple

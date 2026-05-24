@@ -1,12 +1,17 @@
 import { ReactNode } from 'react';
 import { useContainerSize } from '../../hooks/useContainerSize';
 import { adaptLayout, surfaceFromPx } from '../surface-lab/surface';
-import { MapRoute } from '../../routes/MapRoute';
-import { JobsListRoute } from '../../routes/JobsListRoute';
 import { CrewRoute } from '../../routes/CrewRoute';
 import { CommRoute } from '../../routes/CommRoute';
-import { InvoicesListRoute } from '../../routes/InvoicesListRoute';
-import { ShiftCard, OpenTasksCard, DispatchCard, SystemCard } from './cards';
+import {
+  ShiftCard,
+  OpenTasksCard,
+  DispatchCard,
+  SystemCard,
+  MapPreview,
+  JobsCard,
+  InvoicesCard,
+} from './cards';
 import { useJobsPolling } from '../../hooks/useJobsPolling';
 import { useJobsStore } from '../../stores/jobsStore';
 import { useCrewPositionsPolling } from '../../hooks/useCrewPositionsPolling';
@@ -17,12 +22,12 @@ import { useCrewPositionsStore } from '../../stores/crewPositionsStore';
 // holding a REAL feature screen / module, that reflows columns as the surface
 // changes:
 //
-//   tiny (glance/minimal) -> a one-line glance (active jobs + crew on site)
-//   phone-width (narrow)  -> all 9 panels as a horizontal SWIPE carousel (one
+//   minimal (watch-tiny)  -> a one-line glance (active jobs + crew on site)
+//   sub-phone (tiny win)  -> all 9 panels as a horizontal SWIPE carousel (one
 //                            full-screen panel at a time, scroll-snap = swipe)
-//   tablet / desktop      -> all 9 panels as a scrolling card grid, organised
-//                            into sections (map / status modules / features /
-//                            comm) whose columns auto-fit the width
+//   phone and up          -> all 9 panels as a scrolling card grid; 1 column on
+//                            a phone (a clean vertical stack), sections +
+//                            auto-fit columns on tablet/desktop
 //
 // Container size (useContainerSize) drives the glance/dashboard decision; the
 // column count then auto-fits the real width. ConsoleShell supplies the header +
@@ -62,27 +67,27 @@ export function AdaptiveDashboard() {
 
   let content: ReactNode = null;
   if (plan) {
-    if (plan.profile === 'minimal' || plan.profile === 'glance') {
+    if (plan.profile === 'minimal') {
       content = <GlanceLine />;
     } else {
-      // All 9 panels at every size. When it's too small for a grid (phone-width:
-      // card mode or a single column), switch to a horizontal SWIPE carousel --
-      // one full-screen panel at a time (peeking the next), native scroll-snap so
-      // touch swipe works. Otherwise a scrolling card grid.
-      const narrow = plan.mode === 'card' || plan.columns <= 1;
+      // All 9 panels at every size. Only SMALLER THAN A PHONE (the compact /
+      // glance profiles -- tiny windows, watch-ish surfaces) use the horizontal
+      // SWIPE carousel: one full-screen panel at a time, native scroll-snap. A
+      // phone and up gets the normal scrolling card grid (1 column on a phone).
+      const swipe = plan.profile === 'compact' || plan.profile === 'glance';
       const PANELS: { key: string; el: ReactNode; pad?: boolean }[] = [
-        { key: 'map', el: <MapRoute />, pad: false },
+        { key: 'map', el: <MapPreview />, pad: false },
         { key: 'shift', el: <ShiftCard /> },
         { key: 'tasks', el: <OpenTasksCard /> },
         { key: 'dispatch', el: <DispatchCard /> },
         { key: 'system', el: <SystemCard /> },
-        { key: 'jobs', el: <JobsListRoute /> },
+        { key: 'jobs', el: <JobsCard /> },
         { key: 'crew', el: <CrewRoute /> },
-        { key: 'invoices', el: <InvoicesListRoute /> },
+        { key: 'invoices', el: <InvoicesCard /> },
         { key: 'comm', el: <CommRoute />, pad: false },
       ];
 
-      if (narrow) {
+      if (swipe) {
         content = (
           <div className="h-full w-full flex flex-col bg-console-bg">
             <div className="shrink-0 px-3 pt-2 font-mono text-[10px] text-console-text-muted">
@@ -100,12 +105,13 @@ export function AdaptiveDashboard() {
           </div>
         );
       } else {
-        // tablet / desktop: a scrolling grid of all 9, organised so rows don't
-        // mix card heights -- map (full) / status modules / features / comm.
+        // phone and up: a scrolling grid of all 9, organised so rows don't mix
+        // card heights -- map (full) / status modules / features / comm. On a
+        // phone the auto-fit columns collapse to 1, so it's a clean vertical stack.
         content = (
           <div className="h-full overflow-y-auto bg-console-bg p-3 sm:p-4 space-y-3 sm:space-y-4">
             <Card pad={false} className="h-[360px]">
-              <MapRoute />
+              <MapPreview />
             </Card>
             <div
               className="grid gap-3 sm:gap-4 items-start"
@@ -129,13 +135,13 @@ export function AdaptiveDashboard() {
               style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}
             >
               <Card className="h-[280px]">
-                <JobsListRoute />
+                <JobsCard />
               </Card>
               <Card className="h-[280px]">
                 <CrewRoute />
               </Card>
               <Card className="h-[280px]">
-                <InvoicesListRoute />
+                <InvoicesCard />
               </Card>
             </div>
             <Card pad={false} className="h-[380px]">

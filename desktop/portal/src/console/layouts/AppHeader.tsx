@@ -98,10 +98,13 @@ export function AppHeader() {
         </span>
       </div>
 
-      {/* User card — role chip hidden on mobile to keep the header on one
-          tidy row. Avatar + name carry identity; role is visible in desktop
-          context where the chip fits comfortably. */}
-      <div className="flex items-center gap-2 md:border-l md:border-console-border md:pl-3">
+      {/* User card — links to Settings (profile + account). Role chip hidden on
+          mobile to keep the header on one tidy row. */}
+      <NavLink
+        to="/console/settings"
+        title="Settings"
+        className="flex items-center gap-2 md:border-l md:border-console-border md:pl-3 rounded hover:opacity-80 transition-opacity"
+      >
         <Avatar name={user.displayName} color={accentForId(user.id)} size={28} />
         <div className="flex flex-col leading-tight">
           <span className="text-console-text text-xs font-medium whitespace-nowrap">{user.displayName}</span>
@@ -109,7 +112,7 @@ export function AppHeader() {
             <Chip label={user.role.toUpperCase()} color={colorForRole(user.role)} xs />
           </span>
         </div>
-      </div>
+      </NavLink>
 
       <button
         type="button"
