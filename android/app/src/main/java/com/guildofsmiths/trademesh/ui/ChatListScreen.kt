@@ -313,6 +313,17 @@ private fun QuickContactsStrip(
 ) {
     val scrollState = rememberScrollState()
 
+    val agentState by com.guildofsmiths.trademesh.ai.AgentInitializer.agentState.collectAsState()
+    val modelState by com.guildofsmiths.trademesh.ai.LlamaInference.modelState.collectAsState()
+    val backend = com.guildofsmiths.trademesh.ai.SmithAIBackendRouter.pick()
+    val (smithLabel, smithStatusColor) = when {
+        agentState == com.guildofsmiths.trademesh.ai.AgentState.WAKING -> "Waking" to ConsoleTheme.textDim
+        backend == com.guildofsmiths.trademesh.ai.SmithAIBackendRouter.Backend.ON_DEVICE &&
+            modelState == com.guildofsmiths.trademesh.ai.ModelState.READY -> "AI Ready" to ConsoleTheme.accent
+        backend == com.guildofsmiths.trademesh.ai.SmithAIBackendRouter.Backend.CLOUD -> "Cloud AI" to ConsoleTheme.success
+        else -> "AI Offline" to ConsoleTheme.error
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -324,9 +335,10 @@ private fun QuickContactsStrip(
         // SmithAI always first
         QuickContact(
             initials = "AI",
-            name = "Ask AI",
+            name = smithLabel,
             avatarBrush = Brush.linearGradient(listOf(ConsoleTheme.accent, Color(0xFF8C6B2A))),
-            statusColor = ConsoleTheme.accent,
+            statusColor = smithStatusColor,
+            showStatus = true,
             onClick = onSmithAIClick
         )
 

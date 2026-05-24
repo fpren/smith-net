@@ -249,77 +249,40 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
 
     /**
      * Direct SmithAI conversation — every message gets an AI response.
+     * Routes through SmithAIConversationOrchestrator: tier check, auto-wake,
+     * context assembly, on-device-or-cloud routing, tool-call gate, audit log.
      */
     private fun handleSmithAIChat(message: Message) {
-        viewModelScope.launch {
-            try {
-                val apiKey = com.guildofsmiths.trademesh.data.UserPreferences.getOpenRouterApiKey()
-                if (apiKey.isBlank()) {
-                    // No API key — provide a fallback message
-                    val fallback = Message(
-                        beaconId = message.beaconId,
-                        channelId = message.channelId,
-                        senderId = "ai-assistant",
-                        senderName = "SmithAI",
-                        content = "I need an API key to respond. Go to Settings > SmithAI > Cloud to connect.",
-                        timestamp = System.currentTimeMillis(),
-                        aiGenerated = true,
-                        aiModel = "fallback",
-                        aiSource = "local",
-                        aiContext = "smithai-chat"
-                    )
-                    com.guildofsmiths.trademesh.data.MessageRepository.addMessage(fallback)
-                    return@launch
-                }
+        com.guildofsmiths.trademesh.ai.SmithAIConversationOrchestrator.handleTurn(
+            context = getApplication(),
+            beaconId = message.beaconId,
+            channelId = message.channelId,
+            userMessage = message
+        )
+    }
 
-                // Build context from recent messages in this channel
-                // Use the live messages flow (already loaded) instead of getAllMessages()
-                val channelMessages = messages.value
-                    .filter { it.channelId == message.channelId }
-                    .sortedBy { it.timestamp }
-                    .takeLast(20)
+    /**
+     * Pending tool calls awaiting user approval (write-actions SmithAI proposed).
+     */
+    val pendingToolCalls: StateFlow<List<com.guildofsmiths.trademesh.ai.SmithAIToolExecutor.PendingToolCall>>
+        get() = com.guildofsmiths.trademesh.ai.SmithAIConversationOrchestrator.pendingToolCalls
 
-                val recentMessages = channelMessages.joinToString("\n") { m: Message ->
-                    val role = if (m.aiGenerated) "SmithAI" else "User"
-                    "$role: ${m.content}"
-                }
+    fun approveToolCall(pendingId: String) {
+        com.guildofsmiths.trademesh.ai.SmithAIConversationOrchestrator.approve(
+            context = getApplication(),
+            beaconId = _beaconId.value,
+            channelId = _channelId.value,
+            pendingId = pendingId
+        )
+    }
 
-                android.util.Log.i("ConversationVM", "SmithAI context: ${channelMessages.size} messages in history")
-
-                val systemPrompt = com.guildofsmiths.trademesh.ai.AIPrompts.SYSTEM +
-                    "\n\nYou are in a direct conversation with the user inside SmithNet. You are fully integrated — you send messages, create jobs, respond to clients, track time, manage materials, and run the operation autonomously. When the user tells you to do something, you DO it — don't explain what you 'would' do, say what you ARE doing. Never say you can't do something. You are the supervisor. Keep responses complete and conversational."
-
-                val userPrompt = if (recentMessages.isNotBlank()) {
-                    "Conversation history:\n$recentMessages\n\nRespond to the latest user message above. Remember the full conversation context."
-                } else {
-                    message.content
-                }
-
-                val response = com.guildofsmiths.trademesh.ai.OpenRouterClient.chat(
-                    systemPrompt = systemPrompt,
-                    userMessage = userPrompt,
-                    maxTokens = 1024
-                )
-
-                val aiMessage = Message(
-                    beaconId = message.beaconId,
-                    channelId = message.channelId,
-                    senderId = "ai-assistant",
-                    senderName = "SmithAI",
-                    content = response ?: "I'm having trouble connecting right now. Check your internet and try again.",
-                    timestamp = System.currentTimeMillis(),
-                    aiGenerated = true,
-                    aiModel = "openrouter",
-                    aiSource = "cloud",
-                    aiContext = "smithai-chat",
-                    aiPrompt = message.content
-                )
-                com.guildofsmiths.trademesh.data.MessageRepository.addMessage(aiMessage)
-                android.util.Log.i("ConversationVM", "SmithAI response: ${(response ?: "").take(50)}...")
-            } catch (e: Exception) {
-                android.util.Log.w("ConversationVM", "SmithAI chat failed", e)
-            }
-        }
+    fun denyToolCall(pendingId: String) {
+        com.guildofsmiths.trademesh.ai.SmithAIConversationOrchestrator.deny(
+            context = getApplication(),
+            beaconId = _beaconId.value,
+            channelId = _channelId.value,
+            pendingId = pendingId
+        )
     }
 
     /**

@@ -431,10 +431,15 @@ object UserPreferences {
     // ════════════════════════════════════════════════════════════════════
 
     fun getOpenRouterApiKey(): String {
-        val key = prefs?.getString(KEY_OPENROUTER_API_KEY, "") ?: ""
-        // Default key for development
-        if (key.isBlank()) return "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"
-        return key
+        return prefs?.getString(KEY_OPENROUTER_API_KEY, "") ?: ""
+    }
+
+    private const val KEY_CLOUD_MODEL = "cloud_model"
+
+    fun getCloudModel(): String = prefs?.getString(KEY_CLOUD_MODEL, "") ?: ""
+
+    fun setCloudModel(model: String) {
+        prefs?.edit()?.putString(KEY_CLOUD_MODEL, model.trim())?.apply()
     }
 
     fun setOpenRouterApiKey(key: String) {
@@ -579,6 +584,23 @@ object UserPreferences {
 
     fun setLifecycleBackfillDone() {
         prefs?.edit()?.putBoolean(KEY_LIFECYCLE_BACKFILL_DONE, true)?.apply()
+    }
+
+    private const val KEY_SMITHAI_ENTERPRISE_JOB_SEEDED = "smithai_enterprise_job_seeded_v1"
+    private const val KEY_SMITHAI_ENTERPRISE_JOB_CANCELLED = "smithai_enterprise_job_cancelled_v1"
+
+    fun isSmithAIEnterpriseJobSeeded(): Boolean =
+        prefs?.getBoolean(KEY_SMITHAI_ENTERPRISE_JOB_SEEDED, false) ?: false
+
+    fun setSmithAIEnterpriseJobSeeded() {
+        prefs?.edit()?.putBoolean(KEY_SMITHAI_ENTERPRISE_JOB_SEEDED, true)?.apply()
+    }
+
+    fun isSmithAIEnterpriseJobCancelled(): Boolean =
+        prefs?.getBoolean(KEY_SMITHAI_ENTERPRISE_JOB_CANCELLED, false) ?: false
+
+    fun setSmithAIEnterpriseJobCancelled() {
+        prefs?.edit()?.putBoolean(KEY_SMITHAI_ENTERPRISE_JOB_CANCELLED, true)?.apply()
     }
 
     // ════════════════════════════════════════════════════════════════════

@@ -39,7 +39,8 @@ class PresenceApiClient(private val client: OkHttpClient) {
         client.newCall(req).execute().use { res ->
             if (!res.isSuccessful) throw IOException("startShift HTTP ${res.code}")
             val json = JSONObject(res.body?.string() ?: "{}")
-            json.getString("id")
+            // Backend response shape: {"shift": {"id": "...", ...}}
+            json.getJSONObject("shift").getString("id")
         }
     }
 

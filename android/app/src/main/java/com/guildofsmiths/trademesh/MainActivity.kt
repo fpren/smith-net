@@ -66,7 +66,9 @@ import com.guildofsmiths.trademesh.ui.clients.ClientDetailScreen
 import com.guildofsmiths.trademesh.ui.jobboard.JobBoardScreen
 import com.guildofsmiths.trademesh.ui.timetracking.TimeTrackingScreen
 import com.guildofsmiths.trademesh.ui.theme.TradeMeshTheme
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
 
 /**
  * Main activity for TradeMesh Phase 0.
@@ -695,12 +697,28 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate(NavRoutes.PEERS)
                                 },
                                 onSmithAIClick = {
-                                    val myUserId = UserPreferences.getUserId()
-                                    val aiPeerId = "smith-ai"
-                                    val aiPeerName = "SmithAI"
-                                    val dm = BeaconRepository.getOrCreateDM("default", myUserId, aiPeerId, aiPeerName)
-                                    BoundaryEngine.joinChannel(dm.id)
-                                    navController.navigate(NavRoutes.conversationDM("default", dm.id, aiPeerId, aiPeerName))
+                                    val gate = com.guildofsmiths.trademesh.ai.SmithAITierGate.requireAdvanced(this@MainActivity)
+                                    if (gate is com.guildofsmiths.trademesh.ai.SmithAITierGate.GateResult.Blocked) {
+                                        android.widget.Toast.makeText(
+                                            this@MainActivity,
+                                            "SmithAI is part of the Advanced tier. Open Settings > Subscription to upgrade.",
+                                            android.widget.Toast.LENGTH_LONG
+                                        ).show()
+                                    } else {
+                                        lifecycleScope.launch {
+                                            try {
+                                                com.guildofsmiths.trademesh.ai.AgentInitializer.wakeAgentIfModelDownloaded(this@MainActivity)
+                                            } catch (e: Exception) {
+                                                Log.w("MainActivity", "SmithAI auto-wake failed", e)
+                                            }
+                                        }
+                                        val myUserId = UserPreferences.getUserId()
+                                        val aiPeerId = "smith-ai"
+                                        val aiPeerName = "SmithAI"
+                                        val dm = BeaconRepository.getOrCreateDM("default", myUserId, aiPeerId, aiPeerName)
+                                        BoundaryEngine.joinChannel(dm.id)
+                                        navController.navigate(NavRoutes.conversationDM("default", dm.id, aiPeerId, aiPeerName))
+                                    }
                                 }
                             )
                         }
@@ -1004,9 +1022,11 @@ class MainActivity : ComponentActivity() {
                             )
                             val detailJobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel(viewModelStoreOwner = this@MainActivity)
                             val allJobs by detailJobViewModel.jobs.collectAsState()
+                            val allTasks by detailJobViewModel.tasks.collectAsState()
                             ClientDetailScreen(
                                 clientName = clientName,
                                 allJobs = allJobs,
+                                allTasks = allTasks,
                                 onJobClick = { jobId ->
                                     navController.navigate(NavRoutes.jobPipeline(jobId))
                                 },
@@ -1201,7 +1221,10 @@ class MainActivity : ComponentActivity() {
                                     pendingDmPeerName = currentDmPeer?.userName ?: initialDmPeer?.userName
                                     launchFilePicker()
                                 },
-                                initialDmPeer = initialDmPeer
+                                initialDmPeer = initialDmPeer,
+                                pendingToolCalls = viewModel.pendingToolCalls.collectAsState().value,
+                                onApproveToolCall = { viewModel.approveToolCall(it) },
+                                onDenyToolCall = { viewModel.denyToolCall(it) }
                             )
                         }
                     }

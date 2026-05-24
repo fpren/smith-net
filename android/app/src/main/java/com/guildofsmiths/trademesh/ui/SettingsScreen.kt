@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
@@ -628,6 +629,9 @@ private fun SmithAISection() {
 
     // Cloud API key
     var apiKey by remember { mutableStateOf(UserPreferences.getOpenRouterApiKey()) }
+    var cloudModel by remember { mutableStateOf(UserPreferences.getCloudModel()) }
+    var modelEditing by remember { mutableStateOf(false) }
+    var modelInput by remember { mutableStateOf("") }
     var showKeyField by remember { mutableStateOf(false) }
     var keyInput by remember { mutableStateOf("") }
     var testResult by remember { mutableStateOf<String?>(null) }
@@ -798,6 +802,119 @@ private fun SmithAISection() {
                     color = if (testResult == "Connected") ConsoleTheme.success else ConsoleTheme.error
                 )
             )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // ── Cloud Model picker ──
+        Text(text = "MODEL", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        Spacer(modifier = Modifier.height(4.dp))
+
+        if (!modelEditing) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .clickable { modelEditing = true; modelInput = cloudModel }
+                    .padding(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (cloudModel.isNotBlank()) cloudModel else "Provider default",
+                    style = ConsoleTheme.bodySmall.copy(
+                        color = if (cloudModel.isNotBlank()) ConsoleTheme.text else ConsoleTheme.textMuted
+                    )
+                )
+                Text("[Edit]", style = ConsoleTheme.action.copy(color = ConsoleTheme.accent))
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ConsoleTheme.surface)
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val quickOptions = listOf(
+                    "Claude Sonnet" to "anthropic/claude-sonnet-4.5",
+                    "Claude Haiku" to "anthropic/claude-haiku-4.5",
+                    "GPT-4o mini" to "openai/gpt-4o-mini",
+                    "GPT-4o" to "openai/gpt-4o",
+                    "Gemini Flash" to "google/gemini-2.5-flash",
+                    "Llama 3.3" to "meta-llama/llama-3.3-70b-instruct",
+                    "Pi (Inflection)" to "inflection/inflection-3-pi",
+                    "Grok 4" to "x-ai/grok-4",
+                    "DeepSeek" to "deepseek/deepseek-chat",
+                    "Free (Liquid)" to "liquid/lfm-2.5-1.2b-instruct:free"
+                )
+                Text("quick pick", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                val quickScroll = androidx.compose.foundation.rememberScrollState()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(quickScroll),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    quickOptions.forEach { (label, slug) ->
+                        Text(
+                            text = "[$label]",
+                            style = ConsoleTheme.action.copy(
+                                color = if (modelInput == slug) ConsoleTheme.accent else ConsoleTheme.textMuted
+                            ),
+                            modifier = Modifier
+                                .clickable { modelInput = slug }
+                                .padding(horizontal = 6.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+                Text("or paste a model id", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                BasicTextField(
+                    value = modelInput,
+                    onValueChange = { modelInput = it },
+                    textStyle = ConsoleTheme.bodySmall,
+                    cursorBrush = SolidColor(ConsoleTheme.cursor),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    decorationBox = { inner ->
+                        Box {
+                            if (modelInput.isEmpty()) {
+                                Text("provider/model-id", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted))
+                            }
+                            inner()
+                        }
+                    }
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "[Save]",
+                        style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                        modifier = Modifier.clickable {
+                            UserPreferences.setCloudModel(modelInput.trim())
+                            cloudModel = modelInput.trim()
+                            modelEditing = false
+                        }
+                    )
+                    Text(
+                        "[Default]",
+                        style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                        modifier = Modifier.clickable {
+                            UserPreferences.setCloudModel("")
+                            cloudModel = ""
+                            modelEditing = false
+                        }
+                    )
+                    Text(
+                        "[Cancel]",
+                        style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                        modifier = Modifier.clickable { modelEditing = false }
+                    )
+                }
+                Text(
+                    "Model id is sent to your provider. OpenRouter accepts any of these. Different providers (sk-, sk-or-, xai-) honor different ids — pick one your key supports.",
+                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(12.dp))

@@ -19,7 +19,8 @@ data class ClientInfo(
 data class ClientOverride(
     val name: String,
     val phone: String,
-    val address: String
+    val address: String,
+    val email: String = ""
 )
 
 object ClientRepository {
@@ -71,19 +72,27 @@ object ClientRepository {
             .sortedByDescending { it.updatedAt }
     }
 
-    fun saveClientOverride(originalName: String, name: String, phone: String, address: String) {
+    fun saveClientOverride(
+        originalName: String,
+        name: String,
+        phone: String,
+        address: String,
+        email: String = ""
+    ) {
         val overrides = loadOverrides()
+        val existing = overrides.optJSONObject(originalName)
         val override = JSONObject().apply {
             put("name", name)
             put("phone", phone)
             put("address", address)
+            put("email", email.ifBlank { existing?.optString("email", "").orEmpty() })
         }
         overrides.put(originalName, override)
         prefs?.edit()?.putString(PREFS_KEY, overrides.toString())?.apply()
     }
 
-    fun addManualClient(name: String, phone: String, address: String) {
-        saveClientOverride(name, name, phone, address)
+    fun addManualClient(name: String, phone: String, address: String, email: String = "") {
+        saveClientOverride(name, name, phone, address, email)
     }
 
     fun getClientOverride(name: String): ClientOverride? {
@@ -92,9 +101,12 @@ object ClientRepository {
         return ClientOverride(
             name = json.optString("name", name),
             phone = json.optString("phone", ""),
-            address = json.optString("address", "")
+            address = json.optString("address", ""),
+            email = json.optString("email", "")
         )
     }
+
+    fun getEmail(name: String): String = getClientOverride(name)?.email.orEmpty()
 
     private fun getManualClients(): List<ClientInfo> {
         val overrides = loadOverrides()

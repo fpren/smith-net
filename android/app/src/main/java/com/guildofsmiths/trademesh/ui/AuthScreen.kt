@@ -672,11 +672,25 @@ private suspend fun performSupabaseAuth(
         } else {
             SupabaseAuth.signUp(email, password, displayName)
         }
-        
+
         if (result.success) {
+            // Also obtain a smithnet JWT so AuthService-backed features (presence, shifts, jobs)
+            // can authenticate. Best-effort: failure here does not block the Supabase login.
+            if (isLoginMode) {
+                runCatching { AuthService.login(email, password) }
+            }
             onSuccess()
         } else {
-            onError(result.error ?: "Authentication failed")
+            // Supabase rejected; try smithnet backend as a fallback so accounts that exist
+            // only in the smithnet users table can still sign in.
+            val smith = if (isLoginMode) {
+                runCatching { AuthService.login(email, password) }.getOrNull()
+            } else null
+            if (smith?.success == true) {
+                onSuccess()
+            } else {
+                onError(result.error ?: "Authentication failed")
+            }
         }
     } catch (e: Exception) {
         onError(e.message ?: "Network error - check your connection")

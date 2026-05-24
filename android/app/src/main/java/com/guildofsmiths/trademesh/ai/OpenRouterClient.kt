@@ -64,7 +64,8 @@ object OpenRouterClient {
             Provider.OPENAI -> OPENAI_URL
             Provider.OPENROUTER -> OPENROUTER_URL
         }
-        val actualModel = model ?: when (provider) {
+        val savedModel = UserPreferences.getCloudModel().takeIf { it.isNotBlank() }
+        val actualModel = model ?: savedModel ?: when (provider) {
             Provider.GROK -> DEFAULT_MODEL_GROK
             Provider.OPENAI -> DEFAULT_MODEL_OPENAI
             Provider.OPENROUTER -> DEFAULT_MODEL_OPENROUTER

@@ -22,17 +22,24 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.ClientRepository
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
-import com.guildofsmiths.trademesh.ui.ConsoleSeparator
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.JobStage
+import com.guildofsmiths.trademesh.ui.jobboard.Task
+import com.guildofsmiths.trademesh.ui.jobboard.TaskStatus
+import com.guildofsmiths.trademesh.ui.jobboard.WorkLogEntry
+import com.guildofsmiths.trademesh.ui.jobboard.Priority
 import java.text.SimpleDateFormat
 import java.util.*
+
+private val SHORT = SimpleDateFormat("MMM d", Locale.US)
+private val SHORT_YEAR = SimpleDateFormat("MMM d, yyyy", Locale.US)
 
 @Composable
 fun ClientDetailScreen(
     clientName: String,
     allJobs: List<Job>,
+    allTasks: List<Task> = emptyList(),
     onJobClick: (String) -> Unit,
     onBack: () -> Unit
 ) {
@@ -40,27 +47,46 @@ fun ClientDetailScreen(
     val clientJobs = remember(clientName, allJobs) {
         ClientRepository.getJobsForClient(clientName, allJobs)
     }
-    val override = remember(clientName) { ClientRepository.getClientOverride(clientName) }
+    val override = remember(clientName, allJobs) { ClientRepository.getClientOverride(clientName) }
     val latestJob = clientJobs.maxByOrNull { it.updatedAt }
 
     val displayName = override?.name ?: clientName
     val displayPhone = override?.phone ?: latestJob?.clientPhone ?: ""
     val displayAddress = override?.address ?: latestJob?.clientAddress ?: ""
+    val displayEmail = override?.email.orEmpty()
 
     var isEditing by remember { mutableStateOf(false) }
     var editName by remember { mutableStateOf(displayName) }
     var editPhone by remember { mutableStateOf(displayPhone) }
+    var editEmail by remember { mutableStateOf(displayEmail) }
     var editAddress by remember { mutableStateOf(displayAddress) }
 
-    val closedJobs = clientJobs.count { it.stage == JobStage.CLOSED }
-    val totalEarned = clientJobs
+    val openJobs = clientJobs.filter { it.stage != JobStage.CLOSED }
+    val recentClosed = clientJobs
         .filter { it.stage == JobStage.CLOSED }
-        .sumOf { it.materials.sumOf { m -> m.totalCost } + (it.hourlyRate * 8) }
+        .sortedByDescending { it.completedAt ?: it.actualEndDate ?: it.updatedAt }
+        .take(10)
+    val lastServiceMs = clientJobs
+        .filter { it.stage == JobStage.CLOSED }
+        .mapNotNull { it.completedAt ?: it.actualEndDate }
+        .maxOrNull()
+    val createdMs = clientJobs.minOfOrNull { it.createdAt }
+
+    val openJobIds = openJobs.map { it.id }.toSet()
+    val pendingTasks = allTasks
+        .filter { it.jobId in openJobIds && it.status != TaskStatus.DONE }
+        .sortedWith(compareBy({ it.status.ordinal }, { it.updatedAt }))
+
+    fun jobEstimate(j: Job): Double =
+        j.materials.sumOf { it.totalCost } + (j.estimatedHours.takeIf { it > 0.0 } ?: 8.0) * j.hourlyRate
+    fun jobBilled(j: Job): Double = j.materials.sumOf { it.totalCost } + (j.hourlyRate * 8)
+
+    val balanceDue = openJobs
+        .filter { it.stage == JobStage.INVOICE || it.stage == JobStage.REVIEW }
+        .sumOf { (jobBilled(it) - it.depositCollected).coerceAtLeast(0.0) }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(ConsoleTheme.background)
+        modifier = Modifier.fillMaxSize().background(ConsoleTheme.background)
     ) {
         ConsoleHeader(
             title = displayName,
@@ -69,13 +95,18 @@ fun ClientDetailScreen(
             onActionClick = {
                 if (isEditing) {
                     ClientRepository.saveClientOverride(
-                        clientName, editName.trim(), editPhone.trim(), editAddress.trim()
+                        clientName,
+                        editName.trim(),
+                        editPhone.trim(),
+                        editAddress.trim(),
+                        editEmail.trim()
                     )
                     isEditing = false
                 } else {
                     editName = displayName
                     editPhone = displayPhone
                     editAddress = displayAddress
+                    editEmail = displayEmail
                     isEditing = true
                 }
             }
@@ -85,149 +116,417 @@ fun ClientDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // CONTACT section
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                    .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
-                    .padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text("CONTACT", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
-
-                if (isEditing) {
-                    EditField("NAME", editName) { editName = it }
-                    EditField("PHONE", editPhone) { editPhone = it }
-                    EditField("ADDRESS", editAddress) { editAddress = it }
-                    Text(
-                        text = "[Cancel]",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
-                        modifier = Modifier.clickable {
-                            isEditing = false
-                        }.padding(vertical = 4.dp)
+            HeaderStrip(
+                isEditing = isEditing,
+                editName = editName, onNameChange = { editName = it },
+                editPhone = editPhone, onPhoneChange = { editPhone = it },
+                editEmail = editEmail, onEmailChange = { editEmail = it },
+                editAddress = editAddress, onAddressChange = { editAddress = it },
+                onCancel = { isEditing = false },
+                phone = displayPhone,
+                email = displayEmail,
+                address = displayAddress,
+                openCount = openJobs.size,
+                lastServiceMs = lastServiceMs,
+                createdMs = createdMs,
+                balanceDue = balanceDue,
+                onCallPhone = {
+                    if (displayPhone.isNotBlank()) context.startActivity(
+                        Intent(Intent.ACTION_DIAL, Uri.parse("tel:$displayPhone"))
                     )
+                },
+                onMapAddress = {
+                    if (displayAddress.isNotBlank()) context.startActivity(
+                        Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${Uri.encode(displayAddress)}"))
+                    )
+                },
+                onEmailClick = {
+                    if (displayEmail.isNotBlank()) context.startActivity(
+                        Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$displayEmail"))
+                    )
+                }
+            )
+
+            Section("CURRENT JOBS  (${openJobs.size})") {
+                if (openJobs.isEmpty()) {
+                    Empty("No active jobs.")
                 } else {
-                    if (displayPhone.isNotBlank()) {
-                        Text(
-                            text = displayPhone,
-                            style = ConsoleTheme.body.copy(color = ConsoleTheme.accent),
-                            modifier = Modifier.clickable {
-                                val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$displayPhone"))
-                                context.startActivity(intent)
-                            }
-                        )
+                    openJobs.sortedByDescending { it.updatedAt }.forEachIndexed { i, j ->
+                        CurrentJobRow(j, jobEstimate(j), onClick = { onJobClick(j.id) })
+                        if (i < openJobs.lastIndex) Divider()
                     }
-                    if (displayAddress.isNotBlank()) {
-                        Text(
-                            text = displayAddress,
-                            style = ConsoleTheme.body.copy(color = ConsoleTheme.accent),
-                            modifier = Modifier.clickable {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${Uri.encode(displayAddress)}"))
-                                context.startActivity(intent)
-                            }
-                        )
+                }
+            }
+
+            Section("PENDING TASKS  (${pendingTasks.size})") {
+                if (pendingTasks.isEmpty()) {
+                    Empty("Nothing pending.")
+                } else {
+                    pendingTasks.take(15).forEachIndexed { i, t ->
+                        val parent = openJobs.firstOrNull { it.id == t.jobId }
+                        TaskRow(t, parent?.title.orEmpty(), onClick = { parent?.let { onJobClick(it.id) } })
+                        if (i < (pendingTasks.size - 1).coerceAtMost(14)) Divider()
                     }
-                    if (displayPhone.isBlank() && displayAddress.isBlank()) {
+                    if (pendingTasks.size > 15) {
                         Text(
-                            text = "No contact info. Tap [Edit] to add.",
-                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                            "+${pendingTasks.size - 15} more",
+                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                            modifier = Modifier.padding(top = 4.dp)
                         )
                     }
                 }
             }
 
-            // JOBS section
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                    .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
-                    .padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    "JOBS (${clientJobs.size})",
-                    style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted)
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-
-                if (clientJobs.isEmpty()) {
-                    Text(
-                        text = "No jobs yet.",
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
+            Section("RECENT JOBS  (${recentClosed.size})") {
+                if (recentClosed.isEmpty()) {
+                    Empty("No completed jobs yet.")
                 } else {
-                    val dateFormat = SimpleDateFormat("MMM d", Locale.US)
-                    clientJobs.forEachIndexed { index, job ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(4.dp))
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = rememberRipple(bounded = true),
-                                    onClick = { onJobClick(job.id) }
-                                )
-                                .padding(vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "${job.stage.icon} ${job.title}",
-                                    style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text)
-                                )
-                                val dateStr = dateFormat.format(Date(job.updatedAt))
-                                Text(
-                                    text = "${job.stage.displayName} · $dateStr",
-                                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
-                                )
-                            }
-                            Text(
-                                text = ">",
-                                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
-                                modifier = Modifier.padding(start = 8.dp)
-                            )
-                        }
-                        if (index < clientJobs.lastIndex) {
-                            Box(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(0.5.dp)
-                                    .background(ConsoleTheme.text.copy(alpha = 0.06f))
-                            )
-                        }
+                    recentClosed.forEachIndexed { i, j ->
+                        RecentJobRow(j, jobBilled(j), onClick = { onJobClick(j.id) })
+                        if (i < recentClosed.lastIndex) Divider()
                     }
                 }
             }
 
-            // SUMMARY section
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                    .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
-                    .padding(14.dp)
-            ) {
-                Text("SUMMARY", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "$${String.format("%.0f", totalEarned)} total · ${clientJobs.size} jobs · $closedJobs closed",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent)
-                )
+            Section("BILLING") {
+                BillingBlock(openJobs, recentClosed, balanceDue, ::jobBilled, ::jobEstimate)
+            }
+
+            Section("TIMELINE") {
+                TimelineFeed(clientJobs)
             }
         }
     }
 }
 
 @Composable
+private fun HeaderStrip(
+    isEditing: Boolean,
+    editName: String, onNameChange: (String) -> Unit,
+    editPhone: String, onPhoneChange: (String) -> Unit,
+    editEmail: String, onEmailChange: (String) -> Unit,
+    editAddress: String, onAddressChange: (String) -> Unit,
+    onCancel: () -> Unit,
+    phone: String, email: String, address: String,
+    openCount: Int, lastServiceMs: Long?, createdMs: Long?, balanceDue: Double,
+    onCallPhone: () -> Unit, onMapAddress: () -> Unit, onEmailClick: () -> Unit
+) {
+    Card {
+        if (isEditing) {
+            EditField("NAME", editName, onNameChange)
+            EditField("PHONE", editPhone, onPhoneChange)
+            EditField("EMAIL", editEmail, onEmailChange)
+            EditField("ADDRESS", editAddress, onAddressChange)
+            Text(
+                "[Cancel]",
+                style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                modifier = Modifier.clickable { onCancel() }.padding(top = 4.dp)
+            )
+        } else {
+            val statusLabel = if (openCount > 0) "ACTIVE" else "INACTIVE"
+            val statusColor = if (openCount > 0) ConsoleTheme.success else ConsoleTheme.textMuted
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("[$statusLabel]", style = ConsoleTheme.captionBold.copy(color = statusColor))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Chip("$openCount open", if (openCount > 0) ConsoleTheme.accent else ConsoleTheme.textMuted)
+                    if (balanceDue > 0.01) Chip("$${"%.0f".format(balanceDue)} due", ConsoleTheme.warning)
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+            if (phone.isNotBlank()) ContactLine("☎", phone, onCallPhone)
+            if (email.isNotBlank()) ContactLine("✉", email, onEmailClick)
+            if (address.isNotBlank()) ContactLine("⌖", address, onMapAddress)
+            if (phone.isBlank() && email.isBlank() && address.isBlank()) {
+                Text(
+                    "No contact info. Tap [Edit] to add.",
+                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            val meta = buildList {
+                lastServiceMs?.let { add("Last service: ${SHORT.format(Date(it))}") }
+                createdMs?.let { add("Since ${SHORT_YEAR.format(Date(it))}") }
+            }.joinToString("  ·  ")
+            if (meta.isNotEmpty()) {
+                Text(meta, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ContactLine(icon: String, value: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("$icon  ", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted))
+        Text(value, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.accent), maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun CurrentJobRow(j: Job, estimate: Double, onClick: () -> Unit) {
+    val due = j.dueDate ?: j.estimatedEndDate
+    val nextAction = j.workLog.maxByOrNull { it.timestamp }?.text
+        ?: j.stage.displayName
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(4.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = rememberRipple(bounded = true),
+                onClick = onClick
+            )
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(j.stage.icon, style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent))
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    j.title,
+                    style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+            }
+            Text(
+                j.stage.displayName + "  ·  " + priorityLabel(j.priority) +
+                    (due?.let { "  ·  due ${SHORT.format(Date(it))}" } ?: ""),
+                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+            )
+            val assignee = j.assignedTo.firstOrNull()
+            val meta = listOfNotNull(
+                assignee?.takeIf { it.isNotBlank() }?.let { "→ $it" },
+                "Next: $nextAction".take(60)
+            ).joinToString("  ·  ")
+            if (meta.isNotEmpty()) {
+                Text(meta, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+        Column(horizontalAlignment = Alignment.End) {
+            if (estimate > 0.0) Text(
+                "$${"%.0f".format(estimate)}",
+                style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text)
+            )
+            Text(">", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        }
+    }
+}
+
+@Composable
+private fun TaskRow(t: Task, jobTitle: String, onClick: () -> Unit) {
+    val statusColor = when (t.status) {
+        TaskStatus.BLOCKED -> ConsoleTheme.error
+        TaskStatus.IN_PROGRESS -> ConsoleTheme.accent
+        else -> ConsoleTheme.textMuted
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(4.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = rememberRipple(bounded = true),
+                onClick = onClick
+            )
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("[${t.status.displayName}]", style = ConsoleTheme.caption.copy(color = statusColor))
+        Spacer(Modifier.width(8.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(t.title, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val sub = listOfNotNull(
+                jobTitle.takeIf { it.isNotBlank() }?.let { "in $it" },
+                t.assignedTo?.takeIf { it.isNotBlank() }?.let { "→ $it" }
+            ).joinToString("  ·  ")
+            if (sub.isNotEmpty()) Text(sub, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+@Composable
+private fun RecentJobRow(j: Job, billed: Double, onClick: () -> Unit) {
+    val date = j.completedAt ?: j.actualEndDate ?: j.updatedAt
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(4.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = rememberRipple(bounded = true),
+                onClick = onClick
+            )
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(j.title, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val tech = j.crew.firstOrNull()?.name ?: j.assignedTo.firstOrNull().orEmpty()
+            val sub = listOfNotNull(
+                SHORT.format(Date(date)),
+                tech.takeIf { it.isNotBlank() }?.let { "by $it" }
+            ).joinToString("  ·  ")
+            Text(sub, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        }
+        if (billed > 0.0) Text(
+            "$${"%.0f".format(billed)}",
+            style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text)
+        )
+    }
+}
+
+@Composable
+private fun BillingBlock(
+    openJobs: List<Job>,
+    recentClosed: List<Job>,
+    balanceDue: Double,
+    billed: (Job) -> Double,
+    estimate: (Job) -> Double
+) {
+    val proposalsOut = openJobs.count { it.proposalId != null && it.stage == JobStage.PROPOSAL }
+    val invoiced = openJobs.filter { it.invoiceId != null || it.stage == JobStage.INVOICE }
+    val invoicedTotal = invoiced.sumOf(billed)
+    val deposits = openJobs.sumOf { it.depositCollected }
+    val lifetime = recentClosed.sumOf(billed)
+    val outstandingEstimates = openJobs.filter { it.stage == JobStage.LEAD || it.stage == JobStage.PROPOSAL }
+        .sumOf(estimate)
+
+    Stat("Proposals out", "$proposalsOut")
+    if (outstandingEstimates > 0.0) Stat("Estimates outstanding", "$${"%.0f".format(outstandingEstimates)}")
+    Stat("Invoices issued", "${invoiced.size}")
+    if (invoicedTotal > 0.0) Stat("Invoiced amount", "$${"%.0f".format(invoicedTotal)}")
+    if (deposits > 0.0) Stat("Deposits collected", "$${"%.0f".format(deposits)}")
+    Stat(
+        "Balance due",
+        if (balanceDue > 0.01) "$${"%.0f".format(balanceDue)}" else "—",
+        valueColor = if (balanceDue > 0.01) ConsoleTheme.warning else ConsoleTheme.textMuted
+    )
+    Stat("Lifetime billed", "$${"%.0f".format(lifetime)}")
+}
+
+private data class Event(val ts: Long, val label: String, val detail: String, val jobTitle: String)
+
+@Composable
+private fun TimelineFeed(jobs: List<Job>) {
+    val events = remember(jobs) {
+        val list = mutableListOf<Event>()
+        jobs.forEach { j ->
+            j.workLog.forEach { w: WorkLogEntry ->
+                list.add(Event(w.timestamp, "note", w.text, j.title))
+            }
+            list.add(Event(j.createdAt, "created", j.stage.displayName, j.title))
+            j.completedAt?.let { list.add(Event(it, "closed", "Job completed", j.title)) }
+            if (j.photos.isNotEmpty()) list.add(Event(j.updatedAt, "photo", "${j.photos.size} photo(s)", j.title))
+            if (j.invoiceId != null) list.add(Event(j.updatedAt, "invoice", "Invoice issued", j.title))
+        }
+        list.sortedByDescending { it.ts }.take(20)
+    }
+    if (events.isEmpty()) {
+        Empty("No activity yet.")
+        return
+    }
+    events.forEachIndexed { i, e ->
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Text(
+                "[${e.label}]",
+                style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent),
+                modifier = Modifier.width(72.dp)
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(e.detail, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(
+                    "${SHORT.format(Date(e.ts))}  ·  ${e.jobTitle}",
+                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        if (i < events.lastIndex) Divider()
+    }
+}
+
+@Composable
+private fun Section(title: String, content: @Composable () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+            .padding(12.dp)
+    ) {
+        Text(title, style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+        Spacer(Modifier.height(6.dp))
+        content()
+    }
+}
+
+@Composable
+private fun Card(content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        content = content
+    )
+}
+
+@Composable
+private fun Stat(label: String, value: String, valueColor: androidx.compose.ui.graphics.Color = ConsoleTheme.text) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        Text(value, style = ConsoleTheme.bodySmall.copy(color = valueColor))
+    }
+}
+
+@Composable
+private fun Chip(text: String, color: androidx.compose.ui.graphics.Color) {
+    Text(text, style = ConsoleTheme.captionBold.copy(color = color))
+}
+
+@Composable
+private fun Empty(text: String) {
+    Text(
+        text,
+        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+        modifier = Modifier.padding(vertical = 4.dp)
+    )
+}
+
+@Composable
+private fun Divider() {
+    Box(Modifier.fillMaxWidth().height(0.5.dp).background(ConsoleTheme.text.copy(alpha = 0.06f)))
+}
+
+private fun priorityLabel(p: Priority): String = when (p) {
+    Priority.URGENT -> "[!] urgent"
+    Priority.HIGH -> "high"
+    Priority.MEDIUM -> "medium"
+    Priority.LOW -> "low"
+}
+
+@Composable
 private fun EditField(label: String, value: String, onValueChange: (String) -> Unit) {
-    Column {
+    Column(modifier = Modifier.padding(vertical = 2.dp)) {
         Text(label, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
         BasicTextField(
             value = value,

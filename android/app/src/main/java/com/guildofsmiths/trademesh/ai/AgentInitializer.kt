@@ -123,6 +123,24 @@ object AgentInitializer {
     fun isAgentAlive(): Boolean = _agentState.value == AgentState.ALIVE
 
     /**
+     * Best-effort wake when the user opens the SmithAI conversation.
+     * No-op if already ALIVE or WAKING. Returns false if the model file
+     * isn't downloaded yet — the caller should keep using the cloud or
+     * offline path until the user downloads the model from Settings.
+     */
+    suspend fun wakeAgentIfModelDownloaded(appContext: Context): Boolean {
+        if (_agentState.value == AgentState.ALIVE || _agentState.value == AgentState.WAKING) {
+            return true
+        }
+        if (!LlamaInference.isDefaultModelDownloaded(appContext)) {
+            return false
+        }
+        val modelFile = java.io.File(LlamaInference.getModelsDirectory(appContext), "qwen3-1.7b-q4.gguf")
+        val result = wakeAgent(modelFile.absolutePath)
+        return result is AgentWakeResult.Success
+    }
+
+    /**
      * Get current agent context for reasoning.
      */
     fun getAgentContext(): AgentContext? = agentContext

@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
@@ -39,6 +40,8 @@ import com.guildofsmiths.trademesh.data.RoleContext
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.JobStage
+import com.guildofsmiths.trademesh.ui.map.JobDetailPanel
+import com.guildofsmiths.trademesh.ui.map.SiteDetailPanel
 
 // ════════════════════════════════════════════════════════════════════
 // MY TASKS MODULE — TEAM_MEMBER primary surface
@@ -651,6 +654,10 @@ fun SiteMapModule(
         "1220 Ocean Pkwy, Brooklyn NY" to GeoPoint(40.6275, -73.9685),
     )
 
+    var selectedSite by remember { mutableStateOf<String?>(null) }
+    var selectedJob by remember { mutableStateOf<Job?>(null) }
+    val framed = remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
         Configuration.getInstance().userAgentValue = context.packageName
     }
@@ -675,29 +682,34 @@ fun SiteMapModule(
                 if (isSolo) "JOB SITES" else "CREW MAP",
                 style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted)
             )
-            Text(
-                "${activeJobs.size} active",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent)
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "${activeJobs.size} active",
+                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent)
+                )
+                Text(
+                    "[OPEN MAP]",
+                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent),
+                    modifier = Modifier.clickable { onMapClick() }
+                )
+            }
         }
 
-        // Embedded map
+        // Embedded interactive map — pan/zoom and marker taps work in place.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(180.dp)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = rememberRipple(bounded = true),
-                    onClick = onMapClick
-                )
         ) {
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { ctx ->
                     MapView(ctx).apply {
                         setTileSource(TileSourceFactory.MAPNIK)
-                        setMultiTouchControls(false) // disable touch on thumbnail
+                        setMultiTouchControls(true)
                         layoutParams = ViewGroup.LayoutParams(
                             ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.MATCH_PARENT
@@ -708,9 +720,9 @@ fun SiteMapModule(
                 },
                 update = { mapView ->
                     mapView.overlays.clear()
+                    val placedCoords = mutableListOf<GeoPoint>()
 
                     if (isSolo) {
-                        // Solo: show job site pins
                         activeJobs.forEach { job ->
                             val addr = job.clientAddress
                             if (addr.isNotBlank()) {
@@ -720,12 +732,17 @@ fun SiteMapModule(
                                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                                     title = job.clientName ?: job.title
                                     snippet = "${job.stage.displayName} · $addr"
+                                    setOnMarkerClickListener { _, _ ->
+                                        selectedJob = job
+                                        selectedSite = null
+                                        true
+                                    }
                                 }
                                 mapView.overlays.add(marker)
+                                placedCoords.add(coords)
                             }
                         }
                     } else {
-                        // Team modes: show crew at sites
                         bySite.forEach { (site, members) ->
                             val coords = siteCoords[site] ?: return@forEach
                             val activeOnSite = members.count { it.status == ClockStatus.ON_CLOCK }
@@ -734,15 +751,58 @@ fun SiteMapModule(
                                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                                 title = members.firstOrNull()?.currentJobTitle ?: site
                                 snippet = "$activeOnSite/${members.size} on site"
+                                setOnMarkerClickListener { _, _ ->
+                                    selectedSite = site
+                                    selectedJob = null
+                                    true
+                                }
                             }
                             mapView.overlays.add(marker)
+                            placedCoords.add(coords)
                         }
+                    }
+
+                    if (!framed.value && placedCoords.isNotEmpty()) {
+                        val frame = {
+                            if (placedCoords.size == 1) {
+                                val p = placedCoords[0]
+                                mapView.controller.setCenter(p)
+                                mapView.controller.setZoom(15.0)
+                            } else {
+                                val box = BoundingBox.fromGeoPointsSafe(placedCoords)
+                                mapView.zoomToBoundingBox(box.increaseByScale(1.3f), false, 24)
+                            }
+                        }
+                        if (mapView.width > 0 && mapView.height > 0) {
+                            frame()
+                        } else {
+                            mapView.addOnFirstLayoutListener { _, _, _, _, _ -> frame() }
+                        }
+                        framed.value = true
                     }
 
                     mapView.invalidate()
                 }
             )
+        }
 
+        selectedSite?.let { site ->
+            SiteDetailPanel(
+                site = site,
+                members = bySite[site].orEmpty(),
+                onCrewTap = { /* no-op on dashboard */ },
+                onClose = { selectedSite = null }
+            )
+        }
+        selectedJob?.let { job ->
+            JobDetailPanel(
+                job = job,
+                onJumpToJob = {
+                    selectedJob = null
+                    onMapClick()
+                },
+                onClose = { selectedJob = null }
+            )
         }
     }
 }
@@ -1154,22 +1214,32 @@ private val SITE_COORDS = mapOf(
 
 @Composable
 fun CrewMapView(
-    crew: List<com.guildofsmiths.trademesh.data.CrewPresenceInfo>
+    crew: List<com.guildofsmiths.trademesh.data.CrewPresenceInfo>,
+    activeJobs: List<Job> = emptyList(),
+    onSiteClick: (siteAddress: String) -> Unit = {},
+    onJobClick: (jobId: String) -> Unit = {},
+    fillContainer: Boolean = false
 ) {
     val context = LocalContext.current
 
-    // Initialize osmdroid config
     LaunchedEffect(Unit) {
         Configuration.getInstance().userAgentValue = context.packageName
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(200.dp)
+    val sizeModifier = if (fillContainer) {
+        Modifier.fillMaxSize()
+    } else {
+        Modifier.fillMaxWidth().height(200.dp)
+    }
+    val cornerModifier = if (fillContainer) {
+        Modifier
+    } else {
+        Modifier
             .clip(RoundedCornerShape(4.dp))
             .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
-    ) {
+    }
+
+    Box(modifier = sizeModifier.then(cornerModifier)) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { ctx ->
@@ -1180,16 +1250,25 @@ fun CrewMapView(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
                     )
-
-                    // Center on NYC area
                     controller.setZoom(12.0)
                     controller.setCenter(GeoPoint(40.7128, -73.9560))
+                    // Re-nudge the zoom on every layout change so osmdroid
+                    // recomputes its tile viewport when the View grows.
+                    addOnLayoutChangeListener { v, _, _, _, _, oldL, oldT, oldR, oldB ->
+                        val mv = v as MapView
+                        if (mv.width != (oldR - oldL) || mv.height != (oldB - oldT)) {
+                            val z = mv.zoomLevelDouble
+                            mv.controller.setZoom(z + 0.001)
+                            mv.controller.setZoom(z)
+                            mv.invalidate()
+                        }
+                    }
                 }
             },
             update = { mapView ->
                 mapView.overlays.clear()
 
-                // Group crew by site and place markers
+                // Crew-site markers
                 val bySite = crew.filter { it.currentSite != null }.groupBy { it.currentSite!! }
                 bySite.forEach { (site, members) ->
                     val coords = SITE_COORDS[site] ?: return@forEach
@@ -1202,8 +1281,49 @@ fun CrewMapView(
                         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                         title = jobTitle
                         snippet = "$names ($activeCount/${members.size} on site)"
+                        setOnMarkerClickListener { _, _ ->
+                            onSiteClick(site)
+                            true
+                        }
                     }
                     mapView.overlays.add(marker)
+                }
+
+                // Job-site markers — only for jobs whose address has known coords
+                // and aren't already represented by a crew-on-site marker.
+                activeJobs.forEach { job ->
+                    val addr = job.clientAddress
+                    if (addr.isBlank() || bySite.containsKey(addr)) return@forEach
+                    val coords = SITE_COORDS[addr] ?: return@forEach
+                    val marker = Marker(mapView).apply {
+                        position = coords
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                        title = job.clientName ?: job.title
+                        snippet = "${job.stage.displayName} · $addr"
+                        setOnMarkerClickListener { _, _ ->
+                            onJobClick(job.id)
+                            true
+                        }
+                    }
+                    mapView.overlays.add(marker)
+                }
+
+                // When filling the parent (Map screen), the MapView's tile
+                // viewport often lags behind its View bounds and leaves the
+                // perimeter blank. Forcing a tiny pan + re-center kicks
+                // osmdroid to refetch tiles for the full visible rect.
+                if (fillContainer) {
+                    listOf(50L, 200L, 600L).forEach { delay ->
+                        mapView.postDelayed({
+                            val center = GeoPoint(40.7128, -73.9560)
+                            // Big synthetic pan to force osmdroid to re-fetch
+                            // tiles for the full visible rect, then snap back.
+                            mapView.scrollBy(0, 1000)
+                            mapView.scrollBy(0, -1000)
+                            mapView.controller.setCenter(center)
+                            mapView.invalidate()
+                        }, delay)
+                    }
                 }
 
                 mapView.invalidate()

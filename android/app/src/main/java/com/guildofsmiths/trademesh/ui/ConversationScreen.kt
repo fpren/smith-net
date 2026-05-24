@@ -96,8 +96,12 @@ fun ConversationScreen(
     onVideoClick: (() -> Unit)? = null,
     onFileClick: (() -> Unit)? = null,
     initialDmPeer: Peer? = null,  // Pre-select peer for DM (from Peers screen)
+    pendingToolCalls: List<com.guildofsmiths.trademesh.ai.SmithAIToolExecutor.PendingToolCall> = emptyList(),
+    onApproveToolCall: (String) -> Unit = {},
+    onDenyToolCall: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val isSmithAI = initialDmPeer?.userId == "smith-ai"
     val listState = rememberLazyListState()
     var inputText by remember { mutableStateOf("") }
     var typingUsers by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
@@ -340,7 +344,11 @@ fun ConversationScreen(
             
             ConsoleSeparator()
         }
-        
+
+        if (isSmithAI) {
+            SmithAIStatusBanner()
+        }
+
         // Messages
         LazyColumn(
             state = listState,
@@ -535,10 +543,21 @@ fun ConversationScreen(
                     }
                 }
             }
-            
+
+            if (isSmithAI && pendingToolCalls.isNotEmpty()) {
+                items(items = pendingToolCalls, key = { it.id }) { pending ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ToolCallApprovalCard(
+                        pending = pending,
+                        onApprove = { onApproveToolCall(pending.id) },
+                        onDeny = { onDenyToolCall(pending.id) }
+                    )
+                }
+            }
+
             item { Spacer(modifier = Modifier.height(12.dp)) }
         }
-        
+
         ConsoleSeparator()
 
         TypingIndicator(typingUsers.values.toList())
@@ -1324,6 +1343,91 @@ private fun ConversationScreenPreview() {
                 ),
                 beaconName = ConsoleTheme.APP_NAME,
                 onBackClick = {}
+            )
+        }
+    }
+}
+
+@Composable
+private fun SmithAIStatusBanner() {
+    val agentState by com.guildofsmiths.trademesh.ai.AgentInitializer.agentState.collectAsState()
+    val initProgress by com.guildofsmiths.trademesh.ai.AgentInitializer.initializationProgress.collectAsState()
+    val modelState by com.guildofsmiths.trademesh.ai.LlamaInference.modelState.collectAsState()
+    val gateState by com.guildofsmiths.trademesh.ai.BatteryGate.gateState.collectAsState()
+    val backend = com.guildofsmiths.trademesh.ai.SmithAIBackendRouter.pick()
+
+    val label = when {
+        agentState == com.guildofsmiths.trademesh.ai.AgentState.WAKING ->
+            "[AI WAKING ${(initProgress * 100).toInt()}%]"
+        backend == com.guildofsmiths.trademesh.ai.SmithAIBackendRouter.Backend.ON_DEVICE &&
+            modelState == com.guildofsmiths.trademesh.ai.ModelState.READY ->
+            "[AI READY] on-device · battery ${gateState.batteryLevel}%"
+        backend == com.guildofsmiths.trademesh.ai.SmithAIBackendRouter.Backend.CLOUD ->
+            "[CLOUD] battery ${gateState.batteryLevel}%"
+        modelState == com.guildofsmiths.trademesh.ai.ModelState.NOT_LOADED ->
+            "[MODEL NOT LOADED] open Settings to download Qwen3"
+        else ->
+            "[AI OFFLINE] charge device or set API key in Settings"
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(ConsoleTheme.surface)
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent)
+        )
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(0.5.dp)
+            .background(ConsoleTheme.separator)
+    )
+}
+
+@Composable
+private fun ToolCallApprovalCard(
+    pending: com.guildofsmiths.trademesh.ai.SmithAIToolExecutor.PendingToolCall,
+    onApprove: () -> Unit,
+    onDeny: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+            .border(0.5.dp, ConsoleTheme.accent.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        Text(
+            text = "[ACTION] ${pending.toolName}",
+            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = pending.argsSummary,
+            style = ConsoleTheme.bodySmall
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "[APPROVE]",
+                style = ConsoleTheme.action.copy(color = ConsoleTheme.success),
+                modifier = Modifier
+                    .clickable(onClick = onApprove)
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "[DENY]",
+                style = ConsoleTheme.action.copy(color = ConsoleTheme.error),
+                modifier = Modifier
+                    .clickable(onClick = onDeny)
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
             )
         }
     }
