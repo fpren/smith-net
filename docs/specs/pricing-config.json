@@ -1,0 +1,307 @@
+{
+  "$schema": "https://sigma-protocol/schema/pricing-config-v1.json",
+  "project": "smith-net",
+  "version": "1.0.0",
+  "currency": "USD",
+  "primary_billing_geo": "NA",
+  "tax_handling": "deferred-to-stripe-tax-or-equivalent",
+  "generated_by": "sigma-protocol/step-1.5-offer-architecture",
+  "generated_at": "2026-04-30",
+
+  "tiers": [
+    {
+      "id": "open",
+      "display_name": "Smith Net Open",
+      "slug": "open",
+      "price_monthly": 0,
+      "price_annual": 0,
+      "billing_cadences": ["free"],
+      "trial": null,
+      "hero_feature": "deterministic baseline taste",
+      "ceiling": {
+        "active_jobs": 1,
+        "pdf_sends_per_month": 5,
+        "users": 1,
+        "invoice_templates": ["standard"],
+        "ai_features": "none",
+        "plan_compiler": false,
+        "cord_state_model": false,
+        "crew": false,
+        "branding_on_pdfs": true,
+        "branding_on_email": true
+      },
+      "intended_for": "solo contractor evaluating Smith Net before paying; passive distribution surface",
+      "trial_offered_on_signup": {
+        "of_tier": "solo",
+        "duration_days": 14,
+        "cc_required": false,
+        "auto_action_at_end": "downgrade_to_open"
+      }
+    },
+    {
+      "id": "solo",
+      "display_name": "Smith Net Solo",
+      "slug": "solo",
+      "price_monthly": 2.99,
+      "price_annual": 29.90,
+      "annual_discount_pct": 16.7,
+      "billing_cadences": ["monthly", "annual"],
+      "trial": {
+        "duration_days": 14,
+        "cc_required": false,
+        "auto_action_at_end": "downgrade_to_open"
+      },
+      "hero_feature": "PLAN Compiler + cord-based state model (the moat)",
+      "includes": {
+        "everything_in": "open",
+        "active_jobs": "unlimited",
+        "pdf_sends_per_month": "unlimited",
+        "users": 1,
+        "invoice_templates": ["standard"],
+        "ai_features": "none",
+        "plan_compiler": true,
+        "cord_state_model": true,
+        "branding_on_pdfs": false,
+        "branding_on_email": false,
+        "data_export": ["csv", "json"]
+      },
+      "bonuses": [
+        {
+          "id": "founder_pricing_lock",
+          "name": "Founder Pricing Lock",
+          "description": "Lock $2.99/mo for life",
+          "scarcity_type": "first_n_paid",
+          "scarcity_n": 1000,
+          "show_counter_after_n_claimed": 500,
+          "active": true
+        },
+        {
+          "id": "no_cc_trial",
+          "name": "14-day trial, no CC required",
+          "description": "Try Solo for 14 days before entering payment",
+          "scarcity_type": "none",
+          "active": true
+        },
+        {
+          "id": "no_data_lock_in",
+          "name": "Cancel anytime, keep your data",
+          "description": "Downgrading to Open keeps all jobs, invoices, clients accessible",
+          "scarcity_type": "none",
+          "active": true
+        },
+        {
+          "id": "data_export",
+          "name": "One-click data export",
+          "description": "Export to CSV + JSON anytime, no premium fee",
+          "scarcity_type": "none",
+          "active": true
+        }
+      ],
+      "guarantee": {
+        "type": "cancel_anytime_no_contract",
+        "refund_window_days": 0,
+        "refund_reason": "n/a — no charge during 14-day trial"
+      }
+    },
+    {
+      "id": "advanced",
+      "display_name": "Smith Net Advanced",
+      "slug": "advanced",
+      "price_monthly": 9.99,
+      "price_annual": 99.90,
+      "annual_discount_pct": 16.7,
+      "billing_cadences": ["monthly", "annual"],
+      "trial": {
+        "duration_days": 30,
+        "cc_required": false,
+        "auto_action_at_end": "downgrade_to_solo_if_paid_else_open"
+      },
+      "hero_feature": "SmithAI on-device assistant + Advanced invoice template",
+      "includes": {
+        "everything_in": "solo",
+        "users": 1,
+        "invoice_templates": ["standard", "advanced"],
+        "ai_features": "smithai_full",
+        "ai_components": [
+          "agent_state_machine_sleeping_waking_alive",
+          "rule_based_fallback",
+          "context_gathering_jobs_messages_time_prefs",
+          "memory_building_patterns",
+          "proactive_suggestion_engine",
+          "tool_integration_web_weather_code",
+          "ai_plan_authoring_assist"
+        ],
+        "support": "priority_email_24hr"
+      },
+      "bonuses": [
+        {
+          "id": "lifetime_template_library",
+          "name": "Lifetime Template Library",
+          "description": "All future invoice templates we ship — yours forever, free",
+          "scarcity_type": "first_n_paid",
+          "scarcity_n": 100,
+          "show_counter_after_n_claimed": 50,
+          "active": true
+        },
+        {
+          "id": "ai_roadmap_input",
+          "name": "AI tool roadmap input",
+          "description": "Vote on next AI tool integrations (SMS estimate replies, weather-aware scheduling, material price lookup)",
+          "scarcity_type": "first_n_paid",
+          "scarcity_n": 100,
+          "active": true
+        },
+        {
+          "id": "extended_trial",
+          "name": "30-day Advanced trial (vs 14 for Solo)",
+          "description": "Time to see SmithAI build memory before paying",
+          "scarcity_type": "none",
+          "active": true
+        }
+      ],
+      "guarantee": {
+        "type": "downgrade_anytime_no_data_loss",
+        "refund_window_days": 0,
+        "refund_reason": "n/a — no charge during 30-day trial; downgrading to Solo retains all data"
+      }
+    },
+    {
+      "id": "enterprise",
+      "display_name": "Smith Net Enterprise",
+      "slug": "enterprise",
+      "price_monthly": 50.00,
+      "price_annual": 600.00,
+      "founder_price_annual": 500.00,
+      "billing_model": "flat_per_company_not_per_seat",
+      "annual_discount_pct": 0,
+      "billing_cadences": ["monthly", "annual"],
+      "trial": {
+        "duration_days": 14,
+        "cc_required": true,
+        "auto_action_at_end": "begin_charging",
+        "refund_window_days_post_charge": 16
+      },
+      "hero_feature": "Crew/multi-user + Enterprise invoice template",
+      "includes": {
+        "everything_in": "advanced",
+        "users": "unlimited_crew",
+        "invoice_templates": ["standard", "advanced", "enterprise"],
+        "crew": true,
+        "shared_jobs_across_crew": true,
+        "colleague_invites": true,
+        "crew_aware_smithai": true,
+        "support": "priority_phone_and_email",
+        "onboarding": "white_glove_1hr_zoom_with_founder",
+        "communication": "dedicated_slack_channel"
+      },
+      "bonuses": [
+        {
+          "id": "founder_annual_pricing",
+          "name": "Founder Annual Pricing",
+          "description": "$500/yr lifetime (vs $600/yr standard)",
+          "scarcity_type": "first_n_paid",
+          "scarcity_n": 10,
+          "show_counter_after_n_claimed": 3,
+          "active": true
+        },
+        {
+          "id": "crew_onboarding_kit",
+          "name": "Crew onboarding kit",
+          "description": "Printed quick-start cards shipped to your crew",
+          "scarcity_type": "none",
+          "active": true
+        },
+        {
+          "id": "custom_plan_template",
+          "name": "Custom plan template",
+          "description": "We build 1 custom plan template for your business in first 90 days",
+          "scarcity_type": "none",
+          "active": true
+        }
+      ],
+      "guarantee": {
+        "type": "30_day_money_back_full_refund",
+        "refund_window_days": 30,
+        "refund_reason": "Cannot get crew onboarded within 30 days",
+        "refund_mechanism": "founder_issues_manually",
+        "data_migration_assistance_on_refund": true
+      }
+    }
+  ],
+
+  "anchoring_table": [
+    {"competitor": "JobTread",     "entry_price_monthly": 199, "smith_net_solo_ratio": "1.5%"},
+    {"competitor": "Knowify",      "entry_price_monthly": 78,  "smith_net_solo_ratio": "3.8%"},
+    {"competitor": "Joist",        "entry_price_monthly": 0,   "note": "ad-supported, no determinism"},
+    {"competitor": "ServiceTitan", "entry_price_monthly": 398, "smith_net_solo_ratio": "0.75%"},
+    {"competitor": "Houzz Pro",    "entry_price_monthly": 85,  "smith_net_solo_ratio": "3.5%"},
+    {"competitor": "JobNimbus",    "entry_price_monthly": 25,  "smith_net_solo_ratio": "12%"}
+  ],
+
+  "trial_design_rules": {
+    "no_cc_trials_at": ["solo", "advanced"],
+    "cc_required_trials_at": ["enterprise"],
+    "trial_extension_allowed": false,
+    "trial_to_paid_email_cadence": {
+      "solo": ["day_1", "day_7", "day_12"],
+      "advanced": ["day_1", "day_14", "day_28"],
+      "enterprise": ["day_1", "day_7", "day_13"]
+    }
+  },
+
+  "cancellation_rules": {
+    "open": {"mechanism": "one_tap_delete_account", "friction": "none"},
+    "solo": {"mechanism": "one_tap_cancel_in_settings", "friction": "none", "retains_data_on_open_tier": true},
+    "advanced": {"mechanism": "one_tap_cancel_in_settings", "friction": "none", "retains_data_on_solo_or_open": true},
+    "enterprise": {"mechanism": "one_email_to_cancel_at_smithnet_dot_app", "friction": "none", "retains_data_on_advanced_or_lower": true}
+  },
+
+  "tier_gates_to_telemetry_event_map": {
+    "active_job_cap_hit": "gate_hit.active_job_cap",
+    "pdf_send_cap_hit": "gate_hit.pdf_send_cap",
+    "plan_compiler_preview_opened": "gate_hit.plan_compiler_preview",
+    "ai_tab_opened": "gate_hit.ai_tab",
+    "crew_invite_attempted": "gate_hit.crew_invite"
+  },
+
+  "founder_pricing_state": {
+    "solo_founder_seats_total": 1000,
+    "solo_founder_seats_claimed": 0,
+    "solo_founder_show_counter_after": 500,
+    "solo_founder_status": "open",
+    "advanced_lifetime_template_seats_total": 100,
+    "advanced_lifetime_template_seats_claimed": 0,
+    "advanced_lifetime_template_show_counter_after": 50,
+    "advanced_lifetime_template_status": "open",
+    "enterprise_founder_annual_seats_total": 10,
+    "enterprise_founder_annual_seats_claimed": 0,
+    "enterprise_founder_annual_show_counter_after": 3,
+    "enterprise_founder_annual_status": "open"
+  },
+
+  "billing_provider_decisions": {
+    "web": "TBD-step-2-stripe-likely",
+    "android": "TBD-step-2-play-billing-required-by-policy",
+    "ios": "out-of-scope-v1",
+    "desktop": "TBD-step-2-stripe-likely",
+    "tax_handling": "TBD-step-2-stripe-tax-evaluation"
+  },
+
+  "explicit_non_offerings": [
+    "no_contact_sales_wall_at_any_tier",
+    "no_promotional_coupons",
+    "no_fake_scarcity",
+    "no_pro_or_business_marketing_tier_names",
+    "no_annual_only_tiers",
+    "no_third_party_ads_in_free_tier",
+    "no_essentials_or_lite_tier_between_free_and_solo"
+  ],
+
+  "open_decisions_for_later_steps": [
+    {"id": "O1", "topic": "billing provider per channel (web/Android)", "owner": "step-2"},
+    {"id": "O2", "topic": "founder seat counter — server-authoritative real-time mechanism", "owner": "step-11"},
+    {"id": "O3", "topic": "email automation provider for trial sequences", "owner": "step-2"},
+    {"id": "O4", "topic": "downgrade behavior mid-PLAN-execution (cord state mid-flight)", "owner": "step-2"},
+    {"id": "O5", "topic": "regional tax handling (US states, VAT, GST)", "owner": "step-2"}
+  ]
+}

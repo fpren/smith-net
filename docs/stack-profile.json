@@ -1,0 +1,170 @@
+{
+  "$schema": "https://sigma-protocol/schema/stack-profile-v1.json",
+  "project": {
+    "name": "Smith Net",
+    "aliases": ["TradeMesh", "Guild of Smiths", "GoS"],
+    "tagline": "Deterministic job execution for contractors — works offline, ships invoices online.",
+    "category": "contractor-saas",
+    "stage": "pre-launch-private-testing",
+    "monetized": true,
+    "geography": "NA-first-global-eventually",
+    "languages": ["en"],
+    "first_test_users": "admins-plus-handful"
+  },
+  "moat": {
+    "primary": "deterministic-plan-compiler (internal: intent->summary_artifact->ledger SHA256-sealed pipeline with multi-authority validation)",
+    "secondary": "cord-based-state-model (internal: VectorClock + CordEntry/CordRepository + ReconciliationEngine for distributed conflict-free state)",
+    "supporting": [
+      "integrated-jobs-and-invoicing-in-one-app",
+      "offline-mesh-resilience",
+      "trade-agnostic-contractor-core-with-per-trade-extension-packs",
+      "price-point-well-below-category"
+    ],
+    "non_moat_features": ["on-device-ai-smithai-Advanced-tier-only", "121-trade-picker-metadata", "trade-extension-packs-on-top-of-trade-agnostic-core"]
+  },
+  "trade_model": {
+    "core_is_trade_agnostic": true,
+    "extension_pattern": "per-trade-pack",
+    "example_pack": "electricianTools.ts (Feature #15 from gosv2.txt)",
+    "future_packs": ["plumberTools", "hvacTools", "carpenterTools", "roofingTools"],
+    "121_trade_picker": "metadata field on profile + jobs; activates relevant trade pack when installed"
+  },
+  "vocabulary_mapping": {
+    "external_marketing": {
+      "PLAN": "Intent + IntentVersion",
+      "compiled PLAN": "SummaryArtifact",
+      "PLAN Compiler output": "LedgerEntry",
+      "PLAN Compiler engine": "intentAuthority + synthesisAuthority + ledgerAuthority validators",
+      "cord-based state model": "VectorClock + CordEntry + CordRepository + CordMessageClass",
+      "Smith Mesh": "BoundaryEngine + MeshService routing",
+      "trade pack": "electricianTools.ts pattern",
+      "SmithAI": "LlamaInference + AISupervisor + AmbientRuleEngine on Android (Advanced tier)",
+      "deterministic baseline": "RULE_BASED_FALLBACK state (Free tier)"
+    },
+    "rule": "internal architecture/schema/API docs use code names; external/marketing/USP/UI use the marketing terms"
+  },
+  "platforms": {
+    "android": {
+      "role": "primary-client",
+      "language": "kotlin",
+      "build": "gradle-kts",
+      "ai_runtime": "llama.cpp via LlamaInference",
+      "mesh": "bluetooth + wifi-direct (MeshService)",
+      "state_machine": "SLEEPING -> WAKING -> ALIVE | RULE_BASED_FALLBACK"
+    },
+    "desktop_portal": {
+      "role": "secondary-online-only-client",
+      "build": "vite",
+      "framework": "react@18",
+      "language": "typescript",
+      "state": "zustand",
+      "router": "react-router-dom@6",
+      "styling": "tailwind (via tailwind-merge + clsx)",
+      "auth": "supabase-auth-ui-react",
+      "data": "supabase-js@2"
+    },
+    "backend": {
+      "role": "PRIMARY-control-plane-and-realtime-relay",
+      "runtime": "node>=18",
+      "framework": "express@4",
+      "websocket": "ws@8",
+      "auth": "jsonwebtoken + bcryptjs (10 rounds)",
+      "uploads": "multer@2",
+      "rate_limit": "express-rate-limit@8 (300/min global, 20/15min auth)",
+      "db_driver": "pg@8 (raw, parameterized queries throughout)",
+      "deployment": "Hetzner Cloud behind Tailscale Funnel (trust proxy = 1)",
+      "phase_0_components": {
+        "C-01": "Authentication & Identity (auth.ts, authRoutes.ts, identityResolver.ts)",
+        "C-02": "Role Engine (UserRole enum × Permission enum × ROLE_PERMISSIONS map)",
+        "C-03": "Schema & Boundary Engine (messageBus, channelRegistry, presenceManager, gatewayManager, wsHandler)",
+        "C-04": "Vendor-Neutral LLM Interface (llmInterface.ts: OpenAI/Anthropic/local/mock)",
+        "C-05": "Data Retention Core (auditLog.ts: 25+ actions, SHA256 per entry, retention policies)"
+      },
+      "multi_authority_validators": ["intentAuthority", "synthesisAuthority", "ledgerAuthority"],
+      "deterministic_pipeline": "engagements -> intents -> intent_versions (draft/proposed/confirmed/superseded) -> summary_artifacts (sealed via SHA256 in computeHash) -> ledger_entries (immutable supersession chain)",
+      "trade_extension_pattern": "electricianTools.ts (CircuitDiagram, ElectricalChecklist with NEC/OSHA refs, MaterialEstimate, NECCheck) — replicate per trade as plumberTools.ts, hvacTools.ts, etc."
+    },
+    "database_primary": {
+      "name": "self-hosted-postgres-on-hetzner",
+      "driver": "pg@8 (raw, no ORM)",
+      "migrations_dir": "backend/migrations/",
+      "key_migration": "002_full_schema.sql (intents, intent_versions, summary_artifacts, ledger_entries, proposals, invoice_links, jobs, time_entries, materials)",
+      "extensions": ["pgcrypto"]
+    },
+    "database_legacy": {
+      "name": "supabase-postgres",
+      "role": "OFF-by-default (BuildConfig.SUPABASE_ENABLED=false). Used by desktop portal for auth + as a legacy chat path.",
+      "migrations_dir": "supabase/migrations/",
+      "migration_count": 10,
+      "highest_migration": "009_channel_persistence.sql",
+      "surface_dir_legacy": "supabase-migrations/ (contains 002_add_media_support and 003_add_plan_management — the latter defines the @deprecated `plans` table being replaced by `intents`)"
+    }
+  },
+  "transports": {
+    "online_realtime_PRIMARY": "Hetzner-hosted ws WebSocket via ChatManager + GatewayClient (BACKEND_URL_PRIMARY)",
+    "online_realtime_LEGACY": "Supabase Realtime (BuildConfig.SUPABASE_ENABLED=false by default)",
+    "offline_p2p": "android-mesh BoundaryEngine routing over Bluetooth + WiFi-Direct (MeshService)",
+    "ephemeral_routing": "broadcast-only via online relay; never persisted to cloud",
+    "channel_persistence_enum": ["KEEP_HISTORY", "EPHEMERAL"],
+    "message_origin_enum": ["online", "mesh", "gateway", "online+mesh"],
+    "transport_type_enum": ["MESH", "ONLINE", "GATEWAY", "SUPABASE"],
+    "reconciliation": "vector-clock-based (vectorClock.ts merge/compare/serialize) via reconciliationEngine.ts ON CONFLICT (id) DO UPDATE; conflict-free distributed ordering"
+  },
+  "monetization": {
+    "free_tier_name": "Smith Net Open",
+    "tiers": [
+      {
+        "name": "Free (Open)",
+        "price_monthly_usd": 0,
+        "hero": "deterministic baseline taste",
+        "includes": ["basic job/client tracking", "1 active job", "std invoice template", "5 PDF sends/mo", "Smith Net branding on PDFs and emails", "rule-based fallback only", "single user"],
+        "excludes": ["PLAN Compiler", "cord-based-state-model", "SmithAI", "any AI features", "advanced template", "enterprise template", "crew/multi-user"]
+      },
+      {
+        "name": "Solo",
+        "price_monthly_usd": 2.99,
+        "hero": "PLAN Compiler (the moat) — deterministic plans that always run",
+        "includes": ["everything in Free", "PLAN Compiler", "cord-based-state-model", "unlimited active jobs", "unlimited PDF sends", "no Smith Net branding", "single user", "std invoice template"],
+        "excludes": ["SmithAI", "any AI features", "advanced template", "enterprise template", "crew/multi-user"]
+      },
+      {
+        "name": "Advanced",
+        "price_monthly_usd": 9.99,
+        "hero": "SmithAI on-device + Advanced invoice template",
+        "includes": ["everything in Solo", "SmithAI on-device assistant (full agent state machine: SLEEPING -> WAKING -> ALIVE)", "AI proactive suggestions, summaries, plan authoring assist", "Advanced invoice template", "single user"],
+        "excludes": ["enterprise template", "crew/multi-user"]
+      },
+      {
+        "name": "Enterprise",
+        "price_monthly_usd": 50.00,
+        "hero": "Crew/multi-user + Enterprise template",
+        "includes": ["everything in Advanced", "crew/multi-user accounts", "colleague invites", "shared jobs across crew", "Enterprise invoice template", "priority support"]
+      }
+    ],
+    "tier_design_principle": "one_hero_feature_per_tier",
+    "ai_tier_floor": "Advanced ($9.99) — AI is NOT in Solo, NOT in Free",
+    "free_tier_excludes": ["SmithAI", "PLAN Compiler", "cord-based-state-model", "any AI features", "advanced-templates", "enterprise-templates", "crew-multi-user"],
+    "free_to_solo_trigger_design": "active-job-cap + pdf-send-cap + locked-PLAN-Compiler-preview-CTA",
+    "solo_to_advanced_trigger_design": "locked-AI-tab-CTA (when user opens AI Assistant section, show 'Upgrade to Advanced to enable SmithAI')",
+    "advanced_to_enterprise_trigger_design": "locked-colleague-invite + locked-shared-jobs",
+    "trial": "14-day-Solo-on-signup-no-CC",
+    "passive_distribution": "Smith Net branding on every PDF footer + email signature"
+  },
+  "competitors_loose_set": ["JobTread", "Knowify", "Joist", "ServiceTitan", "Houzz Pro", "JobNimbus"],
+  "user_segments_in_scope": ["solo-tradesperson", "small-crew-2-to-10", "gc-managing-subs"],
+  "user_segments_default": "none-universal-contractor",
+  "non_goals": [
+    "AI-required-at-runtime",
+    "trade-specific-feature-tree",
+    "vertical-by-vertical-pricing",
+    "consumer-homeowner-app"
+  ],
+  "step_9_landing_page": "out-of-scope (user explicitly skipped to focus on app infrastructure flow)",
+  "step_1_5_offer_architecture": "complete (see OFFER_ARCHITECTURE.md and pricing-config.json)",
+  "step_2_architecture": "complete (see ARCHITECTURE.md, SCHEMA.md, API-SPEC.md, SECURITY.md)",
+  "retrofit_mode": true,
+  "legacy_pricing_to_retire": "backend/src/pricingTiers.ts implements solo/foreman/enterprise/nation × standard/hybrid with a 3-6-9 volume-discount pyramid. Replaced by Free/Solo/Advanced/Enterprise ladder per pricing-config.json. Retire in Step 11.",
+  "generated_by": "sigma-protocol/step-1-ideation (updated by step-2-architecture)",
+  "generated_at": "2026-04-30",
+  "last_updated": "2026-04-30 (step-2 architecture corrections)"
+}
