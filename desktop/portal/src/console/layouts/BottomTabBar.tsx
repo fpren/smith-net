@@ -40,6 +40,7 @@ export function BottomTabBar() {
       className="md:hidden fixed inset-x-0 bottom-0 z-10 flex items-stretch bg-console-surface border-t border-console-border h-14"
       aria-label="Primary navigation"
     >
+      <TabLink to="/console/home" label="Home" />
       {hasForemanTier() && <TabLink to="/console" label="Map" end />}
       {hasForemanTier() && <TabLink to="/console/jobs" label="Jobs" />}
       {hasForemanTier() && <TabLink to="/console/invoices" label="Invoices" />}

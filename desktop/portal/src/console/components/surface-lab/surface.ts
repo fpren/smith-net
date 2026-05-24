@@ -52,6 +52,16 @@ export interface LayoutPlan {
 /** Simulated physical size on screen (px per inch). */
 export const PX_PER_IN = 56;
 
+/** CSS reference px-per-inch (browsers report ~96 CSS px per inch). Used to turn
+ *  a real measured container into a Surface so the live viewport drives the same
+ *  adaptLayout decision as the sandbox. */
+export const CSS_PX_PER_IN = 96;
+
+/** Build a Surface from a real measured container (always rectangular). */
+export function surfaceFromPx(widthPx: number, heightPx: number): Surface {
+  return { wIn: widthPx / CSS_PX_PER_IN, hIn: heightPx / CSS_PX_PER_IN, shape: 'rect' };
+}
+
 /**
  * Usable content area in in^2. A circle only fits its inscribed rectangle
  * (~half the bounding box), so the same box "shows less" when round.

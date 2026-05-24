@@ -17,6 +17,8 @@ import { AdminRoute } from './console/routes/AdminRoute';
 import { RequireAdmin } from './console/auth/RequireAdmin';
 import { RequireForemanTier } from './console/auth/RequireForemanTier';
 import { SurfaceLabRoute } from './console/routes/SurfaceLabRoute';
+import { AdaptiveHomeRoute } from './console/routes/AdaptiveHomeRoute';
+import { SurfaceHomePreviewRoute } from './console/routes/SurfaceHomePreviewRoute';
 
 /**
  * Guild of Smiths Web Portal
@@ -30,6 +32,7 @@ export default function App() {
       <Route path="/auth/callback" element={<AuthCallback onAuthSuccess={() => {}} />} />
       <Route path="/portal" element={<Portal />} />
       <Route path="/surface-lab" element={<SurfaceLabRoute />} />
+      <Route path="/home-preview" element={<SurfaceHomePreviewRoute />} />
 
       <Route path="/console/login" element={<LoginForm />} />
       <Route path="/console/register" element={<RegisterForm />} />
@@ -42,6 +45,7 @@ export default function App() {
         }
       >
         <Route index element={<RequireForemanTier><MapRoute /></RequireForemanTier>} />
+        <Route path="home" element={<AdaptiveHomeRoute />} />
         <Route path="jobs" element={<RequireForemanTier><JobsListRoute /></RequireForemanTier>} />
         <Route path="jobs/:id" element={<RequireForemanTier><JobDetailRoute /></RequireForemanTier>} />
         <Route path="crew" element={<RequireForemanTier><CrewRoute /></RequireForemanTier>} />

@@ -1,5 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { adaptLayout, usableArea, Surface } from './surface';
+import { adaptLayout, usableArea, surfaceFromPx, Surface } from './surface';
+
+describe('surfaceFromPx (real container -> render mode)', () => {
+  it('a desktop content area renders the full app', () => {
+    expect(adaptLayout(surfaceFromPx(1200, 700)).mode).toBe('app');
+  });
+  it('a phone-width container renders a single card', () => {
+    expect(adaptLayout(surfaceFromPx(360, 640)).mode).toBe('card');
+  });
+  it('a tiny embed collapses to a glyph', () => {
+    expect(adaptLayout(surfaceFromPx(100, 100)).mode).toBe('glyph');
+  });
+});
 
 describe('usableArea', () => {
   it('is the full box for rect and square', () => {
