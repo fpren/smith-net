@@ -16,6 +16,7 @@ import { InvoiceDetailRoute } from './console/routes/InvoiceDetailRoute';
 import { AdminRoute } from './console/routes/AdminRoute';
 import { RequireAdmin } from './console/auth/RequireAdmin';
 import { RequireForemanTier } from './console/auth/RequireForemanTier';
+import { SurfaceLabRoute } from './console/routes/SurfaceLabRoute';
 
 /**
  * Guild of Smiths Web Portal
@@ -28,6 +29,7 @@ export default function App() {
       <Route path="/" element={<Auth onAuthSuccess={() => {}} />} />
       <Route path="/auth/callback" element={<AuthCallback onAuthSuccess={() => {}} />} />
       <Route path="/portal" element={<Portal />} />
+      <Route path="/surface-lab" element={<SurfaceLabRoute />} />
 
       <Route path="/console/login" element={<LoginForm />} />
       <Route path="/console/register" element={<RegisterForm />} />
