@@ -21,7 +21,7 @@ export const UpdateInvoiceBody = z.object({
 export type UpdateInvoiceBody = z.infer<typeof UpdateInvoiceBody>;
 
 export const SetStatusBody = z.object({
-  status: z.enum(['draft', 'issued', 'sent', 'viewed', 'paid', 'overdue', 'disputed', 'cancelled']),
+  status: z.enum(['draft', 'issued', 'viewed', 'paid', 'overdue', 'disputed', 'cancelled']),
 }).strict();
 export type SetStatusBody = z.infer<typeof SetStatusBody>;
 
