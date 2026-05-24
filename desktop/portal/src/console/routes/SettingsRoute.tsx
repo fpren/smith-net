@@ -5,6 +5,7 @@ import { authClient } from '../auth/authClient';
 import { Avatar } from '../components/ui/Avatar';
 import { Chip } from '../components/ui/Chip';
 import { Button } from '../components/ui/Button';
+import { Pill } from '../components/ui/Pill';
 import { ShareLocationToggle } from '../components/header/ShareLocationToggle';
 import { accentForId, colorForRole } from '../lib/utils';
 import { useToastStore } from '../stores/toastStore';
@@ -45,11 +46,17 @@ export function SettingsRoute() {
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
   const clear = useAuthStore((s) => s.clear);
+  const hasForemanTier = useAuthStore((s) => s.hasForemanTier);
   const navigate = useNavigate();
   const pushToast = useToastStore((s) => s.push);
   const [name, setName] = useState(user?.displayName ?? '');
   const [saving, setSaving] = useState(false);
   const [switching, setSwitching] = useState(false);
+  // Team
+  const [invite, setInvite] = useState<{ code: string; expiresAt: string } | null>(null);
+  const [genBusy, setGenBusy] = useState(false);
+  const [joinCode, setJoinCode] = useState('');
+  const [joinBusy, setJoinBusy] = useState(false);
 
   if (!user) return null;
 
@@ -79,6 +86,37 @@ export function SettingsRoute() {
       pushToast({ message: `Work mode: ${mode}`, tone: 'info', duration: 2500 });
     } else {
       pushToast({ message: r.error || 'Could not switch', tone: 'error', duration: 3000 });
+    }
+  }
+
+  async function generateInvite() {
+    if (genBusy) return;
+    setGenBusy(true);
+    const r = await authClient.createOrgInvite();
+    setGenBusy(false);
+    if (r.ok) setInvite({ code: r.code, expiresAt: r.expiresAt });
+    else pushToast({ message: r.error || 'Could not create invite', tone: 'error', duration: 3000 });
+  }
+
+  function copyCode() {
+    if (invite) {
+      navigator.clipboard?.writeText(invite.code);
+      pushToast({ message: 'Code copied', tone: 'info', duration: 2000 });
+    }
+  }
+
+  async function joinTeam() {
+    const code = joinCode.trim();
+    if (!code || joinBusy) return;
+    setJoinBusy(true);
+    const r = await authClient.joinOrg(code);
+    setJoinBusy(false);
+    if (r.ok) {
+      setUser(r.user);
+      setJoinCode('');
+      pushToast({ message: 'Joined team', tone: 'info', duration: 2500 });
+    } else {
+      pushToast({ message: r.error || 'Could not join', tone: 'error', duration: 3000 });
     }
   }
 
@@ -149,6 +187,47 @@ export function SettingsRoute() {
         Changes your dashboard layout, permissions, and available features.
       </p>
 
+      {/* TEAM */}
+      <SectionHeader>Team</SectionHeader>
+      {hasForemanTier() ? (
+        <Row>
+          <Button variant="secondary" onClick={generateInvite} disabled={genBusy}>
+            {genBusy ? 'Generating…' : 'Generate invite code'}
+          </Button>
+          {invite && (
+            <div className="mt-3">
+              <div className="flex items-center justify-between bg-console-bg border border-console-border rounded px-3 py-2">
+                <span className="text-console-text text-sm tracking-widest">{invite.code}</span>
+                <Pill onClick={copyCode}>copy</Pill>
+              </div>
+              <p className="text-console-text-muted text-xs mt-1">
+                Expires {invite.expiresAt.slice(0, 10)}. One-time use.
+              </p>
+            </div>
+          )}
+          <p className="text-console-text-muted text-xs mt-2">Share the code with a crew member to add them.</p>
+        </Row>
+      ) : (
+        <Row>
+          <label className="block text-xs text-console-text-muted mb-1">Join a team</label>
+          <div className="flex items-center gap-2">
+            <input
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') joinTeam();
+              }}
+              placeholder="invite code"
+              className="flex-1 bg-console-bg border border-console-border rounded px-3 py-2 text-sm text-console-text focus:border-console-accent outline-none"
+            />
+            <Button onClick={joinTeam} disabled={joinBusy || !joinCode.trim()}>
+              {joinBusy ? 'Joining…' : 'Join'}
+            </Button>
+          </div>
+          <p className="text-console-text-muted text-xs mt-2">Enter a foreman's invite code to join their team.</p>
+        </Row>
+      )}
+
       {/* LOCATION SHARING */}
       <SectionHeader>Location sharing</SectionHeader>
       <Row>
@@ -169,12 +248,24 @@ export function SettingsRoute() {
 
       {/* ACCOUNT */}
       <SectionHeader>Account</SectionHeader>
-      <Row onClick={logout}>
-        <div className="flex items-center justify-between">
-          <span className="text-console-text text-sm">Sign out</span>
-          <span className="text-console-text-muted">{'>'}</span>
+      <Row>
+        <div className="flex items-center justify-between py-1">
+          <span className="text-console-text-muted text-sm">Email</span>
+          <span className="text-console-text text-sm">{user.email}</span>
+        </div>
+        <div className="flex items-center justify-between py-1 mt-1 border-t border-console-border pt-2">
+          <span className="text-console-text-muted text-sm">Email verified</span>
+          <span className="text-console-text text-sm">{user.emailVerified ? 'yes' : 'no'}</span>
         </div>
       </Row>
+      <div className="mt-2">
+        <Row onClick={logout}>
+          <div className="flex items-center justify-between">
+            <span className="text-console-text text-sm">Sign out</span>
+            <span className="text-console-text-muted">{'>'}</span>
+          </div>
+        </Row>
+      </div>
     </div>
   );
 }

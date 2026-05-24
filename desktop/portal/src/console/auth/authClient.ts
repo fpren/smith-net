@@ -78,5 +78,10 @@ export const authClient = {
   updateWorkMode: (mode: 'solo' | 'foreman') =>
     patchJson<UserResponse>('/api/users/me/work-mode', { mode }),
 
+  // Org invites: foreman-tier generates a one-time code; anyone redeems one.
+  createOrgInvite: () =>
+    postJson<{ code: string; expiresAt: string }>('/api/auth/org/invites', {}),
+  joinOrg: (code: string) => postJson<UserResponse>('/api/auth/org/join', { code }),
+
   logout: () => postJson<{ success: boolean }>('/api/auth/logout', {}),
 };
