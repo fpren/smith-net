@@ -98,13 +98,9 @@ export function AppHeader() {
         </span>
       </div>
 
-      {/* User card — links to Settings (profile + account). Role chip hidden on
+      {/* User card (identity) + a gear that opens Settings. Role chip hidden on
           mobile to keep the header on one tidy row. */}
-      <NavLink
-        to="/console/settings"
-        title="Settings"
-        className="flex items-center gap-2 md:border-l md:border-console-border md:pl-3 rounded hover:opacity-80 transition-opacity"
-      >
+      <div className="flex items-center gap-2 md:border-l md:border-console-border md:pl-3">
         <Avatar name={user.displayName} color={accentForId(user.id)} size={28} />
         <div className="flex flex-col leading-tight">
           <span className="text-console-text text-xs font-medium whitespace-nowrap">{user.displayName}</span>
@@ -112,7 +108,31 @@ export function AppHeader() {
             <Chip label={user.role.toUpperCase()} color={colorForRole(user.role)} xs />
           </span>
         </div>
-      </NavLink>
+        <NavLink
+          to="/console/settings"
+          title="Settings"
+          aria-label="Settings"
+          className={({ isActive }) =>
+            'ml-1 p-1 rounded transition-colors ' +
+            (isActive ? 'text-console-accent' : 'text-console-text-muted hover:text-console-accent')
+          }
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </NavLink>
+      </div>
 
       <button
         type="button"
