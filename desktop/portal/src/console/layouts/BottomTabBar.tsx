@@ -39,6 +39,7 @@ export function BottomTabBar() {
       aria-label="Primary navigation"
     >
       <TabLink to="/console/home" label="Home" />
+      <TabLink to="/console/time" label="Clock" />
       {hasForemanTier() && <TabLink to="/console/jobs" label="Jobs" />}
       <TabLink to="/console/comm" label="Comm" />
     </nav>

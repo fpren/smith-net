@@ -71,6 +71,7 @@ export function AppHeader() {
       {/* Inline nav — hidden on mobile (replaced by BottomTabBar). */}
       <nav className="hidden md:flex items-center gap-1 border-l border-console-border pl-3">
         <NavButton to="/console/home" label="Home" />
+        <NavButton to="/console/time" label="Clock" />
         {hasForemanTier() && <NavButton to="/console" label="Map" end />}
         {hasForemanTier() && <NavButton to="/console/jobs" label="Jobs" />}
         {hasForemanTier() && <NavButton to="/console/invoices" label="Invoices" />}
