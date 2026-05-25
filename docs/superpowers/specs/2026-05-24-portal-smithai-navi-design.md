@@ -124,6 +124,25 @@ the gate for all of them.
 
 ---
 
+## 6a. Notifications integration (added 2026-05-25)
+
+The notifications system (see `2026-05-25-notifications-n1-design.md`) is the
+shared event/alert backbone, built AI-ready. When the navi is built (Phase-5) it
+gains two notification tools + a supervisor hook (all via the `llmWorker`, never
+inline):
+- `read_notifications` -- reads `notificationService.listForUser(actor)` for
+  situational awareness ("what's going on"), alongside the audit-log event stream
+  in the ContextBuilder. Read-only, actor-scoped (solo never sees crew).
+- `send_notification` -- creates an AI alert via
+  `notificationService.create({ ..., actorId: 'smithai' })`. Suggestion-only,
+  subject to the tier gates + determinism rules (it may surface alerts; it cannot
+  seal/mutate the ledger or advance cords).
+- The proactive `AISupervisor` (a future design) observes the audit-log/event
+  stream and raises alerts via `send_notification`.
+The notifications service is built now (N-1) so these plug in with zero rework.
+
+---
+
 ## 7. Out of scope
 
 - **The actual build** -- Phase-5-gated; this document is a design only.
