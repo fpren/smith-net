@@ -6,6 +6,7 @@ import { ClockButton } from './components/header/ClockButton';
 import { useAuthStore } from './auth/authStore';
 import { initSmithCore, isSmithCoreReady } from './core/smithCore';
 import { useCurrentTime } from './hooks/useCurrentTime';
+import { useOfflinePersistence } from './offline/useOfflinePersistence';
 
 interface Props {
   children: ReactNode;
@@ -14,6 +15,7 @@ interface Props {
 export function ConsoleShell({ children }: Props) {
   const user = useAuthStore((s) => s.user);
   const { hh, mm, ss } = useCurrentTime();
+  useOfflinePersistence();
 
   // Load the deterministic ROM once when the console mounts. Soft-fail: no UI
   // consumes it yet (SP1 foundation), so a missing/old wasm just stays not-ready.
