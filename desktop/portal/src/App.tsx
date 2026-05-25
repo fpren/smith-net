@@ -8,6 +8,8 @@ import { RequireAuth } from './console/auth/RequireAuth';
 import { ConsoleShell } from './console/ConsoleShell';
 import { JobsListRoute } from './console/routes/JobsListRoute';
 import { JobDetailRoute } from './console/routes/JobDetailRoute';
+import { ClientsListRoute } from './console/routes/ClientsListRoute';
+import { ClientDetailRoute } from './console/routes/ClientDetailRoute';
 import { MapRoute } from './console/routes/MapRoute';
 import { CrewRoute } from './console/routes/CrewRoute';
 import { CommRoute } from './console/routes/CommRoute';
@@ -52,6 +54,8 @@ export default function App() {
         <Route path="time" element={<TimeRoute />} />
         <Route path="jobs" element={<RequireForemanTier><JobsListRoute /></RequireForemanTier>} />
         <Route path="jobs/:id" element={<RequireForemanTier><JobDetailRoute /></RequireForemanTier>} />
+        <Route path="clients" element={<RequireForemanTier><ClientsListRoute /></RequireForemanTier>} />
+        <Route path="clients/:id" element={<RequireForemanTier><ClientDetailRoute /></RequireForemanTier>} />
         <Route path="crew" element={<RequireForemanTier><CrewRoute /></RequireForemanTier>} />
         <Route path="comm" element={<CommRoute />} />
         <Route path="invoices" element={<RequireForemanTier><InvoicesListRoute /></RequireForemanTier>} />
