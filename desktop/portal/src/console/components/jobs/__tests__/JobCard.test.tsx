@@ -8,6 +8,7 @@ const baseJob: Job = {
   id: 'abcdef1234567890',
   foremanId: 'f-1',
   clientId: null,
+  client: null,
   engagementId: null,
   title: 'Install panel',
   description: null,

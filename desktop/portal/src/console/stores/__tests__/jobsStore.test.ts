@@ -7,6 +7,7 @@ const sampleJob: Job = {
   id: 'job-1',
   foremanId: 'f-1',
   clientId: null,
+  client: null,
   engagementId: null,
   title: 'First job',
   description: null,

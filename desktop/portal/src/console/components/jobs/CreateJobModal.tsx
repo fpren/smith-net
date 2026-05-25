@@ -4,6 +4,8 @@ import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { jobsClient, Job } from '../../api/jobsClient';
 import { useToast } from '../../hooks/useToast';
+import { useClientsPolling } from '../../hooks/useClientsPolling';
+import { useClientsStore } from '../../stores/clientsStore';
 
 interface Props {
   open: boolean;
@@ -16,9 +18,12 @@ export function CreateJobModal({ open, onClose, onCreated }: Props) {
   const [location, setLocation] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
   const [description, setDescription] = useState('');
+  const [clientId, setClientId] = useState('');
   const [titleError, setTitleError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const toast = useToast();
+  useClientsPolling('list');
+  const clients = useClientsStore((s) => s.clients);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -33,13 +38,14 @@ export function CreateJobModal({ open, onClose, onCreated }: Props) {
       ...(location ? { location } : {}),
       ...(scheduledAt ? { scheduledAt: new Date(scheduledAt).toISOString() } : {}),
       ...(description ? { description } : {}),
+      ...(clientId ? { clientId } : {}),
     });
     setBusy(false);
     if (!result.ok) {
       toast.error(result.error || 'Failed to create job');
       return;
     }
-    setTitle(''); setLocation(''); setScheduledAt(''); setDescription('');
+    setTitle(''); setLocation(''); setScheduledAt(''); setDescription(''); setClientId('');
     onCreated(result.job);
     onClose();
   }
@@ -58,6 +64,14 @@ export function CreateJobModal({ open, onClose, onCreated }: Props) {
             className="bg-console-bg border border-console-border px-3 py-2 text-console-text focus:outline-none focus:border-console-accent font-mono"
             rows={4}
           />
+        </label>
+        <label className="flex flex-col gap-1 font-mono text-sm">
+          <span className="text-console-text-muted">Client (optional)</span>
+          <select value={clientId} onChange={(e) => setClientId(e.target.value)}
+            className="bg-console-bg border border-console-border rounded px-2 py-1 text-sm text-console-text focus:border-console-accent outline-none">
+            <option value="">No client</option>
+            {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
         </label>
         <div className="flex gap-2 justify-end mt-2">
           <Button variant="secondary" type="button" onClick={onClose} disabled={busy}>Cancel</Button>

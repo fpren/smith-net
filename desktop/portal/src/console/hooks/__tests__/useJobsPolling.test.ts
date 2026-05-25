@@ -38,7 +38,7 @@ describe('useJobsPolling', () => {
   it('detail scope calls getById with the id', async () => {
     const spy = vi.spyOn(jobsClient.jobsClient, 'getById').mockResolvedValue({
       ok: true,
-      job: { id: 'x', foremanId: 'f', clientId: null, engagementId: null, title: 't', description: null, status: 'planned', scheduledAt: null, location: null, latitude: null, longitude: null, geocodedAt: null, createdAt: '', updatedAt: '' },
+      job: { id: 'x', foremanId: 'f', clientId: null, client: null, engagementId: null, title: 't', description: null, status: 'planned', scheduledAt: null, location: null, latitude: null, longitude: null, geocodedAt: null, createdAt: '', updatedAt: '' },
       crew: [],
     });
     renderHook(() => useJobsPolling({ detail: 'x' }, 15000));

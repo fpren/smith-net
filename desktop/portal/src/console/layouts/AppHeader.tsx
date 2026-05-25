@@ -74,6 +74,7 @@ export function AppHeader() {
         <NavButton to="/console/time" label="Clock" />
         {hasForemanTier() && <NavButton to="/console" label="Map" end />}
         {hasForemanTier() && <NavButton to="/console/jobs" label="Jobs" />}
+        {hasForemanTier() && <NavButton to="/console/clients" label="Clients" />}
         {hasForemanTier() && <NavButton to="/console/invoices" label="Invoices" />}
         {hasForemanTier() && <NavButton to="/console/crew" label="Crew" />}
         <NavButton to="/console/comm" label="Comm" />

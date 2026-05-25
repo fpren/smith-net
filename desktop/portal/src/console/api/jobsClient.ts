@@ -6,6 +6,7 @@ export interface Job {
   id: string;
   foremanId: string;
   clientId: string | null;
+  client: { id: string; name: string } | null;
   engagementId: string | null;
   title: string;
   description: string | null;

@@ -52,6 +52,10 @@ export function JobDetailRoute() {
         <dt className="text-console-text-muted">id</dt>          <dd>#{job.id}</dd>
         <dt className="text-console-text-muted">scheduled</dt>   <dd>{job.scheduledAt ?? '—'}</dd>
         <dt className="text-console-text-muted">location</dt>    <dd>{job.location ?? '—'}</dd>
+        <dt className="text-console-text-muted">client</dt>
+        <dd>{job.client
+          ? <Link className="text-console-accent" to={`/console/clients/${job.client.id}`}>{job.client.name}</Link>
+          : '-'}</dd>
         <dt className="text-console-text-muted">created</dt>     <dd>{job.createdAt}</dd>
       </dl>
       <div className="mt-6">

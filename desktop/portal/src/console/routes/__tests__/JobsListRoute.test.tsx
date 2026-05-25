@@ -6,7 +6,7 @@ import { useJobsStore } from '../../stores/jobsStore';
 import type { Job } from '../../api/jobsClient';
 
 const j = (id: string, status: Job['status']): Job => ({
-  id, foremanId: 'f-1', clientId: null, engagementId: null,
+  id, foremanId: 'f-1', clientId: null, client: null, engagementId: null,
   title: `Job ${id}`, description: null, status,
   scheduledAt: null, location: null,
   latitude: null, longitude: null, geocodedAt: null,

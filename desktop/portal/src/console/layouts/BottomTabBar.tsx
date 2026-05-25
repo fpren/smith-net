@@ -41,6 +41,7 @@ export function BottomTabBar() {
       <TabLink to="/console/home" label="Home" />
       <TabLink to="/console/time" label="Clock" />
       {hasForemanTier() && <TabLink to="/console/jobs" label="Jobs" />}
+      {hasForemanTier() && <TabLink to="/console/clients" label="Clients" />}
       <TabLink to="/console/comm" label="Comm" />
     </nav>
   );
