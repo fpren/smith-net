@@ -1,9 +1,10 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { AppHeader } from './layouts/AppHeader';
 import { BottomTabBar } from './layouts/BottomTabBar';
 import { ShareLocationToggle } from './components/header/ShareLocationToggle';
 import { ClockButton } from './components/header/ClockButton';
 import { useAuthStore } from './auth/authStore';
+import { initSmithCore, isSmithCoreReady } from './core/smithCore';
 
 interface Props {
   children: ReactNode;
@@ -11,6 +12,14 @@ interface Props {
 
 export function ConsoleShell({ children }: Props) {
   const user = useAuthStore((s) => s.user);
+
+  // Load the deterministic ROM once when the console mounts. Soft-fail: no UI
+  // consumes it yet (SP1 foundation), so a missing/old wasm just stays not-ready.
+  useEffect(() => {
+    void initSmithCore().then(() => {
+      if (isSmithCoreReady()) console.info('[smithcore] ROM ready (ABI 3)');
+    });
+  }, []);
 
   return (
     <div className="h-screen flex flex-col font-mono">
