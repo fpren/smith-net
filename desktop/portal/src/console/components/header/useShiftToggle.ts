@@ -1,9 +1,9 @@
 // desktop/portal/src/console/components/header/useShiftToggle.ts
 //
 // Shared clock-in/out logic. Optimistic (APK-style): the new shift state is
-// applied locally the instant the dialog is confirmed, then the server round-trip
-// reconciles on success or rolls back (with a toast) on failure. ClockInDialog /
-// ClockOutDialog drive these; ShiftClock + TimeScreen render from one instance.
+// applied locally the instant clock-in/out fires, then the server round-trip
+// reconciles on success or rolls back (with a toast) on failure. ClockInDialog
+// drives clock-in (entry type + job/task); clock-out is instant.
 import { useState } from 'react';
 import { presenceClient } from '../../api/presenceClient';
 import { useCurrentShift } from '../../hooks/useCurrentShift';
