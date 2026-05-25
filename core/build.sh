@@ -71,4 +71,5 @@ sync_rom() {
   fi
 }
 sync_rom "../android/app/src/main/assets"
-# Future shells (M5): portal public dir, iOS bundle, Pi host -- add here.
+sync_rom "../desktop/portal/public"
+# Future shells: iOS bundle, Pi host -- add here.
