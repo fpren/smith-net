@@ -1,5 +1,13 @@
 # Clock Parity Implementation Plan
 
+> **Status: BUILT (2026-05-25), with deviations.** Tasks 1-4 below shipped as
+> written. Task 5 (header opens dialogs) was built then **reverted** -- the header
+> keeps its instant on/off switch instead. Added beyond this plan: a dedicated
+> `[Clock]` tab + framed `TimeScreen` container; clock-OUT is instant (ClockOutDialog
+> removed); and an all-tier **clock-scoped job + task picker** (`GET /api/shifts/jobs`
+> + `/jobs/:id/tasks`, `shifts.task_id/task_title` via migration 029). See the
+> design doc's "As-built amendments" for the full picture and commit list.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Mirror the APK time clock in the portal: extend the `shifts` model with entry type / job / reason, add clock-in/out dialogs, a dedicated `/console/time` screen with an 8-hour daily-summary bar and a read-only today's-entries log, and a richer header.

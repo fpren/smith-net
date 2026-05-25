@@ -1,11 +1,38 @@
 # Clock Parity (portal mirrors the APK time clock) -- Design
 
-> Status: design approved 2026-05-25.
+> Status: built 2026-05-25. The sections below are the original design; the
+> **As-built amendments** block records where implementation diverged. Read the
+> amendments first -- they are the current truth.
 
-**Goal:** Bring the portal's clock up to parity with the Android APK time clock: a
-dedicated `/console/time` screen with the live timer, an 8-hour daily-summary bar,
-and a TODAY'S ENTRIES log; clock-in/out **dialogs** (entry type + job tag on
-clock-in; reason on clock-out); and a richer header. Available to all tiers.
+## As-built amendments (2026-05-25)
+
+The design evolved while building, mostly to keep the established mirror on/off
+switch and to mirror the APK's clock container faithfully:
+
+1. **Dedicated `[Clock]` tab + framed container** (not just a route): `/console/time`
+   is in both navs (mobile + desktop), all-tier. `TimeScreen` is a framed clock
+   card mirroring the APK clock screen.
+2. **The header keeps its instant on/off switch** -- it does NOT open dialogs.
+   Tapping the header switch clocks in/out instantly (REGULAR). The richer flow
+   lives in the `/console/time` container.
+3. **Container switch behaviour:** clock-IN opens the entry-type/job/task picker
+   (`ClockInDialog`); clock-OUT is **instant** (no reason dialog). So
+   `ClockOutDialog` was removed (the `shifts.clock_out_reason` column stays but is
+   currently unused by the UI).
+4. **Job + task tagging is all-tier via a clock-scoped read**, not the
+   foreman-gated `/api/jobs`. New endpoints on the un-gated `shiftsRouter`:
+   `GET /api/shifts/jobs` (the caller's owned + assigned jobs) and
+   `GET /api/shifts/jobs/:jobId/tasks`. The clock-in picker connects a real job
+   AND a task (the APK had job + a taskId).
+5. **Model:** shifts gained `entry_type, job_id, job_title, clock_out_reason`
+   (migration 028) and `task_id, task_title` (migration 029).
+
+Commits: `ba6d290` (model+endpoints), `a6f25af` (dialogs+hook), `02527d5`
+(screen+log), `9c365b8` (daily bar), `7213315` (tab+container), `fa07c19`
+(all-tier job/task read + shift task link), `50f8d95` (job/task picker),
+`5b9c78d` (async error forwarding), `3caf370` (remove ClockOutDialog). The header
+dialog-integration commit (`e6e7031`) was reverted in favour of keeping the
+instant header switch.
 
 ---
 
