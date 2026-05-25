@@ -5,6 +5,7 @@ import { requireConsoleTier } from './middleware/requireConsoleTier';
 import { requireClientOwner, ClientOwnerRequest } from './middleware/requireClientOwner';
 import { validateBody } from './middleware/validate';
 import * as clientsService from './clientsService';
+import * as jobsService from './jobsService';
 import { requestLogger } from './log';
 import { CreateClientBody, UpdateClientBody } from './schemas/clients';
 
@@ -35,8 +36,7 @@ clientsRouter.post('/', validateBody(CreateClientBody), async (req: Authenticate
 
 clientsRouter.get('/:id', requireClientOwner, async (req: ClientOwnerRequest, res: Response) => {
   try {
-    // T6 replaces this stub with jobsService.listByClient(req.params.id, req.user!.id)
-    const jobs: any[] = [];
+    const jobs = await jobsService.listByClient(req.params.id, req.user!.id);
     res.json({ client: req.client, jobs });
   } catch (e: any) {
     requestLogger().error({ event: 'clients_get_error', err: e }, 'clients get error');

@@ -99,6 +99,7 @@ describe('requireJobOwner', () => {
       geocodedAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
+      client: null,
     });
 
     const app = express();
@@ -130,6 +131,7 @@ describe('requireJobOwner', () => {
       geocodedAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
+      client: null,
     };
     jest.spyOn(jobsService, 'getById').mockResolvedValueOnce(job);
 

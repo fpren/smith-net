@@ -3,6 +3,7 @@ import request from 'supertest';
 import cookieParser from 'cookie-parser';
 import { authRouter } from '../authRoutes';
 import { jobsRouter } from '../jobsRoutes';
+import { clientsRouter } from '../clientsRoutes';
 import { userStore, generateTokens, UserRole } from '../auth';
 import { createUserAndProfile } from '../jobsService';
 import { pg, isPgEnabled } from '../db';
@@ -18,6 +19,7 @@ function buildApp() {
   app.use(cookieParser());
   app.use('/api/auth', authRouter);
   app.use('/api/jobs', jobsRouter);
+  app.use('/api/clients', clientsRouter);
   return app;
 }
 
@@ -56,6 +58,9 @@ afterEach(async () => {
   // dedupe_key doesn't collide across reruns.
   await pg.query(`DELETE FROM background_jobs WHERE kind = 'geocode'`);
   await pg.query(`DELETE FROM jobs`);
+  // clients.owner_id references profiles; jobs.client_id references clients.
+  // Delete clients AFTER jobs (FK: jobs.client_id -> clients.id).
+  await pg.query(`DELETE FROM clients`);
   await pg.query(`DELETE FROM profiles WHERE email LIKE 'foreman-jobs-%' OR email LIKE 'crew-%'`);
   await pg.query(`DELETE FROM users WHERE email LIKE 'foreman-jobs-%' OR email LIKE 'crew-%' OR email LIKE 'solo-jobs-%'`);
 });
@@ -334,5 +339,34 @@ describeDb('POST /api/jobs/:id/assign + DELETE /api/jobs/:id/assign/:profileId',
 
     const fetched = await request(app).get(`/api/jobs/${jobId}`).set('Authorization', `Bearer ${f.token}`);
     expect(fetched.body.crew).toHaveLength(0);
+  });
+});
+
+describeDb('jobs <-> client link', () => {
+  const app = buildApp();
+
+  it('creates a job linked to a client and returns client on detail', async () => {
+    const f = await createForemanAndLogin('link');
+    const c = await request(app).post('/api/clients')
+      .set('Authorization', `Bearer ${f.token}`).send({ name: 'Linked Co' });
+    const clientId = c.body.client.id;
+
+    const job = await request(app).post('/api/jobs')
+      .set('Authorization', `Bearer ${f.token}`).send({ title: 'Wired job', clientId });
+    expect(job.status).toBe(201);
+
+    const detail = await request(app).get(`/api/jobs/${job.body.job.id}`)
+      .set('Authorization', `Bearer ${f.token}`);
+    expect(detail.body.job.client).toEqual({ id: clientId, name: 'Linked Co' });
+  });
+
+  it('rejects a job create with a foreign clientId (400)', async () => {
+    const a = await createForemanAndLogin('own');
+    const b = await createForemanAndLogin('other');
+    const c = await request(app).post('/api/clients')
+      .set('Authorization', `Bearer ${a.token}`).send({ name: 'A client' });
+    const res = await request(app).post('/api/jobs')
+      .set('Authorization', `Bearer ${b.token}`).send({ title: 'X', clientId: c.body.client.id });
+    expect(res.status).toBe(400);
   });
 });

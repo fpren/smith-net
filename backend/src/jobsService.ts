@@ -30,6 +30,7 @@ export interface Job {
   geocodedAt: Date | null;        // NEW
   createdAt: Date;
   updatedAt: Date;
+  client: { id: string; name: string } | null;
 }
 
 export interface CrewAssignment {
@@ -99,6 +100,7 @@ function mapJobRow(row: any): Job {
     geocodedAt: row.geocoded_at ? new Date(row.geocoded_at) : null,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
+    client: row.client_name ? { id: row.client_id, name: row.client_name } : null,
   };
 }
 
@@ -163,7 +165,13 @@ export async function countActive(foremanId: string): Promise<number> {
 
 export async function getById(jobId: string): Promise<Job | null> {
   const db = requirePg();
-  const { rows } = await db.query(`SELECT * FROM jobs WHERE id = $1`, [jobId]);
+  const { rows } = await db.query(
+    `SELECT j.*, c.name AS client_name
+       FROM jobs j
+       LEFT JOIN clients c ON c.id = j.client_id AND c.is_deleted = FALSE
+      WHERE j.id = $1`,
+    [jobId]
+  );
   return rows.length === 0 ? null : mapJobRow(rows[0]);
 }
 
@@ -174,6 +182,24 @@ export async function listCrew(jobId: string): Promise<CrewAssignment[]> {
     [jobId]
   );
   return rows.map(mapCrewRow);
+}
+
+export async function listByClient(clientId: string, foremanId: string): Promise<Job[]> {
+  const db = requirePg();
+  const { rows } = await db.query(
+    `SELECT * FROM jobs WHERE client_id = $1 AND foreman_id = $2 ORDER BY created_at DESC`,
+    [clientId, foremanId]
+  );
+  return rows.map(mapJobRow);
+}
+
+export async function clientBelongsToOwner(clientId: string, ownerId: string): Promise<boolean> {
+  const db = requirePg();
+  const { rowCount } = await db.query(
+    `SELECT 1 FROM clients WHERE id = $1 AND owner_id = $2 AND is_deleted = FALSE`,
+    [clientId, ownerId]
+  );
+  return (rowCount ?? 0) > 0;
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -262,7 +288,7 @@ export async function changeStatus(jobId: string, newStatus: JobStatus): Promise
   return job;
 }
 
-export type UpdatePatch = Partial<Pick<Job, 'title' | 'description' | 'scheduledAt' | 'location'>>;
+export type UpdatePatch = Partial<Pick<Job, 'title' | 'description' | 'scheduledAt' | 'location'>> & { clientId?: string | null };
 
 export async function update(jobId: string, patch: UpdatePatch): Promise<Job> {
   const db = requirePg();
@@ -275,6 +301,7 @@ export async function update(jobId: string, patch: UpdatePatch): Promise<Job> {
   if (patch.description !== undefined) { sets.push(`description = $${paramIdx++}`); params.push(patch.description); changedFields.push('description'); }
   if (patch.scheduledAt !== undefined) { sets.push(`scheduled_at = $${paramIdx++}`); params.push(patch.scheduledAt); changedFields.push('scheduledAt'); }
   if (patch.location !== undefined) { sets.push(`location = $${paramIdx++}`); params.push(patch.location); changedFields.push('location'); }
+  if ('clientId' in patch) { sets.push(`client_id = $${paramIdx++}`); params.push(patch.clientId ?? null); changedFields.push('clientId'); }
 
   if (sets.length === 0) {
     const existing = await getById(jobId);

@@ -15,6 +15,7 @@ export const UpdateJobBody = z.object({
   description: z.string().trim().max(5000).optional().nullable(),
   scheduledAt: z.string().datetime().optional().nullable(),
   location:    z.string().trim().max(500).optional().nullable(),
+  clientId:    z.string().uuid().optional().nullable(),
 }).strict();
 export type UpdateJobBody = z.infer<typeof UpdateJobBody>;
 

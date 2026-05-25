@@ -68,6 +68,9 @@ jobsRouter.post(
   async (req: AuthenticatedRequest, res: Response) => {
   try {
     const body = req.body as CreateJobBody;
+    if (body.clientId && !(await jobsService.clientBelongsToOwner(body.clientId, req.user!.id))) {
+      return res.status(400).json({ error: 'Unknown client', code: 'validation' });
+    }
     const job = await jobsService.create({
       foremanId: req.user!.id,
       title: body.title,
@@ -117,12 +120,17 @@ jobsRouter.patch('/:id/status', requireJobOwner, validateBody(StatusChangeBody),
 jobsRouter.patch('/:id', requireJobOwner, validateBody(UpdateJobBody), async (req: JobOwnerRequest, res: Response) => {
   try {
     const body = req.body as UpdateJobBody;
-    const job = await jobsService.update(req.job!.id, {
+    if (body.clientId && !(await jobsService.clientBelongsToOwner(body.clientId, req.user!.id))) {
+      return res.status(400).json({ error: 'Unknown client', code: 'validation' });
+    }
+    const patch: Parameters<typeof jobsService.update>[1] = {
       title: body.title,
       description: body.description === null ? null as any : body.description,
       scheduledAt: body.scheduledAt === null ? null as any : (body.scheduledAt ? new Date(body.scheduledAt) : undefined),
       location: body.location === null ? null as any : body.location,
-    });
+    };
+    if ('clientId' in body) { patch.clientId = body.clientId ?? null; }
+    const job = await jobsService.update(req.job!.id, patch);
     res.json({ job });
   } catch (e: any) {
     if (e instanceof jobsService.NotFoundError) {
