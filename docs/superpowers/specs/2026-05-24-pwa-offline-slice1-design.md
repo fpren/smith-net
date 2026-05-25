@@ -42,15 +42,18 @@ Hard rules in force (do not break):
   no network.
 - A per-profile IndexedDB cache that the zustand stores hydrate from on console
   mount and write through to after each successful fetch.
-- Cached collections: **jobs (list), invoices (list), crew roster, tasks, comm
-  channel list (metadata only)**.
+- Cached collections: **jobs (list), invoices (list), crew roster, tasks**.
 - Tests: the persistence layer + per-profile isolation (the must-pass).
 
 ### Out of scope
 - Offline **writes** / optimistic mutations (Slice 2).
 - Vector-clock **reconciliation / sync** (Slice 3).
-- Comm **message bodies** offline, and ephemeral channels (deferred; determinism
-  rule).
+- **Comm offline entirely** (channel list AND messages). The portal `Channel`
+  type carries no ephemeral/persistence marker, and ephemeral channels can enter
+  the store via the live WebSocket (`addChannel`), so caching comm cannot
+  guarantee the determinism rule that ephemeral channels never persist. Deferred
+  to a dedicated comm-offline slice (which adds a marker, coordinated with the
+  backend, before any comm data is cached).
 - Map crew **positions** (realtime; low value cached).
 - **Push** notifications.
 - The native wrapper (Capacitor/Tauri).
@@ -149,13 +152,19 @@ each cacheable store with the right `pick`/`hydrate`/`shouldPersist`, collecting
 unsubscribes. On `user.id` change it tears down and rebinds; when `user` becomes
 null (logout) it tears down and `clearProfile(previousId)`.
 
-Cacheable bindings (Slice 1):
+Cacheable bindings (Slice 1) -- gates chosen per each store's actual shape so the
+empty initial state and the post-logout `clear()` never overwrite a good cache:
 - jobs (`jobsStore`): persist `{ jobs }`; hydrate via `setJobs` + `markStale(true)`;
-  gate on `lastFetchedAt != null`.
-- invoices (`invoicesStore`), crew roster (`crewStore`), tasks (`tasksStore`):
-  analogous to jobs (the plan reads each store's actions).
-- comm channels (`commStore`): persist the **channel list metadata only** --
-  exclude message bodies and any ephemeral channel (filtered in `pick`).
+  gate `lastFetchedAt != null`.
+- crew roster (`crewStore`): persist `{ roster }`; hydrate via `setRoster` +
+  `markStale(true)`; gate `lastFetchedAt != null`.
+- invoices (`invoicesStore`): persist `{ invoices }`; hydrate via `setInvoices` +
+  `markStale(true)`; gate `invoices.length > 0` (this store has no `lastFetchedAt`).
+- tasks (`tasksStore`): persist `{ tasksByJob }` (a `Record<jobId, Task[]>`);
+  hydrate by iterating `setTasks(jobId, list)` + `markStale(jobId, true)`; gate
+  `Object.keys(tasksByJob).length > 0`.
+
+Comm is intentionally NOT cached in Slice 1 (see Out of scope).
 
 ### `src/console/ConsoleShell.tsx` (modify)
 Call `useOfflinePersistence()` (alongside the existing `initSmithCore()` effect).
@@ -211,13 +220,12 @@ isolation test exists to prove.
   the generated precache manifest includes `smithcore.wasm`; `npx tsc --noEmit` is
   clean; the full `npm run test:run` suite stays green.
 - **Manual deferred-verify:** install the PWA, go offline, reload -> the app opens
-  and shows last-synced jobs/invoices/crew/tasks/channel-list; Lighthouse reports
-  "installable".
+  and shows last-synced jobs/invoices/crew/tasks; Lighthouse reports "installable".
 
 ---
 
 ## 9. Open questions
 
 None. Offline mechanism (IndexedDB hydration, not SW API caching), PWA tooling
-(vite-plugin-pwa), cached set (jobs/invoices/crew/tasks/channel-list; message
-bodies + ephemeral channels excluded), and isolation keying are all decided above.
+(vite-plugin-pwa), cached set (jobs/invoices/crew/tasks; comm deferred entirely
+for the ephemeral-marker reason above), and isolation keying are all decided above.
