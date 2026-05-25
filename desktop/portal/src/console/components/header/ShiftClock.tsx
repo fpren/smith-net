@@ -14,10 +14,6 @@ import { ClockToggleButton } from './ClockToggleButton';
 import { formatElapsed } from './shiftFormat';
 export { formatElapsed } from './shiftFormat';
 
-function formatStart(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-}
-
 export function ShiftClock() {
   // Task 5 will replace this quick toggle with the clock-in/out dialogs. For now,
   // keep the existing one-tap behaviour by deriving a toggle from the new
@@ -44,18 +40,13 @@ export function ShiftClock() {
     >
       {/* ON CLOCK: current shift on the left */}
       {elapsed !== null && startedAt && (
-        <>
-          <span
-            className="text-console-ok text-sm tabular-nums whitespace-nowrap"
-            style={{ fontFamily: 'var(--font-mono)' }}
-            aria-label="shift elapsed"
-          >
-            {formatElapsed(elapsed)}
-          </span>
-          <span className="hidden sm:inline text-console-text-muted text-[10px] whitespace-nowrap">
-            started {formatStart(startedAt)}
-          </span>
-        </>
+        <span
+          className="text-console-ok text-sm tabular-nums whitespace-nowrap"
+          style={{ fontFamily: 'var(--font-mono)' }}
+          aria-label="shift elapsed"
+        >
+          {formatElapsed(elapsed)}
+        </span>
       )}
 
       <ClockToggleButton onClock={onClock} busy={busy} onClick={toggle} />
