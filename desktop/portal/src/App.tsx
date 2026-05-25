@@ -20,6 +20,7 @@ import { SurfaceLabRoute } from './console/routes/SurfaceLabRoute';
 import { AdaptiveHomeRoute } from './console/routes/AdaptiveHomeRoute';
 import { SurfaceHomePreviewRoute } from './console/routes/SurfaceHomePreviewRoute';
 import { SettingsRoute } from './console/routes/SettingsRoute';
+import { TimeRoute } from './console/routes/TimeRoute';
 
 /**
  * Guild of Smiths Web Portal
@@ -48,6 +49,7 @@ export default function App() {
         <Route index element={<RequireForemanTier><MapRoute /></RequireForemanTier>} />
         <Route path="home" element={<AdaptiveHomeRoute />} />
         <Route path="settings" element={<SettingsRoute />} />
+        <Route path="time" element={<TimeRoute />} />
         <Route path="jobs" element={<RequireForemanTier><JobsListRoute /></RequireForemanTier>} />
         <Route path="jobs/:id" element={<RequireForemanTier><JobDetailRoute /></RequireForemanTier>} />
         <Route path="crew" element={<RequireForemanTier><CrewRoute /></RequireForemanTier>} />
