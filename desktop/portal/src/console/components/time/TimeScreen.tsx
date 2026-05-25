@@ -37,6 +37,7 @@ export function TimeScreen() {
 
   return (
     <div className="h-full overflow-y-auto bg-console-bg p-4 font-mono text-console-text">
+     <div className="mx-auto w-full max-w-lg">
       <div className="text-xs uppercase tracking-wide text-console-text-muted mb-3">Time Clock</div>
 
       {/* Centered clock card -- mirrors the APK clock card. */}
@@ -98,6 +99,7 @@ export function TimeScreen() {
         onClose={() => setShowIn(false)}
         onConfirm={(opts) => { setShowIn(false); void clockIn(opts); }}
       />
+     </div>
     </div>
   );
 }
