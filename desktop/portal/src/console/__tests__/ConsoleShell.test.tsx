@@ -33,4 +33,9 @@ describe('ConsoleShell', () => {
     render(<MemoryRouter><ConsoleShell><div>x</div></ConsoleShell></MemoryRouter>);
     expect(screen.getByRole('navigation', { name: /primary navigation/i })).toBeInTheDocument();
   });
+
+  it('renders the shift clock in its own container', () => {
+    render(<MemoryRouter><ConsoleShell><div>x</div></ConsoleShell></MemoryRouter>);
+    expect(screen.getByRole('group', { name: /shift/i })).toBeInTheDocument();
+  });
 });
