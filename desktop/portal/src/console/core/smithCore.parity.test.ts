@@ -3,8 +3,9 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { webcrypto } from 'node:crypto';
 import * as fs from 'node:fs';
-import { instantiate, isSmithCoreReady, sha256, vclockMerge, vclockCompare } from './smithCore';
+import { instantiate, isSmithCoreReady, sha256, vclockMerge, vclockCompare, ledgerEncode } from './smithCore';
 import type { VectorClockState } from './smithCore';
+import { packLedgerInput, type LedgerArtifactInput } from './ledgerCanonical';
 
 // Test-only filesystem + crypto (Vitest runs in Node, not the browser).
 // Paths resolve from this file via import.meta.url so they do not depend on
@@ -124,4 +125,21 @@ describe('vclock parity: randomized fuzz', () => {
       expect(vclockCompare(b, a)).toBe(compareRef(b, a));
     }
   });
+});
+
+const ledgerGoldenUrl = new URL('../../../../../core/testdata/ledger-golden.json', import.meta.url);
+
+describe('ledger parity: golden vectors', () => {
+  const golden = JSON.parse(fs.readFileSync(fileURLToPath(ledgerGoldenUrl), 'utf8')) as {
+    vectors: Array<{ label: string; artifact: LedgerArtifactInput; canonicalHex: string; hashHex: string }>;
+  };
+
+  it.each(golden.vectors.map((v) => [v.label, v] as const))(
+    'reproduces canonical bytes + hash for %s',
+    (_label, v) => {
+      const canonical = ledgerEncode(packLedgerInput(v.artifact));
+      expect(toHex(canonical)).toBe(v.canonicalHex);
+      expect(toHex(sha256(canonical))).toBe(v.hashHex);
+    },
+  );
 });

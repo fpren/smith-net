@@ -204,3 +204,18 @@ export function vclockCompare(a: VectorClockState, b: VectorClockState): -1 | 0 
   if (r === SC_CMP_ERR) throw new Error('sc_vclock_compare parse error');
   return r as -1 | 0 | 1;
 }
+
+/** Canonical v2 ledger encode via the ROM. Input is the host-packed field buffer
+ *  (see ledgerCanonical.packLedgerInput / smithcore.h); returns the canonical
+ *  bytes ("SMC" + abi + format, fields verbatim, id arrays sorted). */
+export function ledgerEncode(input: Uint8Array): Uint8Array {
+  const e = core();
+  e.sc_reset();
+  const ip = stage(input);
+  const cap = input.length + 8; // +5 header; sorting never grows total size
+  const op = e.sc_alloc(cap);
+  if (op === 0) throw new Error('smithcore arena OOM');
+  const n = e.sc_ledger_encode(ip, input.length, op, cap);
+  if (n === SC_ERR || n < 0) throw new Error('sc_ledger_encode failed');
+  return mem().slice(op, op + n);
+}
