@@ -248,6 +248,8 @@ export const handlers = [
 
   http.get('/api/shifts/current', () => HttpResponse.json({ shift: null })),
 
+  http.get('/api/shifts/today', () => HttpResponse.json({ shifts: [] })),
+
   http.post('/api/presence/location', () =>
     HttpResponse.json({
       position: {

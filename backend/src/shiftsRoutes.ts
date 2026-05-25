@@ -63,3 +63,13 @@ shiftsRouter.get('/current', authenticateToken, async (req: AuthenticatedRequest
   const shift = await crewPositionService.getCurrentShift(userId);
   return res.status(200).json({ shift: shift ? serializeShift(shift) : null });
 });
+
+shiftsRouter.get('/today', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user!.id;
+  const since = Number(req.query.since);
+  if (!Number.isFinite(since) || since < 0) {
+    return res.status(400).json({ error: 'invalid since' });
+  }
+  const shifts = await crewPositionService.getShiftsSince(userId, since);
+  return res.status(200).json({ shifts: shifts.map(serializeShift) });
+});

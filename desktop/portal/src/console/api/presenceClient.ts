@@ -87,4 +87,22 @@ export const presenceClient = {
     const data = await res.json();
     return { ok: true, shiftId: data.shift?.id ?? null, startedAt: data.shift?.startedAt ?? null };
   },
+
+  getTodayShifts: async (
+    sinceMs: number,
+  ): Promise<PresenceResult<{ shifts: Array<{ startedAt: string | null; endedAt: string | null }> }>> => {
+    const res = await fetch(`/api/shifts/today?since=${sinceMs}`, { credentials: 'include' });
+    if (!res.ok) {
+      const e = await parseError(res);
+      return { ok: false, status: res.status, ...e };
+    }
+    const data = await res.json();
+    return {
+      ok: true,
+      shifts: (data.shifts ?? []).map((s: { startedAt?: string | null; endedAt?: string | null }) => ({
+        startedAt: s.startedAt ?? null,
+        endedAt: s.endedAt ?? null,
+      })),
+    };
+  },
 };

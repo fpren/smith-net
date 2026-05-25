@@ -1,20 +1,18 @@
 // desktop/portal/src/console/components/header/ShiftClock.tsx
 //
-// Console-header shift module. When on the clock, shows a live HH:MM:SS timer
-// counting up from the shift's start (ticking every second) plus the clock-in
-// time, then the clock-out pill -- mirroring the APK TimeTrackingScreen. When
-// off the clock, shows only the clock-in pill. The timer and the pill share one
-// useShiftToggle instance, so tapping clock-in starts the timer immediately.
+// Console-header shift module -- one clock concept mirrored by state:
+//   ON CLOCK : [ current-shift HH:MM:SS ]  [ clock-out pill ]   (number left, live)
+//   OFF CLOCK: [ clock-in pill ]  [ day-total HH:MM:SS ]        (number right, static)
+// The on-clock timer counts the current shift up from its start; the off-clock
+// number is the total worked today (00:00:00 at the start of the day, into
+// overtime). Timer + pill share one useShiftToggle instance, so tapping clock-in
+// starts the timer immediately.
 import { useEffect, useState } from 'react';
 import { useShiftToggle } from './useShiftToggle';
+import { useDayShiftTotal } from './useDayShiftTotal';
 import { ClockToggleButton } from './ClockToggleButton';
-
-/** Format a non-negative elapsed-seconds count as HH:MM:SS (zero-padded). */
-export function formatElapsed(totalSeconds: number): string {
-  const s = Math.max(0, Math.floor(totalSeconds));
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(Math.floor(s / 3600))}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`;
-}
+import { formatElapsed } from './shiftFormat';
+export { formatElapsed } from './shiftFormat';
 
 function formatStart(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -22,11 +20,12 @@ function formatStart(iso: string): string {
 
 export function ShiftClock() {
   const { onClock, startedAt, busy, toggle } = useShiftToggle();
+  const dayTotalSeconds = useDayShiftTotal();
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     if (!onClock) return;
-    setNow(Date.now()); // immediate, so the timer is correct the instant we clock in
+    setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, [onClock]);
@@ -39,6 +38,7 @@ export function ShiftClock() {
       aria-label="shift"
       className="flex items-center gap-3 bg-console-bg border border-console-border rounded-md px-3 py-1.5"
     >
+      {/* ON CLOCK: current shift on the left */}
       {elapsed !== null && startedAt && (
         <>
           <span
@@ -53,7 +53,19 @@ export function ShiftClock() {
           </span>
         </>
       )}
+
       <ClockToggleButton onClock={onClock} busy={busy} onClick={toggle} />
+
+      {/* OFF CLOCK: total worked today on the right (the mirror) */}
+      {!onClock && (
+        <span
+          className="text-console-text text-sm tabular-nums whitespace-nowrap"
+          style={{ fontFamily: 'var(--font-mono)' }}
+          aria-label="day total"
+        >
+          {formatElapsed(dayTotalSeconds)}
+        </span>
+      )}
     </div>
   );
 }

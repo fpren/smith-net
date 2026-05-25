@@ -74,6 +74,17 @@ class CrewPositionService {
     return r.rows[0] ?? null;
   }
 
+  async getShiftsSince(userId: string, sinceMs: number): Promise<Shift[]> {
+    const res = await requirePg().query(
+      `SELECT id, user_id, started_at, ended_at, source
+         FROM shifts
+        WHERE user_id = $1 AND (ended_at IS NULL OR ended_at >= to_timestamp($2 / 1000.0))
+        ORDER BY started_at ASC`,
+      [userId, sinceMs],
+    );
+    return res.rows;
+  }
+
   async upsertPosition(
     userId: string,
     input: { lat: number; lng: number; accuracy_m?: number; battery_pct?: number },
