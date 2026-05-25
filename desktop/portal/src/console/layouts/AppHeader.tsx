@@ -23,7 +23,7 @@ function NavButton({ to, label, end }: { to: string; label: string; end?: boolea
       to={to}
       end={end}
       className={({ isActive }) =>
-        `px-2 py-1 text-xs font-mono uppercase tracking-wide cursor-pointer transition-colors ` +
+        `px-2 py-1 text-xs font-mono uppercase tracking-wide cursor-pointer transition-colors shrink-0 whitespace-nowrap ` +
         (isActive
           ? 'text-console-accent'
           : 'text-console-text-muted hover:text-console-accent')
@@ -68,8 +68,10 @@ export function AppHeader() {
         </span>
       </div>
 
-      {/* Inline nav — hidden on mobile (replaced by BottomTabBar). */}
-      <nav className="hidden md:flex items-center gap-1 border-l border-console-border pl-3">
+      {/* Inline nav — hidden on mobile (replaced by BottomTabBar). Fills the
+          middle and scrolls internally when the row is too narrow for all the
+          foreman tabs, so the header never overflows the page. */}
+      <nav className="hidden md:flex min-w-0 overflow-x-auto items-center gap-1 border-l border-console-border pl-3">
         <NavButton to="/console/home" label="Home" />
         <NavButton to="/console/time" label="Clock" />
         {hasForemanTier() && <NavButton to="/console" label="Map" end />}
