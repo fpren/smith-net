@@ -1,7 +1,6 @@
 import { ReactNode, useEffect } from 'react';
 import { AppHeader } from './layouts/AppHeader';
 import { BottomTabBar } from './layouts/BottomTabBar';
-import { ShareLocationToggle } from './components/header/ShareLocationToggle';
 import { ShiftClock } from './components/header/ShiftClock';
 import { useAuthStore } from './auth/authStore';
 import { initSmithCore, isSmithCoreReady } from './core/smithCore';
@@ -27,9 +26,8 @@ export function ConsoleShell({ children }: Props) {
     <div className="h-screen flex flex-col font-mono">
       <AppHeader />
       {user && (
-        <div className="border-b border-console-border bg-console-surface px-4 py-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <div className="border-b border-console-border bg-console-surface px-4 py-2 flex items-center gap-3">
           <ShiftClock />
-          <ShareLocationToggle />
         </div>
       )}
       {/* pb-20 keeps content above the 56px BottomTabBar on mobile; resets
