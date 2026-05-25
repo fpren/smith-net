@@ -219,3 +219,16 @@ export function ledgerEncode(input: Uint8Array): Uint8Array {
   if (n === SC_ERR || n < 0) throw new Error('sc_ledger_encode failed');
   return mem().slice(op, op + n);
 }
+
+/** Canonical entitlements record encode via the ROM. Input is the host-packed
+ *  [u8 tierCode][u32 bitmask LE]; returns [0x01][tierCode][bitmask LE] (6 bytes). */
+export function entitlementsEncode(input: Uint8Array): Uint8Array {
+  const e = core();
+  e.sc_reset();
+  const ip = stage(input);
+  const op = e.sc_alloc(8);
+  if (op === 0) throw new Error('smithcore arena OOM');
+  const n = e.sc_entitlements_encode(ip, input.length, op, 8);
+  if (n === SC_ERR || n < 0) throw new Error('sc_entitlements_encode failed');
+  return mem().slice(op, op + n);
+}

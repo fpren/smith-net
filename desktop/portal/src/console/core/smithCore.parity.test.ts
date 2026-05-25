@@ -3,9 +3,9 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { webcrypto } from 'node:crypto';
 import * as fs from 'node:fs';
-import { instantiate, isSmithCoreReady, sha256, vclockMerge, vclockCompare, ledgerEncode } from './smithCore';
+import { instantiate, isSmithCoreReady, sha256, vclockMerge, vclockCompare, ledgerEncode, entitlementsEncode } from './smithCore';
 import type { VectorClockState } from './smithCore';
-import { packLedgerInput, type LedgerArtifactInput } from './ledgerCanonical';
+import { packLedgerInput, packEntitlements, type LedgerArtifactInput } from './ledgerCanonical';
 
 // Test-only filesystem + crypto (Vitest runs in Node, not the browser).
 // Paths resolve from this file via import.meta.url so they do not depend on
@@ -140,6 +140,23 @@ describe('ledger parity: golden vectors', () => {
       const canonical = ledgerEncode(packLedgerInput(v.artifact));
       expect(toHex(canonical)).toBe(v.canonicalHex);
       expect(toHex(sha256(canonical))).toBe(v.hashHex);
+    },
+  );
+});
+
+const entGoldenUrl = new URL('../../../../../core/testdata/entitlements-golden.json', import.meta.url);
+
+describe('entitlements parity: golden vectors', () => {
+  const golden = JSON.parse(fs.readFileSync(fileURLToPath(entGoldenUrl), 'utf8')) as {
+    vectors: Array<{ tier: string; tierCode: number; bitmask: number; recordHex: string; hashHex: string }>;
+  };
+
+  it.each(golden.vectors.map((v) => [v.tier, v] as const))(
+    'reproduces record + hash for %s',
+    (_tier, v) => {
+      const record = entitlementsEncode(packEntitlements(v.tierCode, v.bitmask));
+      expect(toHex(record)).toBe(v.recordHex);
+      expect(toHex(sha256(record))).toBe(v.hashHex);
     },
   );
 });
