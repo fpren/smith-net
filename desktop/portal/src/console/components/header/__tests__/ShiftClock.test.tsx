@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { formatElapsed, ShiftClock } from '../ShiftClock';
 
@@ -31,5 +31,29 @@ describe('ShiftClock', () => {
     render(<ShiftClock />);
     expect(screen.getByLabelText('shift elapsed')).toHaveTextContent(/^01:01:0\d$/);
     expect(screen.getByRole('button', { name: /clock out/i })).toBeInTheDocument();
+  });
+
+  it('counts up one second at a time from clock-in, like the APK', () => {
+    vi.useFakeTimers();
+    try {
+      const t0 = new Date('2026-01-01T10:00:00.000Z');
+      vi.setSystemTime(t0);
+      h.state = { onClock: true, startedAt: t0.toISOString(), busy: false, toggle: vi.fn() };
+      render(<ShiftClock />);
+      const shown = () => screen.getByLabelText('shift elapsed').textContent;
+
+      // starts at zero the instant we are on the clock
+      expect(shown()).toBe('00:00:00');
+      // ticks every second
+      act(() => vi.advanceTimersByTime(1000));
+      expect(shown()).toBe('00:00:01');
+      act(() => vi.advanceTimersByTime(4000));
+      expect(shown()).toBe('00:00:05');
+      // rolls minutes/hours correctly over a longer run
+      act(() => vi.advanceTimersByTime(3_600_000));
+      expect(shown()).toBe('01:00:05');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
