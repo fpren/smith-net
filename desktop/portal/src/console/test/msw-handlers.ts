@@ -590,4 +590,18 @@ export const handlers = [
         createdAt: '2026-05-11T10:00:00Z', updatedAt: '2026-05-11T10:00:00Z' },
       jobs: [],
     })),
+  http.patch('/api/clients/:id', async ({ request, params }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({ client: {
+      id: params.id, ownerId: 'f-1',
+      name: (body.name as string) ?? 'Test Client',
+      email: (body.email as string) ?? null,
+      phone: (body.phone as string) ?? null,
+      address: (body.address as string) ?? null,
+      company: (body.company as string) ?? null,
+      notes: (body.notes as string) ?? null,
+      createdAt: '2026-05-11T10:00:00Z', updatedAt: '2026-05-11T10:00:00Z' },
+    });
+  }),
+  http.delete('/api/clients/:id', () => new HttpResponse(null, { status: 204 })),
 ];

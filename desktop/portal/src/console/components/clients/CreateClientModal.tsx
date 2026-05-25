@@ -20,6 +20,8 @@ export function CreateClientModal({ open, onClose, onCreated, editing }: Props) 
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
+  const [company, setCompany] = useState('');
+  const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
   const toast = useToast();
@@ -30,6 +32,8 @@ export function CreateClientModal({ open, onClose, onCreated, editing }: Props) 
       setEmail(editing?.email ?? '');
       setPhone(editing?.phone ?? '');
       setAddress(editing?.address ?? '');
+      setCompany(editing?.company ?? '');
+      setNotes(editing?.notes ?? '');
       setNameError(null);
     }
   }, [open, editing]);
@@ -47,6 +51,8 @@ export function CreateClientModal({ open, onClose, onCreated, editing }: Props) 
       ...(email.trim() ? { email: email.trim() } : {}),
       ...(phone.trim() ? { phone: phone.trim() } : {}),
       ...(address.trim() ? { address: address.trim() } : {}),
+      company: company.trim() || undefined,
+      notes: notes.trim() || undefined,
     };
     const r = editing
       ? await clientsClient.update(editing.id, payload)
@@ -68,6 +74,16 @@ export function CreateClientModal({ open, onClose, onCreated, editing }: Props) 
         <Input label="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
         <Input label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
         <Input label="Address" value={address} onChange={(e) => setAddress(e.target.value)} />
+        <Input label="Company" value={company} onChange={(e) => setCompany(e.target.value)} />
+        <label className="flex flex-col gap-1 font-mono text-sm">
+          <span className="text-console-text-muted text-xs uppercase tracking-wide">Notes</span>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className="bg-console-bg border border-console-border px-3 py-2 text-console-text focus:outline-none focus:border-console-accent font-mono"
+            rows={4}
+          />
+        </label>
         <div className="flex gap-2 justify-end mt-2">
           <Button variant="secondary" type="button" onClick={onClose} disabled={busy}>Cancel</Button>
           <Button type="submit" disabled={busy}>{editing ? 'Save' : 'Create'}</Button>

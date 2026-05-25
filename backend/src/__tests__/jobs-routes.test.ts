@@ -369,4 +369,51 @@ describeDb('jobs <-> client link', () => {
       .set('Authorization', `Bearer ${b.token}`).send({ title: 'X', clientId: c.body.client.id });
     expect(res.status).toBe(400);
   });
+
+  it('PATCH links and unlinks a client on a job', async () => {
+    const f = await createForemanAndLogin('relink');
+    const c = await request(app).post('/api/clients')
+      .set('Authorization', `Bearer ${f.token}`).send({ name: 'Relink Co' });
+    const clientId = c.body.client.id;
+    const job = await request(app).post('/api/jobs')
+      .set('Authorization', `Bearer ${f.token}`).send({ title: 'Relink job' });
+    const jobId = job.body.job.id;
+
+    // link
+    await request(app).patch(`/api/jobs/${jobId}`)
+      .set('Authorization', `Bearer ${f.token}`).send({ clientId });
+    let detail = await request(app).get(`/api/jobs/${jobId}`).set('Authorization', `Bearer ${f.token}`);
+    expect(detail.body.job.client).toEqual({ id: clientId, name: 'Relink Co' });
+
+    // unlink
+    await request(app).patch(`/api/jobs/${jobId}`)
+      .set('Authorization', `Bearer ${f.token}`).send({ clientId: null });
+    detail = await request(app).get(`/api/jobs/${jobId}`).set('Authorization', `Bearer ${f.token}`);
+    expect(detail.body.job.client).toBeNull();
+  });
+
+  it('rejects a PATCH with a foreign clientId (400)', async () => {
+    const a = await createForemanAndLogin('pa');
+    const b = await createForemanAndLogin('pb');
+    const c = await request(app).post('/api/clients')
+      .set('Authorization', `Bearer ${a.token}`).send({ name: 'A only' });
+    const job = await request(app).post('/api/jobs')
+      .set('Authorization', `Bearer ${b.token}`).send({ title: 'B job' });
+    const res = await request(app).patch(`/api/jobs/${job.body.job.id}`)
+      .set('Authorization', `Bearer ${b.token}`).send({ clientId: c.body.client.id });
+    expect(res.status).toBe(400);
+  });
+
+  it('serializes client as null after the client is soft-deleted', async () => {
+    const f = await createForemanAndLogin('softdel');
+    const c = await request(app).post('/api/clients')
+      .set('Authorization', `Bearer ${f.token}`).send({ name: 'Doomed Co' });
+    const clientId = c.body.client.id;
+    const job = await request(app).post('/api/jobs')
+      .set('Authorization', `Bearer ${f.token}`).send({ title: 'Orphan job', clientId });
+    const jobId = job.body.job.id;
+    await request(app).delete(`/api/clients/${clientId}`).set('Authorization', `Bearer ${f.token}`);
+    const detail = await request(app).get(`/api/jobs/${jobId}`).set('Authorization', `Bearer ${f.token}`);
+    expect(detail.body.job.client).toBeNull();
+  });
 });
