@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useCurrentTime } from '../../hooks/useCurrentTime';
 import { ClockButton } from '../header/ClockButton';
 import { ShareLocationToggle } from '../header/ShareLocationToggle';
@@ -14,6 +14,9 @@ import { useCrewPositionsStore } from '../../stores/crewPositionsStore';
 import { useInvoicesPolling } from '../../hooks/useInvoicesPolling';
 import { useInvoicesStore } from '../../stores/invoicesStore';
 import type { InvoiceStatus } from '../../api/invoicesClient';
+import { useNotificationsPolling } from '../../hooks/useNotificationsPolling';
+import { useNotificationsStore } from '../../stores/notificationsStore';
+import { notificationsClient, type NotificationItem } from '../../api/notificationsClient';
 import { MapCanvas } from '../map/MapCanvas';
 
 // Two dashboard MODULES that the app has but the portal has no full route for
@@ -319,5 +322,64 @@ export function InvoicesCard() {
         )}
       </div>
     </div>
+  );
+}
+
+// NOTIFICATIONS -- true alerts for the current user (job assigned, new message;
+// later invoice-viewed + AI). Replaces the redundant SHIFT card on the dashboard
+// (the shift clock lives in the console header now). Clicking an item marks it
+// read (optimistic store + best-effort PATCH) and navigates to its in-app target.
+function formatRelative(iso: string): string {
+  const secs = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  if (secs < 60) return 'just now';
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+export function NotificationsCard() {
+  useNotificationsPolling();
+  const navigate = useNavigate();
+  const notifications = useNotificationsStore((s) => s.notifications);
+  const unreadCount = useNotificationsStore((s) => s.unreadCount);
+
+  const onOpen = (item: NotificationItem) => {
+    useNotificationsStore.getState().markRead(item.id);
+    void notificationsClient.markRead(item.id);
+    if (item.link) navigate(item.link);
+  };
+
+  return (
+    <ModuleCard
+      title="Notifications"
+      right={
+        unreadCount > 0
+          ? <span className="font-mono text-[11px] text-console-accent tabular-nums">{unreadCount}</span>
+          : undefined
+      }
+    >
+      {notifications.length === 0 ? (
+        <div className="text-console-text-muted">No notifications.</div>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          {notifications.slice(0, 12).map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onOpen(item)}
+              className="flex items-baseline gap-2 text-left w-full hover:bg-console-bg rounded px-1 -mx-1"
+            >
+              <span className={`text-[10px] leading-none ${item.readAt ? 'text-console-text-muted' : 'text-console-accent'}`}>●</span>
+              <span className="truncate">{item.title}</span>
+              <span className="text-console-text-muted text-[11px] ml-auto pl-2 whitespace-nowrap">
+                {formatRelative(item.createdAt)}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </ModuleCard>
   );
 }

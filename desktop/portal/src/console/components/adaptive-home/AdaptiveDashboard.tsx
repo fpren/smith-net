@@ -4,7 +4,7 @@ import { adaptLayout, surfaceFromPx } from '../surface-lab/surface';
 import { CrewRoute } from '../../routes/CrewRoute';
 import { CommRoute } from '../../routes/CommRoute';
 import {
-  ShiftCard,
+  NotificationsCard,
   OpenTasksCard,
   DispatchCard,
   SystemCard,
@@ -77,7 +77,7 @@ export function AdaptiveDashboard() {
       const swipe = plan.profile === 'compact' || plan.profile === 'glance';
       const PANELS: { key: string; el: ReactNode; pad?: boolean }[] = [
         { key: 'map', el: <MapPreview />, pad: false },
-        { key: 'shift', el: <ShiftCard /> },
+        { key: 'notifications', el: <NotificationsCard /> },
         { key: 'tasks', el: <OpenTasksCard /> },
         { key: 'dispatch', el: <DispatchCard /> },
         { key: 'system', el: <SystemCard /> },
@@ -118,7 +118,7 @@ export function AdaptiveDashboard() {
               style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}
             >
               <Card className="h-[172px]">
-                <ShiftCard />
+                <NotificationsCard />
               </Card>
               <Card className="h-[172px]">
                 <OpenTasksCard />
