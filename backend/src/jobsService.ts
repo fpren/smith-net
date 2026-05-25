@@ -124,6 +124,32 @@ export async function listByForeman(foremanId: string): Promise<Job[]> {
   return rows.map(mapJobRow);
 }
 
+// Jobs a user can connect time to: owned (foreman) OR assigned (job_crew). All-tier.
+export async function listForUser(userId: string): Promise<Job[]> {
+  const db = requirePg();
+  const { rows } = await db.query(
+    `SELECT DISTINCT j.* FROM jobs j
+       LEFT JOIN job_crew jc ON jc.job_id = j.id
+      WHERE j.foreman_id = $1 OR jc.profile_id = $1
+      ORDER BY j.created_at DESC`,
+    [userId]
+  );
+  return rows.map(mapJobRow);
+}
+
+// Does this user own (foreman) or get assigned to (job_crew) the given job?
+export async function canUserAccessJob(jobId: string, userId: string): Promise<boolean> {
+  const db = requirePg();
+  const { rows } = await db.query(
+    `SELECT 1 FROM jobs j
+       LEFT JOIN job_crew jc ON jc.job_id = j.id
+      WHERE j.id = $1 AND (j.foreman_id = $2 OR jc.profile_id = $2)
+      LIMIT 1`,
+    [jobId, userId]
+  );
+  return rows.length > 0;
+}
+
 /** Count active (non-terminal) jobs for a foreman. Used by the active_jobs cap. */
 export async function countActive(foremanId: string): Promise<number> {
   const db = requirePg();

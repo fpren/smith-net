@@ -15,6 +15,8 @@ import { auditLog, AuditAction } from './auditLog';
 import { requestLogger } from './log';
 import { validateBody } from './middleware/validate';
 import { StartShiftBody, EndShiftBody } from './schemas/shifts';
+import * as jobsService from './jobsService';
+import * as tasksService from './tasksService';
 
 export const shiftsRouter = Router();
 
@@ -28,15 +30,17 @@ function serializeShift(s: Shift) {
     entryType: s.entry_type,
     jobId: s.job_id,
     jobTitle: s.job_title,
+    taskId: s.task_id,
+    taskTitle: s.task_title,
     clockOutReason: s.clock_out_reason,
   };
 }
 
 shiftsRouter.post('/start', authenticateToken, validateBody(StartShiftBody), async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user!.id;
-  const { source = 'web', entryType, jobId, jobTitle } = req.body as StartShiftBody;
+  const { source = 'web', entryType, jobId, jobTitle, taskId, taskTitle } = req.body as StartShiftBody;
   try {
-    const shift = await crewPositionService.startShift(userId, source, { entryType, jobId, jobTitle });
+    const shift = await crewPositionService.startShift(userId, source, { entryType, jobId, jobTitle, taskId, taskTitle });
     await auditLog.log(AuditAction.SHIFT_STARTED, userId, { shift_id: shift.id, source, entry_type: shift.entry_type });
     requestLogger().info({ event: 'shift_started', userId, source, shiftId: shift.id }, 'shift started');
     return res.status(200).json({ shift: serializeShift(shift) });
@@ -74,4 +78,18 @@ shiftsRouter.get('/today', authenticateToken, async (req: AuthenticatedRequest, 
   }
   const shifts = await crewPositionService.getShiftsSince(userId, since);
   return res.status(200).json({ shifts: shifts.map(serializeShift) });
+});
+
+// Clock-scoped, all-tier (authenticateToken only — NOT requireConsoleTier).
+// A solo worker must reach their own jobs/tasks to connect time at clock-in.
+shiftsRouter.get('/jobs', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const jobs = await jobsService.listForUser(req.user!.id);
+  return res.status(200).json({ jobs: jobs.map((j) => ({ id: j.id, title: j.title, status: j.status })) });
+});
+
+shiftsRouter.get('/jobs/:jobId/tasks', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const ok = await jobsService.canUserAccessJob(req.params.jobId, req.user!.id);
+  if (!ok) return res.status(404).json({ error: 'job not found' });
+  const tasks = await tasksService.listByJob(req.params.jobId);
+  return res.status(200).json({ tasks: tasks.map((t) => ({ id: t.id, title: t.title, status: t.status })) });
 });

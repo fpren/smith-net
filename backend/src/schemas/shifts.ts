@@ -12,6 +12,8 @@ export const StartShiftBody = z
     entryType: z.enum(ENTRY_TYPES).optional(),
     jobId: z.string().uuid().optional(),
     jobTitle: z.string().trim().min(1).max(200).optional(),
+    taskId: z.string().uuid().optional(),
+    taskTitle: z.string().trim().min(1).max(200).optional(),
   })
   .strict();
 export type StartShiftBody = z.infer<typeof StartShiftBody>;
