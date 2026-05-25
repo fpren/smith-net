@@ -120,3 +120,87 @@ export function sha256(data: Uint8Array): Uint8Array {
   if (rc !== 0) throw new Error('sc_sha256 failed');
   return mem().slice(op, op + 32);
 }
+
+const SC_ERR = -1;
+const SC_CMP_ERR = 2;
+
+/* --- canonical vector-clock wire codec (mirrors core/src/vclock.c) ---
+ * wire: u16 n LE; then n entries sorted ascending by id bytes:
+ *   u16 id_len LE; u8 id[id_len] (utf-8); u32 count LE (always >= 1).
+ */
+const _utf8e = new TextEncoder();
+const _utf8d = new TextDecoder();
+
+function compareBytes(a: Uint8Array, b: Uint8Array): number {
+  const n = Math.min(a.length, b.length);
+  for (let i = 0; i < n; i++) {
+    if (a[i] !== b[i]) return a[i] < b[i] ? -1 : 1;
+  }
+  return a.length - b.length;
+}
+
+export function encodeClock(clock: VectorClockState): Uint8Array {
+  const entries = Object.keys(clock)
+    .map((id) => ({ id: _utf8e.encode(id), count: clock[id] }))
+    .filter((e) => e.count !== 0)
+    .sort((a, b) => compareBytes(a.id, b.id));
+  let size = 2;
+  for (const e of entries) size += 2 + e.id.length + 4;
+  const out = new Uint8Array(size);
+  const dv = new DataView(out.buffer);
+  dv.setUint16(0, entries.length, true);
+  let off = 2;
+  for (const e of entries) {
+    if (e.id.length > 0xffff) throw new Error('device id exceeds 65535 bytes');
+    dv.setUint16(off, e.id.length, true);
+    off += 2;
+    out.set(e.id, off);
+    off += e.id.length;
+    dv.setUint32(off, e.count >>> 0, true);
+    off += 4;
+  }
+  return out;
+}
+
+function decodeClock(buf: Uint8Array): VectorClockState {
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  const n = dv.getUint16(0, true);
+  const out: VectorClockState = {};
+  let off = 2;
+  for (let i = 0; i < n; i++) {
+    const idl = dv.getUint16(off, true);
+    off += 2;
+    out[_utf8d.decode(buf.subarray(off, off + idl))] = dv.getUint32(off + idl, true);
+    off += idl + 4;
+  }
+  return out;
+}
+
+/** Merge two clocks (union, max per id) via the ROM. Returns a canonical clock. */
+export function vclockMerge(a: VectorClockState, b: VectorClockState): VectorClockState {
+  const e = core();
+  e.sc_reset();
+  const ab = encodeClock(a);
+  const bb = encodeClock(b);
+  const ap = stage(ab);
+  const bp = stage(bb);
+  const cap = ab.length + bb.length + 8;
+  const op = e.sc_alloc(cap);
+  if (op === 0) throw new Error('smithcore arena OOM');
+  const n = e.sc_vclock_merge(ap, ab.length, bp, bb.length, op, cap);
+  if (n === SC_ERR || n < 0) throw new Error('sc_vclock_merge failed');
+  return decodeClock(mem().slice(op, op + n));
+}
+
+/** Causal compare via the ROM. -1 (a<b), 0 (concurrent/equal), 1 (a>b). */
+export function vclockCompare(a: VectorClockState, b: VectorClockState): -1 | 0 | 1 {
+  const e = core();
+  e.sc_reset();
+  const ab = encodeClock(a);
+  const bb = encodeClock(b);
+  const ap = stage(ab);
+  const bp = stage(bb);
+  const r = e.sc_vclock_compare(ap, ab.length, bp, bb.length);
+  if (r === SC_CMP_ERR) throw new Error('sc_vclock_compare parse error');
+  return r as -1 | 0 | 1;
+}
