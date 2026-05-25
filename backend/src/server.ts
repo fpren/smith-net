@@ -25,6 +25,7 @@ import { healthRouter } from './healthRoutes';
 import { jobsRouter } from './jobsRoutes';
 import { profilesRouter } from './profilesRoutes';
 import { shiftsRouter } from './shiftsRoutes';
+import { notificationsRouter } from './notificationsRoutes';
 import { presenceLocationRouter } from './presenceLocationRoutes';
 import { wsHandler } from './wsHandler';
 import { setupWsServer } from './wsAuth';
@@ -154,6 +155,9 @@ app.use('/api/profiles', profilesRouter);
 
 // Mount Shifts API
 app.use('/api/shifts', shiftsRouter);
+
+// Mount Notifications API (un-gated: every role sees their own feed)
+app.use('/api/notifications', notificationsRouter);
 
 // Mount Presence/Location & Crew Positions APIs
 app.use('/api', presenceLocationRouter);
