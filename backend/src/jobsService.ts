@@ -8,6 +8,7 @@
 import bcrypt from 'bcryptjs';
 import { pg, isPgEnabled } from './db';
 import { auditLog, AuditAction } from './auditLog';
+import { notificationService } from './notificationService';
 import { v4 as uuidv4 } from 'uuid';
 import { enqueue } from './queue/queue';
 import { StoredUser, UserRole, validatePassword } from './auth';
@@ -308,6 +309,20 @@ export async function assignCrew(
       profileId,
       roleOnJob,
     });
+
+    // N-1 producer: notify the assignee (best-effort -- a failed notification
+    // must not fail the assignment). Awaited in-request, not fire-and-forget.
+    try {
+      await notificationService.create({
+        userId: profileId,
+        type: 'job_assigned',
+        title: `You were assigned ${job.title}`,
+        link: `/console/jobs/${jobId}`,
+        actorId: job.foremanId,
+      });
+    } catch (err) {
+      console.warn('[assignCrew] notification producer failed:', (err as Error).message);
+    }
 
     return assignment;
   } catch (e: any) {

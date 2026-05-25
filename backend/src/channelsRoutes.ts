@@ -5,8 +5,9 @@
  * authenticateToken is applied by the parent (api.ts).
  */
 
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { channelRegistry } from './channelRegistry';
+import { notificationService } from './notificationService';
 import { messageStore } from './messageStore';
 import { gatewayManager } from './gatewayManager';
 import { wsHandler } from './wsHandler';
@@ -224,64 +225,96 @@ channelsRouter.delete('/messages/:messageId', (req: Request, res: Response) => {
 // SMART SEND — Unified message endpoint.
 // Always stores + broadcasts to online clients. Auto-injects to mesh if
 // a gateway relay is connected so mesh-only users (underground) receive it.
-channelsRouter.post('/messages/inject', (req: Request, res: Response) => {
-  let { channelId, content, meshOnly, id: clientId } = req.body as InjectMessageRequest & { meshOnly?: boolean; id?: string };
-  const auth = (req as AuthenticatedRequest).user!;
-  const senderId = auth.id;
-  const senderName = auth.displayName || auth.email || 'User';
-
-  if (!channelId || !content) {
-    return res.status(400).json({ error: 'channelId and content required' });
-  }
-
-  // Phones send "general" by name; resolve to UUID.
-  if (!channelId.includes('-')) {
-    const channel = channelRegistry.findByName(channelId);
-    if (channel) {
-      console.log(`[API] Resolved channel "${channelId}" -> ${channel.id}`);
-      channelId = channel.id;
-    } else {
-      console.log(`[API] Unknown channel name: ${channelId}`);
-      return res.status(404).json({ error: `Channel not found: ${channelId}` });
-    }
-  }
-
-  const hasRelay = gatewayManager.hasConnectedRelay();
-  const shouldInjectToMesh = hasRelay && !meshOnly;
-
-  const origin = shouldInjectToMesh ? 'online+mesh' : 'online';
-  const message = messageStore.add(
-    channelId,
-    senderId,
-    senderName,
-    content,
-    origin,
-    undefined,
-    undefined,
-    clientId
-  );
-
-  wsHandler.broadcastToChannel(channelId, message);
-
-  // Persist to MessageBus so offline clients can reconcile on reconnect.
+channelsRouter.post('/messages/inject', async (req: Request, res: Response, next: NextFunction) => {
+  // Wrapped in try/catch -> next(err): this handler is async (it awaits the N-1
+  // notification producer), and Express 4 does NOT forward a rejected promise
+  // from an async handler to the error middleware -- without this, a synchronous
+  // throw in the body (e.g. createMessage's vclock path) would become an
+  // unhandled rejection and hang the request instead of returning a clean 500.
   try {
-    const unified = createMessage(channelId, senderId, senderName, content, 'ip', message.id);
-    publish(unified);
+    let { channelId, content, meshOnly, id: clientId } = req.body as InjectMessageRequest & { meshOnly?: boolean; id?: string };
+    const auth = (req as AuthenticatedRequest).user!;
+    const senderId = auth.id;
+    const senderName = auth.displayName || auth.email || 'User';
+
+    if (!channelId || !content) {
+      return res.status(400).json({ error: 'channelId and content required' });
+    }
+
+    // Phones send "general" by name; resolve to UUID.
+    if (!channelId.includes('-')) {
+      const channel = channelRegistry.findByName(channelId);
+      if (channel) {
+        console.log(`[API] Resolved channel "${channelId}" -> ${channel.id}`);
+        channelId = channel.id;
+      } else {
+        console.log(`[API] Unknown channel name: ${channelId}`);
+        return res.status(404).json({ error: `Channel not found: ${channelId}` });
+      }
+    }
+
+    const hasRelay = gatewayManager.hasConnectedRelay();
+    const shouldInjectToMesh = hasRelay && !meshOnly;
+
+    const origin = shouldInjectToMesh ? 'online+mesh' : 'online';
+    const message = messageStore.add(
+      channelId,
+      senderId,
+      senderName,
+      content,
+      origin,
+      undefined,
+      undefined,
+      clientId
+    );
+
+    wsHandler.broadcastToChannel(channelId, message);
+
+    // Persist to MessageBus so offline clients can reconcile on reconnect.
+    try {
+      const unified = createMessage(channelId, senderId, senderName, content, 'ip', message.id);
+      publish(unified);
+    } catch (err) {
+      console.warn('[Inject] messageBus publish failed:', (err as Error).message);
+    }
+
+    let injectedToMesh = 0;
+    if (shouldInjectToMesh) {
+      injectedToMesh = gatewayManager.broadcastToRelays(message);
+      console.log(`[SmartSend] Auto-injected to ${injectedToMesh} mesh relay(s)`);
+    }
+
+    // N-1 producer: notify other channel members (best-effort; never fail the
+    // send). Awaited in-request per CLAUDE.md Rule 2 (not fire-and-forget). Open
+    // channels (memberIds empty) produce none -- we never fan out to a whole org.
+    const ch = channelRegistry.get(channelId);
+    if (ch) {
+      const preview = content.length > 80 ? `${content.slice(0, 77)}...` : content;
+      const recipients = ch.memberIds.filter((m) => m !== senderId);
+      await Promise.all(
+        recipients.map((m) =>
+          notificationService
+            .create({
+              userId: m,
+              type: 'message',
+              title: `New message in ${ch.name}`,
+              body: preview,
+              link: '/console/comm',
+              actorId: senderId,
+            })
+            .catch((e) => console.warn('[Inject] notify failed for', m, (e as Error).message))
+        )
+      );
+    }
+
+    res.status(201).json({
+      ...message,
+      meshInjected: injectedToMesh > 0,
+      relayCount: injectedToMesh
+    });
   } catch (err) {
-    console.warn('[Inject] messageBus publish failed:', (err as Error).message);
+    next(err);
   }
-
-  let injectedToMesh = 0;
-  if (shouldInjectToMesh) {
-    injectedToMesh = gatewayManager.broadcastToRelays(message);
-    console.log(`[SmartSend] Auto-injected to ${injectedToMesh} mesh relay(s)`);
-  }
-
-  res.status(201).json({
-    ...message,
-    meshInjected: injectedToMesh > 0,
-    relayCount: injectedToMesh
-  });
 });
 
 // ════════════════════════════════════════════════════════════════════

@@ -7,8 +7,17 @@ import { notificationService } from '../notificationService';
 import { createUserAndProfile } from '../jobsService';
 import { generateTokens, UserRole } from '../auth';
 import { pg, isPgEnabled } from '../db';
+import { create as createJob, assignCrew } from '../jobsService';
+import { channelRegistry } from '../channelRegistry';
+import { channelsRouter } from '../channelsRoutes';
+import { authenticateToken } from '../auth';
 
 const describeDb = isPgEnabled() ? describe : describe.skip;
+
+// Close the pg pool once, after EVERY describe block in this file has finished.
+// (An inner-block afterAll would end() the pool before the later "producers"
+// block runs, breaking it with "Cannot use a pool after calling end".)
+afterAll(async () => { await pg?.end(); });
 
 function buildApp() {
   const app = express();
@@ -33,7 +42,6 @@ async function makeUserWithToken(role: UserRole, suffix: string) {
 describeDb('GET/PATCH /api/notifications', () => {
   let app: express.Express;
   beforeAll(() => { app = buildApp(); });
-  afterAll(async () => { await pg?.end(); });
 
   it('GET returns only the caller\'s notifications + unreadCount (solo is NOT 403)', async () => {
     const solo = await makeUserWithToken(UserRole.SOLO, 'solo');
@@ -68,5 +76,50 @@ describeDb('GET/PATCH /api/notifications', () => {
     const n = await notificationService.create({ userId: owner.id, type: 'message', title: 't' });
     const res = await request(app).patch(`/api/notifications/${n.id}/read`).set('Authorization', `Bearer ${other.token}`);
     expect(res.status).toBe(404);
+  });
+});
+
+describeDb('notification producers', () => {
+  it('assignCrew creates a job_assigned notification for the assignee', async () => {
+    const foreman = await makeUserWithToken(UserRole.FOREMAN, 'pf');
+    const crew = await makeUserWithToken(UserRole.SOLO, 'pc');
+    const job = await createJob({ foremanId: foreman.id, title: 'Roof tear-off' });
+    await assignCrew(job.id, crew.id);
+    const list = await notificationService.listForUser(crew.id);
+    const hit = list.find((n) => n.type === 'job_assigned');
+    expect(hit).toBeTruthy();
+    expect(hit!.title).toContain('Roof tear-off');
+    expect(hit!.link).toBe(`/console/jobs/${job.id}`);
+  });
+
+  it('a failing notification insert does NOT fail assignCrew', async () => {
+    const foreman = await makeUserWithToken(UserRole.FOREMAN, 'pf2');
+    const crew = await makeUserWithToken(UserRole.SOLO, 'pc2');
+    const job = await createJob({ foremanId: foreman.id, title: 'Job X' });
+    const spy = jest.spyOn(notificationService, 'create').mockRejectedValueOnce(new Error('boom'));
+    await expect(assignCrew(job.id, crew.id)).resolves.toBeTruthy();
+    spy.mockRestore();
+  });
+
+  it('POST /messages/inject notifies other members, not the sender', async () => {
+    const sender = await makeUserWithToken(UserRole.FOREMAN, 'ms');
+    const recipient = await makeUserWithToken(UserRole.SOLO, 'mr');
+    const chan = await channelRegistry.create('plan-team', 'group', sender.id, sender.id, [sender.id, recipient.id]);
+
+    const injectApp = express();
+    injectApp.use(express.json());
+    injectApp.use(cookieParser());
+    injectApp.use('/api', authenticateToken, channelsRouter);
+
+    const res = await request(injectApp)
+      .post('/api/messages/inject')
+      .set('Authorization', `Bearer ${sender.token}`)
+      .send({ channelId: chan.id, content: 'standup at 9' });
+    expect(res.status).toBe(201);
+
+    const recipList = await notificationService.listForUser(recipient.id);
+    expect(recipList.some((n) => n.type === 'message' && n.title.includes('plan-team'))).toBe(true);
+    const senderList = await notificationService.listForUser(sender.id);
+    expect(senderList.some((n) => n.type === 'message')).toBe(false);
   });
 });
