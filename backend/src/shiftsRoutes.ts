@@ -13,10 +13,10 @@ import { authenticateToken, AuthenticatedRequest } from './auth';
 import { crewPositionService, Shift } from './crewPositionService';
 import { auditLog, AuditAction } from './auditLog';
 import { requestLogger } from './log';
+import { validateBody } from './middleware/validate';
+import { StartShiftBody, EndShiftBody } from './schemas/shifts';
 
 export const shiftsRouter = Router();
-
-const VALID_SOURCES = new Set(['android', 'web', 'admin']);
 
 function serializeShift(s: Shift) {
   return {
@@ -25,31 +25,33 @@ function serializeShift(s: Shift) {
     startedAt: s.started_at,
     endedAt: s.ended_at,
     source: s.source,
+    entryType: s.entry_type,
+    jobId: s.job_id,
+    jobTitle: s.job_title,
+    clockOutReason: s.clock_out_reason,
   };
 }
 
-shiftsRouter.post('/start', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+shiftsRouter.post('/start', authenticateToken, validateBody(StartShiftBody), async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user!.id;
-  const source = (req.body?.source ?? 'web') as Shift['source'];
-  if (!VALID_SOURCES.has(source)) {
-    return res.status(400).json({ error: 'invalid source' });
-  }
+  const { source = 'web', entryType, jobId, jobTitle } = req.body as StartShiftBody;
   try {
-    const shift = await crewPositionService.startShift(userId, source);
-    await auditLog.log(AuditAction.SHIFT_STARTED, userId, { shift_id: shift.id, source });
+    const shift = await crewPositionService.startShift(userId, source, { entryType, jobId, jobTitle });
+    await auditLog.log(AuditAction.SHIFT_STARTED, userId, { shift_id: shift.id, source, entry_type: shift.entry_type });
     requestLogger().info({ event: 'shift_started', userId, source, shiftId: shift.id }, 'shift started');
     return res.status(200).json({ shift: serializeShift(shift) });
   } catch (err) {
-    if ((err as { code?: string }).code === '23505') {
-      return res.status(409).json({ error: 'shift already open' });
-    }
+    const code = (err as { code?: string }).code;
+    if (code === '23505') return res.status(409).json({ error: 'shift already open' });
+    if (code === '23503') return res.status(400).json({ error: 'invalid jobId' });
     throw err;
   }
 });
 
-shiftsRouter.post('/end', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+shiftsRouter.post('/end', authenticateToken, validateBody(EndShiftBody), async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user!.id;
-  const shift = await crewPositionService.endShift(userId);
+  const { reason } = req.body as EndShiftBody;
+  const shift = await crewPositionService.endShift(userId, reason);
   if (!shift) {
     return res.status(404).json({ error: 'no open shift' });
   }

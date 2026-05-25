@@ -30,6 +30,21 @@ async function createForemanAndLogin(suffix: string): Promise<{ id: string; toke
   return { id: user.id, token: tokens.accessToken };
 }
 
+async function makeUserWithToken(
+  role: UserRole,
+  suffix: string,
+): Promise<{ id: string; token: string }> {
+  const email = `shifts-${suffix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
+  const user = await createUserAndProfile({
+    email,
+    password: 'password123',
+    displayName: `Shifts ${suffix}`,
+    role,
+  });
+  const tokens = await generateTokens(user);
+  return { id: user.id, token: tokens.accessToken };
+}
+
 async function cleanShifts() {
   if (!isPgEnabled()) return;
   await pg!.query('DELETE FROM crew_positions');
@@ -40,10 +55,7 @@ describeDb('shifts routes', () => {
   let app: express.Express;
   beforeAll(() => { app = buildApp(); });
   beforeEach(cleanShifts);
-  afterAll(async () => {
-    await cleanShifts();
-    await pg?.end();
-  });
+  afterAll(cleanShifts);
 
   it('POST /api/shifts/start opens a shift (200) — requires auth (401 otherwise)', async () => {
     const noauth = await request(app).post('/api/shifts/start').send({ source: 'android' });
@@ -97,4 +109,67 @@ describeDb('shifts routes', () => {
       .send({ source: 'martian-rover' });
     expect(res.status).toBe(400);
   });
+});
+
+describeDb('shifts time-entry fields', () => {
+  let app: express.Express;
+  beforeAll(() => { app = buildApp(); });
+  beforeEach(cleanShifts);
+  afterAll(cleanShifts);
+
+  it('start persists + serializes entryType/jobTitle (camelCase)', async () => {
+    const u = await makeUserWithToken(UserRole.SOLO, 'st1');
+    const res = await request(app)
+      .post('/api/shifts/start')
+      .set('Authorization', `Bearer ${u.token}`)
+      .send({ source: 'web', entryType: 'overtime', jobTitle: 'Kitchen Reno' });
+    expect(res.status).toBe(200);
+    expect(res.body.shift.entryType).toBe('overtime');
+    expect(res.body.shift.jobTitle).toBe('Kitchen Reno');
+    expect(res.body.shift.jobId).toBeNull();
+    expect(res.body.shift.clockOutReason).toBeNull();
+  });
+
+  it('start defaults entryType to regular when omitted', async () => {
+    const u = await makeUserWithToken(UserRole.SOLO, 'st2');
+    const res = await request(app)
+      .post('/api/shifts/start')
+      .set('Authorization', `Bearer ${u.token}`)
+      .send({});
+    expect(res.status).toBe(200);
+    expect(res.body.shift.entryType).toBe('regular');
+  });
+
+  it('rejects an invalid entryType with 400', async () => {
+    const u = await makeUserWithToken(UserRole.SOLO, 'st3');
+    const res = await request(app)
+      .post('/api/shifts/start')
+      .set('Authorization', `Bearer ${u.token}`)
+      .send({ entryType: 'napping' });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('validation');
+  });
+
+  it('end persists the clock-out reason', async () => {
+    const u = await makeUserWithToken(UserRole.SOLO, 'st4');
+    await request(app).post('/api/shifts/start').set('Authorization', `Bearer ${u.token}`).send({});
+    const res = await request(app)
+      .post('/api/shifts/end')
+      .set('Authorization', `Bearer ${u.token}`)
+      .send({ reason: 'lunch' });
+    expect(res.status).toBe(200);
+    expect(res.body.shift.clockOutReason).toBe('lunch');
+    expect(res.body.shift.endedAt).toBeTruthy();
+  });
+
+  it('a second open shift still 409s', async () => {
+    const u = await makeUserWithToken(UserRole.SOLO, 'st5');
+    await request(app).post('/api/shifts/start').set('Authorization', `Bearer ${u.token}`).send({});
+    const res = await request(app).post('/api/shifts/start').set('Authorization', `Bearer ${u.token}`).send({});
+    expect(res.status).toBe(409);
+  });
+});
+
+afterAll(async () => {
+  await pg?.end();
 });

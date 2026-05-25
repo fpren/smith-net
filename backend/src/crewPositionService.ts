@@ -13,6 +13,10 @@ export interface Shift {
   started_at: Date;
   ended_at: Date | null;
   source: 'android' | 'web' | 'admin';
+  entry_type: string;
+  job_id: string | null;
+  job_title: string | null;
+  clock_out_reason: string | null;
 }
 
 export interface CrewPosition {
@@ -37,27 +41,31 @@ function requirePg() {
 }
 
 class CrewPositionService {
-  async startShift(userId: string, source: Shift['source']): Promise<Shift> {
+  async startShift(
+    userId: string,
+    source: Shift['source'],
+    opts: { entryType?: string; jobId?: string; jobTitle?: string } = {}
+  ): Promise<Shift> {
     const db = requirePg();
     // The partial unique index does the heavy lifting: a duplicate INSERT
     // when an open shift exists raises 23505 (unique_violation).
     const r = await db.query<Shift>(
-      `INSERT INTO shifts (user_id, source)
-       VALUES ($1, $2)
-       RETURNING id, user_id, started_at, ended_at, source`,
-      [userId, source]
+      `INSERT INTO shifts (user_id, source, entry_type, job_id, job_title)
+       VALUES ($1, $2, COALESCE($3, 'regular'), $4, $5)
+       RETURNING id, user_id, started_at, ended_at, source, entry_type, job_id, job_title, clock_out_reason`,
+      [userId, source, opts.entryType ?? null, opts.jobId ?? null, opts.jobTitle ?? null]
     );
     return r.rows[0];
   }
 
-  async endShift(userId: string): Promise<Shift | null> {
+  async endShift(userId: string, reason?: string): Promise<Shift | null> {
     const db = requirePg();
     const r = await db.query<Shift>(
       `UPDATE shifts
-          SET ended_at = NOW()
+          SET ended_at = NOW(), clock_out_reason = $2
         WHERE user_id = $1 AND ended_at IS NULL
-        RETURNING id, user_id, started_at, ended_at, source`,
-      [userId]
+        RETURNING id, user_id, started_at, ended_at, source, entry_type, job_id, job_title, clock_out_reason`,
+      [userId, reason ?? null]
     );
     return r.rows[0] ?? null;
   }
@@ -65,7 +73,7 @@ class CrewPositionService {
   async getCurrentShift(userId: string): Promise<Shift | null> {
     const db = requirePg();
     const r = await db.query<Shift>(
-      `SELECT id, user_id, started_at, ended_at, source
+      `SELECT id, user_id, started_at, ended_at, source, entry_type, job_id, job_title, clock_out_reason
          FROM shifts
         WHERE user_id = $1 AND ended_at IS NULL
         LIMIT 1`,
@@ -75,8 +83,8 @@ class CrewPositionService {
   }
 
   async getShiftsSince(userId: string, sinceMs: number): Promise<Shift[]> {
-    const res = await requirePg().query(
-      `SELECT id, user_id, started_at, ended_at, source
+    const res = await requirePg().query<Shift>(
+      `SELECT id, user_id, started_at, ended_at, source, entry_type, job_id, job_title, clock_out_reason
          FROM shifts
         WHERE user_id = $1 AND (ended_at IS NULL OR ended_at >= to_timestamp($2 / 1000.0))
         ORDER BY started_at ASC`,
