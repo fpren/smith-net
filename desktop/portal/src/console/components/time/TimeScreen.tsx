@@ -40,8 +40,8 @@ export function TimeScreen() {
      <div className="mx-auto w-full max-w-lg">
       <div className="text-xs uppercase tracking-wide text-console-text-muted mb-3">Time Clock</div>
 
-      {/* Centered clock card -- mirrors the APK clock card. */}
-      <div className="border border-console-border rounded-md bg-console-surface p-6 mb-4 flex flex-col items-center gap-2">
+      {/* Centered clock card -- mirrors the APK clock card. Scales down on phones. */}
+      <div className="border border-console-border rounded-md bg-console-surface p-4 sm:p-6 mb-4 flex flex-col items-center gap-2">
         {/* Status with blinking indicator */}
         <div className="flex items-center gap-2">
           {onClock && (
@@ -54,9 +54,9 @@ export function TimeScreen() {
           </span>
         </div>
 
-        {/* Big timer */}
+        {/* Big timer -- scales with the viewport */}
         <span
-          className={`text-5xl tabular-nums ${onClock ? 'text-console-text' : 'text-console-text-muted'}`}
+          className={`text-4xl sm:text-5xl tabular-nums ${onClock ? 'text-console-text' : 'text-console-text-muted'}`}
           aria-label="shift elapsed"
         >
           {onClock ? formatElapsed(currentElapsed) : '--:--:--'}
