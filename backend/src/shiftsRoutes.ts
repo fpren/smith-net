@@ -8,7 +8,7 @@
  * All routes require auth. Audit rows emitted via auditLog.log().
  */
 
-import { Router, Response } from 'express';
+import { Router, Response, NextFunction } from 'express';
 import { authenticateToken, AuthenticatedRequest } from './auth';
 import { crewPositionService, Shift } from './crewPositionService';
 import { auditLog, AuditAction } from './auditLog';
@@ -36,7 +36,7 @@ function serializeShift(s: Shift) {
   };
 }
 
-shiftsRouter.post('/start', authenticateToken, validateBody(StartShiftBody), async (req: AuthenticatedRequest, res: Response) => {
+shiftsRouter.post('/start', authenticateToken, validateBody(StartShiftBody), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   const userId = req.user!.id;
   const { source = 'web', entryType, jobId, jobTitle, taskId, taskTitle } = req.body as StartShiftBody;
   try {
@@ -48,20 +48,30 @@ shiftsRouter.post('/start', authenticateToken, validateBody(StartShiftBody), asy
     const code = (err as { code?: string }).code;
     if (code === '23505') return res.status(409).json({ error: 'shift already open' });
     if (code === '23503') return res.status(400).json({ error: 'invalid jobId' });
-    throw err;
+    // Express 4 does not forward a rejected async handler to the error
+    // middleware -- pass it on explicitly instead of throwing (which would
+    // hang the request as an unhandled rejection).
+    return next(err);
   }
 });
 
-shiftsRouter.post('/end', authenticateToken, validateBody(EndShiftBody), async (req: AuthenticatedRequest, res: Response) => {
+shiftsRouter.post('/end', authenticateToken, validateBody(EndShiftBody), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   const userId = req.user!.id;
   const { reason } = req.body as EndShiftBody;
-  const shift = await crewPositionService.endShift(userId, reason);
-  if (!shift) {
-    return res.status(404).json({ error: 'no open shift' });
+  // try/catch -> next(err): endShift / auditLog.log can throw on a transient DB
+  // error, and Express 4 will not catch an async rejection (it would hang the
+  // request) -- forward it to the error middleware for a clean 500.
+  try {
+    const shift = await crewPositionService.endShift(userId, reason);
+    if (!shift) {
+      return res.status(404).json({ error: 'no open shift' });
+    }
+    await auditLog.log(AuditAction.SHIFT_ENDED, userId, { shift_id: shift.id });
+    requestLogger().info({ event: 'shift_ended', userId, shiftId: shift.id }, 'shift ended');
+    return res.status(200).json({ shift: serializeShift(shift) });
+  } catch (err) {
+    return next(err);
   }
-  await auditLog.log(AuditAction.SHIFT_ENDED, userId, { shift_id: shift.id });
-  requestLogger().info({ event: 'shift_ended', userId, shiftId: shift.id }, 'shift ended');
-  return res.status(200).json({ shift: serializeShift(shift) });
 });
 
 shiftsRouter.get('/current', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
