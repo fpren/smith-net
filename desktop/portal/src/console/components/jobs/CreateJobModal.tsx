@@ -46,7 +46,7 @@ export function CreateJobModal({ open, onClose, onCreated }: Props) {
 
   return (
     <Modal open={open} onClose={onClose} title="Create Job">
-      <form onSubmit={onSubmit} className="flex flex-col gap-3 min-w-[360px]">
+      <form onSubmit={onSubmit} className="flex flex-col gap-3 w-full sm:w-[360px] max-w-full">
         <Input label="Title" value={title} onChange={(e) => setTitle(e.target.value)} error={titleError ?? undefined} />
         <Input label="Location" value={location} onChange={(e) => setLocation(e.target.value)} />
         <Input label="Scheduled At" type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} />

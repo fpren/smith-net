@@ -73,7 +73,7 @@ export function AssignCrewModal({ open, jobId, alreadyAssigned, onClose, onAssig
 
   return (
     <Modal open={open} onClose={onClose} title="Assign Crew">
-      <form onSubmit={onSubmit} className="flex flex-col gap-3 min-w-[420px]">
+      <form onSubmit={onSubmit} className="flex flex-col gap-3 w-full sm:w-[420px] max-w-full">
         <Input
           label="Search by name or email"
           value={query}

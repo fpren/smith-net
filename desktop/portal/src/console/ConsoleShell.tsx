@@ -27,7 +27,7 @@ export function ConsoleShell({ children }: Props) {
     <div className="h-screen flex flex-col font-mono">
       <AppHeader />
       {user && (
-        <div className="border-b border-console-border bg-console-surface px-4 py-2 flex items-center justify-between gap-3">
+        <div className="border-b border-console-border bg-console-surface px-4 py-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <ShiftClock />
           <ShareLocationToggle />
         </div>

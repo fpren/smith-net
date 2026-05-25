@@ -54,7 +54,7 @@ export function AppHeader() {
   }
 
   return (
-    <header className="border-b border-console-border bg-console-surface px-4 py-2 flex items-center gap-4 font-mono">
+    <header className="border-b border-console-border bg-console-surface px-4 py-2 flex items-center gap-2 sm:gap-4 font-mono">
       {/* Brand — tagline hides on mobile so the row fits at 390px. */}
       <div className="flex flex-col leading-tight pr-2 flex-shrink-0">
         <span
@@ -83,10 +83,10 @@ export function AppHeader() {
 
       {/* User card (identity) + a gear that opens Settings. Role chip hidden on
           mobile to keep the header on one tidy row. */}
-      <div className="flex items-center gap-2 md:border-l md:border-console-border md:pl-3">
+      <div className="flex items-center gap-2 min-w-0 md:border-l md:border-console-border md:pl-3">
         <Avatar name={user.displayName} color={accentForId(user.id)} size={28} />
-        <div className="flex flex-col leading-tight">
-          <span className="text-console-text text-xs font-medium whitespace-nowrap">{user.displayName}</span>
+        <div className="flex flex-col leading-tight min-w-0">
+          <span className="text-console-text text-xs font-medium truncate">{user.displayName}</span>
           <span className="hidden md:inline">
             <Chip label={user.role.toUpperCase()} color={colorForRole(user.role)} xs />
           </span>
