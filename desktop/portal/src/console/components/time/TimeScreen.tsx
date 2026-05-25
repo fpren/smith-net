@@ -37,7 +37,7 @@ export function TimeScreen() {
 
   return (
     <div className="h-full overflow-y-auto bg-console-bg p-4 font-mono text-console-text">
-     <div className="mx-auto w-full sm:w-[80%] sm:max-w-6xl">
+     <div className="mx-auto w-full sm:w-[80%] sm:max-w-[1536px]">
       <div className="text-xs uppercase tracking-wide text-console-text-muted mb-3">Time Clock</div>
 
       {/* Centered clock card -- mirrors the APK clock card. Scales down on phones. */}
