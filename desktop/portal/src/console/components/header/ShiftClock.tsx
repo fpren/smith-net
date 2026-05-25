@@ -19,7 +19,11 @@ function formatStart(iso: string): string {
 }
 
 export function ShiftClock() {
-  const { onClock, startedAt, busy, toggle } = useShiftToggle();
+  // Task 5 will replace this quick toggle with the clock-in/out dialogs. For now,
+  // keep the existing one-tap behaviour by deriving a toggle from the new
+  // clockIn/clockOut API (regular entry type), so the header keeps compiling.
+  const { onClock, startedAt, busy, clockIn, clockOut } = useShiftToggle();
+  const toggle = () => (onClock ? clockOut() : clockIn({ entryType: 'regular' }));
   const dayTotalSeconds = useDayShiftTotal();
   const [now, setNow] = useState(() => Date.now());
 

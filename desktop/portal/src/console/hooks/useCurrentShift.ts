@@ -12,6 +12,8 @@ interface ShiftSnapshot {
   shiftId: string | null;
   onClock: boolean;
   startedAt: string | null;
+  entryType: string | null;
+  jobTitle: string | null;
 }
 
 export interface CurrentShift extends ShiftSnapshot {
@@ -26,6 +28,8 @@ export function useCurrentShift(intervalMs: number = 30_000): CurrentShift {
     shiftId: null,
     onClock: false,
     startedAt: null,
+    entryType: null,
+    jobTitle: null,
   });
   const cancelledRef = useRef(false);
 
@@ -33,7 +37,13 @@ export function useCurrentShift(intervalMs: number = 30_000): CurrentShift {
     const r = await presenceClient.getCurrentShift();
     if (cancelledRef.current) return;
     if (r.ok) {
-      setState({ shiftId: r.shiftId, onClock: r.shiftId !== null, startedAt: r.startedAt });
+      setState({
+        shiftId: r.shiftId,
+        onClock: r.shiftId !== null,
+        startedAt: r.startedAt,
+        entryType: r.entryType,
+        jobTitle: r.jobTitle,
+      });
     }
   }, []);
 

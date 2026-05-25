@@ -1,57 +1,68 @@
 // desktop/portal/src/console/components/header/useShiftToggle.ts
 //
 // Shared clock-in/out logic. Optimistic (APK-style): the new shift state is
-// applied locally the instant you tap -- so the header timer starts/stops
-// immediately -- then the server round-trip runs in the background, reconciling
-// on success or rolling back (with a toast) on failure. ClockButton (dashboard)
-// and ShiftClock (console header) both use this; each renders from one instance.
+// applied locally the instant the dialog is confirmed, then the server round-trip
+// reconciles on success or rolls back (with a toast) on failure. ClockInDialog /
+// ClockOutDialog drive these; ShiftClock + TimeScreen render from one instance.
 import { useState } from 'react';
 import { presenceClient } from '../../api/presenceClient';
 import { useCurrentShift } from '../../hooks/useCurrentShift';
 import { useToastStore } from '../../stores/toastStore';
 
+export interface ClockInOpts {
+  entryType: string;
+  jobId?: string;
+  jobTitle?: string;
+}
+
 export interface ShiftToggle {
   onClock: boolean;
   startedAt: string | null;
+  entryType: string | null;
+  jobTitle: string | null;
   busy: boolean;
-  toggle: () => Promise<void>;
+  clockIn: (opts: ClockInOpts) => Promise<void>;
+  clockOut: (reason?: string) => Promise<void>;
 }
 
 export function useShiftToggle(): ShiftToggle {
-  const { shiftId, onClock, startedAt, refresh, setLocal } = useCurrentShift();
+  const { shiftId, onClock, startedAt, entryType, jobTitle, refresh, setLocal } = useCurrentShift();
   const [busy, setBusy] = useState(false);
   const pushToast = useToastStore((s) => s.push);
 
-  async function toggle() {
-    if (busy) return;
-    const wasOnClock = onClock;
-    const prev = { shiftId, onClock, startedAt };
+  async function clockIn(opts: ClockInOpts) {
+    if (busy || onClock) return;
+    const prev = { shiftId, onClock, startedAt, entryType, jobTitle };
     setBusy(true);
-
-    // Optimistic: reflect the new state immediately, before the server replies,
-    // so the timer starts (or stops) the instant you tap -- like the APK.
-    setLocal(
-      wasOnClock
-        ? { shiftId: null, onClock: false, startedAt: null }
-        : { shiftId: null, onClock: true, startedAt: new Date().toISOString() },
-    );
-
-    const result = wasOnClock
-      ? await presenceClient.endShift()
-      : await presenceClient.startShift('web');
-
-    if (result.ok) {
-      await refresh(); // reconcile with the authoritative server shift
-    } else {
-      setLocal(prev); // roll back the optimistic change
-      pushToast({
-        message: result.error || (wasOnClock ? 'Clock out failed' : 'Clock in failed'),
-        tone: 'error',
-        duration: 3000,
-      });
+    setLocal({
+      shiftId: null,
+      onClock: true,
+      startedAt: new Date().toISOString(),
+      entryType: opts.entryType,
+      jobTitle: opts.jobTitle ?? null,
+    });
+    const result = await presenceClient.startShift('web', opts);
+    if (result.ok) await refresh();
+    else {
+      setLocal(prev);
+      pushToast({ message: result.error || 'Clock in failed', tone: 'error', duration: 3000 });
     }
-    setBusy(false); // re-enable only after the state is reconciled / rolled back
+    setBusy(false);
   }
 
-  return { onClock, startedAt, busy, toggle };
+  async function clockOut(reason?: string) {
+    if (busy || !onClock) return;
+    const prev = { shiftId, onClock, startedAt, entryType, jobTitle };
+    setBusy(true);
+    setLocal({ shiftId: null, onClock: false, startedAt: null, entryType: null, jobTitle: null });
+    const result = await presenceClient.endShift(reason);
+    if (result.ok) await refresh();
+    else {
+      setLocal(prev);
+      pushToast({ message: result.error || 'Clock out failed', tone: 'error', duration: 3000 });
+    }
+    setBusy(false);
+  }
+
+  return { onClock, startedAt, entryType, jobTitle, busy, clockIn, clockOut };
 }

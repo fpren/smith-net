@@ -8,6 +8,12 @@ import { useShiftToggle } from './useShiftToggle';
 import { ClockToggleButton } from './ClockToggleButton';
 
 export function ClockButton() {
-  const { onClock, busy, toggle } = useShiftToggle();
-  return <ClockToggleButton onClock={onClock} busy={busy} onClick={toggle} />;
+  const { onClock, busy, clockIn, clockOut } = useShiftToggle();
+  return (
+    <ClockToggleButton
+      onClock={onClock}
+      busy={busy}
+      onClick={() => (onClock ? clockOut() : clockIn({ entryType: 'regular' }))}
+    />
+  );
 }
