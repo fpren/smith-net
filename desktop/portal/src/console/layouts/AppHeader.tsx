@@ -81,7 +81,6 @@ export function AppHeader() {
         {hasForemanTier() && <NavButton to="/console/invoices" label="Invoices" />}
         {hasForemanTier() && <NavButton to="/console/crew" label="Crew" />}
         <NavButton to="/console/comm" label="Comm" />
-        {user.role === 'admin' && <NavButton to="/console/admin" label="Admin" />}
       </nav>
 
       <div className="flex-1" />

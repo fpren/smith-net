@@ -246,6 +246,19 @@ export function SettingsRoute() {
         <div className="text-console-text-muted text-xs">Guild of Smiths</div>
       </Row>
 
+      {/* ADMIN (admin only -- the advanced console lives behind the gear) */}
+      {user.role === 'admin' && (
+        <>
+          <SectionHeader>Admin</SectionHeader>
+          <Row onClick={() => navigate('/console/admin')}>
+            <div className="flex items-center justify-between">
+              <span className="text-console-text text-sm">Admin console</span>
+              <span className="text-console-text-muted">{'>'}</span>
+            </div>
+          </Row>
+        </>
+      )}
+
       {/* ACCOUNT */}
       <SectionHeader>Account</SectionHeader>
       <Row>
