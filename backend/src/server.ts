@@ -23,6 +23,7 @@ import { authRouter } from './authRoutes';
 import adminRouter from './adminRoutes';
 import { healthRouter } from './healthRoutes';
 import { jobsRouter } from './jobsRoutes';
+import { clientsRouter } from './clientsRoutes';
 import { profilesRouter } from './profilesRoutes';
 import { shiftsRouter } from './shiftsRoutes';
 import { notificationsRouter } from './notificationsRoutes';
@@ -149,6 +150,9 @@ app.use('/api/admin', healthRouter);
 
 // Mount Jobs API
 app.use('/api/jobs', jobsRouter);
+
+// Mount Clients API
+app.use('/api/clients', clientsRouter);
 
 // Mount Profiles API (read-only crew search for console)
 app.use('/api/profiles', profilesRouter);
