@@ -40,19 +40,18 @@ export function ShiftClock() {
       className="flex items-center gap-3 bg-console-bg border border-console-border rounded-md px-3 py-1.5"
     >
       {elapsed !== null && startedAt && (
-        <div className="flex items-baseline gap-2">
+        <>
           <span
-            className="text-console-ok text-sm tabular-nums"
+            className="text-console-ok text-sm tabular-nums whitespace-nowrap"
             style={{ fontFamily: 'var(--font-mono)' }}
             aria-label="shift elapsed"
           >
             {formatElapsed(elapsed)}
           </span>
-          <span className="text-console-text-muted text-[10px] whitespace-nowrap">
+          <span className="hidden sm:inline text-console-text-muted text-[10px] whitespace-nowrap">
             started {formatStart(startedAt)}
           </span>
-          <span className="text-console-border" aria-hidden="true">|</span>
-        </div>
+        </>
       )}
       <ClockToggleButton onClock={onClock} busy={busy} onClick={toggle} />
     </div>

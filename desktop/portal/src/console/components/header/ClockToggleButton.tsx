@@ -20,7 +20,7 @@ export function ClockToggleButton({ onClock, busy, onClick }: Props) {
       onClick={onClick}
       disabled={busy}
       className={
-        'rounded-full text-xs font-mono px-3 py-1 border transition-colors ' +
+        'rounded-full text-xs font-mono whitespace-nowrap px-3 py-1 border transition-colors ' +
         (onClock
           ? 'text-console-ok border-console-ok hover:bg-console-ok hover:text-console-bg'
           : 'text-console-text-muted border-console-border hover:text-console-accent hover:border-console-accent') +
