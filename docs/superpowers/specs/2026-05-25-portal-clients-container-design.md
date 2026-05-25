@@ -36,11 +36,11 @@ This slice (A0) builds the lean Clients container and links jobs to it. No prici
 ### Backend
 
 **Migration `backend/migrations/030_clients.sql`**
-- `CREATE TABLE clients (id UUID PK DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, created_by TEXT NOT NULL REFERENCES users(id), name TEXT NOT NULL, email TEXT, phone TEXT, address TEXT, company TEXT, notes TEXT, is_deleted BOOLEAN NOT NULL DEFAULT FALSE, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now());`
-- Indexes: `(organization_id)` and `(organization_id, lower(name))` for scoped search.
+- `CREATE TABLE clients (id UUID PK DEFAULT gen_random_uuid(), owner_id TEXT NOT NULL REFERENCES profiles(id), name TEXT NOT NULL, email TEXT, phone TEXT, address TEXT, company TEXT, notes TEXT, is_deleted BOOLEAN NOT NULL DEFAULT FALSE, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now());`
+- Indexes: `(owner_id)` and `(owner_id, lower(name))` for scoped search.
 - `ALTER TABLE jobs ADD CONSTRAINT jobs_client_id_fkey FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL;` (the `client_id` column already exists from `003_jobs_expansion.sql`).
 
-**Tenancy:** clients are scoped by `organization_id` + `created_by`, mirroring `invoicesService` (the modern model). The implementer resolves the requesting user's org exactly as `invoicesService` does. The jobs<->clients relationship is by `client_id` FK regardless of which ownership column jobs use (`foreman_id`).
+**Tenancy:** clients are **owner-scoped by `owner_id` = `req.user!.id`**, mirroring `jobs.foreman_id` exactly (confirmed: jobs are owner-scoped, not org-scoped). Clients pair with jobs, so they share the same owner model — a `requireClientOwner` middleware parallels `requireJobOwner`, and the jobs<->clients join is naturally consistent (same owner). This refines the earlier org-scoping note.
 
 **`backend/src/clientsService.ts`** (all functions org-scoped, parameterized queries)
 - `createClient(orgId, createdBy, input)` -> client row.
