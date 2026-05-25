@@ -3,8 +3,6 @@
 // Rich header that replaces ConsoleShell's bare top bar. Ported in spirit
 // from the dashboard module's AppHeader, adapted to the data the console
 // backend actually exposes:
-//   - real local clock (useCurrentTime)
-//   - real ON CLOCK status from /api/shifts/current (useCurrentShift)
 //   - real user identity from authStore
 //   - inline nav buttons (replaces the sidebar's nav)
 //   - role chip + avatar
@@ -17,7 +15,6 @@ import { Chip } from '../components/ui/Chip';
 import { Avatar } from '../components/ui/Avatar';
 import { authClient } from '../auth/authClient';
 import { useAuthStore } from '../auth/authStore';
-import { useCurrentTime } from '../hooks/useCurrentTime';
 import { accentForId, colorForRole } from '../lib/utils';
 
 function NavButton({ to, label, end }: { to: string; label: string; end?: boolean }) {
@@ -42,8 +39,6 @@ export function AppHeader() {
   const clear = useAuthStore((s) => s.clear);
   const hasForemanTier = useAuthStore((s) => s.hasForemanTier);
   const navigate = useNavigate();
-  const { hh, mm, ss } = useCurrentTime();
-
   async function onLogout() {
     await authClient.logout();
     clear();
@@ -84,18 +79,6 @@ export function AppHeader() {
       </nav>
 
       <div className="flex-1" />
-
-      {/* Clock chip lives in ConsoleShell's share-location bar now so it
-          works on both desktop and mobile. */}
-
-      <div className="hidden md:flex items-baseline gap-1 px-2">
-        <span className="text-console-text text-lg tabular-nums" style={{ fontFamily: 'var(--font-mono)' }}>
-          {hh}:{mm}
-        </span>
-        <span className="text-console-text-muted text-xs tabular-nums" style={{ fontFamily: 'var(--font-mono)' }}>
-          :{ss}
-        </span>
-      </div>
 
       {/* User card (identity) + a gear that opens Settings. Role chip hidden on
           mobile to keep the header on one tidy row. */}

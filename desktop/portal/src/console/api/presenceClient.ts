@@ -78,13 +78,13 @@ export const presenceClient = {
     return { ok: true };
   },
 
-  getCurrentShift: async (): Promise<PresenceResult<{ shiftId: string | null }>> => {
+  getCurrentShift: async (): Promise<PresenceResult<{ shiftId: string | null; startedAt: string | null }>> => {
     const res = await fetch('/api/shifts/current', { credentials: 'include' });
     if (!res.ok) {
       const e = await parseError(res);
       return { ok: false, status: res.status, ...e };
     }
     const data = await res.json();
-    return { ok: true, shiftId: data.shift?.id ?? null };
+    return { ok: true, shiftId: data.shift?.id ?? null, startedAt: data.shift?.startedAt ?? null };
   },
 };

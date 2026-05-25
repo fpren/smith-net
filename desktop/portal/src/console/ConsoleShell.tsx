@@ -2,10 +2,9 @@ import { ReactNode, useEffect } from 'react';
 import { AppHeader } from './layouts/AppHeader';
 import { BottomTabBar } from './layouts/BottomTabBar';
 import { ShareLocationToggle } from './components/header/ShareLocationToggle';
-import { ClockButton } from './components/header/ClockButton';
+import { ShiftClock } from './components/header/ShiftClock';
 import { useAuthStore } from './auth/authStore';
 import { initSmithCore, isSmithCoreReady } from './core/smithCore';
-import { useCurrentTime } from './hooks/useCurrentTime';
 import { useOfflinePersistence } from './offline/useOfflinePersistence';
 
 interface Props {
@@ -14,7 +13,6 @@ interface Props {
 
 export function ConsoleShell({ children }: Props) {
   const user = useAuthStore((s) => s.user);
-  const { hh, mm, ss } = useCurrentTime();
   useOfflinePersistence();
 
   // Load the deterministic ROM once when the console mounts. Soft-fail: no UI
@@ -30,19 +28,7 @@ export function ConsoleShell({ children }: Props) {
       <AppHeader />
       {user && (
         <div className="border-b border-console-border bg-console-surface px-4 py-2 flex items-center justify-between gap-3">
-          {/* Clock in its own container (APK-style shift module) */}
-          <div
-            role="group"
-            aria-label="shift"
-            className="flex items-center gap-3 bg-console-bg border border-console-border rounded-md px-3 py-1.5"
-          >
-            <span className="text-console-text text-sm tabular-nums" style={{ fontFamily: 'var(--font-mono)' }}>
-              {hh}:{mm}
-              <span className="text-console-text-muted text-xs tabular-nums">:{ss}</span>
-            </span>
-            <span className="text-console-border" aria-hidden="true">|</span>
-            <ClockButton />
-          </div>
+          <ShiftClock />
           <ShareLocationToggle />
         </div>
       )}
