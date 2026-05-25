@@ -10,9 +10,13 @@ const h = vi.hoisted(() => ({
 }));
 vi.mock('../../header/useShiftToggle', () => ({ useShiftToggle: () => h.toggle }));
 vi.mock('../useTodayEntries', () => ({ useTodayEntries: () => [] }));
-// ClockInDialog (opened on clock-in) fetches the job board; stub to a 403 so no real fetch fires.
-vi.mock('../../../api/jobsClient', () => ({
-  jobsClient: { list: vi.fn().mockResolvedValue({ ok: false, status: 403, error: 'tier' }) },
+// ClockInDialog (opened on clock-in) fetches the user's jobs (all-tier); stub to
+// an empty list so no real fetch fires.
+vi.mock('../../../api/presenceClient', () => ({
+  presenceClient: {
+    getMyJobs: vi.fn().mockResolvedValue({ ok: true, jobs: [] }),
+    getJobTasks: vi.fn().mockResolvedValue({ ok: true, tasks: [] }),
+  },
 }));
 
 describe('TimeScreen container', () => {

@@ -22,6 +22,7 @@ export function TodayEntriesList({ entries }: { entries: TimeEntryRow[] }) {
           </span>
           <span className="uppercase text-[11px]">{e.entryType}</span>
           {e.jobTitle && <span className="text-console-accent truncate">@{e.jobTitle}</span>}
+          {e.taskTitle && <span className="text-console-text-muted truncate">/ {e.taskTitle}</span>}
           {e.clockOutReason && <span className="text-console-text-muted text-[11px] truncate">- {e.clockOutReason}</span>}
           {e.startedAt && (
             <span className="ml-auto tabular-nums font-medium">{durationHMM(e.startedAt, e.endedAt)}</span>

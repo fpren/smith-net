@@ -13,6 +13,8 @@ export interface ClockInOpts {
   entryType: string;
   jobId?: string;
   jobTitle?: string;
+  taskId?: string;
+  taskTitle?: string;
 }
 
 export interface ShiftToggle {
@@ -20,19 +22,20 @@ export interface ShiftToggle {
   startedAt: string | null;
   entryType: string | null;
   jobTitle: string | null;
+  taskTitle: string | null;
   busy: boolean;
   clockIn: (opts: ClockInOpts) => Promise<void>;
   clockOut: (reason?: string) => Promise<void>;
 }
 
 export function useShiftToggle(): ShiftToggle {
-  const { shiftId, onClock, startedAt, entryType, jobTitle, refresh, setLocal } = useCurrentShift();
+  const { shiftId, onClock, startedAt, entryType, jobTitle, taskTitle, refresh, setLocal } = useCurrentShift();
   const [busy, setBusy] = useState(false);
   const pushToast = useToastStore((s) => s.push);
 
   async function clockIn(opts: ClockInOpts) {
     if (busy || onClock) return;
-    const prev = { shiftId, onClock, startedAt, entryType, jobTitle };
+    const prev = { shiftId, onClock, startedAt, entryType, jobTitle, taskTitle };
     setBusy(true);
     setLocal({
       shiftId: null,
@@ -40,6 +43,7 @@ export function useShiftToggle(): ShiftToggle {
       startedAt: new Date().toISOString(),
       entryType: opts.entryType,
       jobTitle: opts.jobTitle ?? null,
+      taskTitle: opts.taskTitle ?? null,
     });
     const result = await presenceClient.startShift('web', opts);
     if (result.ok) await refresh();
@@ -52,9 +56,9 @@ export function useShiftToggle(): ShiftToggle {
 
   async function clockOut(reason?: string) {
     if (busy || !onClock) return;
-    const prev = { shiftId, onClock, startedAt, entryType, jobTitle };
+    const prev = { shiftId, onClock, startedAt, entryType, jobTitle, taskTitle };
     setBusy(true);
-    setLocal({ shiftId: null, onClock: false, startedAt: null, entryType: null, jobTitle: null });
+    setLocal({ shiftId: null, onClock: false, startedAt: null, entryType: null, jobTitle: null, taskTitle: null });
     const result = await presenceClient.endShift(reason);
     if (result.ok) await refresh();
     else {
@@ -64,5 +68,5 @@ export function useShiftToggle(): ShiftToggle {
     setBusy(false);
   }
 
-  return { onClock, startedAt, entryType, jobTitle, busy, clockIn, clockOut };
+  return { onClock, startedAt, entryType, jobTitle, taskTitle, busy, clockIn, clockOut };
 }

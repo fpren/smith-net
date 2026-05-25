@@ -4,7 +4,7 @@ import { TodayEntriesList } from '../TodayEntriesList';
 import type { TimeEntryRow } from '../../../api/presenceClient';
 
 function row(o: Partial<TimeEntryRow>): TimeEntryRow {
-  return { id: 'r', startedAt: '2026-05-25T09:00:00Z', endedAt: '2026-05-25T10:30:00Z', source: 'web', entryType: 'regular', jobId: null, jobTitle: null, clockOutReason: null, ...o };
+  return { id: 'r', startedAt: '2026-05-25T09:00:00Z', endedAt: '2026-05-25T10:30:00Z', source: 'web', entryType: 'regular', jobId: null, jobTitle: null, taskId: null, taskTitle: null, clockOutReason: null, ...o };
 }
 
 describe('TodayEntriesList', () => {

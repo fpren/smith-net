@@ -20,6 +20,8 @@ export interface TimeEntryRow {
   entryType: string;
   jobId: string | null;
   jobTitle: string | null;
+  taskId: string | null;
+  taskTitle: string | null;
   clockOutReason: string | null;
 }
 
@@ -42,7 +44,7 @@ async function parseError(res: Response): Promise<{ error: string; code?: string
 export const presenceClient = {
   startShift: async (
     source: string,
-    opts: { entryType?: string; jobId?: string; jobTitle?: string } = {},
+    opts: { entryType?: string; jobId?: string; jobTitle?: string; taskId?: string; taskTitle?: string } = {},
   ): Promise<PresenceResult<{ shiftId: string }>> => {
     const res = await fetch('/api/shifts/start', {
       method: 'POST',
@@ -92,7 +94,7 @@ export const presenceClient = {
     return { ok: true };
   },
 
-  getCurrentShift: async (): Promise<PresenceResult<{ shiftId: string | null; startedAt: string | null; entryType: string | null; jobTitle: string | null }>> => {
+  getCurrentShift: async (): Promise<PresenceResult<{ shiftId: string | null; startedAt: string | null; entryType: string | null; jobTitle: string | null; taskTitle: string | null }>> => {
     const res = await fetch('/api/shifts/current', { credentials: 'include' });
     if (!res.ok) {
       const e = await parseError(res);
@@ -105,7 +107,30 @@ export const presenceClient = {
       startedAt: data.shift?.startedAt ?? null,
       entryType: data.shift?.entryType ?? null,
       jobTitle: data.shift?.jobTitle ?? null,
+      taskTitle: data.shift?.taskTitle ?? null,
     };
+  },
+
+  getMyJobs: async (): Promise<PresenceResult<{ jobs: Array<{ id: string; title: string; status: string }> }>> => {
+    const res = await fetch('/api/shifts/jobs', { credentials: 'include' });
+    if (!res.ok) {
+      const e = await parseError(res);
+      return { ok: false, status: res.status, ...e };
+    }
+    const data = await res.json();
+    return { ok: true, jobs: data.jobs ?? [] };
+  },
+
+  getJobTasks: async (
+    jobId: string,
+  ): Promise<PresenceResult<{ tasks: Array<{ id: string; title: string; status: string }> }>> => {
+    const res = await fetch(`/api/shifts/jobs/${encodeURIComponent(jobId)}/tasks`, { credentials: 'include' });
+    if (!res.ok) {
+      const e = await parseError(res);
+      return { ok: false, status: res.status, ...e };
+    }
+    const data = await res.json();
+    return { ok: true, tasks: data.tasks ?? [] };
   },
 
   getTodayShifts: async (
@@ -127,6 +152,8 @@ export const presenceClient = {
         entryType: s.entryType ?? 'regular',
         jobId: s.jobId ?? null,
         jobTitle: s.jobTitle ?? null,
+        taskId: s.taskId ?? null,
+        taskTitle: s.taskTitle ?? null,
         clockOutReason: s.clockOutReason ?? null,
       })),
     };

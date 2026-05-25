@@ -19,7 +19,7 @@ function formatStart(iso: string): string {
 }
 
 export function TimeScreen() {
-  const { onClock, startedAt, entryType, jobTitle, busy, clockIn, clockOut } = useShiftToggle();
+  const { onClock, startedAt, entryType, jobTitle, taskTitle, busy, clockIn, clockOut } = useShiftToggle();
   const entries = useTodayEntries(onClock);
   const [now, setNow] = useState(() => Date.now());
   const [showIn, setShowIn] = useState(false);
@@ -51,7 +51,7 @@ export function TimeScreen() {
 
         {onClock && startedAt && (
           <div className="text-console-text-muted text-xs uppercase whitespace-nowrap">
-            {(entryType ?? 'regular')}{jobTitle ? ` @ ${jobTitle}` : ''} · started {formatStart(startedAt)}
+            {(entryType ?? 'regular')}{jobTitle ? ` @ ${jobTitle}` : ''}{jobTitle && taskTitle ? ` / ${taskTitle}` : ''} · started {formatStart(startedAt)}
           </div>
         )}
 

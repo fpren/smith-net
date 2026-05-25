@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { jobsClient, type Job } from '../../api/jobsClient';
+import { presenceClient } from '../../api/presenceClient';
 import type { ClockInOpts } from '../header/useShiftToggle';
 
 const ENTRY_TYPES: { value: string; label: string }[] = [
@@ -11,6 +11,9 @@ const ENTRY_TYPES: { value: string; label: string }[] = [
   { value: 'travel', label: 'Travel' },
   { value: 'on_call', label: 'On call' },
 ];
+
+type JobOption = { id: string; title: string; status: string };
+type TaskOption = { id: string; title: string; status: string };
 
 interface Props {
   open: boolean;
@@ -22,14 +25,22 @@ export function ClockInDialog({ open, onClose, onConfirm }: Props) {
   const [entryType, setEntryType] = useState('regular');
   const [jobId, setJobId] = useState<string | null>(null);
   const [jobText, setJobText] = useState('');
-  const [boardJobs, setBoardJobs] = useState<Job[]>([]);
+  const [boardJobs, setBoardJobs] = useState<JobOption[]>([]);
+  const [tasks, setTasks] = useState<TaskOption[]>([]);
+  const [taskId, setTaskId] = useState<string | null>(null);
 
-  // Optional board picker: only foreman/enterprise can fetch /api/jobs (others
-  // get 403). On 403 we silently show free-text only.
+  // All-tier job picker: getMyJobs returns the caller's owned + assigned jobs
+  // (works for solo, never 403). Reset selection state on (re)open so a prior
+  // session's picks don't linger.
   useEffect(() => {
     if (!open) return;
+    setEntryType('regular');
+    setJobId(null);
+    setJobText('');
+    setTasks([]);
+    setTaskId(null);
     let alive = true;
-    void jobsClient.list().then((r) => {
+    void presenceClient.getMyJobs().then((r) => {
       if (alive && r.ok) setBoardJobs(r.jobs);
     });
     return () => {
@@ -37,11 +48,35 @@ export function ClockInDialog({ open, onClose, onConfirm }: Props) {
     };
   }, [open]);
 
+  // Load this job's tasks whenever a real board job is selected.
+  useEffect(() => {
+    if (!jobId) {
+      setTasks([]);
+      setTaskId(null);
+      return;
+    }
+    let alive = true;
+    void presenceClient.getJobTasks(jobId).then((r) => {
+      if (alive && r.ok) setTasks(r.tasks);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [jobId]);
+
   const confirm = () => {
     const opts: ClockInOpts = { entryType };
+    const board = boardJobs.find((j) => j.id === jobId);
     if (jobId) opts.jobId = jobId;
-    const title = jobText.trim() || boardJobs.find((j) => j.id === jobId)?.title;
+    const title = jobText.trim() || board?.title;
     if (title) opts.jobTitle = title;
+    if (jobId && taskId) {
+      const task = tasks.find((t) => t.id === taskId);
+      if (task) {
+        opts.taskId = task.id;
+        opts.taskTitle = task.title;
+      }
+    }
     onConfirm(opts);
   };
 
@@ -66,13 +101,27 @@ export function ClockInDialog({ open, onClose, onConfirm }: Props) {
             className="bg-console-bg border border-console-border rounded px-2 py-1 text-xs"
             value={jobId ?? ''}
             onChange={(e) => {
-              setJobId(e.target.value || null);
-              if (e.target.value) setJobText('');
+              const next = e.target.value || null;
+              setJobId(next);
+              if (next) setJobText('');
             }}
           >
             <option value="">No job (general time)</option>
             {boardJobs.map((j) => (
               <option key={j.id} value={j.id}>{j.title}</option>
+            ))}
+          </select>
+        )}
+
+        {jobId && tasks.length > 0 && (
+          <select
+            className="bg-console-bg border border-console-border rounded px-2 py-1 text-xs"
+            value={taskId ?? ''}
+            onChange={(e) => setTaskId(e.target.value || null)}
+          >
+            <option value="">No task</option>
+            {tasks.map((t) => (
+              <option key={t.id} value={t.id}>{t.title}</option>
             ))}
           </select>
         )}
@@ -83,7 +132,11 @@ export function ClockInDialog({ open, onClose, onConfirm }: Props) {
           value={jobText}
           onChange={(e) => {
             setJobText(e.target.value);
-            if (e.target.value) setJobId(null);
+            if (e.target.value) {
+              setJobId(null);
+              setTasks([]);
+              setTaskId(null);
+            }
           }}
         />
 

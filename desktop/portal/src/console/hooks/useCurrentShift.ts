@@ -14,6 +14,7 @@ interface ShiftSnapshot {
   startedAt: string | null;
   entryType: string | null;
   jobTitle: string | null;
+  taskTitle: string | null;
 }
 
 export interface CurrentShift extends ShiftSnapshot {
@@ -30,6 +31,7 @@ export function useCurrentShift(intervalMs: number = 30_000): CurrentShift {
     startedAt: null,
     entryType: null,
     jobTitle: null,
+    taskTitle: null,
   });
   const cancelledRef = useRef(false);
 
@@ -43,6 +45,7 @@ export function useCurrentShift(intervalMs: number = 30_000): CurrentShift {
         startedAt: r.startedAt,
         entryType: r.entryType,
         jobTitle: r.jobTitle,
+        taskTitle: r.taskTitle,
       });
     }
   }, []);
