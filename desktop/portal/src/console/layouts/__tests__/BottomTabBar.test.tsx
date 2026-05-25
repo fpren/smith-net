@@ -14,45 +14,38 @@ describe('BottomTabBar', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('renders 4 tabs (Map/Jobs/Crew/Comm) for a non-admin user', () => {
+  it('renders Home/Jobs/Comm for a foreman -- no Map/Invoices/Crew/Admin', () => {
     useAuthStore.getState().setUser({
       id: 'u1', email: 'f@x.com', displayName: 'F', role: 'foreman', emailVerified: true,
     });
     render(<MemoryRouter><BottomTabBar /></MemoryRouter>);
-    expect(screen.getByRole('link', { name: /Map/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Home/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Jobs/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Crew/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Comm/ })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /Admin/ })).not.toBeInTheDocument();
-  });
-
-  it('includes an Admin tab when the user is admin', () => {
-    useAuthStore.getState().setUser({
-      id: 'a1', email: 'a@x.com', displayName: 'A', role: 'admin', emailVerified: true,
-    });
-    render(<MemoryRouter><BottomTabBar /></MemoryRouter>);
-    expect(screen.getByRole('link', { name: /Admin/ })).toBeInTheDocument();
-  });
-
-  it('shows only [Comm] for a worker (solo) — Map/Jobs/Crew/Admin all hidden', () => {
-    useAuthStore.getState().setUser({
-      id: 'u-solo', email: 's@x.com', displayName: 'S', role: 'solo', emailVerified: true,
-    });
-    render(<MemoryRouter><BottomTabBar /></MemoryRouter>);
     expect(screen.getByRole('link', { name: /Comm/ })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Map/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /Jobs/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Invoices/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Crew/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Admin/ })).not.toBeInTheDocument();
   });
 
-  it('also shows only [Comm] for team_member and team_lead', () => {
+  it('renders Home/Comm only for a solo user (Jobs is foreman-gated)', () => {
     useAuthStore.getState().setUser({
-      id: 'u-team', email: 't@x.com', displayName: 'T', role: 'team', emailVerified: true,
+      id: 'u-solo', email: 's@x.com', displayName: 'S', role: 'solo', emailVerified: true,
     });
     render(<MemoryRouter><BottomTabBar /></MemoryRouter>);
+    expect(screen.getByRole('link', { name: /Home/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Comm/ })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Jobs/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Map/ })).not.toBeInTheDocument();
+  });
+
+  it('shows no Admin tab even for an admin (admin lives behind the gear)', () => {
+    useAuthStore.getState().setUser({
+      id: 'a1', email: 'a@x.com', displayName: 'A', role: 'admin', emailVerified: true,
+    });
+    render(<MemoryRouter><BottomTabBar /></MemoryRouter>);
+    expect(screen.queryByRole('link', { name: /Admin/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Jobs/ })).toBeInTheDocument(); // admin has foreman tier
     expect(screen.getByRole('link', { name: /Comm/ })).toBeInTheDocument();
   });
 
