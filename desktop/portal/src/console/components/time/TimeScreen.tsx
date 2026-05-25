@@ -1,10 +1,10 @@
 // desktop/portal/src/console/components/time/TimeScreen.tsx
 //
-// The /console/time container -- mirrors the APK clock screen: a framed clock
-// card with the same mirror on/off switch as the header, then the 8-hour daily
-// bar and the read-only today's-entries log. The switch keeps its instant feel;
-// clocking IN opens the entry-type/job picker first (like the APK clock-in
-// dialog), clocking OUT is instant.
+// The /console/time container -- a faithful mirror of the APK TimeTracking screen:
+// a centered clock card (blinking ">" + CLOCKED IN/OUT status, a big live timer,
+// "Started HH:MM - TYPE" + "@ Job / Task"), the TODAY 8-hour glyph bar, and the
+// read-only today's-entries log. The switch keeps its instant feel; clocking IN
+// opens the entry-type/job/task picker, clocking OUT is instant.
 import { useEffect, useState } from 'react';
 import { useShiftToggle } from '../header/useShiftToggle';
 import { useTodayEntries } from './useTodayEntries';
@@ -33,30 +33,48 @@ export function TimeScreen() {
 
   const currentElapsed = onClock && startedAt ? (now - new Date(startedAt).getTime()) / 1000 : 0;
   const todaySeconds = sumClosedSecondsToday(entries, startOfTodayMs()) + currentElapsed;
+  const blink = onClock && Math.floor(now / 1000) % 2 === 0; // pulsing ">" like the APK
 
   return (
     <div className="h-full overflow-y-auto bg-console-bg p-4 font-mono text-console-text">
       <div className="text-xs uppercase tracking-wide text-console-text-muted mb-3">Time Clock</div>
 
-      {/* Clock container -- the framed clock card (mirrors the APK clock card). */}
-      <div className="border border-console-border rounded-md bg-console-surface p-4 mb-4 flex flex-col gap-3">
-        <div className="flex items-baseline gap-3">
-          <span className="text-3xl tabular-nums" aria-label="shift elapsed">
-            {onClock ? formatElapsed(currentElapsed) : '--:--:--'}
-          </span>
-          <span className={onClock ? 'text-console-ok text-sm' : 'text-console-text-muted text-sm'}>
-            {onClock ? 'ON CLOCK' : 'OFF CLOCK'}
+      {/* Centered clock card -- mirrors the APK clock card. */}
+      <div className="border border-console-border rounded-md bg-console-surface p-6 mb-4 flex flex-col items-center gap-2">
+        {/* Status with blinking indicator */}
+        <div className="flex items-center gap-2">
+          {onClock && (
+            <span className="text-console-ok text-sm w-2 text-center" aria-hidden="true">
+              {blink ? '>' : ' '}
+            </span>
+          )}
+          <span className={`text-[11px] uppercase tracking-wide font-medium ${onClock ? 'text-console-ok' : 'text-console-text-muted'}`}>
+            {onClock ? 'CLOCKED IN' : 'CLOCKED OUT'}
           </span>
         </div>
 
+        {/* Big timer */}
+        <span
+          className={`text-5xl tabular-nums ${onClock ? 'text-console-text' : 'text-console-text-muted'}`}
+          aria-label="shift elapsed"
+        >
+          {onClock ? formatElapsed(currentElapsed) : '--:--:--'}
+        </span>
+
+        {/* Started + entry type + job/task (centered, leaf rows) */}
         {onClock && startedAt && (
-          <div className="text-console-text-muted text-xs uppercase whitespace-nowrap">
-            {(entryType ?? 'regular')}{jobTitle ? ` @ ${jobTitle}` : ''}{jobTitle && taskTitle ? ` / ${taskTitle}` : ''} · started {formatStart(startedAt)}
+          <div className="text-console-text-muted text-xs">
+            Started {formatStart(startedAt)} - {entryType ?? 'regular'}
+          </div>
+        )}
+        {onClock && jobTitle && (
+          <div className="text-console-accent text-xs">
+            @ {jobTitle}{taskTitle ? ` / ${taskTitle}` : ''}
           </div>
         )}
 
-        {/* The mirror on/off switch: off -> pick entry type + job first; on -> instant clock-out. */}
-        <div>
+        {/* The mirror on/off switch: off -> pick entry type + job/task; on -> instant clock-out. */}
+        <div className="mt-2">
           <ClockToggleButton
             onClock={onClock}
             busy={busy}
@@ -65,7 +83,10 @@ export function TimeScreen() {
         </div>
       </div>
 
-      <DailySummaryBar secondsWorked={todaySeconds} />
+      {/* TODAY summary bar, bracketed by separators like the APK. */}
+      <div className="border-y border-console-border py-2">
+        <DailySummaryBar secondsWorked={todaySeconds} />
+      </div>
 
       <div className="mt-4">
         <div className="text-xs uppercase tracking-wide text-console-text-muted mb-2">Today's entries</div>

@@ -1,26 +1,34 @@
 import { describe, it, expect } from 'vitest';
-import { computeSlots, SLOT_COUNT, overtimeSeconds } from '../dailySummary';
+import { computeHourGlyphs, overtimeMinutes, isAtTarget, HOUR_SLOTS } from '../dailySummary';
 
-describe('dailySummary', () => {
+describe('dailySummary (APK 8-hour-glyph bar)', () => {
   it('all empty at zero', () => {
-    expect(computeSlots(0)).toEqual(new Array(SLOT_COUNT).fill(0));
-    expect(overtimeSeconds(0)).toBe(0);
+    const g = computeHourGlyphs(0);
+    expect(g).toHaveLength(HOUR_SLOTS);
+    expect(g.every((s) => s.glyph === '□' && s.tone === 'empty')).toBe(true);
+    expect(isAtTarget(0)).toBe(false);
+    expect(overtimeMinutes(0)).toBe(0);
   });
 
-  it('3.5h fills 7 full slots then empties (half-hour resolution)', () => {
-    const slots = computeSlots(3.5 * 3600); // 7 * 1800s
-    expect(slots.slice(0, 7)).toEqual(new Array(7).fill(2)); // 2 = full
-    expect(slots[7]).toBe(0);
+  it('3.5h -> 3 full-hour glyphs + 1 half-hour glyph, rest empty', () => {
+    const g = computeHourGlyphs(3.5 * 3600);
+    expect(g.slice(0, 3).every((s) => s.glyph === '■' && s.tone === 'shift')).toBe(true);
+    expect(g[3]).toEqual({ glyph: '▣', tone: 'shift' });
+    expect(g[4].glyph).toBe('□');
   });
 
-  it('a partial slot reads as half (1)', () => {
-    const slots = computeSlots(15 * 60); // 15 min = half of one 30-min slot
-    expect(slots[0]).toBe(1);
+  it('8h -> all full shift glyphs, at target, no overtime', () => {
+    const g = computeHourGlyphs(8 * 3600);
+    expect(g.every((s) => s.glyph === '■' && s.tone === 'shift')).toBe(true);
+    expect(isAtTarget(8 * 3600)).toBe(true);
+    expect(overtimeMinutes(8 * 3600)).toBe(0);
   });
 
-  it('caps the bar at 8h and reports overtime separately', () => {
-    const slots = computeSlots(9 * 3600);
-    expect(slots).toEqual(new Array(SLOT_COUNT).fill(2)); // all full
-    expect(overtimeSeconds(9 * 3600)).toBe(3600); // 1h OT
+  it('10h -> overtime re-colors the first hours red (overlay), reports OT minutes', () => {
+    const g = computeHourGlyphs(10 * 3600); // halfSegs=20, shiftHalves=16, otHalves=4
+    expect(g[0]).toEqual({ glyph: '■', tone: 'overtime' });
+    expect(g[1]).toEqual({ glyph: '■', tone: 'overtime' });
+    expect(g[2].tone).toBe('shift');
+    expect(overtimeMinutes(10 * 3600)).toBe(120);
   });
 });
