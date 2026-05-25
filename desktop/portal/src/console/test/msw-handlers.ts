@@ -562,4 +562,27 @@ export const handlers = [
       },
     })
   ),
+
+  // Clients (clientsRoutes.ts).
+  http.get('/api/clients', () =>
+    HttpResponse.json({ clients: [
+      { id: 'client-1', ownerId: 'f-1', name: 'Test Client', email: 't@c.test',
+        phone: null, address: null, company: null, notes: null,
+        createdAt: '2026-05-11T10:00:00Z', updatedAt: '2026-05-11T10:00:00Z' },
+    ] })),
+  http.post('/api/clients', async ({ request }) => {
+    const body = (await request.json()) as { name: string };
+    return HttpResponse.json({ client: {
+      id: 'new-client-id', ownerId: 'f-1', name: body.name, email: null,
+      phone: null, address: null, company: null, notes: null,
+      createdAt: '2026-05-11T10:00:00Z', updatedAt: '2026-05-11T10:00:00Z' },
+    }, { status: 201 });
+  }),
+  http.get('/api/clients/:id', ({ params }) =>
+    HttpResponse.json({
+      client: { id: params.id, ownerId: 'f-1', name: 'Test Client', email: 't@c.test',
+        phone: null, address: null, company: null, notes: null,
+        createdAt: '2026-05-11T10:00:00Z', updatedAt: '2026-05-11T10:00:00Z' },
+      jobs: [],
+    })),
 ];
