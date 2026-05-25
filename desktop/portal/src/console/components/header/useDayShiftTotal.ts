@@ -7,13 +7,15 @@
 // and on a 30s poll (which also resets it to 00:00:00 after local midnight).
 import { useEffect, useState } from 'react';
 import { presenceClient } from '../../api/presenceClient';
-import { useCurrentShift } from '../../hooks/useCurrentShift';
+import { useShiftStore } from '../../stores/shiftStore';
 import { startOfTodayMs, sumClosedSecondsToday } from './shiftFormat';
 
 type ShiftRow = { startedAt: string | null; endedAt: string | null };
 
 export function useDayShiftTotal(pollMs: number = 30_000): number {
-  const { onClock } = useCurrentShift();
+  // Refetch on the on/off-clock transition (clock-out adds a completed shift);
+  // onClock comes from the shared store (the single source of truth).
+  const onClock = useShiftStore((s) => s.onClock);
   const [shifts, setShifts] = useState<ShiftRow[]>([]);
 
   useEffect(() => {

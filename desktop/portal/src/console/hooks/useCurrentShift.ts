@@ -1,21 +1,13 @@
 // desktop/portal/src/console/hooks/useCurrentShift.ts
 //
-// Polls GET /api/shifts/current every 30s so the ClockButton / ShiftClock can
-// show ON/OFF CLOCK and the live shift timer for the logged-in user. Returns
-// `refresh` (re-fetch now, e.g. after toggling) and `setLocal` (apply state
-// immediately for an optimistic clock-in/out before the server confirms).
+// Reads the current shift from the shared shiftStore (so every consumer agrees)
+// and polls GET /api/shifts/current to keep it fresh. Returns `refresh` (re-fetch
+// now, e.g. after toggling) and `setLocal` (apply state immediately for an
+// optimistic clock-in/out before the server confirms) -- both write the store.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { presenceClient } from '../api/presenceClient';
-
-interface ShiftSnapshot {
-  shiftId: string | null;
-  onClock: boolean;
-  startedAt: string | null;
-  entryType: string | null;
-  jobTitle: string | null;
-  taskTitle: string | null;
-}
+import { useShiftStore, type ShiftSnapshot } from '../stores/shiftStore';
 
 export interface CurrentShift extends ShiftSnapshot {
   /** Re-fetch /api/shifts/current immediately (e.g. after toggling). */
@@ -25,21 +17,19 @@ export interface CurrentShift extends ShiftSnapshot {
 }
 
 export function useCurrentShift(intervalMs: number = 30_000): CurrentShift {
-  const [state, setState] = useState<ShiftSnapshot>({
-    shiftId: null,
-    onClock: false,
-    startedAt: null,
-    entryType: null,
-    jobTitle: null,
-    taskTitle: null,
-  });
+  const shiftId = useShiftStore((s) => s.shiftId);
+  const onClock = useShiftStore((s) => s.onClock);
+  const startedAt = useShiftStore((s) => s.startedAt);
+  const entryType = useShiftStore((s) => s.entryType);
+  const jobTitle = useShiftStore((s) => s.jobTitle);
+  const taskTitle = useShiftStore((s) => s.taskTitle);
   const cancelledRef = useRef(false);
 
   const refresh = useCallback(async () => {
     const r = await presenceClient.getCurrentShift();
     if (cancelledRef.current) return;
     if (r.ok) {
-      setState({
+      useShiftStore.getState().setSnapshot({
         shiftId: r.shiftId,
         onClock: r.shiftId !== null,
         startedAt: r.startedAt,
@@ -50,11 +40,11 @@ export function useCurrentShift(intervalMs: number = 30_000): CurrentShift {
     }
   }, []);
 
-  const setLocal = useCallback((next: ShiftSnapshot) => setState(next), []);
+  const setLocal = useCallback((next: ShiftSnapshot) => useShiftStore.getState().setSnapshot(next), []);
 
   useEffect(() => {
     cancelledRef.current = false;
-    refresh();
+    void refresh();
     const id = setInterval(refresh, intervalMs);
     return () => {
       cancelledRef.current = true;
@@ -62,5 +52,5 @@ export function useCurrentShift(intervalMs: number = 30_000): CurrentShift {
     };
   }, [intervalMs, refresh]);
 
-  return { ...state, refresh, setLocal };
+  return { shiftId, onClock, startedAt, entryType, jobTitle, taskTitle, refresh, setLocal };
 }

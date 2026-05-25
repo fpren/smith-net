@@ -1,10 +1,14 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { ClockButton } from '../ClockButton';
 import { server } from '../../../test/msw-server';
+import { useShiftStore } from '../../../stores/shiftStore';
 
 describe('ClockButton', () => {
+  // The shift state is a shared module store now; reset it so tests don't leak.
+  beforeEach(() => useShiftStore.getState().reset());
+
   it('renders OFF CLOCK + [Clock in] when /api/shifts/current returns null', async () => {
     server.use(http.get('/api/shifts/current', () => HttpResponse.json({ shift: null })));
     render(<ClockButton />);

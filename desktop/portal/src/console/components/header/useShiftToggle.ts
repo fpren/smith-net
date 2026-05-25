@@ -4,9 +4,9 @@
 // applied locally the instant clock-in/out fires, then the server round-trip
 // reconciles on success or rolls back (with a toast) on failure. ClockInDialog
 // drives clock-in (entry type + job/task); clock-out is instant.
-import { useState } from 'react';
 import { presenceClient } from '../../api/presenceClient';
 import { useCurrentShift } from '../../hooks/useCurrentShift';
+import { useShiftStore } from '../../stores/shiftStore';
 import { useToastStore } from '../../stores/toastStore';
 
 export interface ClockInOpts {
@@ -30,7 +30,9 @@ export interface ShiftToggle {
 
 export function useShiftToggle(): ShiftToggle {
   const { shiftId, onClock, startedAt, entryType, jobTitle, taskTitle, refresh, setLocal } = useCurrentShift();
-  const [busy, setBusy] = useState(false);
+  // busy lives in the shared store so the header + /console/time can't double-submit.
+  const busy = useShiftStore((s) => s.busy);
+  const setBusy = (b: boolean) => useShiftStore.getState().setBusy(b);
   const pushToast = useToastStore((s) => s.push);
 
   async function clockIn(opts: ClockInOpts) {
