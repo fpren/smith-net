@@ -19,7 +19,7 @@ export function DailySummaryBar({ secondsWorked }: { secondsWorked: number }) {
         : 'text-console-text-muted';
 
   return (
-    <div className="font-mono text-sm flex items-center justify-between" data-testid="daily-bar">
+    <div className="font-mono text-sm flex items-center justify-center gap-6" data-testid="daily-bar">
       <span className="text-[11px] uppercase tracking-wide text-console-text-muted">Today</span>
       <span className="tabular-nums">
         <span className="text-console-text-muted">[</span>
