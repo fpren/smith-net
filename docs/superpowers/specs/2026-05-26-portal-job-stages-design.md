@@ -189,6 +189,11 @@ Add `http.patch('/api/jobs/:id/stage', ...)` that echoes the requested stage bac
 - **`JobStage` type location.** Define once in `api/jobsClient.ts` as a string-literal union and re-export. Don't introduce a shared `types/` module just for this — the project's existing convention keeps types local to their client file.
 - **No drag-and-drop kanban / no per-org custom stages.** Out of scope for v1. The 7-stage list is the SmithNet canon.
 
+## 9b. Known issues — deferred follow-ups
+
+- **Race condition on concurrent transitions (LOW).** `changeStage` does an unconditional UPDATE without an optimistic lock on the current stage. Two PATCHes racing on the same job will both succeed; the audit `from` for the second will reflect a stale value. The portal's `busy` button guard makes this very unlikely in practice (single-foreman tool), but a future hardening pass should add `WHERE id = $2 AND stage = $3` to the UPDATE plus a `StaleStageError -> 409 Conflict` mapping and matching portal client handling. Flagged by the Slice 2 final code review (2026-05-26).
+- **Audit assertion test (MED, deferred).** No existing backend test asserts that `JOB_STATUS_CHANGED` (or any other) audit entry is written. Adding one for `JOB_STAGE_CHANGED` would establish a new pattern; out of scope for this slice. A future audit-coverage pass should add assertions across all mutating routes.
+
 ## 10. Out of scope (explicit)
 
 - Proposal generation/preview surface (later slice — Plans or its own)

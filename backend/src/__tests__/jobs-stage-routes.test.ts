@@ -145,6 +145,17 @@ describeDb('jobs stage routes', () => {
     expect(res.body.code).toBe('invalid_stage_transition');
   });
 
+  it('refuses invalid: approved -> closed (skips multiple steps)', async () => {
+    const f = await foreman('inv3');
+    const id = await createJobAt(f.token, 'approved');
+    const res = await request(app).patch(`/api/jobs/${id}/stage`)
+      .set('Authorization', `Bearer ${f.token}`).send({ stage: 'closed' });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('invalid_stage_transition');
+    expect(res.body.from).toBe('approved');
+    expect(res.body.to).toBe('closed');
+  });
+
   it('self-loop returns 200 (idempotent)', async () => {
     const f = await foreman('self');
     const id = await createJobAt(f.token, 'lead');
