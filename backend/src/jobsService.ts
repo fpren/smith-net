@@ -330,6 +330,32 @@ export async function changeStatus(jobId: string, newStatus: JobStatus): Promise
   return job;
 }
 
+export async function changeStage(jobId: string, newStage: JobStage): Promise<Job> {
+  const db = requirePg();
+  const existing = await getById(jobId);
+  if (!existing) throw new NotFoundError();
+
+  // Self-loop is a no-op: return the existing job, no audit entry written.
+  if (existing.stage === newStage) return existing;
+
+  assertValidStageTransition(existing.stage, newStage);
+
+  const { rows } = await db.query(
+    `UPDATE jobs SET stage = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+    [newStage, jobId]
+  );
+
+  const job = mapJobRow(rows[0]);
+
+  await auditLog.log(AuditAction.JOB_STAGE_CHANGED, job.foremanId, {
+    jobId: job.id,
+    from: existing.stage,
+    to: newStage,
+  });
+
+  return job;
+}
+
 export type UpdatePatch = Partial<Pick<Job, 'title' | 'description' | 'scheduledAt' | 'location'>> & { clientId?: string | null };
 
 export async function update(jobId: string, patch: UpdatePatch): Promise<Job> {

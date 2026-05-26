@@ -49,6 +49,7 @@ export enum AuditAction {
   JOB_CREATED = 'job.created',
   JOB_UPDATED = 'job.updated',
   JOB_STATUS_CHANGED = 'job.status_changed',
+  JOB_STAGE_CHANGED = 'job.stage_changed',
   JOB_CREW_ASSIGNED = 'job.crew_assigned',
   JOB_CREW_UNASSIGNED = 'job.crew_unassigned',
   JOB_GEOCODED = 'job.geocoded',
