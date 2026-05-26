@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { JobStatusBadge } from '../components/jobs/JobStatusBadge';
+import { JobStageBar } from '../components/jobs/JobStageBar';
+import { JobStageControls } from '../components/jobs/JobStageControls';
 import { StatusButtons } from '../components/jobs/StatusButtons';
 import { AssignCrewModal } from '../components/jobs/AssignCrewModal';
 import { EditJobModal } from '../components/jobs/EditJobModal';
@@ -51,6 +53,8 @@ export function JobDetailRoute() {
         <h1 className="text-console-text text-lg">{job.title}</h1>
         <Button variant="secondary" className="ml-auto" onClick={() => setShowEdit(true)}>Edit</Button>
       </div>
+      <JobStageBar stage={job.stage} />
+      <JobStageControls job={job} />
       <dl className="text-sm grid grid-cols-[12ch_1fr] gap-y-1 mt-4">
         <dt className="text-console-text-muted">id</dt>          <dd>#{job.id}</dd>
         <dt className="text-console-text-muted">scheduled</dt>   <dd>{job.scheduledAt ?? '—'}</dd>

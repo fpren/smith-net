@@ -1,9 +1,11 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, beforeEach } from 'vitest';
+import { http, HttpResponse } from 'msw';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { JobDetailRoute } from '../JobDetailRoute';
 import { useJobsStore } from '../../stores/jobsStore';
 import { useTasksStore } from '../../stores/tasksStore';
+import { server } from '../../test/msw-server';
 
 describe('JobDetailRoute', () => {
   beforeEach(() => {
@@ -56,5 +58,40 @@ describe('JobDetailRoute', () => {
     const headings = screen.getAllByRole('heading');
     const tasksHeader = headings.find((h) => h.textContent?.startsWith('Tasks'));
     expect(tasksHeader?.textContent).toMatch(/Tasks\s*\(\s*1\s*,\s*0\s*done\s*\)/);
+  });
+
+  it('renders the JobStageBar and stage controls for the current stage', async () => {
+    // Override MSW so GET /api/jobs/jX returns stage: 'approved'.
+    server.use(
+      http.get('/api/jobs/:id', ({ params }) => {
+        if (params.id === 'jX') {
+          return HttpResponse.json({
+            job: {
+              id: 'jX', foremanId: 'f-1', clientId: null, engagementId: null,
+              title: 'Stage test', description: null, status: 'planned', stage: 'approved',
+              scheduledAt: null, location: null, latitude: null, longitude: null,
+              geocodedAt: null, createdAt: '2026-05-11T10:00:00Z',
+              updatedAt: '2026-05-11T11:00:00Z', client: null,
+            },
+            crew: [],
+          });
+        }
+        // Fall through to default handler shape for other ids.
+        return HttpResponse.json({
+          job: {
+            id: params.id, foremanId: 'user-1', clientId: null, client: null,
+            engagementId: null, title: 'Detail Job', description: null,
+            status: 'planned', stage: 'lead', scheduledAt: null,
+            location: 'Detail Location', latitude: null, longitude: null,
+            geocodedAt: null, createdAt: '2026-05-11T10:00:00Z',
+            updatedAt: '2026-05-11T10:00:00Z',
+          },
+          crew: [],
+        });
+      })
+    );
+    renderAt('/console/jobs/jX');
+    expect(await screen.findByText('APPROVED')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /start work/i })).toBeInTheDocument();
   });
 });
