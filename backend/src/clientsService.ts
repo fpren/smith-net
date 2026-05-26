@@ -64,7 +64,7 @@ export async function listByOwner(ownerId: string, q?: string): Promise<Client[]
   if (q && q.trim()) {
     const { rows } = await db.query(
       `SELECT * FROM clients
-        WHERE owner_id = $1 AND is_deleted = FALSE AND name ILIKE $2
+        WHERE owner_id = $1 AND is_deleted = FALSE AND (name ILIKE $2 OR company ILIKE $2)
         ORDER BY lower(name) ASC`,
       [ownerId, `%${q.trim()}%`]
     );

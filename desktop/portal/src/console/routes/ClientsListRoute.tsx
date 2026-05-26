@@ -13,7 +13,10 @@ export function ClientsListRoute() {
   const [showCreate, setShowCreate] = useState(false);
   const [query, setQuery] = useState('');
   const shown = query.trim()
-    ? clients.filter((c) => c.name.toLowerCase().includes(query.trim().toLowerCase()))
+    ? clients.filter((c) => {
+        const q = query.trim().toLowerCase();
+        return c.name.toLowerCase().includes(q) || (c.company ?? '').toLowerCase().includes(q);
+      })
     : clients;
 
   return (

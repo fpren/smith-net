@@ -4,6 +4,7 @@ import { Button } from '../components/ui/Button';
 import { JobStatusBadge } from '../components/jobs/JobStatusBadge';
 import { StatusButtons } from '../components/jobs/StatusButtons';
 import { AssignCrewModal } from '../components/jobs/AssignCrewModal';
+import { EditJobModal } from '../components/jobs/EditJobModal';
 import { useJobsPolling } from '../hooks/useJobsPolling';
 import { useJobsStore } from '../stores/jobsStore';
 import { jobsClient } from '../api/jobsClient';
@@ -26,6 +27,7 @@ export function JobDetailRoute() {
   const setDetail = useJobsStore((s) => s.setDetail);
   const tasks = useTasksStore((s) => (id ? s.tasksByJob[id] : undefined) ?? EMPTY_TASKS);
   const [showAssign, setShowAssign] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
   const toast = useToast();
 
   if (!job || job.id !== id) {
@@ -47,6 +49,7 @@ export function JobDetailRoute() {
       <div className="flex items-center gap-3 mt-2">
         <JobStatusBadge status={job.status} />
         <h1 className="text-console-text text-lg">{job.title}</h1>
+        <Button variant="secondary" className="ml-auto" onClick={() => setShowEdit(true)}>Edit</Button>
       </div>
       <dl className="text-sm grid grid-cols-[12ch_1fr] gap-y-1 mt-4">
         <dt className="text-console-text-muted">id</dt>          <dd>#{job.id}</dd>
@@ -94,6 +97,7 @@ export function JobDetailRoute() {
         onClose={() => setShowAssign(false)}
         onAssigned={(a) => setDetail(job, [...crew, a])}
       />
+      <EditJobModal open={showEdit} onClose={() => setShowEdit(false)} job={job} />
     </div>
   );
 }

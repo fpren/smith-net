@@ -80,6 +80,20 @@ describeDb('clients routes', () => {
     expect(after.body.clients).toHaveLength(0);
   });
 
+  it('search (?q=) matches name OR company', async () => {
+    const f = await foreman('search');
+    await request(app).post('/api/clients').set('Authorization', `Bearer ${f.token}`)
+      .send({ name: 'Acme', company: 'Northgate LLC' });
+    await request(app).post('/api/clients').set('Authorization', `Bearer ${f.token}`)
+      .send({ name: 'Beta', company: 'Other Co' });
+
+    const byCompany = await request(app).get('/api/clients?q=northgate').set('Authorization', `Bearer ${f.token}`);
+    expect(byCompany.body.clients.map((c: any) => c.name)).toEqual(['Acme']);
+
+    const byName = await request(app).get('/api/clients?q=beta').set('Authorization', `Bearer ${f.token}`);
+    expect(byName.body.clients.map((c: any) => c.name)).toEqual(['Beta']);
+  });
+
   it('isolates clients across owners (404 cross-owner)', async () => {
     const a = await foreman('iso-a');
     const b = await foreman('iso-b');

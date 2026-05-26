@@ -81,6 +81,7 @@ export interface UpdateJobInput {
   description?: string | null;
   scheduledAt?: string | null;
   location?: string | null;
+  clientId?: string | null;
 }
 
 export const jobsClient = {
