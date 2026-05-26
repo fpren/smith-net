@@ -8,7 +8,7 @@ import * as tasksService from './tasksService';
 import { requestLogger } from './log';
 import { validateBody } from './middleware/validate';
 import { requireCap } from './middleware/requireCap';
-import { CreateJobBody, UpdateJobBody, StatusChangeBody, AssignCrewBody } from './schemas/jobs';
+import { CreateJobBody, UpdateJobBody, StatusChangeBody, StageChangeBody, AssignCrewBody } from './schemas/jobs';
 
 export const jobsRouter = Router();
 
@@ -110,6 +110,32 @@ jobsRouter.patch('/:id/status', requireJobOwner, validateBody(StatusChangeBody),
     }
     requestLogger().error({ event: 'jobs_status_error', err: e }, 'jobs status error');
     res.status(500).json({ error: 'Failed to change status' });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════
+// PATCH /api/jobs/:id/stage — pipeline stage transitions
+// ════════════════════════════════════════════════════════════════════
+
+jobsRouter.patch('/:id/stage', requireJobOwner, validateBody(StageChangeBody), async (req: JobOwnerRequest, res: Response) => {
+  try {
+    const body = req.body as StageChangeBody;
+    const job = await jobsService.changeStage(req.job!.id, body.stage);
+    res.json({ job });
+  } catch (e: any) {
+    if (e instanceof jobsService.InvalidStageTransitionError) {
+      return res.status(400).json({
+        error: e.message,
+        code: 'invalid_stage_transition',
+        from: e.from,
+        to: e.to,
+      });
+    }
+    if (e instanceof jobsService.NotFoundError) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    requestLogger().error({ event: 'jobs_stage_error', err: e }, 'jobs stage error');
+    res.status(500).json({ error: 'Failed to change stage' });
   }
 });
 

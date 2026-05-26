@@ -29,3 +29,8 @@ export const AssignCrewBody = z.object({
   roleOnJob: z.enum(['crew', 'lead']).optional(),
 }).strict();
 export type AssignCrewBody = z.infer<typeof AssignCrewBody>;
+
+export const StageChangeBody = z.object({
+  stage: z.enum(['lead','proposal','approved','in_progress','review','invoice','closed']),
+}).strict();
+export type StageChangeBody = z.infer<typeof StageChangeBody>;
