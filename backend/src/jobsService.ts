@@ -15,6 +15,19 @@ import { StoredUser, UserRole, validatePassword } from './auth';
 
 export type JobStatus = 'planned' | 'in_progress' | 'complete' | 'cancelled';
 
+export type JobStage =
+  | 'lead'
+  | 'proposal'
+  | 'approved'
+  | 'in_progress'
+  | 'review'
+  | 'invoice'
+  | 'closed';
+
+export const JOB_STAGES: readonly JobStage[] = [
+  'lead', 'proposal', 'approved', 'in_progress', 'review', 'invoice', 'closed',
+] as const;
+
 export interface Job {
   id: string;
   foremanId: string;
@@ -23,6 +36,7 @@ export interface Job {
   title: string;
   description: string | null;
   status: JobStatus;
+  stage: JobStage;
   scheduledAt: Date | null;
   location: string | null;
   latitude: number | null;        // NEW
@@ -58,6 +72,13 @@ export class InvalidTransitionError extends Error {
   }
 }
 
+export class InvalidStageTransitionError extends Error {
+  constructor(public from: JobStage, public to: JobStage) {
+    super(`Invalid stage transition: ${from} -> ${to}`);
+    this.name = 'InvalidStageTransitionError';
+  }
+}
+
 // ════════════════════════════════════════════════════════════════════
 // State machine
 // ════════════════════════════════════════════════════════════════════
@@ -72,6 +93,26 @@ const VALID_TRANSITIONS: Record<JobStatus, JobStatus[]> = {
 export function assertValidTransition(from: JobStatus, to: JobStatus): void {
   if (!VALID_TRANSITIONS[from].includes(to)) {
     throw new InvalidTransitionError(from, to);
+  }
+}
+
+// Forward spine + 3 targeted reverses (proposal->lead, invoice->review,
+// closed->invoice). See spec section 4.
+const VALID_STAGE_TRANSITIONS: Record<JobStage, JobStage[]> = {
+  lead:        ['proposal'],
+  proposal:    ['approved', 'lead'],         // reverse: rejected
+  approved:    ['in_progress'],
+  in_progress: ['review'],
+  review:      ['invoice'],
+  invoice:     ['closed', 'review'],         // reverse: invoice wrong
+  closed:      ['invoice'],                  // reverse: reopened
+};
+
+export function assertValidStageTransition(from: JobStage, to: JobStage): void {
+  if (from === to) return; // self-loop is a no-op; caller may short-circuit
+  const allowed = VALID_STAGE_TRANSITIONS[from] ?? [];
+  if (!allowed.includes(to)) {
+    throw new InvalidStageTransitionError(from, to);
   }
 }
 
@@ -93,6 +134,7 @@ function mapJobRow(row: any): Job {
     title: row.title,
     description: row.description,
     status: row.status as JobStatus,
+    stage: row.stage as JobStage,
     scheduledAt: row.scheduled_at ? new Date(row.scheduled_at) : null,
     location: row.location,
     latitude: row.latitude !== null ? Number(row.latitude) : null,
