@@ -28,7 +28,7 @@ describe('ClientDetailRoute depth', () => {
             company: 'Acme LLC', notes: 'VIP client', createdAt: '2026-05-10T10:00:00Z', updatedAt: '2026-05-10T10:00:00Z',
           },
           jobs: [{
-            id: 'j1', title: 'Lobby reno', status: 'in_progress', clientId: 'c1', client: null,
+            id: 'j1', title: 'Lobby reno', status: 'in_progress', stage: 'lead', clientId: 'c1', client: null,
             description: null, location: null, scheduledAt: null, foremanId: 'f-1', engagementId: null,
             latitude: null, longitude: null, geocodedAt: null,
             createdAt: '2026-05-11T10:00:00Z', updatedAt: '2026-05-12T10:00:00Z',

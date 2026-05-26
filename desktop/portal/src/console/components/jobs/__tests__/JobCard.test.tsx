@@ -13,6 +13,7 @@ const baseJob: Job = {
   title: 'Install panel',
   description: null,
   status: 'planned',
+  stage: 'lead',
   scheduledAt: null,
   location: '123 Main St',
   latitude: null,

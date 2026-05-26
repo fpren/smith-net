@@ -12,6 +12,7 @@ const sampleJob: Job = {
   title: 'First job',
   description: null,
   status: 'planned',
+  stage: 'lead',
   scheduledAt: null,
   location: null,
   latitude: null,

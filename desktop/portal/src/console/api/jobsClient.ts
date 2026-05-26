@@ -2,6 +2,15 @@
 
 export type JobStatus = 'planned' | 'in_progress' | 'complete' | 'cancelled';
 
+export type JobStage =
+  | 'lead'
+  | 'proposal'
+  | 'approved'
+  | 'in_progress'
+  | 'review'
+  | 'invoice'
+  | 'closed';
+
 export interface Job {
   id: string;
   foremanId: string;
@@ -11,6 +20,7 @@ export interface Job {
   title: string;
   description: string | null;
   status: JobStatus;
+  stage: JobStage;
   scheduledAt: string | null;     // ISO 8601 from server
   location: string | null;
   latitude: number | null;        // Plan 4: populated async after Nominatim geocode
@@ -92,6 +102,8 @@ export const jobsClient = {
     call<MutateResp>(`/api/jobs/${encodeURIComponent(id)}`, { method: 'PATCH', body: patch }),
   changeStatus: (id: string, status: JobStatus) =>
     call<MutateResp>(`/api/jobs/${encodeURIComponent(id)}/status`, { method: 'PATCH', body: { status } }),
+  changeStage: (id: string, stage: JobStage) =>
+    call<MutateResp>(`/api/jobs/${encodeURIComponent(id)}/stage`, { method: 'PATCH', body: { stage } }),
   assignCrew: (id: string, profileId: string, roleOnJob?: 'crew' | 'lead') =>
     call<AssignResp>(`/api/jobs/${encodeURIComponent(id)}/assign`, {
       method: 'POST',

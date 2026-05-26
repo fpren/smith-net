@@ -7,7 +7,7 @@ import type { Job } from '../../api/jobsClient';
 
 const j = (id: string, status: Job['status']): Job => ({
   id, foremanId: 'f-1', clientId: null, client: null, engagementId: null,
-  title: `Job ${id}`, description: null, status,
+  title: `Job ${id}`, description: null, status, stage: 'lead',
   scheduledAt: null, location: null,
   latitude: null, longitude: null, geocodedAt: null,
   createdAt: '2026-05-11T10:00:00Z', updatedAt: '2026-05-11T10:00:00Z',

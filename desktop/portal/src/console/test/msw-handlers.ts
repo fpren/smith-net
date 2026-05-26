@@ -86,6 +86,7 @@ export const handlers = [
           title: 'Test Job',
           description: null,
           status: 'planned',
+          stage: 'lead',
           scheduledAt: null,
           location: 'Test Location',
           createdAt: '2026-05-11T10:00:00Z',
@@ -106,6 +107,7 @@ export const handlers = [
         title: 'Detail Job',
         description: null,
         status: 'planned',
+        stage: 'lead',
         scheduledAt: null,
         location: 'Detail Location',
         createdAt: '2026-05-11T10:00:00Z',
@@ -128,6 +130,7 @@ export const handlers = [
           title: body.title,
           description: null,
           status: 'planned',
+          stage: 'lead',
           scheduledAt: null,
           location: body.location ?? null,
           createdAt: '2026-05-11T10:00:00Z',
@@ -150,10 +153,24 @@ export const handlers = [
         title: body.title ?? 'Detail Job',
         description: body.description ?? null,
         status: 'planned',
+        stage: 'lead',
         scheduledAt: body.scheduledAt ?? null,
         location: body.location ?? null,
         createdAt: '2026-05-11T10:00:00Z',
         updatedAt: '2026-05-11T11:00:00Z',
+      },
+    });
+  }),
+
+  http.patch('/api/jobs/:id/stage', async ({ params, request }) => {
+    const body = (await request.json()) as { stage: string };
+    return HttpResponse.json({
+      job: {
+        id: params.id, foremanId: 'f-1', clientId: null, engagementId: null,
+        title: 'Mock Job', description: null, status: 'planned', stage: body.stage,
+        scheduledAt: null, location: null, latitude: null, longitude: null,
+        geocodedAt: null, createdAt: '2026-05-11T10:00:00Z',
+        updatedAt: '2026-05-11T11:00:00Z', client: null,
       },
     });
   }),
@@ -170,6 +187,7 @@ export const handlers = [
         title: 'Detail Job',
         description: null,
         status: body.status,
+        stage: 'lead',
         scheduledAt: null,
         location: null,
         createdAt: '2026-05-11T10:00:00Z',
