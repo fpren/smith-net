@@ -6,6 +6,7 @@ import { requireJobOwner, JobOwnerRequest } from './middleware/requireJobOwner';
 import * as jobsService from './jobsService';
 import * as tasksService from './tasksService';
 import * as materialsService from './materialsService';
+import * as expensesService from './expensesService';
 import { requestLogger } from './log';
 import { validateBody } from './middleware/validate';
 import { requireCap } from './middleware/requireCap';
@@ -69,6 +70,20 @@ jobsRouter.get('/:id/materials', requireJobOwner, async (req: JobOwnerRequest, r
   } catch (e) {
     requestLogger().error({ event: 'jobs_list_materials_error', err: e }, 'jobs list materials error');
     res.status(500).json({ error: 'Failed to load materials' });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════
+// GET /api/jobs/:id/expenses — per-job expense list (foreman of the job only)
+// ════════════════════════════════════════════════════════════════════
+
+jobsRouter.get('/:id/expenses', requireJobOwner, async (req: JobOwnerRequest, res: Response) => {
+  try {
+    const expenses = await expensesService.listByJob(req.job!.id);
+    res.json({ expenses });
+  } catch (e) {
+    requestLogger().error({ event: 'jobs_list_expenses_error', err: e }, 'jobs list expenses error');
+    res.status(500).json({ error: 'Failed to load expenses' });
   }
 });
 

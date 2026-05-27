@@ -24,6 +24,7 @@ import adminRouter from './adminRoutes';
 import { healthRouter } from './healthRoutes';
 import { jobsRouter } from './jobsRoutes';
 import { materialsRouter } from './materialsRoutes';
+import { expensesRouter } from './expensesRoutes';
 import { clientsRouter } from './clientsRoutes';
 import { profilesRouter } from './profilesRoutes';
 import { shiftsRouter } from './shiftsRoutes';
@@ -152,6 +153,7 @@ app.use('/api/admin', healthRouter);
 // Mount Jobs API
 app.use('/api/jobs', jobsRouter);
 app.use('/api', materialsRouter);
+app.use('/api', expensesRouter);
 
 // Mount Clients API
 app.use('/api/clients', clientsRouter);
