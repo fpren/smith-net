@@ -5,6 +5,10 @@ import type { Job, JobStage } from '../../api/jobsClient';
 import { useJobsStore } from '../../stores/jobsStore';
 import { useToast } from '../../hooks/useToast';
 import { Button } from '../ui/Button';
+import { useMaterialsStore } from '../../stores/materialsStore';
+import type { Material } from '../../api/materialsClient';
+
+const EMPTY_MATERIALS: Material[] = [];
 
 interface Transition {
   label: string;
@@ -29,6 +33,9 @@ export function JobStageControls({ job }: { job: Job }) {
   const upsertJob = useJobsStore((s) => s.upsertJob);
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const materials = useMaterialsStore((s) => s.byJob[job.id] ?? EMPTY_MATERIALS);
+  const uncheckedCount = materials.filter((m) => !m.checked).length;
+  const showReviewWarning = job.stage === 'review' && uncheckedCount > 0;
 
   async function handleClick(to: JobStage) {
     if (busy) return;
@@ -49,6 +56,11 @@ export function JobStageControls({ job }: { job: Job }) {
 
   return (
     <div className="flex flex-wrap gap-2 mb-4">
+      {showReviewWarning && (
+        <div className="text-console-warn text-xs mb-2 w-full" role="alert">
+          ! {uncheckedCount} materials not checked off
+        </div>
+      )}
       {transitions.map((t) => (
         <Button
           key={t.to}
