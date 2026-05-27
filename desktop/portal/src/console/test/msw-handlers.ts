@@ -655,4 +655,37 @@ export const handlers = [
   }),
 
   http.delete('/api/materials/:id', () => new HttpResponse(null, { status: 204 })),
+
+  // Per-job expenses (migration 019 + expensesRoutes.ts).
+  http.get('/api/jobs/:jobId/expenses', () => HttpResponse.json({ expenses: [] })),
+
+  http.post('/api/expenses', async ({ request }) => {
+    const body = (await request.json()) as any;
+    return HttpResponse.json({
+      expense: {
+        id: 'e-mock', jobId: body.jobId,
+        category: body.category, description: body.description, amount: body.amount,
+        vendor: body.vendor ?? null, notes: body.notes ?? null,
+        expenseDate: body.expenseDate ?? null,
+        createdAt: '2026-05-26T10:00:00Z', updatedAt: '2026-05-26T10:00:00Z',
+      },
+    }, { status: 201 });
+  }),
+
+  http.patch('/api/expenses/:id', async ({ params, request }) => {
+    const body = (await request.json()) as any;
+    return HttpResponse.json({
+      expense: {
+        id: params.id, jobId: 'j-mock',
+        category: body.category ?? 'fuel',
+        description: body.description ?? 'Mock expense',
+        amount: body.amount ?? 0,
+        vendor: body.vendor ?? null, notes: body.notes ?? null,
+        expenseDate: body.expenseDate ?? null,
+        createdAt: '2026-05-26T10:00:00Z', updatedAt: '2026-05-26T11:00:00Z',
+      },
+    });
+  }),
+
+  http.delete('/api/expenses/:id', () => new HttpResponse(null, { status: 204 })),
 ];
