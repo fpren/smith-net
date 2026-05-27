@@ -94,4 +94,42 @@ describe('JobDetailRoute', () => {
     expect(await screen.findByText('APPROVED')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /start work/i })).toBeInTheDocument();
   });
+
+  it('renders MaterialsList, ExpensesTable, and JobCostRollup', async () => {
+    server.use(
+      http.get('/api/jobs/:id', ({ params }) => {
+        if (params.id === 'jY') {
+          return HttpResponse.json({
+            job: {
+              id: 'jY', foremanId: 'f-1', clientId: null, engagementId: null,
+              title: 'Sections test', description: null, status: 'planned', stage: 'lead',
+              scheduledAt: null, location: null, latitude: null, longitude: null,
+              geocodedAt: null, createdAt: '2026-05-11T10:00:00Z',
+              updatedAt: '2026-05-11T11:00:00Z', client: null,
+            },
+            crew: [],
+          });
+        }
+        return HttpResponse.json({
+          job: {
+            id: params.id, foremanId: 'user-1', clientId: null, client: null,
+            engagementId: null, title: 'Detail Job', description: null,
+            status: 'planned', stage: 'lead', scheduledAt: null,
+            location: 'Detail Location', latitude: null, longitude: null,
+            geocodedAt: null, createdAt: '2026-05-11T10:00:00Z',
+            updatedAt: '2026-05-11T10:00:00Z',
+          },
+          crew: [],
+        });
+      })
+    );
+    renderAt('/console/jobs/jY');
+    // Section headers from MaterialsList and ExpensesTable
+    expect(await screen.findByRole('heading', { name: /materials/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /expenses/i })).toBeInTheDocument();
+    // JobCostRollup renders zeros from the default MSW empty-array responses.
+    // "Job total:" and "$0.00" are sibling spans — assert them individually.
+    expect(await screen.findByText('Job total:')).toBeInTheDocument();
+    expect(screen.getAllByText('$0.00').length).toBeGreaterThanOrEqual(1);
+  });
 });

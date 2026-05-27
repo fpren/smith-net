@@ -16,6 +16,9 @@ import { useTasksStore } from '../stores/tasksStore';
 import { TaskList } from '../components/tasks/TaskList';
 import { AddTaskInput } from '../components/tasks/AddTaskInput';
 import type { Task } from '../api/tasksClient';
+import { MaterialsList } from '../components/materials/MaterialsList';
+import { ExpensesTable } from '../components/expenses/ExpensesTable';
+import { JobCostRollup } from '../components/jobs/JobCostRollup';
 
 const EMPTY_TASKS: Task[] = [];
 
@@ -55,6 +58,9 @@ export function JobDetailRoute() {
       </div>
       <JobStageBar stage={job.stage} />
       <JobStageControls job={job} />
+      <MaterialsList jobId={job.id} />
+      <ExpensesTable jobId={job.id} />
+      <JobCostRollup jobId={job.id} />
       <dl className="text-sm grid grid-cols-[12ch_1fr] gap-y-1 mt-4">
         <dt className="text-console-text-muted">id</dt>          <dd>#{job.id}</dd>
         <dt className="text-console-text-muted">scheduled</dt>   <dd>{job.scheduledAt ?? '—'}</dd>
