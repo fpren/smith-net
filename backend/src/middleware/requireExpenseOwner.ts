@@ -26,7 +26,7 @@ export async function requireExpenseOwner(
     req.expense = expense;
     req.job = job;
     next();
-  } catch (e: any) {
-    return res.status(500).json({ error: 'Failed to load expense' });
+  } catch (err) {
+    next(err);
   }
 }
