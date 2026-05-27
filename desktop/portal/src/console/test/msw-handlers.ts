@@ -622,4 +622,37 @@ export const handlers = [
     });
   }),
   http.delete('/api/clients/:id', () => new HttpResponse(null, { status: 204 })),
+
+  // Per-job materials (migration 018 + materialsRoutes.ts).
+  http.get('/api/jobs/:jobId/materials', () => HttpResponse.json({ materials: [] })),
+
+  http.post('/api/materials', async ({ request }) => {
+    const body = (await request.json()) as any;
+    return HttpResponse.json({
+      material: {
+        id: 'm-mock', jobId: body.jobId, name: body.name,
+        notes: body.notes ?? null, checked: false, checkedAt: null,
+        quantity: body.quantity ?? 1, unit: body.unit ?? 'ea',
+        unitCost: body.unitCost ?? 0, vendor: body.vendor ?? null,
+        createdAt: '2026-05-26T10:00:00Z', updatedAt: '2026-05-26T10:00:00Z',
+      },
+    }, { status: 201 });
+  }),
+
+  http.patch('/api/materials/:id', async ({ params, request }) => {
+    const body = (await request.json()) as any;
+    return HttpResponse.json({
+      material: {
+        id: params.id, jobId: 'j-mock', name: body.name ?? 'Mock material',
+        notes: body.notes ?? null,
+        checked: body.checked ?? false,
+        checkedAt: body.checked ? '2026-05-26T11:00:00Z' : null,
+        quantity: body.quantity ?? 1, unit: body.unit ?? 'ea',
+        unitCost: body.unitCost ?? 0, vendor: body.vendor ?? null,
+        createdAt: '2026-05-26T10:00:00Z', updatedAt: '2026-05-26T11:00:00Z',
+      },
+    });
+  }),
+
+  http.delete('/api/materials/:id', () => new HttpResponse(null, { status: 204 })),
 ];
