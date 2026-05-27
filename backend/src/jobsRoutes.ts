@@ -5,6 +5,7 @@ import { requireConsoleTier } from './middleware/requireConsoleTier';
 import { requireJobOwner, JobOwnerRequest } from './middleware/requireJobOwner';
 import * as jobsService from './jobsService';
 import * as tasksService from './tasksService';
+import * as materialsService from './materialsService';
 import { requestLogger } from './log';
 import { validateBody } from './middleware/validate';
 import { requireCap } from './middleware/requireCap';
@@ -54,6 +55,20 @@ jobsRouter.get('/:id/tasks', requireJobOwner, async (req: JobOwnerRequest, res: 
   } catch (e: any) {
     requestLogger().error({ event: 'tasks_list_error', err: e }, 'tasks list error');
     res.status(500).json({ error: 'Failed to load tasks' });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════
+// GET /api/jobs/:id/materials — per-job materials list (foreman of the job only)
+// ════════════════════════════════════════════════════════════════════
+
+jobsRouter.get('/:id/materials', requireJobOwner, async (req: JobOwnerRequest, res: Response) => {
+  try {
+    const materials = await materialsService.listByJob(req.job!.id);
+    res.json({ materials });
+  } catch (e) {
+    requestLogger().error({ event: 'jobs_list_materials_error', err: e }, 'jobs list materials error');
+    res.status(500).json({ error: 'Failed to load materials' });
   }
 });
 
