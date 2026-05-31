@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Smith Net -- Connection Graph</title>
+<style>
+  :root {
+    --bg: #f4f3ee;
+    --panel: #ffffff;
+    --ink: #1a1a1a;
+    --muted: #6b6b63;
+    --faint: #9a9a90;
+    --border: #d4d3cb;
+    --edge: #cfcec5;
+    --edge-lit: #b8860b;
+    --c-identity: #2b5fa1;
+    --c-work:     #2f6f4f;
+    --c-time:     #1f8a8a;
+    --c-comm:     #8a5a2b;
+    --c-financial:#b8860b;
+    --c-pipeline: #6a3d9a;
+    --c-infra:    #6f6f12;
+    --c-ai:       #a12b5f;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--ink);
+    font-family: "SF Mono","Menlo","Consolas","Liberation Mono",monospace;
+    font-size: 13px;
+  }
+  header {
+    padding: 12px 18px 10px; border-bottom: 1px solid var(--border);
+    background: var(--panel); position: relative; z-index: 5;
+  }
+  header h1 { margin: 0; font-size: 16px; font-weight: 700; letter-spacing: .02em; }
+  header .sub { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 10px; }
+  .controls { display: flex; gap: 8px; }
+  button {
+    font-family: inherit; font-size: 12px; color: var(--ink); background: var(--bg);
+    border: 1px solid var(--border); padding: 4px 10px; cursor: pointer; border-radius: 2px;
+  }
+  button:hover { border-color: var(--ink); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px; align-items: center; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+    padding: 2px 7px; border: 1px solid var(--border); border-radius: 10px; color: var(--muted);
+    user-select: none;
+  }
+  .chip.off { opacity: .38; text-decoration: line-through; }
+  .key-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .legend .note { color: var(--faint); }
+
+  #stage { position: absolute; inset: 99px 0 0 0; }
+  svg { width: 100%; height: 100%; display: block; cursor: grab; background: var(--bg); }
+  svg.panning { cursor: grabbing; }
+
+  .edge { stroke: var(--edge); stroke-width: 1.2; fill: none; }
+  .edge.lit { stroke: var(--edge-lit); stroke-width: 2.2; }
+  .edge.dim { stroke: #e7e6df; }
+  .elabel { fill: var(--edge-lit); font-size: 10px; font-family: inherit; pointer-events: none; opacity: 0; }
+  .elabel.show { opacity: 1; }
+
+  .node { cursor: pointer; }
+  .node rect {
+    fill: var(--panel); stroke-width: 1.6;
+    transition: opacity .12s;
+  }
+  .node text { font-family: inherit; font-weight: 700; pointer-events: none; dominant-baseline: middle; }
+  .node.planned rect { stroke-dasharray: 4 3; fill: #fbf6ea; }
+  .node.dim { opacity: .22; }
+  .node.hot rect { stroke-width: 3; }
+
+  #panel {
+    position: absolute; top: 109px; right: 14px; width: 290px; max-height: calc(100% - 124px);
+    overflow: auto; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 3px; padding: 12px 13px; z-index: 4; display: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+  }
+  #panel.show { display: block; }
+  #panel .pname { font-size: 14px; font-weight: 700; margin: 0 0 2px; }
+  #panel .pmeta { color: var(--muted); font-size: 11px; margin: 0 0 8px; }
+  #panel .psum { font-size: 12px; margin: 0 0 10px; }
+  #panel .ptag { font-size: 10px; padding: 0 5px; border-radius: 2px; border: 1px solid var(--border); }
+  #panel .ptag.built { color: var(--c-work); border-color: #bcd6c6; background: #f1f8f3; }
+  #panel .ptag.planned { color: #8a6d2b; border-color: #e3d3a6; background: #f8f0d8; }
+  #panel h4 { margin: 8px 0 5px; font-size: 11px; color: var(--faint); text-transform: uppercase; letter-spacing: .05em; }
+  #panel .conn { display: flex; gap: 6px; padding: 3px 0; font-size: 11.5px; border-top: 1px dashed var(--border); }
+  #panel .conn .dir { color: var(--faint); width: 16px; flex: 0 0 16px; }
+  #panel .conn .who { font-weight: 700; }
+  #panel .conn .rel { color: var(--muted); }
+  #panel .close { float: right; cursor: pointer; color: var(--faint); border: 1px solid var(--border); border-radius: 2px; padding: 0 5px; }
+  .hint { position: absolute; bottom: 10px; left: 16px; color: var(--faint); font-size: 11px; z-index: 4; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Smith Net -- Connection Graph</h1>
+  <p class="sub">The whole web: how every domain wires to every other through endpoints, workers and the pipeline. Click a node to light up everything it touches.</p>
+  <div class="bar">
+    <div class="controls">
+      <button id="relayout">re-layout</button>
+      <button id="reset">reset view</button>
+    </div>
+    <div class="legend" id="legend"></div>
+  </div>
+</header>
+
+<div id="stage">
+  <svg id="svg">
+    <g id="view">
+      <g id="edges"></g>
+      <g id="elabels"></g>
+      <g id="nodes"></g>
+    </g>
+  </svg>
+</div>
+<div id="panel"></div>
+<div class="hint">drag a node to move it &nbsp;|&nbsp; drag the background to pan &nbsp;|&nbsp; scroll to zoom &nbsp;|&nbsp; hover to preview, click to pin</div>
+
+<script>
+const SVGNS = "http://www.w3.org/2000/svg";
+
+const LAYERS = {
+  identity:  { color: "#2b5fa1", label: "identity" },
+  work:      { color: "#2f6f4f", label: "work" },
+  time:      { color: "#1f8a8a", label: "time" },
+  comm:      { color: "#8a5a2b", label: "comm" },
+  financial: { color: "#b8860b", label: "financial" },
+  pipeline:  { color: "#6a3d9a", label: "pipeline" },
+  infra:     { color: "#6f6f12", label: "infra" },
+  ai:        { color: "#a12b5f", label: "ai" }
+};
+const LAYER_ORDER = ["identity","work","time","comm","financial","pipeline","infra","ai"];
+
+const NODES = [
+  { id:"org",          glyph:"[O]", name:"Organization", layer:"identity",  status:"built",   sum:"Tenant boundary. Everything is scoped per organization for data isolation." },
+  { id:"user",         glyph:"[U]", name:"User",         layer:"identity",  status:"built",   sum:"Identity + role. Creates jobs, clocks time, sends messages, owns the account." },
+  { id:"job",          glyph:"[J]", name:"Job",          layer:"work",      status:"built",   sum:"The central work record. Almost every domain connects to a job." },
+  { id:"task",         glyph:"[t]", name:"Task",         layer:"work",      status:"built",   sum:"A unit of work inside a job; crew clock against tasks." },
+  { id:"crew",         glyph:"[&]", name:"Crew",         layer:"work",      status:"built",   sum:"Who is assigned to a job. Their shifts become billable labor." },
+  { id:"materials",    glyph:"[*]", name:"Materials",    layer:"work",      status:"built",   sum:"Parts used on a job; flow into invoice line items and the summary." },
+  { id:"time",         glyph:"[T]", name:"Time",         layer:"time",      status:"built",   sum:"Shift clock. Hours tie a user to a job and become labor on the invoice." },
+  { id:"comm",         glyph:"[@]", name:"Comm",         layer:"comm",      status:"built",   sum:"Channels + messages. Approved notes become the invoice/summary context." },
+  { id:"mesh",         glyph:"[M]", name:"Mesh / Gateway", layer:"comm",    status:"built",   sum:"Offline P2P + relay transport. Time and comm route through it when offline." },
+  { id:"invoice",      glyph:"[$]", name:"Invoice",      layer:"financial", status:"built",   sum:"Bills the client. Pulls job, time, materials and comm; gated on send by tier." },
+  { id:"tier",         glyph:"[%]", name:"Tier",         layer:"financial", status:"built",   sum:"Server-authoritative caps. Gates invoice sends and other limited actions." },
+  { id:"subscription", glyph:"[S]", name:"Subscription", layer:"financial", status:"built",   sum:"Stripe / Play / manual. Sets which tier an org is on." },
+  { id:"seat",         glyph:"[F]", name:"Seat / Trial", layer:"financial", status:"built",   sum:"Founder pricing and trial windows that also grant a tier." },
+  { id:"proposal",     glyph:"[P]", name:"Proposal",     layer:"financial", status:"built",   sum:"Client-facing quote built from a job (precedes the invoice)." },
+  { id:"report",       glyph:"[R]", name:"Report",       layer:"financial", status:"built",   sum:"Assembled summaries of jobs / invoices for export and sharing." },
+  { id:"intent",       glyph:"[>]", name:"Intent",       layer:"pipeline",  status:"built",   sum:"The agreed scope, locked before work. The summary must match it." },
+  { id:"summary",      glyph:"[=]", name:"Summary",      layer:"pipeline",  status:"built",   sum:"Synthesizer output. Pulls job+time+materials+comm into one signed record." },
+  { id:"ledger",       glyph:"[L]", name:"Ledger",       layer:"pipeline",  status:"built",   sum:"SHA256-sealed, immutable record of a summary. Audit-verifiable." },
+  { id:"queue",        glyph:"[~]", name:"Job queue",    layer:"infra",     status:"built",   sum:"background_jobs table. The one place deferred work runs; survives restarts." },
+  { id:"workers",      glyph:"[w]", name:"Workers",      layer:"infra",     status:"built",   sum:"geocode / email / audit-flush workers that drain the queue." },
+  { id:"notify",       glyph:"[!]", name:"Notifications",layer:"infra",     status:"built",   sum:"Delivers emails and in-app alerts to users." },
+  { id:"audit",        glyph:"[A]", name:"Audit log",    layer:"infra",     status:"built",   sum:"Append-only, SHA256-checksummed record of state mutations." },
+  { id:"ai",           glyph:"[AI]",name:"AI",           layer:"ai",        status:"planned", sum:"Assistant AND a user-like actor: touches what a human user touches (org, job, comm, time) with add-only writes, plus raises notifications. Drafts invoices/summaries via the queue. Suggestions only; never mutates sealed state. Phase 5." },
+  { id:"llm",          glyph:"[C]", name:"LLM interface",layer:"ai",        status:"built",   sum:"Vendor-neutral model abstraction (C-04). Only the AI worker may call it." }
+];
+
+// [from, to, relationship label, status]
+const EDGES = [
+  ["user","org","member of","built"],
+  ["org","job","owns","built"],
+  ["org","invoice","owns","built"],
+  ["org","comm","owns","built"],
+  ["org","subscription","billed by","built"],
+  ["user","job","creates","built"],
+  ["user","comm","sends","built"],
+  ["job","task","has","built"],
+  ["job","crew","assigns","built"],
+  ["job","materials","uses","built"],
+  ["job","queue","geocode","built"],
+  ["time","job","clocked against","built"],
+  ["time","user","by","built"],
+  ["time","invoice","labor on","built"],
+  ["time","mesh","offline capture","built"],
+  ["time","summary","feeds","built"],
+  ["comm","job","about","built"],
+  ["comm","mesh","routes via","built"],
+  ["comm","summary","notes for","built"],
+  ["comm","invoice","context for","built"],
+  ["materials","invoice","billed on","built"],
+  ["materials","summary","feeds","built"],
+  ["invoice","job","bills","built"],
+  ["invoice","tier","send gated by","built"],
+  ["invoice","summary","assembled by","built"],
+  ["tier","subscription","set by","built"],
+  ["subscription","seat","or","built"],
+  ["proposal","job","quotes","built"],
+  ["report","invoice","summarizes","built"],
+  ["report","job","summarizes","built"],
+  ["intent","job","scopes","built"],
+  ["intent","summary","confirmed for","built"],
+  ["summary","ledger","sealed into","built"],
+  ["summary","job","pulls","built"],
+  ["queue","workers","claimed by","built"],
+  ["workers","job","geocodes","built"],
+  ["workers","notify","emails","built"],
+  ["workers","audit","flushes","built"],
+  ["queue","ai","llm_call","planned"],
+  ["ai","llm","calls","planned"],
+  ["ai","invoice","drafts","planned"],
+  ["ai","summary","suggests","planned"],
+  ["ai","org","acts in","planned"],
+  ["ai","job","updates","planned"],
+  ["ai","comm","sends","planned"],
+  ["ai","time","logs","planned"],
+  ["ai","notify","alerts","planned"],
+  ["notify","user","to","built"],
+  ["audit","ledger","records","built"]
+];
+
+const nodeById = {};
+NODES.forEach(n => { nodeById[n.id] = n; n.deg = 0; });
+EDGES.forEach(e => { nodeById[e[0]].deg++; nodeById[e[1]].deg++; });
+
+/* ---------- deterministic force layout ---------- */
+const W = 1620, H = 1040, CX = W/2, CY = H/2, R = 150;
+const layerAnchor = {};
+LAYER_ORDER.forEach((lk, i) => {
+  const a = (i / LAYER_ORDER.length) * Math.PI * 2 - Math.PI/2;
+  layerAnchor[lk] = { x: CX + R * Math.cos(a), y: CY + R * Math.sin(a) };
+});
+
+function seedLayout(){
+  const perLayer = {};
+  NODES.forEach(n => {
+    const k = perLayer[n.layer] = (perLayer[n.layer] || 0);
+    const an = layerAnchor[n.layer];
+    const off = k * 1.3;                 // deterministic spread within a layer
+    n.x = an.x + Math.cos(off) * (28 + k*16);
+    n.y = an.y + Math.sin(off) * (28 + k*16);
+    n.vx = 0; n.vy = 0;
+    perLayer[n.layer] = k + 1;
+  });
+}
+
+function simulate(iters){
+  const REP = 32000, SPRING = 0.06, REST = 108, LGRAV = 0.012, CGRAV = 0.032, DAMP = 0.85;
+  for (let it = 0; it < iters; it++){
+    for (let i = 0; i < NODES.length; i++){
+      const a = NODES[i];
+      for (let j = i+1; j < NODES.length; j++){
+        const b = NODES[j];
+        let dx = a.x - b.x, dy = a.y - b.y;
+        let d2 = dx*dx + dy*dy; if (d2 < 1) d2 = 1;
+        // give each node an effective radius so wide rectangles don't overlap
+        const d = Math.sqrt(d2);
+        const sep = Math.max(d - (nodeWidth(a) + nodeWidth(b)) * 0.32, 14);
+        const f = REP / (sep * sep);
+        const fx = (dx/d)*f, fy = (dy/d)*f;
+        a.vx += fx; a.vy += fy; b.vx -= fx; b.vy -= fy;
+      }
+    }
+    EDGES.forEach(e => {
+      const a = nodeById[e[0]], b = nodeById[e[1]];
+      let dx = b.x - a.x, dy = b.y - a.y;
+      const d = Math.sqrt(dx*dx + dy*dy) || 1;
+      const f = SPRING * (d - REST);
+      const fx = (dx/d)*f, fy = (dy/d)*f;
+      a.vx += fx; a.vy += fy; b.vx -= fx; b.vy -= fy;
+    });
+    NODES.forEach(n => {
+      const an = layerAnchor[n.layer];
+      // low-degree (leaf) nodes get pulled to center harder so they don't fling
+      // out to the rim with nothing to hold them tangentially
+      const cg = CGRAV * (1 + 5 / (n.deg + 1));
+      n.vx += (an.x - n.x) * LGRAV + (CX - n.x) * cg;
+      n.vy += (an.y - n.y) * LGRAV + (CY - n.y) * cg;
+      n.vx *= DAMP; n.vy *= DAMP;
+      n.x += n.vx; n.y += n.vy;
+    });
+  }
+}
+
+/* ---------- render ---------- */
+const svg = document.getElementById("svg");
+const view = document.getElementById("view");
+const gEdges = document.getElementById("edges");
+const gELabels = document.getElementById("elabels");
+const gNodes = document.getElementById("nodes");
+const panel = document.getElementById("panel");
+
+const edgeEls = [];
+const nodeEls = {};
+
+function nodeWidth(n){ return 30 + (n.name.length * 7.4); }
+function nodeHeight(){ return 30; }
+
+function build(){
+  gEdges.replaceChildren();
+  gELabels.replaceChildren();
+  gNodes.replaceChildren();
+  edgeEls.length = 0;
+
+  EDGES.forEach((e, idx) => {
+    const line = document.createElementNS(SVGNS, "path");
+    line.setAttribute("class", "edge" + (e[3] === "planned" ? " dim" : ""));
+    line.dataset.from = e[0]; line.dataset.to = e[1];
+    gEdges.appendChild(line);
+
+    const lab = document.createElementNS(SVGNS, "text");
+    lab.setAttribute("class", "elabel");
+    lab.setAttribute("text-anchor", "middle");
+    lab.textContent = e[2];
+    lab.dataset.from = e[0]; lab.dataset.to = e[1];
+    gELabels.appendChild(lab);
+
+    edgeEls.push({ line, lab, from: e[0], to: e[1], rel: e[2], status: e[3] });
+  });
+
+  NODES.forEach(n => {
+    const g = document.createElementNS(SVGNS, "g");
+    g.setAttribute("class", "node" + (n.status === "planned" ? " planned" : ""));
+    g.dataset.id = n.id;
+    const col = LAYERS[n.layer].color;
+    const w = nodeWidth(n), h = nodeHeight();
+
+    const rect = document.createElementNS(SVGNS, "rect");
+    rect.setAttribute("x", -w/2); rect.setAttribute("y", -h/2);
+    rect.setAttribute("width", w); rect.setAttribute("height", h);
+    rect.setAttribute("rx", 5);
+    rect.setAttribute("stroke", col);
+    g.appendChild(rect);
+
+    const t = document.createElementNS(SVGNS, "text");
+    t.setAttribute("x", 0); t.setAttribute("y", 1);
+    t.setAttribute("text-anchor", "middle");
+    t.setAttribute("fill", n.status === "planned" ? "#8a6d2b" : "var(--ink)");
+    t.setAttribute("font-size", n.deg >= 6 ? "13" : "12");
+    t.textContent = n.glyph + " " + n.name;
+    g.appendChild(t);
+
+    gNodes.appendChild(g);
+    nodeEls[n.id] = g;
+  });
+  positionAll();
+}
+
+function positionAll(){
+  edgeEls.forEach(e => {
+    const a = nodeById[e.from], b = nodeById[e.to];
+    e.line.setAttribute("d", "M " + a.x + " " + a.y + " L " + b.x + " " + b.y);
+    e.lab.setAttribute("x", (a.x + b.x) / 2);
+    e.lab.setAttribute("y", (a.y + b.y) / 2 - 3);
+  });
+  NODES.forEach(n => nodeEls[n.id].setAttribute("transform", "translate(" + n.x + "," + n.y + ")"));
+}
+
+/* ---------- focus / hover ---------- */
+let pinned = null;
+const neighborsOf = id => {
+  const set = new Set();
+  edgeEls.forEach(e => { if (e.from === id) set.add(e.to); if (e.to === id) set.add(e.from); });
+  return set;
+};
+
+function applyFocus(id){
+  const nbrs = neighborsOf(id);
+  NODES.forEach(n => {
+    const g = nodeEls[n.id];
+    const on = (n.id === id) || nbrs.has(n.id);
+    g.classList.toggle("dim", !on);
+    g.classList.toggle("hot", n.id === id);
+  });
+  edgeEls.forEach(e => {
+    const on = e.from === id || e.to === id;
+    e.line.classList.toggle("lit", on);
+    e.line.classList.toggle("dim", !on);
+    e.lab.classList.toggle("show", on);
+  });
+}
+function clearFocus(){
+  NODES.forEach(n => { const g = nodeEls[n.id]; g.classList.remove("dim","hot"); });
+  edgeEls.forEach(e => {
+    e.line.classList.remove("lit");
+    e.line.classList.toggle("dim", e.status === "planned");
+    e.lab.classList.remove("show");
+  });
+}
+
+function openPanel(id){
+  const n = nodeById[id];
+  panel.replaceChildren();
+  const close = el("span", "close", "x"); close.addEventListener("click", () => { pinned = null; clearFocus(); panel.classList.remove("show"); });
+  panel.appendChild(close);
+  panel.appendChild(el("p", "pname", n.glyph + " " + n.name));
+  const meta = el("p", "pmeta");
+  const tag = el("span", "ptag " + (n.status === "planned" ? "planned" : "built"), "[" + n.status + "]");
+  meta.appendChild(tag);
+  meta.appendChild(document.createTextNode("  " + LAYERS[n.layer].label));
+  panel.appendChild(meta);
+  panel.appendChild(el("p", "psum", n.sum));
+
+  const outs = edgeEls.filter(e => e.from === id);
+  const ins  = edgeEls.filter(e => e.to === id);
+  if (outs.length){
+    panel.appendChild(el("h4", null, "connects out (" + outs.length + ")"));
+    outs.forEach(e => panel.appendChild(connRow("->", nodeById[e.to].name, e.rel)));
+  }
+  if (ins.length){
+    panel.appendChild(el("h4", null, "connected from (" + ins.length + ")"));
+    ins.forEach(e => panel.appendChild(connRow("<-", nodeById[e.from].name, e.rel)));
+  }
+  panel.classList.add("show");
+}
+function connRow(dir, who, rel){
+  const r = el("div", "conn");
+  r.appendChild(el("span", "dir", dir));
+  const w = el("span"); w.appendChild(el("span", "who", who)); w.appendChild(document.createTextNode(" ")); w.appendChild(el("span", "rel", rel));
+  r.appendChild(w);
+  return r;
+}
+function el(tag, cls, text){ const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+/* ---------- layer filter ---------- */
+const hiddenLayers = new Set();
+function buildLegend(){
+  const lg = document.getElementById("legend");
+  LAYER_ORDER.forEach(lk => {
+    const chip = document.createElement("span");
+    chip.className = "chip"; chip.dataset.layer = lk;
+    const dot = document.createElement("span"); dot.className = "key-dot"; dot.style.background = LAYERS[lk].color;
+    chip.appendChild(dot); chip.appendChild(document.createTextNode(LAYERS[lk].label));
+    chip.addEventListener("click", () => {
+      if (hiddenLayers.has(lk)) hiddenLayers.delete(lk); else hiddenLayers.add(lk);
+      chip.classList.toggle("off");
+      applyLayerVisibility();
+    });
+    lg.appendChild(chip);
+  });
+  const note = document.createElement("span"); note.className = "note"; note.textContent = "(click a layer to hide it; dashed = planned)";
+  lg.appendChild(note);
+}
+function applyLayerVisibility(){
+  NODES.forEach(n => { nodeEls[n.id].style.display = hiddenLayers.has(n.layer) ? "none" : ""; });
+  edgeEls.forEach(e => {
+    const hide = hiddenLayers.has(nodeById[e.from].layer) || hiddenLayers.has(nodeById[e.to].layer);
+    e.line.style.display = hide ? "none" : "";
+    e.lab.style.display = hide ? "none" : "";
+  });
+}
+
+/* ---------- pan / zoom / drag ---------- */
+let tx = 0, ty = 0, scale = 1;
+function applyView(){ view.setAttribute("transform", "translate(" + tx + "," + ty + ") scale(" + scale + ")"); }
+function fit(){
+  let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+  NODES.forEach(n => { minX=Math.min(minX,n.x); minY=Math.min(minY,n.y); maxX=Math.max(maxX,n.x); maxY=Math.max(maxY,n.y); });
+  const pad = 90;
+  const bw = (maxX-minX)+pad*2, bh=(maxY-minY)+pad*2;
+  const rect = svg.getBoundingClientRect();
+  scale = Math.min(rect.width/bw, rect.height/bh, 1.4);
+  tx = rect.width/2 - ((minX+maxX)/2)*scale;
+  ty = rect.height/2 - ((minY+maxY)/2)*scale;
+  applyView();
+}
+function toGraph(cx, cy){ const r = svg.getBoundingClientRect(); return { x: (cx - r.left - tx)/scale, y: (cy - r.top - ty)/scale }; }
+
+let mode = null, dragNode = null, last = null, moved = false, downId = null;
+svg.addEventListener("mousedown", (e) => {
+  const g = e.target.closest(".node");
+  moved = false;
+  if (g){ mode = "node"; dragNode = nodeById[g.dataset.id]; downId = g.dataset.id; }
+  else { mode = "pan"; svg.classList.add("panning"); }
+  last = { x: e.clientX, y: e.clientY };
+});
+window.addEventListener("mousemove", (e) => {
+  if (!mode) return;
+  const dx = e.clientX - last.x, dy = e.clientY - last.y;
+  if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+  if (mode === "pan"){ tx += dx; ty += dy; applyView(); }
+  else if (mode === "node" && dragNode){
+    dragNode.x += dx/scale; dragNode.y += dy/scale; positionAll();
+  }
+  last = { x: e.clientX, y: e.clientY };
+});
+window.addEventListener("mouseup", () => {
+  if (mode === "node" && !moved && downId){
+    if (pinned === downId){ pinned = null; clearFocus(); panel.classList.remove("show"); }
+    else { pinned = downId; applyFocus(downId); openPanel(downId); }
+  } else if (mode === "pan" && !moved){
+    pinned = null; clearFocus(); panel.classList.remove("show");
+  }
+  mode = null; dragNode = null; svg.classList.remove("panning");
+});
+svg.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  const r = svg.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  const gx = (mx - tx)/scale, gy = (my - ty)/scale;
+  const factor = e.deltaY < 0 ? 1.12 : 1/1.12;
+  scale = Math.max(0.35, Math.min(2.6, scale * factor));
+  tx = mx - gx*scale; ty = my - gy*scale;
+  applyView();
+}, { passive: false });
+
+// hover preview (only when nothing pinned)
+gNodes.addEventListener("mouseover", (e) => {
+  const g = e.target.closest(".node"); if (!g || pinned) return;
+  applyFocus(g.dataset.id);
+});
+gNodes.addEventListener("mouseout", (e) => {
+  const g = e.target.closest(".node"); if (!g || pinned) return;
+  clearFocus();
+});
+
+document.getElementById("relayout").addEventListener("click", () => { seedLayout(); simulate(1300); positionAll(); fit(); });
+document.getElementById("reset").addEventListener("click", () => { pinned = null; clearFocus(); panel.classList.remove("show"); fit(); });
+
+/* ---------- init ---------- */
+seedLayout();
+simulate(1300);
+build();
+clearFocus();
+buildLegend();
+requestAnimationFrame(fit);
+window.addEventListener("resize", fit);
+</script>
+</body>
+</html>

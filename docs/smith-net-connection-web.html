@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Smith Net -- Connection Web</title>
+<style>
+  :root {
+    --bg: #f4f3ee;
+    --panel: #ffffff;
+    --ink: #1a1a1a;
+    --muted: #6b6b63;
+    --faint: #9a9a90;
+    --border: #d4d3cb;
+    --line: #c2c1b8;
+    --line-lit: #b8860b;
+    /* layer accents */
+    --c-invoice: #b8860b;
+    --c-data:    #2f6f4f;
+    --c-endpoint:#2b5fa1;
+    --c-daemon:  #9a5a2b;
+    --c-pipeline:#6a3d9a;
+    --c-ai:      #a12b5f;
+    --c-tier:    #6f6f12;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  header h1 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  header .sub {
+    margin: 3px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    margin-top: 12px;
+  }
+  .controls { display: flex; gap: 8px; }
+  button {
+    font-family: inherit;
+    font-size: 12px;
+    color: var(--ink);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    cursor: pointer;
+    border-radius: 2px;
+  }
+  button:hover { border-color: var(--ink); }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    color: var(--muted);
+    font-size: 11px;
+    align-items: center;
+  }
+  .legend .item { display: flex; align-items: center; gap: 5px; }
+  .swatch {
+    display: inline-block;
+    width: 11px; height: 11px;
+    border: 2px solid var(--ink);
+    border-radius: 2px;
+  }
+  .swatch.built  { border-style: solid; background: #fff; }
+  .swatch.planned{ border-style: dashed; background: #fbf6ea; }
+  .key-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+  #web {
+    position: relative;
+    width: 100%;
+    height: calc(100vh - 132px);
+    overflow: auto;
+    padding: 28px;
+  }
+  #content { position: relative; display: inline-block; min-width: 100%; }
+  #wires {
+    position: absolute;
+    top: 0; left: 0;
+    pointer-events: none;
+    overflow: visible;
+    z-index: 0;
+  }
+  #wires path { fill: none; stroke: var(--line); stroke-width: 1.4; transition: stroke 0.12s; }
+  #wires path.lit { stroke: var(--line-lit); stroke-width: 2.2; }
+  #wires text {
+    fill: var(--faint);
+    font-family: inherit;
+    font-size: 10px;
+  }
+  #wires text.lit { fill: var(--line-lit); }
+
+  .node { display: flex; align-items: center; position: relative; z-index: 1; }
+  .children {
+    display: none;
+    flex-direction: column;
+    gap: 14px;
+    padding-left: 104px;
+  }
+  .node.open > .children { display: flex; }
+
+  .card {
+    width: 232px;
+    flex: 0 0 232px;
+    background: var(--panel);
+    border: 1.5px solid var(--border);
+    border-left-width: 4px;
+    border-radius: 3px;
+    padding: 7px 9px;
+    cursor: pointer;
+    transition: box-shadow 0.12s, opacity 0.12s, border-color 0.12s;
+  }
+  .card:hover { box-shadow: 0 1px 0 var(--ink); }
+  .node.leaf > .card { cursor: default; }
+
+  /* layer accents on the left stripe */
+  .node[data-layer="invoice"]  > .card { border-left-color: var(--c-invoice); }
+  .node[data-layer="data"]     > .card { border-left-color: var(--c-data); }
+  .node[data-layer="endpoint"] > .card { border-left-color: var(--c-endpoint); }
+  .node[data-layer="daemon"]   > .card { border-left-color: var(--c-daemon); }
+  .node[data-layer="pipeline"] > .card { border-left-color: var(--c-pipeline); }
+  .node[data-layer="ai"]       > .card { border-left-color: var(--c-ai); }
+  .node[data-layer="tier"]     > .card { border-left-color: var(--c-tier); }
+
+  /* planned = dashed + dimmed */
+  .node[data-status="planned"] > .card {
+    border-style: dashed;
+    background: #fbf6ea;
+  }
+  .node[data-status="planned"] > .card .name { color: #8a6d2b; }
+
+  .card-head { display: flex; align-items: center; gap: 6px; }
+  .glyph { color: var(--muted); font-weight: 700; }
+  .name { font-weight: 700; flex: 1; }
+  .tag {
+    font-size: 10px;
+    padding: 0 4px;
+    border-radius: 2px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .tag.built   { color: var(--c-data); border-color: #bcd6c6; background: #f1f8f3; }
+  .tag.planned { color: #8a6d2b; border-color: #e3d3a6; background: #f8f0d8; }
+  .toggle {
+    color: var(--faint);
+    font-weight: 700;
+    width: 16px;
+    text-align: center;
+  }
+  .node.leaf > .card .toggle { visibility: hidden; }
+
+  .why { color: var(--muted); font-size: 11.5px; margin-top: 3px; }
+  .detail {
+    display: none;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--border);
+    color: var(--ink);
+    font-size: 11px;
+  }
+  .node.open > .card .detail { display: block; }
+
+  /* hover focus dimming */
+  #web.hovering .card { opacity: 0.32; }
+  #web.hovering .card.hot { opacity: 1; }
+
+  footer {
+    color: var(--faint);
+    font-size: 11px;
+    padding: 8px 20px 14px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Smith Net -- Connection Web</h1>
+  <p class="sub">How an invoice gets built, and everything it is wired to. Click any node to expand what it needs and how it is made.</p>
+  <div class="bar">
+    <div class="controls">
+      <button id="expandAll">expand all</button>
+      <button id="collapseAll">collapse all</button>
+    </div>
+    <div class="legend">
+      <span class="item"><span class="swatch built"></span>[built] -- in code today</span>
+      <span class="item"><span class="swatch planned"></span>[planned] -- Phase 3 / 5 roadmap</span>
+      <span class="item"><span class="key-dot" style="background:#b8860b"></span>invoice</span>
+      <span class="item"><span class="key-dot" style="background:#2b5fa1"></span>endpoint</span>
+      <span class="item"><span class="key-dot" style="background:#9a5a2b"></span>daemon</span>
+      <span class="item"><span class="key-dot" style="background:#6a3d9a"></span>pipeline</span>
+      <span class="item"><span class="key-dot" style="background:#a12b5f"></span>ai</span>
+      <span class="item"><span class="key-dot" style="background:#6f6f12"></span>tier</span>
+      <span class="item"><span class="key-dot" style="background:#2f6f4f"></span>data</span>
+    </div>
+  </div>
+</header>
+
+<div id="web">
+  <div id="content">
+    <svg id="wires"></svg>
+    <div id="tree"></div>
+  </div>
+</div>
+
+<footer>
+  Architecture reference, generated 2026-05-25. Node labels are plain names; code identifiers appear in the detail line. Source of truth: backend/src + backend/migrations.
+</footer>
+
+<script>
+/* ---- the model: an expandable dependency web rooted at the Invoice ----
+   rel = the relationship label drawn on the wire from parent -> child       */
+const TREE = {
+  id: "invoice", glyph: "[$]", name: "Invoice", layer: "invoice", status: "built",
+  why: "The artifact being built. Bills the client for the work performed.",
+  detail: "POST /api/invoices -> invoicesService.create -> invoices + invoice_line_items. Subtotal, tax and total_due auto-recompute whenever a line item changes.",
+  children: [
+    {
+      id: "job", glyph: "[#]", name: "Job", layer: "endpoint", status: "built", rel: "needs",
+      why: "What the work was for. Groups the time, materials and comm the invoice bills.",
+      detail: "POST /api/jobs -> jobsService.create -> jobs table. Creating a job enqueues geocoding.",
+      children: [
+        { id: "geocode", glyph: "[^]", name: "Geocode", layer: "daemon", status: "built", rel: "enqueues",
+          why: "Turns the job address into map coordinates, off the request thread.",
+          detail: "background_jobs(kind=geocode) -> geocodeWorker -> Nominatim OSM -> writes jobs.latitude / longitude.",
+          children: [
+            { id: "queue", glyph: "[~]", name: "Job queue", layer: "daemon", status: "built", rel: "through",
+              why: "The single async work table. Every deferred side effect flows through it.",
+              detail: "background_jobs table. Workers claim rows FOR UPDATE SKIP LOCKED with retry + dedupe, so work survives a backend restart (unlike fire-and-forget).",
+              children: [] }
+          ] },
+        { id: "crew", glyph: "[&]", name: "Crew", layer: "endpoint", status: "built", rel: "assigns",
+          why: "Who is on the job. Their shifts become the labor on the invoice.",
+          detail: "POST /api/jobs/:id/assign -> crew_positions. Assigned crew can clock time against the job.",
+          children: [] }
+      ]
+    },
+    {
+      id: "time", glyph: "[T]", name: "Time", layer: "endpoint", status: "built", rel: "needs",
+      why: "Labor hours. Each shift becomes a labor line item on the invoice.",
+      detail: "POST /api/shifts/start + /api/shifts/end -> crewPositionService -> shifts table (started_at, ended_at, job_id, entry_type, source).",
+      children: [
+        { id: "shiftsrc", glyph: "[o]", name: "Shift source", layer: "data", status: "built", rel: "captured via",
+          why: "Where the clock punch came from -- works online or fully offline.",
+          detail: "shifts.source in (web, android, gateway, mesh). Offline punches reconcile later by vector clock.",
+          children: [] }
+      ]
+    },
+    {
+      id: "comm", glyph: "[@]", name: "Comm", layer: "endpoint", status: "built", rel: "needs",
+      why: "Console messaging. Approved chat notes become the invoice's contextual notes.",
+      detail: "Channels + messages. The synthesizer pulls approved message ids into the artifact's contextual_notes.",
+      children: [
+        { id: "channels", glyph: "[=]", name: "Channels", layer: "endpoint", status: "built", rel: "via",
+          why: "The rooms work gets discussed in.",
+          detail: "POST /api/channels -> channels table. Types: broadcast / group / dm / job.",
+          children: [] },
+        { id: "messages", glyph: "[.]", name: "Messages", layer: "data", status: "built", rel: "stores",
+          why: "The actual notes. Ordered deterministically, not by wall clock.",
+          detail: "message_bus_messages table. Ordered by vector_clock so online and mesh agree on sequence.",
+          children: [] },
+        { id: "reconcile", glyph: "[<>]", name: "Reconcile", layer: "pipeline", status: "built", rel: "syncs",
+          why: "Merges offline / mesh messages back in without losing any.",
+          detail: "POST /api/reconcile -> reconciliationEngine merges by vector clock (no last-write-wins).",
+          children: [] }
+      ]
+    },
+    {
+      id: "materials", glyph: "[*]", name: "Materials", layer: "data", status: "built", rel: "needs",
+      why: "Parts used on the job. Each becomes a material line item.",
+      detail: "materials table (name, quantity, unit_cost) per job. The synthesizer sums these into materialCost.",
+      children: []
+    },
+    {
+      id: "summary", glyph: "[S]", name: "Summary", layer: "pipeline", status: "built", rel: "assembled by",
+      why: "Pulls Job + Time + Materials + approved Comm into one signed record. Same inputs always produce the same artifact.",
+      detail: "POST /synthesize -> synthesizer -> summary_artifacts (serial ART-YYYY-MM-NNNN). Deterministic; this is the moat.",
+      children: [
+        { id: "intent", glyph: "[>]", name: "Intent", layer: "pipeline", status: "built", rel: "checks",
+          why: "The agreed scope, locked before work starts. The summary must match it.",
+          detail: "intents / intent_versions (draft -> proposed -> confirmed -> superseded). synthesisAuthority validates against the confirmed version.",
+          children: [] },
+        { id: "ledger", glyph: "[L]", name: "Ledger", layer: "pipeline", status: "built", rel: "sealed into",
+          why: "Freezes the summary so it can never be quietly changed.",
+          detail: "ledger.seal computes a SHA256 over the artifact -> ledger_entries (immutable, supersession chain).",
+          children: [
+            { id: "verify", glyph: "[?]", name: "Verify", layer: "pipeline", status: "built", rel: "audited by",
+              why: "Proves a sealed record was not tampered with.",
+              detail: "GET /api/ledger/verify/:id re-computes the hash and flags any mismatch.",
+              children: [] }
+          ] }
+      ]
+    },
+    {
+      id: "ai", glyph: "[AI]", name: "AI assist", layer: "ai", status: "planned", rel: "drafts",
+      why: "Drafts the invoice summary from Job + Time + Comm. Suggestions only -- it can propose drafts but never mutates confirmed or sealed state.",
+      detail: "Routes never call a model inline. They enqueue background_jobs(kind=llm_call); the worker does the call. Phase 5.",
+      children: [
+        { id: "llmworker", glyph: "[~]", name: "LLM worker", layer: "ai", status: "planned", rel: "runs via",
+          why: "The one approved place LLM calls happen, off the request thread.",
+          detail: "Claims background_jobs(kind=llm_call), enforces per-actor budget caps and response caching. Phase 5, not built.",
+          children: [] },
+        { id: "llmiface", glyph: "[C]", name: "LLM interface", layer: "ai", status: "built", rel: "calls",
+          why: "Vendor-neutral model abstraction -- swap providers without touching callers.",
+          detail: "llmInterface.ts (C-04): OpenAI / Anthropic / local / mock. Built, but only the LLM worker may call it -- no inline calls from routes.",
+          children: [] },
+        { id: "agents", glyph: "[A]", name: "AI agents", layer: "ai", status: "planned", rel: "uses",
+          why: "The reasoning units behind drafting and suggestions.",
+          detail: "4 AI agents + 4 rule handlers (collapsed from 8 SubAgents in the 2026-05-13 audit). Phase 5, not built.",
+          children: [] },
+        { id: "invdraft", glyph: "[+]", name: "Invoice draft", layer: "ai", status: "planned", rel: "automates",
+          why: "Auto-drafts an invoice the moment a job finishes.",
+          detail: "background_jobs(kind=invoice_draft). Phase 3 Slice 2, not built.",
+          children: [] }
+      ]
+    },
+    {
+      id: "tier", glyph: "[%]", name: "Tier check", layer: "tier", status: "built", rel: "gated by",
+      why: "Server-authoritative gate. Confirms the org may send another invoice this month before allowing it.",
+      detail: "requireCap middleware on POST /api/invoices/:id/send -> gate pdf_send_cap. Over-cap returns 403 and logs gate_hit_events.",
+      children: [
+        { id: "subscription", glyph: "[$]", name: "Subscription", layer: "tier", status: "built", rel: "set by",
+          why: "Sets which tier the org is on, and therefore its caps.",
+          detail: "subscriptions table (stripe / play_billing / manual). Tier resolver reads this. Stripe webhook ingestion still pending.",
+          children: [] },
+        { id: "seat", glyph: "[#]", name: "Seat / Trial", layer: "tier", status: "built", rel: "or",
+          why: "Founder pricing and free-trial windows that also grant a tier.",
+          detail: "founder_seats + trials tables. Daemons expire them on cadence (trialExpirer, founderSeatsExpirer).",
+          children: [] }
+      ]
+    }
+  ]
+};
+
+/* ---------- render (safe DOM construction, no innerHTML) ---------- */
+const treeEl = document.getElementById("tree");
+const web = document.getElementById("web");
+const svg = document.getElementById("wires");
+const SVGNS = "http://www.w3.org/2000/svg";
+
+function el(tag, cls, text){
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+function tagClass(status){ return status === "planned" ? "planned" : "built"; }
+
+function render(node){
+  const hasKids = node.children && node.children.length;
+  const wrap = el("div", "node" + (hasKids ? "" : " leaf"));
+  wrap.dataset.id = node.id;
+  wrap.dataset.layer = node.layer;
+  wrap.dataset.status = node.status;
+  if (node.rel) wrap.dataset.rel = node.rel;
+
+  const card = el("div", "card");
+  const head = el("div", "card-head");
+  head.appendChild(el("span", "glyph", node.glyph));
+  head.appendChild(el("span", "name", node.name));
+  head.appendChild(el("span", "tag " + tagClass(node.status), "[" + node.status + "]"));
+  head.appendChild(el("span", "toggle", "[+]"));
+  card.appendChild(head);
+  card.appendChild(el("div", "why", node.why));
+  card.appendChild(el("div", "detail", node.detail));
+  wrap.appendChild(card);
+
+  if (hasKids){
+    const kids = el("div", "children");
+    node.children.forEach(c => kids.appendChild(render(c)));
+    wrap.appendChild(kids);
+
+    card.addEventListener("click", (e) => {
+      e.stopPropagation();
+      wrap.classList.toggle("open");
+      card.querySelector(".toggle").textContent = wrap.classList.contains("open") ? "[-]" : "[+]";
+      drawWires();
+    });
+  }
+
+  card.addEventListener("mouseenter", () => focusNode(wrap));
+  card.addEventListener("mouseleave", clearFocus);
+  return wrap;
+}
+
+treeEl.appendChild(render(TREE));
+
+/* ---------- wires ---------- */
+function relRect(elm){
+  const r = elm.getBoundingClientRect();
+  const c = web.getBoundingClientRect();
+  return {
+    left: r.left - c.left + web.scrollLeft,
+    top:  r.top  - c.top  + web.scrollTop,
+    w: r.width, h: r.height
+  };
+}
+
+function drawWires(){
+  const content = document.getElementById("content");
+  svg.setAttribute("width", content.scrollWidth);
+  svg.setAttribute("height", content.scrollHeight);
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+  document.querySelectorAll(".node.open").forEach(parent => {
+    const pcard = parent.querySelector(":scope > .card");
+    const kids = parent.querySelector(":scope > .children");
+    if (!kids) return;
+    const pr = relRect(pcard);
+    const x1 = pr.left + pr.w;
+    const y1 = pr.top + pr.h / 2;
+
+    kids.querySelectorAll(":scope > .node").forEach(child => {
+      const ccard = child.querySelector(":scope > .card");
+      const cr = relRect(ccard);
+      const x2 = cr.left;
+      const y2 = cr.top + cr.h / 2;
+      const dx = Math.max(22, (x2 - x1) / 2);
+
+      const path = document.createElementNS(SVGNS, "path");
+      path.setAttribute("d", "M " + x1 + " " + y1 + " C " + (x1 + dx) + " " + y1 + ", " + (x2 - dx) + " " + y2 + ", " + x2 + " " + y2);
+      path.dataset.from = parent.dataset.id;
+      path.dataset.to = child.dataset.id;
+      svg.appendChild(path);
+
+      if (child.dataset.rel){
+        // center the label in the gap between parent and child cards, at the
+        // child's height -- spread out vertically, clear of both cards
+        const label = document.createElementNS(SVGNS, "text");
+        label.setAttribute("x", (x1 + x2) / 2);
+        label.setAttribute("y", y2 - 5);
+        label.setAttribute("text-anchor", "middle");
+        label.dataset.from = parent.dataset.id;
+        label.dataset.to = child.dataset.id;
+        label.textContent = child.dataset.rel;
+        svg.appendChild(label);
+      }
+    });
+  });
+}
+
+/* ---------- hover focus ---------- */
+function focusNode(wrap){
+  web.classList.add("hovering");
+  const id = wrap.dataset.id;
+  const hot = new Set([wrap]);
+  const kids = wrap.querySelector(":scope > .children");
+  if (kids) kids.querySelectorAll(":scope > .node").forEach(n => hot.add(n));
+  const parentNode = wrap.parentElement.closest(".node");
+  if (parentNode) hot.add(parentNode);
+
+  document.querySelectorAll(".card").forEach(c => c.classList.remove("hot"));
+  hot.forEach(n => n.querySelector(":scope > .card").classList.add("hot"));
+
+  svg.querySelectorAll("path, text").forEach(p => {
+    const lit = p.dataset.from === id || p.dataset.to === id;
+    p.classList.toggle("lit", lit);
+  });
+}
+function clearFocus(){
+  web.classList.remove("hovering");
+  document.querySelectorAll(".card.hot").forEach(c => c.classList.remove("hot"));
+  svg.querySelectorAll(".lit").forEach(p => p.classList.remove("lit"));
+}
+
+/* ---------- controls ---------- */
+function openNode(n){
+  n.classList.add("open");
+  const t = n.querySelector(":scope > .card .toggle");
+  if (t) t.textContent = "[-]";
+}
+document.getElementById("expandAll").addEventListener("click", () => {
+  document.querySelectorAll(".node:not(.leaf)").forEach(openNode);
+  drawWires();
+});
+document.getElementById("collapseAll").addEventListener("click", () => {
+  document.querySelectorAll(".node").forEach(n => {
+    n.classList.remove("open");
+    const t = n.querySelector(":scope > .card .toggle");
+    if (t) t.textContent = "[+]";
+  });
+  openNode(treeEl.querySelector(":scope > .node")); // keep root open
+  drawWires();
+});
+
+/* ---------- init ---------- */
+openNode(treeEl.querySelector(":scope > .node"));
+window.addEventListener("resize", drawWires);
+requestAnimationFrame(drawWires);
+</script>
+</body>
+</html>
