@@ -1,11 +1,14 @@
 import { useEffect, useRef } from 'react';
 import { adminHealthClient } from '../api/adminHealthClient';
 import { useAdminHealthStore } from '../stores/adminHealthStore';
+import { useAuthStore } from '../auth/authStore';
 
 export function useAdminHealth(intervalMs: number = 15_000): void {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isAdmin = useAuthStore((s) => s.user?.role === 'admin');
 
   useEffect(() => {
+    if (!isAdmin) return;
     const fetchOnce = async () => {
       useAdminHealthStore.getState().markLoading(true);
       const r = await adminHealthClient.get();
@@ -44,5 +47,5 @@ export function useAdminHealth(intervalMs: number = 15_000): void {
       stop();
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [intervalMs]);
+  }, [intervalMs, isAdmin]);
 }

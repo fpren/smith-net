@@ -82,9 +82,14 @@ shiftsRouter.get('/current', authenticateToken, async (req: AuthenticatedRequest
 
 shiftsRouter.get('/today', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user!.id;
-  const since = Number(req.query.since);
+  const raw = req.query.since;
+  let since = Number(raw);
+  if (!Number.isFinite(since) && typeof raw === 'string') {
+    const parsed = Date.parse(raw);
+    if (Number.isFinite(parsed)) since = parsed;
+  }
   if (!Number.isFinite(since) || since < 0) {
-    return res.status(400).json({ error: 'invalid since' });
+    return res.status(400).json({ error: 'invalid since: expected epoch ms or ISO 8601 date' });
   }
   const shifts = await crewPositionService.getShiftsSince(userId, since);
   return res.status(200).json({ shifts: shifts.map(serializeShift) });

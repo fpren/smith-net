@@ -1,4 +1,4 @@
-// desktop/portal/src/console/auth/RequireForemanTier.tsx
+// desktop/portal/src/console/auth/RequireForemanRole.tsx
 //
 // Per-route gate for surfaces that don't make sense for individual workers
 // (Crew roster + management). Non-foreman roles get redirected to /console
@@ -24,9 +24,9 @@ interface Props {
   redirectTo?: string;
 }
 
-export function RequireForemanTier({ children, redirectTo = '/console/comm' }: Props) {
-  const hasForemanTier = useAuthStore((s) => s.hasForemanTier);
-  if (!hasForemanTier()) {
+export function RequireForemanRole({ children, redirectTo = '/console/comm' }: Props) {
+  const hasForemanRole = useAuthStore((s) => s.hasForemanRole);
+  if (!hasForemanRole()) {
     return <Navigate to={redirectTo} replace />;
   }
   return <>{children}</>;

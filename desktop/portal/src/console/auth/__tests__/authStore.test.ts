@@ -47,25 +47,25 @@ describe('authStore', () => {
     expect(useAuthStore.getState().hasConsoleAccess()).toBe(false);
   });
 
-  it('hasForemanTier returns true for foreman, enterprise, admin', () => {
+  it('hasForemanRole returns true for foreman, enterprise, admin', () => {
     const set = (role: ConsoleUser['role']) =>
       useAuthStore.getState().setUser({ ...fakeUser, role });
     set('foreman');
-    expect(useAuthStore.getState().hasForemanTier()).toBe(true);
+    expect(useAuthStore.getState().hasForemanRole()).toBe(true);
     set('enterprise');
-    expect(useAuthStore.getState().hasForemanTier()).toBe(true);
+    expect(useAuthStore.getState().hasForemanRole()).toBe(true);
     set('admin');
-    expect(useAuthStore.getState().hasForemanTier()).toBe(true);
+    expect(useAuthStore.getState().hasForemanRole()).toBe(true);
   });
 
-  it('hasForemanTier returns false for solo, team, lead (workers)', () => {
+  it('hasForemanRole returns false for solo, team, lead (workers)', () => {
     const set = (role: ConsoleUser['role']) =>
       useAuthStore.getState().setUser({ ...fakeUser, role });
     set('solo');
-    expect(useAuthStore.getState().hasForemanTier()).toBe(false);
+    expect(useAuthStore.getState().hasForemanRole()).toBe(false);
     set('team');
-    expect(useAuthStore.getState().hasForemanTier()).toBe(false);
+    expect(useAuthStore.getState().hasForemanRole()).toBe(false);
     set('lead');
-    expect(useAuthStore.getState().hasForemanTier()).toBe(false);
+    expect(useAuthStore.getState().hasForemanRole()).toBe(false);
   });
 });

@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { RequireForemanTier } from '../RequireForemanTier';
+import { RequireForemanRole } from '../RequireForemanRole';
 import { useAuthStore } from '../authStore';
 
 function Protected() {
@@ -19,9 +19,9 @@ function renderWithRouter(initial: string) {
         <Route
           path="/console/crew"
           element={
-            <RequireForemanTier>
+            <RequireForemanRole>
               <Protected />
-            </RequireForemanTier>
+            </RequireForemanRole>
           }
         />
       </Routes>
@@ -29,7 +29,7 @@ function renderWithRouter(initial: string) {
   );
 }
 
-describe('RequireForemanTier', () => {
+describe('RequireForemanRole', () => {
   beforeEach(() => {
     useAuthStore.getState().clear();
   });
@@ -70,9 +70,9 @@ describe('RequireForemanTier', () => {
           <Route
             path="/console/crew"
             element={
-              <RequireForemanTier redirectTo="/elsewhere">
+              <RequireForemanRole redirectTo="/elsewhere">
                 <Protected />
-              </RequireForemanTier>
+              </RequireForemanRole>
             }
           />
         </Routes>

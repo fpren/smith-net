@@ -1,4 +1,4 @@
-import { Routes, Route, Outlet } from 'react-router-dom';
+import { Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import Auth from './Auth';
 import AuthCallback from './AuthCallback';
 import Portal from './Portal';
@@ -17,7 +17,7 @@ import { InvoicesListRoute } from './console/routes/InvoicesListRoute';
 import { InvoiceDetailRoute } from './console/routes/InvoiceDetailRoute';
 import { AdminRoute } from './console/routes/AdminRoute';
 import { RequireAdmin } from './console/auth/RequireAdmin';
-import { RequireForemanTier } from './console/auth/RequireForemanTier';
+import { RequireForemanRole } from './console/auth/RequireForemanRole';
 import { SurfaceLabRoute } from './console/routes/SurfaceLabRoute';
 import { AdaptiveHomeRoute } from './console/routes/AdaptiveHomeRoute';
 import { SurfaceHomePreviewRoute } from './console/routes/SurfaceHomePreviewRoute';
@@ -32,7 +32,7 @@ import { TimeRoute } from './console/routes/TimeRoute';
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Auth onAuthSuccess={() => {}} />} />
+      <Route path="/" element={<Navigate to="/console" replace />} />
       <Route path="/auth/callback" element={<AuthCallback onAuthSuccess={() => {}} />} />
       <Route path="/portal" element={<Portal />} />
       <Route path="/surface-lab" element={<SurfaceLabRoute />} />
@@ -48,18 +48,18 @@ export default function App() {
           </RequireAuth>
         }
       >
-        <Route index element={<RequireForemanTier><MapRoute /></RequireForemanTier>} />
+        <Route index element={<RequireForemanRole><MapRoute /></RequireForemanRole>} />
         <Route path="home" element={<AdaptiveHomeRoute />} />
         <Route path="settings" element={<SettingsRoute />} />
         <Route path="time" element={<TimeRoute />} />
-        <Route path="jobs" element={<RequireForemanTier><JobsListRoute /></RequireForemanTier>} />
-        <Route path="jobs/:id" element={<RequireForemanTier><JobDetailRoute /></RequireForemanTier>} />
-        <Route path="clients" element={<RequireForemanTier><ClientsListRoute /></RequireForemanTier>} />
-        <Route path="clients/:id" element={<RequireForemanTier><ClientDetailRoute /></RequireForemanTier>} />
-        <Route path="crew" element={<RequireForemanTier><CrewRoute /></RequireForemanTier>} />
+        <Route path="jobs" element={<RequireForemanRole><JobsListRoute /></RequireForemanRole>} />
+        <Route path="jobs/:id" element={<RequireForemanRole><JobDetailRoute /></RequireForemanRole>} />
+        <Route path="clients" element={<RequireForemanRole><ClientsListRoute /></RequireForemanRole>} />
+        <Route path="clients/:id" element={<RequireForemanRole><ClientDetailRoute /></RequireForemanRole>} />
+        <Route path="crew" element={<RequireForemanRole><CrewRoute /></RequireForemanRole>} />
         <Route path="comm" element={<CommRoute />} />
-        <Route path="invoices" element={<RequireForemanTier><InvoicesListRoute /></RequireForemanTier>} />
-        <Route path="invoices/:id" element={<RequireForemanTier><InvoiceDetailRoute /></RequireForemanTier>} />
+        <Route path="invoices" element={<RequireForemanRole><InvoicesListRoute /></RequireForemanRole>} />
+        <Route path="invoices/:id" element={<RequireForemanRole><InvoiceDetailRoute /></RequireForemanRole>} />
         <Route path="admin" element={<RequireAdmin><AdminRoute /></RequireAdmin>} />
       </Route>
     </Routes>

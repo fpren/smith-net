@@ -30,7 +30,7 @@ function TabLink({ to, label }: TabLinkProps) {
 
 export function BottomTabBar() {
   const user = useAuthStore((s) => s.user);
-  const hasForemanTier = useAuthStore((s) => s.hasForemanTier);
+  const hasForemanRole = useAuthStore((s) => s.hasForemanRole);
   if (!user) return null;
 
   return (
@@ -40,8 +40,8 @@ export function BottomTabBar() {
     >
       <TabLink to="/console/home" label="Home" />
       <TabLink to="/console/time" label="Clock" />
-      {hasForemanTier() && <TabLink to="/console/jobs" label="Jobs" />}
-      {hasForemanTier() && <TabLink to="/console/clients" label="Clients" />}
+      {hasForemanRole() && <TabLink to="/console/jobs" label="Jobs" />}
+      {hasForemanRole() && <TabLink to="/console/clients" label="Clients" />}
       <TabLink to="/console/comm" label="Comm" />
     </nav>
   );

@@ -39,6 +39,7 @@ export function JobsListRoute() {
   useJobsPolling('list');
   const jobs = useJobsStore((s) => s.jobs);
   const isStale = useJobsStore((s) => s.isStale);
+  const upsertJob = useJobsStore((s) => s.upsertJob);
   const [showCreate, setShowCreate] = useState(false);
 
   const byStatus = (st: JobStatus) => jobs.filter((j) => j.status === st);
@@ -48,7 +49,7 @@ export function JobsListRoute() {
       <div className="flex flex-col items-center mt-24 gap-4">
         <div className="text-console-text-muted">No jobs yet.</div>
         <Button onClick={() => setShowCreate(true)}>Create your first job</Button>
-        <CreateJobModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={() => setShowCreate(false)} />
+        <CreateJobModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={(job) => { upsertJob(job); setShowCreate(false); }} />
       </div>
     );
   }

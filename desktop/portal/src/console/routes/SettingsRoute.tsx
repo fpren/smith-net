@@ -46,7 +46,7 @@ export function SettingsRoute() {
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
   const clear = useAuthStore((s) => s.clear);
-  const hasForemanTier = useAuthStore((s) => s.hasForemanTier);
+  const hasForemanRole = useAuthStore((s) => s.hasForemanRole);
   const navigate = useNavigate();
   const pushToast = useToastStore((s) => s.push);
   const [name, setName] = useState(user?.displayName ?? '');
@@ -189,7 +189,7 @@ export function SettingsRoute() {
 
       {/* TEAM */}
       <SectionHeader>Team</SectionHeader>
-      {hasForemanTier() ? (
+      {hasForemanRole() ? (
         <Row>
           <Button variant="secondary" onClick={generateInvite} disabled={genBusy}>
             {genBusy ? 'Generating…' : 'Generate invite code'}

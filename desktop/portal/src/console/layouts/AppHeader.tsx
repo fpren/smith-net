@@ -37,7 +37,7 @@ function NavButton({ to, label, end }: { to: string; label: string; end?: boolea
 export function AppHeader() {
   const user = useAuthStore((s) => s.user);
   const clear = useAuthStore((s) => s.clear);
-  const hasForemanTier = useAuthStore((s) => s.hasForemanTier);
+  const hasForemanRole = useAuthStore((s) => s.hasForemanRole);
   const navigate = useNavigate();
   async function onLogout() {
     await authClient.logout();
@@ -74,11 +74,11 @@ export function AppHeader() {
       <nav className="hidden md:flex min-w-0 overflow-x-auto items-center gap-1 border-l border-console-border pl-3">
         <NavButton to="/console/home" label="Home" />
         <NavButton to="/console/time" label="Clock" />
-        {hasForemanTier() && <NavButton to="/console" label="Map" end />}
-        {hasForemanTier() && <NavButton to="/console/jobs" label="Jobs" />}
-        {hasForemanTier() && <NavButton to="/console/clients" label="Clients" />}
-        {hasForemanTier() && <NavButton to="/console/invoices" label="Invoices" />}
-        {hasForemanTier() && <NavButton to="/console/crew" label="Crew" />}
+        {hasForemanRole() && <NavButton to="/console" label="Map" end />}
+        {hasForemanRole() && <NavButton to="/console/jobs" label="Jobs" />}
+        {hasForemanRole() && <NavButton to="/console/clients" label="Clients" />}
+        {hasForemanRole() && <NavButton to="/console/invoices" label="Invoices" />}
+        {hasForemanRole() && <NavButton to="/console/crew" label="Crew" />}
         <NavButton to="/console/comm" label="Comm" />
       </nav>
 
