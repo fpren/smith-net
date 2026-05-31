@@ -2,6 +2,7 @@ package com.guildofsmiths.trademesh.ui.timetracking
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.guildofsmiths.trademesh.BuildConfig
 import com.guildofsmiths.trademesh.data.JobRepository
 import com.guildofsmiths.trademesh.data.PresenceApiClient
 import com.guildofsmiths.trademesh.data.TimeEntryRepository
@@ -29,7 +30,7 @@ class TimeTrackingViewModel : ViewModel() {
 
     private val client = com.guildofsmiths.trademesh.service.HttpClientFactory.client
     private val presenceApi = PresenceApiClient(client)
-    private val baseUrl = "http://10.0.2.2:3002"
+    private val baseUrl = BuildConfig.BACKEND_URL
 
     /**
      * Hook the host (MainActivity) wires up so a clock-in with a free-text

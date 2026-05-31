@@ -3,6 +3,7 @@ package com.guildofsmiths.trademesh.ui.jobboard
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.guildofsmiths.trademesh.BuildConfig
 import com.guildofsmiths.trademesh.data.JobRepository
 import com.guildofsmiths.trademesh.data.TimeEntryRepository
 import com.guildofsmiths.trademesh.data.UserPreferences
@@ -26,7 +27,7 @@ import java.util.UUID
 class JobBoardViewModel(application: android.app.Application) : AndroidViewModel(application) {
 
     private val client = OkHttpClient()
-    private val baseUrl = "http://10.0.2.2:3001"
+    private val baseUrl = BuildConfig.BACKEND_URL
 
     companion object {
         const val SMITHAI_ENTERPRISE_SEED_JOB_ID = "smithai-enterprise-seed-v1"
