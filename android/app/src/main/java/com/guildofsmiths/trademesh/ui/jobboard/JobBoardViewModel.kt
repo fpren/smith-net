@@ -76,7 +76,11 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
             addDailyLog(jobId, log)
         }
         registerSmithAIToolBridge()
-        seedSmithAIEnterpriseJobIfNeeded()
+        // Internal roadmap seed -- dev/demo only. Beta/prod builds must not plant
+        // the "Build SmithAI Enterprise Tier" job on real users' boards.
+        if (com.guildofsmiths.trademesh.data.BuildFlags.SEED_DEMO_DATA) {
+            seedSmithAIEnterpriseJobIfNeeded()
+        }
         // Auto-persist on every job-list change. Tasks are mutated through
         // the localTasks map directly; their writers call persistTasks()
         // explicitly below.

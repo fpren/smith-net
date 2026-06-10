@@ -1,8 +1,18 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp") version "1.9.24-1.0.20"
     id("org.jetbrains.kotlin.plugin.serialization") version "1.9.24"
+}
+
+// Release signing -- reads android/keystore.properties (gitignored).
+// Absent file (e.g. CI) leaves release unsigned rather than failing the build.
+val keystorePropsFile = rootProject.file("keystore.properties")
+val keystoreProps = Properties().apply {
+    if (keystorePropsFile.exists()) load(FileInputStream(keystorePropsFile))
 }
 
 android {
@@ -57,6 +67,17 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            if (keystorePropsFile.exists()) {
+                storeFile = rootProject.file(keystoreProps["storeFile"] as String)
+                storePassword = keystoreProps["storePassword"] as String
+                keyAlias = keystoreProps["keyAlias"] as String
+                keyPassword = keystoreProps["keyPassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         debug {
             // Debug builds prefer the Hetzner relay via public Tailscale Funnel URL; Mac Mini LAN is fallback.
@@ -72,10 +93,17 @@ android {
                 "proguard-rules.pro"
             )
             // Release builds use the Hetzner relay via public Tailscale Funnel URL.
+            // Fallback must NOT be a LAN address: off-LAN beta devices would hang
+            // trying to reach a private IP. Point it at the same public host until
+            // a second public endpoint exists.
             buildConfigField("String", "BACKEND_URL_PRIMARY", "\"https://ubuntu-8gb-ash-1.tail2523e7.ts.net\"")
-            buildConfigField("String", "BACKEND_URL_FALLBACK", "\"http://192.168.8.169:3030\"")
-            // Production endpoint
-            buildConfigField("String", "BACKEND_URL", "\"https://api.smithnet.app\"")
+            buildConfigField("String", "BACKEND_URL_FALLBACK", "\"https://ubuntu-8gb-ash-1.tail2523e7.ts.net\"")
+            // Production endpoint. api.smithnet.app is not registered yet --
+            // point at the live Funnel host until the domain decision lands.
+            buildConfigField("String", "BACKEND_URL", "\"https://ubuntu-8gb-ash-1.tail2523e7.ts.net\"")
+            if (keystorePropsFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
     compileOptions {
@@ -141,13 +169,12 @@ dependencies {
     // OkHttp for WebSocket
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     
-    // Supabase - auth, storage, profile directory (legacy chat path removed; relay is canonical)
+    // Supabase - retained ONLY for the password-reset email flow (gotrue/Auth).
+    // W3 moved auth/session, profiles, media and presence to Hetzner; the
+    // postgrest/realtime/storage modules are no longer used.
     implementation(platform("io.github.jan-tennert.supabase:bom:2.0.4"))
-    implementation("io.github.jan-tennert.supabase:postgrest-kt")
     implementation("io.github.jan-tennert.supabase:gotrue-kt")
-    implementation("io.github.jan-tennert.supabase:realtime-kt")
-    implementation("io.github.jan-tennert.supabase:storage-kt")
-    // Ktor with OkHttp engine for WebSocket support (required by Supabase Realtime)
+    // Ktor with OkHttp engine (required by the Supabase gotrue client)
     implementation("io.ktor:ktor-client-okhttp:2.3.7")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
     

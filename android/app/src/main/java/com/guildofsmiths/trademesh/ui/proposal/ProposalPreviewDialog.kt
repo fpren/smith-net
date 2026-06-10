@@ -31,7 +31,10 @@ import java.util.Locale
 @Composable
 fun ProposalPreviewDialog(
     proposal: Proposal,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    /** When set, the SHARE button delegates here (e.g. to share a public link
+     *  with a text fallback); otherwise it shares the formatted text directly. */
+    onShare: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val dateFmt = remember { SimpleDateFormat("MMM d, yyyy", Locale.US) }
@@ -131,8 +134,12 @@ fun ProposalPreviewDialog(
                     Toast.makeText(context, "Proposal copied", Toast.LENGTH_SHORT).show()
                 }
                 ActionBtn("SHARE", ConsoleTheme.accent) {
-                    val txt = ProposalFormatter.formatAsText(proposal)
-                    sharePlain(context, txt, "${proposal.proposalNumber} — ${proposal.jobTitle}")
+                    if (onShare != null) {
+                        onShare()
+                    } else {
+                        val txt = ProposalFormatter.formatAsText(proposal)
+                        sharePlain(context, txt, "${proposal.proposalNumber} — ${proposal.jobTitle}")
+                    }
                 }
                 ActionBtn("CLOSE", ConsoleTheme.textMuted, onClick = onDismiss)
             }

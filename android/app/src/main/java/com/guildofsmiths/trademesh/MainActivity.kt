@@ -604,8 +604,6 @@ class MainActivity : ComponentActivity() {
                                     onClockIn = {
                                         navController.navigate(NavRoutes.TIME_TRACKING)
                                     },
-                                    onShareProposal = { /* TODO: Wire in Task 11 */ },
-                                    onShareInvoice = { /* TODO: Wire in Task 12 */ },
                                     onAddNote = { noteText ->
                                         jobViewModel.addWorkLog(jobId, noteText)
                                     },

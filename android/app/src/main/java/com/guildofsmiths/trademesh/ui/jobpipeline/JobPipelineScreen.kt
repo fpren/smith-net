@@ -33,6 +33,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import com.guildofsmiths.trademesh.data.TimeEntryRepository
 import com.guildofsmiths.trademesh.data.UserPreferences
+import kotlinx.coroutines.launch
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
 import com.guildofsmiths.trademesh.ui.ConsoleSeparator
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
@@ -48,14 +49,13 @@ fun JobPipelineScreen(
     onStageAction: (Job, JobStage) -> Unit,
     onToggleMaterial: (Int) -> Unit,
     onClockIn: () -> Unit,
-    onShareProposal: () -> Unit,
-    onShareInvoice: () -> Unit,
     onAddNote: ((String) -> Unit)? = null,
     onAddPhoto: (() -> Unit)? = null,
     onAddMaterial: ((Material, orderIt: Boolean, vendor: String?) -> Unit)? = null,
     onSummarizeToday: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
+    val shareScope = androidx.compose.runtime.rememberCoroutineScope()
     var showInvoice by remember { mutableStateOf(false) }
     var invoiceDetailLevel by remember { mutableStateOf(com.guildofsmiths.trademesh.ui.invoice.InvoiceDetailLevel.STANDARD) }
     var showAddMenu by remember { mutableStateOf(false) }
@@ -79,7 +79,21 @@ fun JobPipelineScreen(
     if (showProposal && proposal != null) {
         com.guildofsmiths.trademesh.ui.proposal.ProposalPreviewDialog(
             proposal = proposal,
-            onDismiss = { showProposal = false }
+            onDismiss = { showProposal = false },
+            onShare = {
+                shareScope.launch {
+                    val text = com.guildofsmiths.trademesh.ui.proposal.ProposalFormatter.formatAsText(proposal)
+                    val url = com.guildofsmiths.trademesh.data.PublicLinkClient
+                        .createProposalLink(job.id, proposal)
+                    val body = if (url != null) "View proposal: $url\n\n$text" else text
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_SUBJECT, "${proposal.proposalNumber} — ${proposal.jobTitle}")
+                        putExtra(Intent.EXTRA_TEXT, body)
+                    }
+                    context.startActivity(Intent.createChooser(shareIntent, "Share proposal"))
+                }
+            }
         )
     }
 
@@ -164,12 +178,19 @@ fun JobPipelineScreen(
             invoice = invoice,
             onDismiss = { showInvoice = false },
             onShare = { invoiceText ->
-                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_SUBJECT, "Invoice ${invoice.invoiceNumber} — ${job.clientName ?: job.title}")
-                    putExtra(Intent.EXTRA_TEXT, invoiceText)
+                // Try to create a public /i/<uuid> page and share the link + text;
+                // fall back to text-only if the link can't be created (offline/error).
+                shareScope.launch {
+                    val url = com.guildofsmiths.trademesh.data.PublicLinkClient
+                        .createInvoiceLink(job.id, invoice, job.clientName)
+                    val body = if (url != null) "View invoice: $url\n\n$invoiceText" else invoiceText
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_SUBJECT, "Invoice ${invoice.invoiceNumber} — ${job.clientName ?: job.title}")
+                        putExtra(Intent.EXTRA_TEXT, body)
+                    }
+                    context.startActivity(Intent.createChooser(shareIntent, "Share Invoice"))
                 }
-                context.startActivity(Intent.createChooser(shareIntent, "Share Invoice"))
             },
             bolText = bolText,
             onShareBol = { bol ->

@@ -1,6 +1,7 @@
 package com.guildofsmiths.trademesh.ui.expenses
 
 import android.widget.Toast
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -54,6 +55,7 @@ fun JobExpenseDetailScreen(
     val timeEntries by TimeEntryRepository.entries.collectAsState()
     val categories by ExpenseCategoryRepository.categories.collectAsState()
     val context = LocalContext.current
+    val reportScope = androidx.compose.runtime.rememberCoroutineScope()
 
     val job = jobs.firstOrNull { it.id == jobId }
     if (job == null) {
@@ -275,11 +277,45 @@ fun JobExpenseDetailScreen(
                 ActionButton(label = "[+ Add expense]", accent = true, modifier = Modifier.weight(1f)) {
                     showAddSheet = true
                 }
-                ActionButton(label = "[Export PDF]", accent = false, modifier = Modifier.weight(1f)) {
-                    Toast.makeText(context, "Export coming soon", Toast.LENGTH_SHORT).show()
+                val safeName = job.title.replace(Regex("[^A-Za-z0-9]+"), "_").trim('_').ifBlank { "job" }
+                ActionButton(label = "[CSV]", accent = false, modifier = Modifier.weight(1f)) {
+                    if (job.expenses.isEmpty()) {
+                        Toast.makeText(context, "No expenses to export", Toast.LENGTH_SHORT).show()
+                    } else {
+                        ExpenseCsvExport.share(
+                            context, "$safeName-expenses.csv",
+                            ExpenseCsvExport.toCsv(job.expenses.map { job.title to it })
+                        )
+                    }
                 }
-                ActionButton(label = "[Share]", accent = false, modifier = Modifier.weight(1f)) {
-                    Toast.makeText(context, "Share coming soon", Toast.LENGTH_SHORT).show()
+                // Full job report (labor + materials + expenses + total) rendered
+                // server-side via /api/reports/job (W5).
+                val exportReport: (String, String) -> Unit = { format, mime ->
+                    val laborMinutes = jobEntries.sumOf { it.durationMinutes ?: 0 }
+                    Toast.makeText(context, "Generating ${format.uppercase()}…", Toast.LENGTH_SHORT).show()
+                    reportScope.launch {
+                        val bytes = com.guildofsmiths.trademesh.data.JobReportClient.render(
+                            job = job,
+                            laborMinutes = laborMinutes,
+                            contractorName = com.guildofsmiths.trademesh.data.UserPreferences.getUserName(),
+                            workSummary = job.description,
+                            periodLabel = null,
+                            format = format
+                        )
+                        if (bytes != null) {
+                            com.guildofsmiths.trademesh.data.FileShare.share(
+                                context, "$safeName-report.$format", bytes, mime, "Share report"
+                            )
+                        } else {
+                            Toast.makeText(context, "Report unavailable (offline?)", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                ActionButton(label = "[PDF]", accent = false, modifier = Modifier.weight(1f)) {
+                    exportReport("pdf", "application/pdf")
+                }
+                ActionButton(label = "[XLSX]", accent = false, modifier = Modifier.weight(1f)) {
+                    exportReport("xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                 }
             }
 

@@ -6,8 +6,6 @@ import com.guildofsmiths.trademesh.data.MediaType
 import com.guildofsmiths.trademesh.data.Message
 import com.guildofsmiths.trademesh.data.SupabaseAuth
 import com.guildofsmiths.trademesh.data.UserPreferences
-import io.github.jan.supabase.storage.storage
-import io.github.jan.supabase.storage.upload
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -22,12 +20,13 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.File
-import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 /**
- * MediaUploadManager: Handles uploading media files to Supabase Storage.
- * Supports images, voice notes, videos, and files with progress tracking.
+ * MediaUploadManager: uploads media files to the Hetzner backend
+ * (POST /api/media/upload) with progress tracking. Supports images, voice notes,
+ * videos, and files. W3: migrated off Supabase Storage -- the backend is now the
+ * single upload target, consistent with the unified Hetzner identity.
  */
 object MediaUploadManager {
     
@@ -35,8 +34,10 @@ object MediaUploadManager {
     
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     
-    /** Legacy backend URL (fallback) */
-    private var backendUrl: String = "http://192.168.8.169:3030"
+    /** Legacy backend URL (fallback). Defaults to the production-reachable
+     *  primary host so off-LAN beta devices resolve it; overridable via
+     *  setBackendUrl(). */
+    private var backendUrl: String = com.guildofsmiths.trademesh.BuildConfig.BACKEND_URL_PRIMARY
     
     /** Upload queue */
     private val _uploadQueue = MutableStateFlow<List<UploadTask>>(emptyList())
@@ -62,113 +63,69 @@ object MediaUploadManager {
     }
     
     /**
-     * Upload media for a message to Supabase Storage.
-     * Returns the remote URL on success, null on failure.
+     * Upload media for a message to the Hetzner backend.
+     * Returns an absolute remote URL on success, null on failure.
      */
     suspend fun uploadMedia(message: Message): String? {
         val media = message.media ?: return null
         val localPath = media.localPath ?: return null
         val file = File(localPath)
-        
+
         if (!file.exists()) {
             Log.e(TAG, "Media file not found: $localPath")
             return null
         }
-        
-        Log.i(TAG, "📤 Uploading media to Supabase: ${file.name} (${file.length()} bytes)")
-        
-        // Update progress
+
+        Log.i(TAG, "Uploading media: ${file.name} (${file.length()} bytes)")
         _uploadProgress.value = _uploadProgress.value + (message.id to 0)
-        
+
         return try {
-            val client = SupabaseAuth.client
-            if (client == null) {
-                Log.e(TAG, "Supabase client not initialized")
-                _uploadProgress.value = _uploadProgress.value - message.id
-                return null
-            }
-            
-            // Generate storage path
-            val fileExt = file.extension.ifBlank { "bin" }
-            val storagePath = "${message.channelId}/${System.currentTimeMillis()}-${UUID.randomUUID()}.$fileExt"
-            
-            // Read file bytes
-            val bytes = file.readBytes()
-            
-            // Upload to Supabase Storage
-            val bucket = client.storage.from("media")
-            bucket.upload(storagePath, bytes, upsert = false)
-            
-            // Get public URL
-            val publicUrl = bucket.publicUrl(storagePath)
-            
-            Log.i(TAG, "✅ Supabase upload complete: $publicUrl")
-            _uploadProgress.value = _uploadProgress.value + (message.id to 100)
-            
-            publicUrl
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Supabase upload error, trying legacy fallback", e)
-            
-            // Fallback to legacy backend
-            return uploadMediaLegacy(message)
-        }
-    }
-    
-    /**
-     * Legacy upload method (fallback if Supabase fails)
-     */
-    private suspend fun uploadMediaLegacy(message: Message): String? {
-        val media = message.media ?: return null
-        val localPath = media.localPath ?: return null
-        val file = File(localPath)
-        
-        return try {
-            // Determine content type
             val contentType = (media.mimeType ?: when (media.type) {
                 MediaType.IMAGE -> "image/jpeg"
                 MediaType.VOICE -> "audio/mp4"
                 MediaType.FILE -> "application/octet-stream"
                 else -> "application/octet-stream"
             }).toMediaType()
-            
-            // Build multipart request
+
             val requestBody = MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
-                .addFormDataPart(
-                    "file",
-                    media.fileName ?: file.name,
-                    file.asRequestBody(contentType)
-                )
+                .addFormDataPart("file", media.fileName ?: file.name, file.asRequestBody(contentType))
                 .addFormDataPart("messageId", message.id)
                 .addFormDataPart("channelId", message.channelId)
                 .addFormDataPart("senderId", message.senderId)
                 .addFormDataPart("mediaType", media.type.name)
                 .build()
-            
-            val request = Request.Builder()
+
+            val builder = Request.Builder()
                 .url("$backendUrl/api/media/upload")
                 .post(requestBody)
-                .build()
-            
-            val response = httpClient.newCall(request).execute()
-            
-            if (response.isSuccessful) {
-                val responseBody = response.body?.string()
-                val json = JSONObject(responseBody ?: "{}")
-                val remoteUrl = json.optString("url", null)
-                
-                Log.i(TAG, "✅ Legacy upload complete: $remoteUrl")
-                _uploadProgress.value = _uploadProgress.value + (message.id to 100)
-                
-                remoteUrl
-            } else {
-                Log.e(TAG, "❌ Legacy upload failed: ${response.code} - ${response.message}")
-                _uploadProgress.value = _uploadProgress.value - message.id
-                null
+            // Attach the Hetzner token when available (future-proof: the endpoint
+            // is currently unauthenticated but will move behind auth).
+            SupabaseAuth.getAccessToken()?.let { builder.header("Authorization", "Bearer $it") }
+
+            httpClient.newCall(builder.build()).execute().use { response ->
+                if (response.isSuccessful) {
+                    val json = JSONObject(response.body?.string() ?: "{}")
+                    val url = json.optString("url", null)
+                    // The backend returns a path relative to its host (/media/...).
+                    // Make it absolute so the relay and other clients can fetch it,
+                    // matching what the old Supabase publicUrl returned.
+                    val remoteUrl = when {
+                        url == null -> null
+                        url.startsWith("http") -> url
+                        else -> "$backendUrl$url"
+                    }
+                    Log.i(TAG, "Upload complete: $remoteUrl")
+                    _uploadProgress.value = _uploadProgress.value + (message.id to 100)
+                    remoteUrl
+                } else {
+                    Log.e(TAG, "Upload failed: ${response.code} - ${response.message}")
+                    _uploadProgress.value = _uploadProgress.value - message.id
+                    null
+                }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Legacy upload error", e)
+            Log.e(TAG, "Upload error", e)
             _uploadProgress.value = _uploadProgress.value - message.id
             null
         }
@@ -250,7 +207,7 @@ object MediaUploadManager {
      */
     fun uploadAndSendMedia(message: Message, onComplete: (Boolean) -> Unit) {
         scope.launch {
-            // First upload the media file to Supabase
+            // First upload the media file to the backend
             val remoteUrl = uploadMedia(message)
             
             if (remoteUrl != null) {
@@ -262,7 +219,7 @@ object MediaUploadManager {
                     )
                 )
                 
-                // Send the message with media URL via Supabase
+                // Send the message with media URL via the backend relay
                 sendMediaMessage(updatedMessage) { success ->
                     onComplete(success)
                 }

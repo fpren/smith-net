@@ -136,11 +136,19 @@ object UserPreferences {
         prefs?.edit()?.putBoolean(KEY_GATEWAY_ENABLED, enabled)?.apply()
     }
     
+    /** Production relay as a WebSocket URL, derived from the primary backend
+     *  host. Used as the gateway default so off-LAN beta devices connect out of
+     *  the box (the old LAN literal only worked on the dev network). */
+    private val defaultGatewayUrl: String =
+        com.guildofsmiths.trademesh.BuildConfig.BACKEND_URL_PRIMARY
+            .replaceFirst("https://", "wss://")
+            .replaceFirst("http://", "ws://")
+
     /**
      * Get gateway URL.
      */
     fun getGatewayUrl(): String {
-        return prefs?.getString(KEY_GATEWAY_URL, "ws://192.168.8.169:3030") ?: "ws://192.168.8.169:3030"
+        return prefs?.getString(KEY_GATEWAY_URL, defaultGatewayUrl) ?: defaultGatewayUrl
     }
     
     /**

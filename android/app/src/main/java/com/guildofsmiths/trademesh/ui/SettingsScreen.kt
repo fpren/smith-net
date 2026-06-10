@@ -78,7 +78,15 @@ fun SettingsScreen(
     val isScanning by BoundaryEngine.isScanning.collectAsState()
     val isMeshConnected by BoundaryEngine.isMeshConnected.collectAsState()
     val isGatewayConnected by BoundaryEngine.isGatewayConnected.collectAsState()
-    var gatewayUrl by remember { mutableStateOf("ws://192.168.8.169:3030") }
+    // Default the gateway to the production relay (WebSocket scheme derived from
+    // the primary backend URL) so off-LAN beta devices connect out of the box.
+    var gatewayUrl by remember {
+        mutableStateOf(
+            com.guildofsmiths.trademesh.BuildConfig.BACKEND_URL_PRIMARY
+                .replaceFirst("https://", "wss://")
+                .replaceFirst("http://", "ws://")
+        )
+    }
     
     Column(
         modifier = modifier

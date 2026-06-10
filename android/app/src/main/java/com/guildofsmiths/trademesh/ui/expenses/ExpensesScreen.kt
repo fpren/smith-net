@@ -217,7 +217,14 @@ fun ExpensesScreen(
                 else Toast.makeText(context, "Create a job first", Toast.LENGTH_SHORT).show()
             }
             ToolbarButton("[⬆ Import CSV]") { onOpenCsvImport() }
-            ToolbarButton("[⬇ Export]") { Toast.makeText(context, "Export coming soon", Toast.LENGTH_SHORT).show() }
+            ToolbarButton("[⬇ Export]") {
+                val rows = periodJobs.flatMap { j -> j.expenses.map { j.title to it } }
+                if (rows.isEmpty()) {
+                    Toast.makeText(context, "No expenses to export", Toast.LENGTH_SHORT).show()
+                } else {
+                    ExpenseCsvExport.share(context, "expenses.csv", ExpenseCsvExport.toCsv(rows))
+                }
+            }
             ToolbarButton("[⚙ Categories]") { onOpenCategoryManager() }
             ToolbarButton("[§ Legal terms]") { onOpenLegalSettings() }
         }

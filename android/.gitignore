@@ -81,3 +81,8 @@ lint/reports/
 
 # Kotlin
 .kotlin/
+
+# Release signing -- never commit
+keystore.properties
+*.jks
+keystore/

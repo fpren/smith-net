@@ -441,37 +441,6 @@ object BoundaryEngine {
      * Message is always added to local repository for immediate display.
      */
     fun routeMessage(context: Context, message: Message) {
-        // #region agent log
-        try {
-            val data = mapOf(
-                "sessionId" to "debug-session",
-                "runId" to "transport-indicators-test",
-                "hypothesisId" to "A",
-                "location" to "BoundaryEngine.kt:387",
-                "message" to "Message routing initiated",
-                "data" to mapOf(
-                    "messageId" to message.id.take(8),
-                    "content" to message.content.take(20),
-                    "senderName" to message.senderName,
-                    "isMeshOrigin" to message.isMeshOrigin,
-                    "hasMedia" to message.hasMedia(),
-                    "useMesh" to shouldUseMesh(context)
-                ),
-                "timestamp" to System.currentTimeMillis()
-            )
-            val jsonPayload = org.json.JSONObject(data).toString()
-            val url = java.net.URL("http://127.0.0.1:7242/ingest/0adb3485-1a4e-45bf-a3c0-30e8c05573e2")
-            val connection = url.openConnection() as java.net.HttpURLConnection
-            connection.requestMethod = "POST"
-            connection.setRequestProperty("Content-Type", "application/json")
-            connection.doOutput = true
-            connection.outputStream.write(jsonPayload.toByteArray())
-            connection.inputStream.close()
-        } catch (e: Exception) {
-            // Ignore logging errors
-        }
-        // #endregion
-
         // Always add to local repository first for immediate UI feedback
         MessageRepository.addMessage(message)
 
@@ -777,38 +746,6 @@ object BoundaryEngine {
     fun updateConnectivityState(context: Context) {
         val currentState = shouldUseMesh(context)
         val isOnlineNow = !currentState
-
-        // #region agent log
-        try {
-            val data = mapOf(
-                "sessionId" to "debug-session",
-                "runId" to "connectivity-monitoring-test",
-                "hypothesisId" to "C",
-                "location" to "BoundaryEngine.kt:595",
-                "message" to "Connectivity state update",
-                "data" to mapOf(
-                    "currentMeshState" to currentState,
-                    "isOnlineNow" to isOnlineNow,
-                    "lastConnectivityState" to lastConnectivityState,
-                    "isStateChange" to (lastConnectivityState != null && lastConnectivityState != currentState),
-                    "transitionType" to if (lastConnectivityState != null && lastConnectivityState != currentState) {
-                        if (!currentState) "offline->online" else "online->offline"
-                    } else "no-change"
-                ),
-                "timestamp" to System.currentTimeMillis()
-            )
-            val jsonPayload = org.json.JSONObject(data).toString()
-            val url = java.net.URL("http://127.0.0.1:7242/ingest/0adb3485-1a4e-45bf-a3c0-30e8c05573e2")
-            val connection = url.openConnection() as java.net.HttpURLConnection
-            connection.requestMethod = "POST"
-            connection.setRequestProperty("Content-Type", "application/json")
-            connection.doOutput = true
-            connection.outputStream.write(jsonPayload.toByteArray())
-            connection.inputStream.close()
-        } catch (e: Exception) {
-            // Ignore logging errors
-        }
-        // #endregion
 
         Log.d(TAG, "Connectivity update: mesh=$currentState, online=$isOnlineNow")
 
