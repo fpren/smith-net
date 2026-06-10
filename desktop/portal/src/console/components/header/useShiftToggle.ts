@@ -48,8 +48,12 @@ export function useShiftToggle(): ShiftToggle {
       taskTitle: opts.taskTitle ?? null,
     });
     const result = await presenceClient.startShift('web', opts);
-    if (result.ok) await refresh();
-    else {
+    if (result.ok && 'queued' in result) {
+      // Offline: keep the optimistic clocked-in state; the outbox replays it.
+      pushToast({ message: 'Clocked in offline — will sync when back online', tone: 'info', duration: 3000 });
+    } else if (result.ok) {
+      await refresh();
+    } else {
       setLocal(prev);
       pushToast({ message: result.error || 'Clock in failed', tone: 'error', duration: 3000 });
     }
@@ -62,8 +66,11 @@ export function useShiftToggle(): ShiftToggle {
     setBusy(true);
     setLocal({ shiftId: null, onClock: false, startedAt: null, entryType: null, jobTitle: null, taskTitle: null });
     const result = await presenceClient.endShift(reason);
-    if (result.ok) await refresh();
-    else {
+    if (result.ok && 'queued' in result) {
+      pushToast({ message: 'Clocked out offline — will sync when back online', tone: 'info', duration: 3000 });
+    } else if (result.ok) {
+      await refresh();
+    } else {
       setLocal(prev);
       pushToast({ message: result.error || 'Clock out failed', tone: 'error', duration: 3000 });
     }

@@ -46,6 +46,11 @@ export function CreateJobModal({ open, onClose, onCreated }: Props) {
       return;
     }
     setTitle(''); setLocation(''); setScheduledAt(''); setDescription(''); setClientId('');
+    if ('queued' in result) {
+      toast.info('Saved offline — will sync when back online');
+      onClose();
+      return;
+    }
     onCreated(result.job);
     onClose();
   }

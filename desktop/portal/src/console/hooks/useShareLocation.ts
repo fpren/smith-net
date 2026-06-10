@@ -27,6 +27,12 @@ export function useShareLocation() {
       useShareLocationStore.getState().setError(`${r.error} (${r.status})`);
       return;
     }
+    if ('queued' in r) {
+      // No connection: the clock-in is queued, but live location sharing needs
+      // the network, so don't start the watcher.
+      useShareLocationStore.getState().setError('Offline — location sharing will start when back online');
+      return;
+    }
     useShareLocationStore.getState().setSharing(true, r.shiftId);
     lastPostAtRef.current = 0;
 

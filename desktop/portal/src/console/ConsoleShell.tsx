@@ -5,6 +5,7 @@ import { ShiftClock } from './components/header/ShiftClock';
 import { useAuthStore } from './auth/authStore';
 import { initSmithCore, isSmithCoreReady } from './core/smithCore';
 import { useOfflinePersistence } from './offline/useOfflinePersistence';
+import { registerOutboxDrain } from './offline/outbox';
 
 interface Props {
   children: ReactNode;
@@ -21,6 +22,9 @@ export function ConsoleShell({ children }: Props) {
       if (isSmithCoreReady()) console.info('[smithcore] ROM ready (ABI 3)');
     });
   }, []);
+
+  // W6: replay queued offline writes on reconnect / focus / startup.
+  useEffect(() => registerOutboxDrain(), []);
 
   return (
     <div className="h-screen flex flex-col font-mono">

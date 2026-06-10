@@ -66,6 +66,11 @@ export function EditJobModal({ open, onClose, job }: Props) {
       toast.error(result.error || 'Failed to save job');
       return;
     }
+    if ('queued' in result) {
+      toast.info('Saved offline — will sync when back online');
+      onClose();
+      return;
+    }
     useJobsStore.getState().upsertJob(result.job);
     onClose();
   }

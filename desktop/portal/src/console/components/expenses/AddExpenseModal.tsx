@@ -57,7 +57,10 @@ export function AddExpenseModal({ open, jobId, editing, onClose }: Props) {
       ? await expensesClient.update(editing.id, payload)
       : await expensesClient.create({ jobId, ...payload });
     setBusy(false);
-    if (r.ok) {
+    if (r.ok && 'queued' in r) {
+      toast.info('Saved offline — will sync when back online');
+      onClose();
+    } else if (r.ok) {
       useExpensesStore.getState().upsert(jobId, r.expense);
       toast.info(editing ? 'Expense updated' : 'Expense added');
       onClose();

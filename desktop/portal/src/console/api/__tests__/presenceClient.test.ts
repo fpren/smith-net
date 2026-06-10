@@ -22,7 +22,7 @@ describe('presenceClient', () => {
     );
     const r = await presenceClient.startShift('web');
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.shiftId).toBe('shift-1');
+    if (r.ok && !('queued' in r)) expect(r.shiftId).toBe('shift-1');
   });
 
   it('startShift returns { ok: false, status } on 409 already-open', async () => {

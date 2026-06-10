@@ -33,9 +33,12 @@ describe('offline db', () => {
   });
 
   it('discards a schema-mismatched blob and deletes the stale key', async () => {
-    const d = await openDB('smithnet-offline', 1, {
+    // Open at the current schema version (v2 adds 'sync_outbox') so this manual
+    // handle doesn't collide with the version db.ts opens.
+    const d = await openDB('smithnet-offline', 2, {
       upgrade(db) {
         if (!db.objectStoreNames.contains('cache')) db.createObjectStore('cache');
+        if (!db.objectStoreNames.contains('sync_outbox')) db.createObjectStore('sync_outbox', { keyPath: 'id' });
       },
     });
     await d.put(

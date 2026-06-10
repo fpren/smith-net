@@ -23,7 +23,7 @@ describe('jobsClient', () => {
   it('create returns the new job on 201', async () => {
     const result = await jobsClient.create({ title: 'Brand new', location: 'X' });
     expect(result.ok).toBe(true);
-    if (result.ok) {
+    if (result.ok && !('queued' in result)) {
       expect(result.job.id).toBe('new-job-id');
       expect(result.job.title).toBe('Brand new');
       expect(result.job.status).toBe('planned');
@@ -33,7 +33,7 @@ describe('jobsClient', () => {
   it('update patches a job', async () => {
     const result = await jobsClient.update('abc', { title: 'Renamed' });
     expect(result.ok).toBe(true);
-    if (result.ok) {
+    if (result.ok && !('queued' in result)) {
       expect(result.job.title).toBe('Renamed');
     }
   });

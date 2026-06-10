@@ -1,4 +1,6 @@
 // desktop/portal/src/console/api/jobsClient.ts
+import { mutate } from '../offline/outbox';
+import { useAuthStore } from '../auth/authStore';
 
 export type JobStatus = 'planned' | 'in_progress' | 'complete' | 'cancelled';
 
@@ -41,7 +43,21 @@ export type JobsResult<T> =
   | ({ ok: true } & T)
   | { ok: false; status: number; error: string; details?: any; code?: string; from?: JobStatus; to?: JobStatus };
 
+/** W6: result of an outbox-routed mutation -- either a normal JobsResult, or a
+ *  "queued" marker when there was no network and the op was stored for replay. */
+export type OutboxResult<T> = JobsResult<T> | { ok: true; queued: true };
+
 interface JsonInit { method?: string; body?: unknown }
+
+// W6: route a create/update through the offline outbox (network-first, queue on
+// no-connection) and map its result back to the JobsResult shape.
+async function outboxMutate<T>(path: string, method: string, body: unknown, label: string): Promise<OutboxResult<T>> {
+  const profileId = useAuthStore.getState().user?.id ?? 'anon';
+  const r = await mutate<T>({ profileId, method, path, body, label });
+  if (r.queued) return { ok: true, queued: true };
+  if (r.ok) return { ok: true, ...((r.data ?? {}) as T) } as JobsResult<T>;
+  return { ok: false, status: r.status ?? 0, error: r.error ?? 'Request failed' };
+}
 
 async function call<T>(path: string, init: JsonInit = {}): Promise<JobsResult<T>> {
   const res = await fetch(path, {
@@ -97,9 +113,9 @@ export interface UpdateJobInput {
 export const jobsClient = {
   list: () => call<ListResp>('/api/jobs'),
   getById: (id: string) => call<OneResp>(`/api/jobs/${encodeURIComponent(id)}`),
-  create: (input: CreateJobInput) => call<MutateResp>('/api/jobs', { method: 'POST', body: input }),
+  create: (input: CreateJobInput) => outboxMutate<MutateResp>('/api/jobs', 'POST', input, 'job:create'),
   update: (id: string, patch: UpdateJobInput) =>
-    call<MutateResp>(`/api/jobs/${encodeURIComponent(id)}`, { method: 'PATCH', body: patch }),
+    outboxMutate<MutateResp>(`/api/jobs/${encodeURIComponent(id)}`, 'PATCH', patch, 'job:update'),
   changeStatus: (id: string, status: JobStatus) =>
     call<MutateResp>(`/api/jobs/${encodeURIComponent(id)}/status`, { method: 'PATCH', body: { status } }),
   changeStage: (id: string, stage: JobStage) =>

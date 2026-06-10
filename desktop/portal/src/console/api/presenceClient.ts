@@ -8,9 +8,15 @@
 //   GET  /api/shifts/current -> { shift: {...} | null }
 //   POST /api/presence/location -> { position: {...} }
 
+import { mutate } from '../offline/outbox';
+import { useAuthStore } from '../auth/authStore';
+
 export type PresenceResult<T> =
   | ({ ok: true } & T)
   | { ok: false; status: number; error: string; code?: string };
+
+/** W6: clock action either completed, queued offline, or failed. */
+export type PresenceOutboxResult<T> = PresenceResult<T> | { ok: true; queued: true };
 
 export interface TimeEntryRow {
   id: string;
@@ -45,34 +51,25 @@ export const presenceClient = {
   startShift: async (
     source: string,
     opts: { entryType?: string; jobId?: string; jobTitle?: string; taskId?: string; taskTitle?: string } = {},
-  ): Promise<PresenceResult<{ shiftId: string }>> => {
-    const res = await fetch('/api/shifts/start', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ source, ...opts }),
+  ): Promise<PresenceOutboxResult<{ shiftId: string }>> => {
+    const profileId = useAuthStore.getState().user?.id ?? 'anon';
+    const r = await mutate<{ shift: { id: string } }>({
+      profileId, method: 'POST', path: '/api/shifts/start', body: { source, ...opts }, label: 'shift:start',
     });
-    if (!res.ok) {
-      const e = await parseError(res);
-      return { ok: false, status: res.status, ...e };
-    }
-    const data = await res.json();
-    return { ok: true, shiftId: data.shift.id };
+    if (r.queued) return { ok: true, queued: true };
+    if (r.ok) return { ok: true, shiftId: r.data!.shift.id };
+    return { ok: false, status: r.status ?? 0, error: r.error ?? 'Clock in failed' };
   },
 
-  endShift: async (reason?: string): Promise<PresenceResult<{}>> => {
-    const res = await fetch('/api/shifts/end', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(reason ? { reason } : {}),
+  endShift: async (reason?: string): Promise<PresenceOutboxResult<{}>> => {
+    const profileId = useAuthStore.getState().user?.id ?? 'anon';
+    const r = await mutate<{}>({
+      profileId, method: 'POST', path: '/api/shifts/end', body: reason ? { reason } : {}, label: 'shift:end',
     });
-    if (res.status === 404) return { ok: true };
-    if (!res.ok) {
-      const e = await parseError(res);
-      return { ok: false, status: res.status, ...e };
-    }
-    return { ok: true };
+    if (r.queued) return { ok: true, queued: true };
+    // 404 = no open shift; treat as success (already clocked out).
+    if (r.ok || r.status === 404) return { ok: true };
+    return { ok: false, status: r.status ?? 0, error: r.error ?? 'Clock out failed' };
   },
 
   postLocation: async (input: PostLocationInput): Promise<PresenceResult<{}>> => {

@@ -8,8 +8,12 @@
 import { openDB, type IDBPDatabase } from 'idb';
 
 const DB_NAME = 'smithnet-offline';
-const DB_VERSION = 1;
+// v2 adds the 'sync_outbox' store (W6 offline-write outbox). The read 'cache'
+// store is untouched.
+const DB_VERSION = 2;
 const STORE = 'cache';
+/** Object store holding queued offline writes. Keyed by op id (idempotency key). */
+export const OUTBOX_STORE = 'sync_outbox';
 
 /** Bump to invalidate every cached blob after a stored-shape change. */
 export const CURRENT_SCHEMA_VERSION = 1;
@@ -22,11 +26,13 @@ interface CacheEnvelope<T> {
 
 let _dbPromise: Promise<IDBPDatabase> | null = null;
 
-function db(): Promise<IDBPDatabase> {
+/** Shared handle to the offline DB (used by the read cache and the outbox). */
+export function db(): Promise<IDBPDatabase> {
   if (!_dbPromise) {
     _dbPromise = openDB(DB_NAME, DB_VERSION, {
       upgrade(d) {
         if (!d.objectStoreNames.contains(STORE)) d.createObjectStore(STORE);
+        if (!d.objectStoreNames.contains(OUTBOX_STORE)) d.createObjectStore(OUTBOX_STORE, { keyPath: 'id' });
       },
     }).catch((e) => {
       _dbPromise = null;

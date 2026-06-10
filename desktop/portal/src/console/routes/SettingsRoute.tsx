@@ -143,7 +143,7 @@ export function SettingsRoute() {
           </div>
         </div>
         <p className="text-console-text-muted text-xs mb-3">
-          Avatar is generated from your name. Photo upload is coming soon.
+          Avatar is generated from your name.
         </p>
         <label className="block text-xs text-console-text-muted mb-1">Display name</label>
         <div className="flex items-center gap-2">
