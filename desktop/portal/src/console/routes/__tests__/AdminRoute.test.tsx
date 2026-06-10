@@ -3,11 +3,19 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { AdminRoute } from '../AdminRoute';
 import { useAdminHealthStore } from '../../stores/adminHealthStore';
+import { useAuthStore } from '../../auth/authStore';
 
 describe('AdminRoute', () => {
-  beforeEach(() => { useAdminHealthStore.getState().clear(); });
+  beforeEach(() => {
+    useAdminHealthStore.getState().clear();
+    useAuthStore.getState().clear();
+  });
 
   it('renders workers + queue tables once polled data lands', async () => {
+    // useAdminHealth only fetches for admins (perimeter gate).
+    useAuthStore.getState().setUser({
+      id: 'u1', email: 'x@y.com', displayName: 'X', role: 'admin', emailVerified: true,
+    });
     render(<MemoryRouter><AdminRoute /></MemoryRouter>);
 
     await waitFor(() => expect(screen.getByText(/12345@host/)).toBeInTheDocument());
