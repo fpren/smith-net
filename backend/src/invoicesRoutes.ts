@@ -1,7 +1,8 @@
 // backend/src/invoicesRoutes.ts
 //
 // Replaces the stub /api/invoices handlers that used to live in
-// engagementsInvoicesRoutes.ts. Every handler passes
+// the old engagementsInvoicesRoutes.ts (now invoiceLinksWagesRoutes.ts).
+// Every handler passes
 // req.user.organizationId through to invoicesService, which enforces
 // the tenant fence in every query.
 

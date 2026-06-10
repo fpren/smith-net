@@ -10,7 +10,7 @@ import { Router } from 'express';
 import { authenticateToken } from './auth';
 import { channelsRouter } from './channelsRoutes';
 import { presenceGatewayRouter } from './presenceGatewayRoutes';
-import { engagementsInvoicesRouter } from './engagementsInvoicesRoutes';
+import { invoiceLinksWagesRouter } from './invoiceLinksWagesRoutes';
 import { reportsRouter } from './reportsRoutes';
 import { settingsRouter } from './settingsRoutes';
 import { phase0Router } from './phase0Routes';
@@ -29,7 +29,7 @@ apiRouter.use(authenticateToken);
 
 apiRouter.use(channelsRouter);
 apiRouter.use(presenceGatewayRouter);
-apiRouter.use(engagementsInvoicesRouter);
+apiRouter.use(invoiceLinksWagesRouter);
 apiRouter.use(reportsRouter);
 apiRouter.use(settingsRouter);
 apiRouter.use(proposalsRouter);

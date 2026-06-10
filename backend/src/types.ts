@@ -173,19 +173,6 @@ export interface RegisterGatewayRequest {
 // PLAN MANAGEMENT SYSTEM (CORE WORKFLOW)
 // ════════════════════════════════════════════════════════════════════
 
-export interface Engagement {
-  id: string;
-  name: string;
-  description?: string;
-  clientName?: string;
-  location?: string;
-  createdBy: string;
-  createdAt: number;
-  status: 'active' | 'converted' | 'archived';
-  // No facts yet - only intent
-  intent: string; // What the engagement is about
-}
-
 /** @deprecated Use Intent instead */
 export interface Plan {
   id: string;
@@ -354,14 +341,6 @@ export interface PlanSnapshot {
 // ════════════════════════════════════════════════════════════════════
 // API REQUESTS FOR PLAN SYSTEM
 // ════════════════════════════════════════════════════════════════════
-
-export interface CreateEngagementRequest {
-  name: string;
-  description?: string;
-  clientName?: string;
-  location?: string;
-  intent: string;
-}
 
 export interface CreatePlanRequest {
   engagementId: string;
