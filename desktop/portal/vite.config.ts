@@ -28,7 +28,10 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,wasm,svg,png,ico,woff2}'],
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api/],
+        // Backend-owned paths: API, public proposal pages, invoice short
+        // links, and uploaded media must reach the server, never the cached
+        // SPA shell.
+        navigateFallbackDenylist: [/^\/api/, /^\/p\//, /^\/i\//, /^\/media\//],
       },
       devOptions: { enabled: false },
     }),
