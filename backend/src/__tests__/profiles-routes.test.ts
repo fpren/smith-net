@@ -22,7 +22,7 @@ describe('GET /api/profiles', () => {
     expect(res.status).toBe(401);
   });
 
-  it('returns 403 tier_required for Solo user', async () => {
+  it('allows Solo user to search the directory (W3: tier gate opened)', async () => {
     const user = await userStore.createUser(
       `solo-profiles-${Date.now()}@example.com`,
       'password123',
@@ -33,8 +33,8 @@ describe('GET /api/profiles', () => {
     const res = await request(app)
       .get('/api/profiles?q=admin')
       .set('Authorization', `Bearer ${accessToken}`);
-    expect(res.status).toBe(403);
-    expect(res.body.code).toBe('tier_required');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.profiles)).toBe(true);
   });
 
   it('returns 400 validation when q is missing', async () => {

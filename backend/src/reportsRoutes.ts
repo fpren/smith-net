@@ -11,8 +11,34 @@ import { reportAssembler } from './reportAssembler';
 import { reportRenderer } from './reportRenderer';
 import { reportOutput } from './reportOutput';
 import { PlanSnapshot } from './types';
+import { normalizeJobReport, renderJobReportPdf, renderJobReportXlsx } from './jobReport';
 
 export const reportsRouter = Router();
+
+// ════════════════════════════════════════════════════════════════════
+// PER-JOB REPORT (W5) — client POSTs denormalized data, server returns a
+// real PDF (pdfkit) or Excel workbook (exceljs). ?format=pdf|xlsx (default pdf).
+// ════════════════════════════════════════════════════════════════════
+reportsRouter.post('/reports/job', async (req: Request, res: Response) => {
+  const data = normalizeJobReport(req.body);
+  const format = String(req.query.format ?? 'pdf').toLowerCase();
+  const safe = (data.jobTitle.replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 60)) || 'job';
+  try {
+    if (format === 'xlsx') {
+      const buf = await renderJobReportXlsx(data);
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${safe}-report.xlsx"`);
+      return res.send(buf);
+    }
+    const buf = await renderJobReportPdf(data);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${safe}-report.pdf"`);
+    return res.send(buf);
+  } catch (e: any) {
+    console.error('[Reports] job report render failed:', e.message);
+    res.status(500).json({ error: 'Failed to render report' });
+  }
+});
 
 // Basic CRUD
 

@@ -506,6 +506,9 @@ export async function createUserAndProfile(input: CreateUserAndProfileInput): Pr
   const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
   const verificationToken = crypto.randomBytes(32).toString('hex');
   const verificationExpires = new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS);
+  // 8-char uppercase hex handle for the crew directory (migration 034). Format
+  // matches the public_id backfill so lookups are consistent.
+  const publicId = crypto.randomBytes(4).toString('hex').toUpperCase();
 
   const client = await db.connect();
   try {
@@ -519,9 +522,9 @@ export async function createUserAndProfile(input: CreateUserAndProfileInput): Pr
       [id, input.email.toLowerCase(), passwordHash, input.displayName, input.role, verificationToken, verificationExpires]
     );
     await client.query(
-      `INSERT INTO profiles (id, email, display_name, role)
-       VALUES ($1, $2, $3, $4)`,
-      [id, input.email.toLowerCase(), input.displayName, input.role]
+      `INSERT INTO profiles (id, email, display_name, role, organization_id, public_id)
+       VALUES ($1, $2, $3, $4, $1, $5)`,
+      [id, input.email.toLowerCase(), input.displayName, input.role, publicId]
     );
     await client.query('COMMIT');
   } catch (err) {

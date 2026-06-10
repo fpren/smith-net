@@ -10,6 +10,7 @@ import * as expensesService from './expensesService';
 import { requestLogger } from './log';
 import { validateBody } from './middleware/validate';
 import { requireCap } from './middleware/requireCap';
+import { idempotency } from './middleware/idempotency';
 import { CreateJobBody, UpdateJobBody, StatusChangeBody, StageChangeBody, AssignCrewBody } from './schemas/jobs';
 
 export const jobsRouter = Router();
@@ -93,6 +94,7 @@ jobsRouter.get('/:id/expenses', requireJobOwner, async (req: JobOwnerRequest, re
 
 jobsRouter.post(
   '/',
+  idempotency(),
   validateBody(CreateJobBody),
   requireCap({ capKey: 'active_jobs', gateId: 'active_job_cap', count: jobsService.countActive }),
   async (req: AuthenticatedRequest, res: Response) => {

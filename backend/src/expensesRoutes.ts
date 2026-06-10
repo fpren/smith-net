@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { authenticateToken, AuthenticatedRequest } from './auth';
 import { validateBody } from './middleware/validate';
 import { requireConsoleTier } from './middleware/requireConsoleTier';
+import { idempotency } from './middleware/idempotency';
 import { requireExpenseOwner, ExpenseOwnerRequest } from './middleware/requireExpenseOwner';
 import { CreateExpenseBody, UpdateExpenseBody } from './schemas/expenses';
 import * as expensesService from './expensesService';
@@ -12,7 +13,7 @@ export const expensesRouter = Router();
 
 expensesRouter.use(authenticateToken, requireConsoleTier);
 
-expensesRouter.post('/expenses', validateBody(CreateExpenseBody),
+expensesRouter.post('/expenses', idempotency(), validateBody(CreateExpenseBody),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const body = req.body as CreateExpenseBody;

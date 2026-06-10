@@ -14,6 +14,7 @@ import { crewPositionService, Shift } from './crewPositionService';
 import { auditLog, AuditAction } from './auditLog';
 import { requestLogger } from './log';
 import { validateBody } from './middleware/validate';
+import { idempotency } from './middleware/idempotency';
 import { StartShiftBody, EndShiftBody } from './schemas/shifts';
 import * as jobsService from './jobsService';
 import * as tasksService from './tasksService';
@@ -36,7 +37,7 @@ function serializeShift(s: Shift) {
   };
 }
 
-shiftsRouter.post('/start', authenticateToken, validateBody(StartShiftBody), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+shiftsRouter.post('/start', authenticateToken, idempotency(), validateBody(StartShiftBody), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   const userId = req.user!.id;
   const { source = 'web', entryType, jobId, jobTitle, taskId, taskTitle } = req.body as StartShiftBody;
   try {
@@ -55,7 +56,7 @@ shiftsRouter.post('/start', authenticateToken, validateBody(StartShiftBody), asy
   }
 });
 
-shiftsRouter.post('/end', authenticateToken, validateBody(EndShiftBody), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+shiftsRouter.post('/end', authenticateToken, idempotency(), validateBody(EndShiftBody), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   const userId = req.user!.id;
   const { reason } = req.body as EndShiftBody;
   // try/catch -> next(err): endShift / auditLog.log can throw on a transient DB

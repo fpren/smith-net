@@ -8,8 +8,27 @@ import { pg, isPgEnabled } from './db';
 
 export const profilesRouter = Router();
 
-profilesRouter.use(authenticateToken, requireConsoleTier);
+// All directory routes require a valid token. The console-tier gate is applied
+// only to /crew (the foreman roster) -- directory search / lookup / teammates
+// are available to every authenticated user (W3 parity decision).
+profilesRouter.use(authenticateToken);
 
+/** Shared row -> API shape for the pg-backed directory endpoints. */
+function mapProfile(r: any) {
+  return {
+    id: r.id,
+    email: r.email,
+    displayName: r.display_name,
+    role: r.role,
+    publicId: r.public_id ?? null,
+    organizationId: r.organization_id ?? null,
+  };
+}
+
+// Name/email people search. Directory info only (name / email / role) -- the
+// org-fenced data (jobs, invoices, time) lives behind its own services, so this
+// is intentionally cross-org for people discovery, matching the prior behavior.
+// Available to every authenticated user now (tier gate moved to /crew).
 profilesRouter.get('/', validateQuery(ProfileQuery), async (req: AuthenticatedRequest, res: Response) => {
   const q = ((req.query as unknown) as ProfileQuery).q;
   const needle = q.toLowerCase();
@@ -29,7 +48,50 @@ profilesRouter.get('/', validateQuery(ProfileQuery), async (req: AuthenticatedRe
   res.json({ profiles: matches });
 });
 
-profilesRouter.get('/crew', async (req: AuthenticatedRequest, res: Response) => {
+// Lookup by shared 8-char public handle. Intentionally cross-org: a public_id is
+// how you add someone you don't already share an org with.
+profilesRouter.get('/lookup', async (req: AuthenticatedRequest, res: Response) => {
+  const publicId = String((req.query as any).publicId ?? '').toUpperCase();
+  if (!/^[A-Z0-9]{8}$/.test(publicId)) {
+    return res.status(400).json({ error: 'publicId must be 8 alphanumeric characters' });
+  }
+  if (!isPgEnabled() || !pg) return res.json({ profile: null });
+  try {
+    const { rows } = await pg.query(
+      `SELECT id, email, display_name, role, public_id, organization_id
+         FROM profiles WHERE public_id = $1 LIMIT 1`,
+      [publicId]
+    );
+    res.json({ profile: rows[0] ? mapProfile(rows[0]) : null });
+  } catch (e: any) {
+    console.error('[Profiles] lookup error:', e.message);
+    res.status(500).json({ error: 'Lookup failed' });
+  }
+});
+
+// Everyone in the caller's organization (excluding self).
+profilesRouter.get('/teammates', async (req: AuthenticatedRequest, res: Response) => {
+  const orgId = req.user!.organizationId;
+  const selfId = req.user!.id;
+  if (!isPgEnabled() || !pg) return res.json({ profiles: [] });
+  try {
+    const { rows } = await pg.query(
+      `SELECT id, email, display_name, role, public_id, organization_id
+         FROM profiles
+        WHERE organization_id = $1 AND id <> $2
+        ORDER BY display_name
+        LIMIT 50`,
+      [orgId, selfId]
+    );
+    res.json({ profiles: rows.map(mapProfile) });
+  } catch (e: any) {
+    console.error('[Profiles] teammates error:', e.message);
+    res.status(500).json({ error: 'Failed to load teammates' });
+  }
+});
+
+// Foreman crew roster -- console tier only.
+profilesRouter.get('/crew', requireConsoleTier, async (req: AuthenticatedRequest, res: Response) => {
   const foremanId = req.user!.id;
   if (!isPgEnabled() || !pg) {
     return res.json({ crew: [] });
