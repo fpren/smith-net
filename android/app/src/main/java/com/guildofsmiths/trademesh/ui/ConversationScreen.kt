@@ -126,18 +126,10 @@ fun ConversationScreen(
     
     // Online status for media
     val isNetOnline by BoundaryEngine.isOnline.collectAsState()
-    val isChatConnected by com.guildofsmiths.trademesh.service.SupabaseChat.isConnected.collectAsState()
-    // Chat-level connectivity wins — Android's NET_CAPABILITY_INTERNET can lag.
-    val isOnline = isNetOnline || isChatConnected
+    val isOnline = isNetOnline
 
     // Connection mode for status bar and background tint.
-    // Promote OFFLINE -> ONLINE when Supabase Realtime is actually connected:
-    // ChatManager drives its own WS, but Supabase is the transport most users
-    // see messages flow through, so treat either signal as "online".
-    val rawConnectionMode by ChatManager.connectionMode.collectAsState()
-    val connectionMode = if (rawConnectionMode == ConnectionMode.OFFLINE && isChatConnected) {
-        ConnectionMode.ONLINE
-    } else rawConnectionMode
+    val connectionMode by ChatManager.connectionMode.collectAsState()
     val chatBgColor = when (connectionMode) {
         ConnectionMode.ONLINE -> Color(0xFFF4F2EE)   // default warm
         ConnectionMode.MESH -> Color(0xFFF0F4F1)     // sage tint

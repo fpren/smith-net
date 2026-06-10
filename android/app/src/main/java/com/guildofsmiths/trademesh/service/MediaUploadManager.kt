@@ -189,61 +189,9 @@ object MediaUploadManager {
     }
     
     /**
-     * Send a media message via Supabase (primary) with legacy fallback.
+     * Send a media message via the backend relay.
      */
     fun sendMediaMessage(message: Message, onComplete: (Boolean) -> Unit) {
-        scope.launch {
-            try {
-                val media = message.media
-                
-                // Try Supabase first
-                val supabaseMedia = if (media?.remotePath != null) {
-                    SupabaseChat.MediaAttachment(
-                        type = when (media.type) {
-                            MediaType.IMAGE -> "image"
-                            MediaType.VOICE -> "voice"
-                            MediaType.VIDEO -> "video"
-                            MediaType.FILE -> "file"
-                            else -> "file"
-                        },
-                        url = media.remotePath!!,
-                        filename = media.fileName,
-                        mimeType = media.mimeType,
-                        size = media.fileSize,
-                        duration = media.duration?.toInt()
-                    )
-                } else null
-                
-                // Convert to Supabase message format
-                val supabaseMessage = com.guildofsmiths.trademesh.data.Message(
-                    id = message.id,
-                    channelId = message.channelId,
-                    senderId = message.senderId,
-                    senderName = message.senderName,
-                    content = message.content,
-                    timestamp = message.timestamp,
-                    isMeshOrigin = false
-                )
-                
-                // Send via SupabaseChat
-                SupabaseChat.sendMessage(supabaseMessage, supabaseMedia)
-                
-                Log.i(TAG, "✅ Media message sent via Supabase: ${message.id}")
-                onComplete(true)
-                
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ Supabase send failed, trying legacy", e)
-                
-                // Fallback to legacy backend
-                sendMediaMessageLegacy(message, onComplete)
-            }
-        }
-    }
-    
-    /**
-     * Legacy send method (fallback)
-     */
-    private fun sendMediaMessageLegacy(message: Message, onComplete: (Boolean) -> Unit) {
         scope.launch {
             try {
                 val media = message.media

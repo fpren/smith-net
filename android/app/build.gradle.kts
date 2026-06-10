@@ -31,10 +31,6 @@ android {
         // Unified BACKEND_URL: emulator uses 10.0.2.2 to reach host machine
         buildConfigField("String", "BACKEND_URL", "\"http://10.0.2.2:3030\"")
 
-        // Kill switch for legacy Supabase Realtime path. Default OFF — relay is Hetzner/Postgres now.
-        // Flip to true only if you explicitly want the old global-chat path active.
-        buildConfigField("boolean", "SUPABASE_ENABLED", "false")
-        
         // Native build configuration for llama.cpp
         externalNativeBuild {
             cmake {
@@ -145,7 +141,7 @@ dependencies {
     // OkHttp for WebSocket
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     
-    // Supabase - Cloud Backend
+    // Supabase - auth, storage, profile directory (legacy chat path removed; relay is canonical)
     implementation(platform("io.github.jan-tennert.supabase:bom:2.0.4"))
     implementation("io.github.jan-tennert.supabase:postgrest-kt")
     implementation("io.github.jan-tennert.supabase:gotrue-kt")

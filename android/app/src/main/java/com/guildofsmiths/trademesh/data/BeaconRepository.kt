@@ -349,10 +349,8 @@ object BeaconRepository {
     }
     
     /**
-     * Delete a channel and cascade its messages. Local tombstone on the channel,
-     * Room wipe of its messages, and a soft-delete on the Supabase row (which
-     * cascades server-side messages via ON DELETE CASCADE on the FK). Offline
-     * server deletes are logged and dropped — the local state is authoritative.
+     * Delete a channel and cascade its messages. Local tombstone on the channel
+     * and a Room wipe of its messages — the local state is authoritative.
      */
     suspend fun deleteChannel(beaconId: String, channelId: String, userId: String): Boolean {
         val channel = getChannel(beaconId, channelId) ?: return false
@@ -379,7 +377,6 @@ object BeaconRepository {
         saveChannels()
 
         MessageRepository.clearChannel(beaconId, channelId)
-        com.guildofsmiths.trademesh.service.SupabaseChat.deleteChannelRemote(channelId)
 
         Log.i(TAG, "🗑️ Channel deleted: #${channel.name}")
         return true

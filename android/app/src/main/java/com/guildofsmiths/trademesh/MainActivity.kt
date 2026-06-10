@@ -49,7 +49,6 @@ import com.guildofsmiths.trademesh.ui.BeaconListScreen
 import com.guildofsmiths.trademesh.ui.ChatListScreen
 import com.guildofsmiths.trademesh.ui.NewConversationScreen
 import com.guildofsmiths.trademesh.ui.ChannelListScreen
-import com.guildofsmiths.trademesh.ui.ChannelsScreen
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.ConversationScreen
 import com.guildofsmiths.trademesh.ui.ConversationViewModel
@@ -1067,24 +1066,6 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         
-                        // Dashboard channels screen - discover and join channels from dashboard
-                        composable(NavRoutes.DASHBOARD_CHANNELS) {
-                            ChannelsScreen(
-                                onBackClick = {
-                                    navController.popBackStack()
-                                },
-                                onChannelJoined = { channelId ->
-                                    // Navigate to conversation with the joined channel
-                                    Log.e("MainActivity", "████ onChannelJoined: $channelId ████")
-                                    // URL encode the channel ID to handle special characters
-                                    val encodedChannelId = java.net.URLEncoder.encode(channelId, "UTF-8")
-                                    val route = NavRoutes.conversation("default", encodedChannelId)
-                                    Log.e("MainActivity", "████ Route: $route ████")
-                                    navController.navigate(route)
-                                }
-                            )
-                        }
-                        
                         // Channel list screen
                         composable(
                             route = NavRoutes.CHANNEL_LIST,
@@ -1104,9 +1085,6 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onCreateChannel = {
                                     navController.navigate(NavRoutes.createChannel(beaconId))
-                                },
-                                onJoinDashboardChannels = {
-                                    navController.navigate(NavRoutes.DASHBOARD_CHANNELS)
                                 }
                             )
                         }

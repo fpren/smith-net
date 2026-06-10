@@ -16,7 +16,6 @@ import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
 import com.guildofsmiths.trademesh.service.MediaHelper
 import com.guildofsmiths.trademesh.service.MediaUploadManager
-import com.guildofsmiths.trademesh.service.SupabaseChat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -87,13 +86,12 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
         initialValue = emptyList()
     )
     
-    /** Current channel info - handles regular channels, DM channels, and Supabase channels */
+    /** Current channel info - handles regular channels and DM channels */
     val currentChannel: StateFlow<Channel?> = combine(
         BeaconRepository.beacons,
         _beaconId,
-        _channelId,
-        SupabaseChat.availableChannels
-    ) { beacons, beaconId, channelId, supabaseChannels ->
+        _channelId
+    ) { beacons, beaconId, channelId ->
         // Check if it's a DM channel (starts with "dm_")
         if (channelId.startsWith("dm_")) {
             // Create a synthetic DM channel object
@@ -104,29 +102,7 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
                 type = ChannelType.DM
             )
         } else {
-            // First check local BeaconRepository
-            val localChannel = beacons.find { it.id == beaconId }?.channels?.find { it.id == channelId }
-            if (localChannel != null) {
-                localChannel
-            } else {
-                // Check Supabase channels
-                val supabaseChannel = supabaseChannels.find { it.id == channelId }
-                if (supabaseChannel != null) {
-                    // Create a synthetic Channel object for Supabase channel
-                    Channel(
-                        id = supabaseChannel.id,
-                        beaconId = beaconId,
-                        name = supabaseChannel.name,
-                        type = when (supabaseChannel.type) {
-                            "broadcast" -> ChannelType.BROADCAST
-                            "dm" -> ChannelType.DM
-                            else -> ChannelType.GROUP
-                        }
-                    )
-                } else {
-                    null
-                }
-            }
+            beacons.find { it.id == beaconId }?.channels?.find { it.id == channelId }
         }
     }.stateIn(
         scope = viewModelScope,
@@ -165,24 +141,6 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
         
         // Clear unread for this channel
         BeaconRepository.clearUnread(beaconId, channelId)
-        
-        // If this is a Supabase channel (joined from dashboard), load messages from Supabase
-        if (SupabaseChat.isJoined(channelId)) {
-            android.util.Log.i("ConversationVM", "📥 Loading messages from Supabase channel: $channelId")
-            viewModelScope.launch {
-                try {
-                    val supabaseMessages = SupabaseChat.getChannelMessages(channelId)
-                    supabaseMessages.forEach { msg ->
-                        // Add to local repository with correct beaconId
-                        val localMsg = msg.copy(beaconId = beaconId)
-                        MessageRepository.addMessage(localMsg)
-                    }
-                    android.util.Log.i("ConversationVM", "✅ Loaded ${supabaseMessages.size} messages from Supabase")
-                } catch (e: Exception) {
-                    android.util.Log.e("ConversationVM", "Failed to load Supabase messages", e)
-                }
-            }
-        }
     }
     
     /**
@@ -236,8 +194,8 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
         BoundaryEngine.routeMessage(getApplication(), message)
         android.util.Log.i("ConversationVM", "   ✅ Message routed")
         
-        // NOTE: BoundaryEngine.routeMessage() already sends via SupabaseChat when online
-        // Do NOT call SupabaseChat.sendMessage() again here - it causes duplicates!
+        // NOTE: BoundaryEngine.routeMessage() already sends via ChatManager when online
+        // Do NOT call ChatManager.sendMessage() again here - it causes duplicates!
 
         // AI response path: direct chat for SmithAI DMs, ambient for others
         if (message.recipientId == "smith-ai" || message.channelId.contains("smith")) {

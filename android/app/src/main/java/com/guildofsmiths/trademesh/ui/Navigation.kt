@@ -33,7 +33,6 @@ object NavRoutes {
     const val CHANNEL_LIST = "channels/{beaconId}"
     const val CONVERSATION = "conversation/{beaconId}/{channelId}"
     const val CONVERSATION_DM = "conversation/{beaconId}/{channelId}?dmPeerId={dmPeerId}&dmPeerName={dmPeerName}"
-    const val DASHBOARD_CHANNELS = "dashboard_channels"
     const val CREATE_CHANNEL = "create_channel/{beaconId}"
     const val CREATE_BEACON = "create_beacon"
     const val PEERS = "peers"

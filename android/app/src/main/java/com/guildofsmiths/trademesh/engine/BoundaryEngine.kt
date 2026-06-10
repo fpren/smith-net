@@ -186,16 +186,6 @@ object BoundaryEngine {
         // Auto-connect to online chat (for receiving messages)
         ChatManager.connect()
         Log.i(TAG, "🌐 Auto-connecting to local chat backend")
-        
-        // Legacy: Supabase Realtime for global chat. Disabled by default —
-        // the Hetzner relay (ChatManager above) now covers this path via WS.
-        // Flip SUPABASE_ENABLED in app/build.gradle.kts to re-enable.
-        if (com.guildofsmiths.trademesh.BuildConfig.SUPABASE_ENABLED) {
-            com.guildofsmiths.trademesh.service.SupabaseChat.connect()
-            Log.i(TAG, "🌍 Connecting to Supabase Realtime for global chat")
-        } else {
-            Log.i(TAG, "Supabase Realtime disabled (BuildConfig.SUPABASE_ENABLED=false)")
-        }
     }
     
     /**
@@ -284,8 +274,8 @@ object BoundaryEngine {
     /**
      * Forward a mesh message to the gateway (backend).
      * Called when a mesh message is received and gateway is connected.
-     * Ephemeral channels bridge via Realtime broadcast (no cloud row);
-     * persistent channels bridge via the WS relay + Supabase insert as before.
+     * Ephemeral channels never bridge to the cloud (no relay persistence);
+     * persistent channels bridge via the WS relay.
      */
     fun forwardToGateway(message: Message) {
         val channel = com.guildofsmiths.trademesh.data.BeaconRepository
@@ -294,21 +284,11 @@ object BoundaryEngine {
             com.guildofsmiths.trademesh.data.ChannelPersistence.EPHEMERAL
 
         if (isEphemeral) {
-            if (_isOnline.value && com.guildofsmiths.trademesh.BuildConfig.SUPABASE_ENABLED) {
-                Log.d(TAG, "🌉 Auto-bridging ephemeral mesh message: ${message.content.take(20)}")
-                messageBusScope.launch {
-                    com.guildofsmiths.trademesh.service.SupabaseChat.broadcastEphemeral(message)
-                }
-            }
             return
         }
 
         if (GatewayClient.isConnected()) {
             GatewayClient.forwardMeshMessage(message)
-        }
-        if (_isOnline.value && com.guildofsmiths.trademesh.BuildConfig.SUPABASE_ENABLED) {
-            Log.d(TAG, "🌉 Auto-bridging mesh message to Supabase: ${message.content.take(20)}")
-            com.guildofsmiths.trademesh.service.SupabaseChat.sendMessage(message)
         }
     }
     
@@ -408,7 +388,7 @@ object BoundaryEngine {
         Log.i(TAG, "   Transport: WIFI=$isWifi, CELLULAR=$isCellular")
 
         // Use mesh only if there's no internet at all
-        // This prevents the app from staying offline when Supabase has issues
+        // This prevents the app from staying offline when the relay has issues
         if (!hasInternet) {
             Log.d(TAG, "No internet capability - using mesh")
             return true
@@ -454,7 +434,7 @@ object BoundaryEngine {
     
     /**
      * Route an outbound message through the appropriate path.
-     * - When online: Send via BOTH Supabase (global) AND mesh (local)
+     * - When online: Send via BOTH the relay (global) AND mesh (local)
      * - When offline: Send via mesh only
      * - Media messages: Chat only (queued if offline)
      * 
@@ -517,11 +497,11 @@ object BoundaryEngine {
         }
         
         // When online: send via BOTH paths for maximum reach
-        // - Supabase: reaches dashboard and remote users globally
+        // - Relay: reaches dashboard and remote users globally
         // - Mesh: reaches local peers quickly (even if their internet is spotty)
         if (!shouldUseMesh(context)) {
-            Log.d(TAG, "📤 ONLINE: Sending via Supabase + Mesh")
-            routeViaChat(message)  // Supabase for global reach
+            Log.d(TAG, "📤 ONLINE: Sending via Relay + Mesh")
+            routeViaChat(message)  // Relay for global reach
             routeViaMesh(message)  // Mesh for local peers
         } else {
             Log.d(TAG, "📤 OFFLINE: Sending via Mesh only")
@@ -580,9 +560,8 @@ object BoundaryEngine {
     
     /**
      * Route message via IP chat path.
-     * PERSISTENT channels: WS relay + Supabase insert (history preserved).
-     * EPHEMERAL channels: Supabase Realtime broadcast only — no cloud row, no
-     * relay persistence. If a subscriber isn't connected right now, they miss it.
+     * PERSISTENT channels: WS relay (history preserved server-side).
+     * EPHEMERAL channels: no cloud row, no relay persistence — mesh-local only.
      */
     private fun routeViaChat(message: Message) {
         val channel = com.guildofsmiths.trademesh.data.BeaconRepository
@@ -592,21 +571,12 @@ object BoundaryEngine {
 
         if (isEphemeral) {
             Log.d(TAG, "Routing via ephemeral broadcast: ${message.id.take(8)}...")
-            if (com.guildofsmiths.trademesh.BuildConfig.SUPABASE_ENABLED) {
-                messageBusScope.launch {
-                    com.guildofsmiths.trademesh.service.SupabaseChat.broadcastEphemeral(message)
-                }
-            }
             return
         }
 
         Log.d(TAG, "Routing via chat: ${message.id.take(8)}...")
-        // Primary path: Hetzner relay via ChatManager (WS).
+        // Hetzner relay via ChatManager (WS).
         ChatManager.sendMessage(message)
-        // Optional legacy mirror to Supabase Realtime, gated by BuildConfig flag.
-        if (com.guildofsmiths.trademesh.BuildConfig.SUPABASE_ENABLED) {
-            com.guildofsmiths.trademesh.service.SupabaseChat.sendMessage(message)
-        }
     }
     
     // Track recently injected message IDs to avoid re-forwarding our own broadcasts
@@ -738,11 +708,11 @@ object BoundaryEngine {
 
     /**
      * Sync all pending mesh messages to chat backend.
-     * PERSISTENT channels: upload to WS relay + Supabase messages table
-     *   so remote peers receive the history (the original "bubble up" intent).
-     * EPHEMERAL channels: bridge to Realtime broadcast only — no cloud row, no
-     *   relay persistence. Respects the no-cloud-copy promise even for mesh-
-     *   originated messages that reach a gateway-capable device.
+     * PERSISTENT channels: upload to the WS relay so remote peers receive the
+     *   history (the original "bubble up" intent).
+     * EPHEMERAL channels: never uploaded — no cloud row, no relay persistence.
+     *   Respects the no-cloud-copy promise even for mesh-originated messages
+     *   that reach a gateway-capable device.
      */
     private fun syncMeshMessagesToChat() {
         val pendingMessages = MessageRepository.getPendingSyncMessages()
@@ -762,17 +732,9 @@ object BoundaryEngine {
                 com.guildofsmiths.trademesh.data.ChannelPersistence.EPHEMERAL
 
             if (isEphemeral) {
-                if (com.guildofsmiths.trademesh.BuildConfig.SUPABASE_ENABLED) {
-                    messageBusScope.launch {
-                        com.guildofsmiths.trademesh.service.SupabaseChat.broadcastEphemeral(chatMessage)
-                    }
-                }
-                Log.d(TAG, "   ↑ Ephemeral bridge: ${message.content.take(30)}")
+                Log.d(TAG, "   ↑ Ephemeral - not bridged: ${message.content.take(30)}")
             } else {
                 ChatManager.sendMessage(chatMessage)
-                if (com.guildofsmiths.trademesh.BuildConfig.SUPABASE_ENABLED) {
-                    com.guildofsmiths.trademesh.service.SupabaseChat.sendMessage(chatMessage)
-                }
                 Log.d(TAG, "   ↑ Uploaded: ${message.content.take(30)}")
             }
 
@@ -863,17 +825,6 @@ object BoundaryEngine {
 
         lastConnectivityState = currentState
         _isOnline.value = isOnlineNow
-
-        // Connect/disconnect Supabase based on online state
-        try {
-            if (isOnlineNow) {
-                com.guildofsmiths.trademesh.service.SupabaseChat.connect()
-            } else {
-                com.guildofsmiths.trademesh.service.SupabaseChat.disconnect()
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Supabase connection update failed", e)
-        }
     }
     
     // ══════════════════════════════════════════════════════════════════
@@ -1156,18 +1107,7 @@ object BoundaryEngine {
         Log.i(TAG, "   📡 Syncing channels from backend...")
         syncChannelsFromBackend()
 
-        // 2. Also fetch from Supabase if connected
-        Log.i(TAG, "   🌍 Fetching channels from Supabase...")
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val supabaseChannels = com.guildofsmiths.trademesh.service.SupabaseChat.fetchAvailableChannels()
-                Log.i(TAG, "   📋 Found ${supabaseChannels.size} Supabase channels")
-            } catch (e: Exception) {
-                Log.w(TAG, "   ⚠️ Supabase channel fetch failed: ${e.message}")
-            }
-        }
-
-        // 3. Restart BLE scanning to pick up any new broadcasts
+        // 2. Restart BLE scanning to pick up any new broadcasts
         meshService?.let { service ->
             if (service.isScanningActive()) {
                 Log.i(TAG, "   Restarting BLE scan...")
@@ -1179,7 +1119,7 @@ object BoundaryEngine {
             Log.w(TAG, "   ⚠️ MeshService not available")
         }
 
-        // 4. Also broadcast our own channels so others can discover them
+        // 3. Also broadcast our own channels so others can discover them
         val myUserId = UserPreferences.getUserId()
         val myChannels = BeaconRepository.getBeacon("default")?.channels
             ?.filter { it.isOwner(myUserId) && it.isVisible() && it.id != "general" }

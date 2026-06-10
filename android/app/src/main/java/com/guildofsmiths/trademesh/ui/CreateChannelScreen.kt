@@ -36,10 +36,6 @@ import com.guildofsmiths.trademesh.data.ChannelVisibility
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
 import com.guildofsmiths.trademesh.service.GatewayClient
-import com.guildofsmiths.trademesh.service.SupabaseChat
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 // Main thread handler for UI callbacks
 private val mainHandler = Handler(Looper.getMainLooper())
@@ -254,68 +250,33 @@ fun CreateChannelScreen(
                                 else -> {
                                     errorMessage = "Creating channel..."
 
-                                    // Create in Supabase for global availability
-                                    val persistenceStr = if (keepHistory) "persistent" else "ephemeral"
+                                    // Create on the backend relay for global availability
                                     val persistenceEnum = if (keepHistory) ChannelPersistence.PERSISTENT else ChannelPersistence.EPHEMERAL
-                                    CoroutineScope(Dispatchers.IO).launch {
-                                        // For now, create as public in Supabase (visibility is enforced locally)
-                                        SupabaseChat.createChannel(name, channelType.name.lowercase(), creatorId, persistenceStr) { supabaseChannel, supabaseError ->
-                                            // Always run UI updates on main thread
-                                            mainHandler.post {
-                                                if (supabaseError != null) {
-                                                    Log.e("CreateChannel", "Supabase creation failed", supabaseError)
-                                                    
-                                                    // Fallback: try backend
-                                                    GatewayClient.createChannel(name, channelType.name.lowercase()) { backendChannel, backendError ->
-                                                        mainHandler.post {
-                                                            if (backendError != null) {
-                                                                Log.e("CreateChannel", "Backend creation also failed", backendError)
-                                                                // Final fallback: create locally only
-                                                                errorMessage = "Offline - created locally only"
-                                                                createChannelLocally(name, channelType, channelVisibility, requiresApproval, persistenceEnum, beaconId, creatorId, onChannelCreated)
-                                                            } else if (backendChannel != null) {
-                                                                val backendChannelId = backendChannel.getString("id")
-                                                                val channel = Channel(
-                                                                    id = backendChannelId,
-                                                                    beaconId = beaconId,
-                                                                    name = name,
-                                                                    type = channelType,
-                                                                    visibility = channelVisibility,
-                                                                    requiresApproval = requiresApproval,
-                                                                    creatorId = creatorId,
-                                                                    persistence = persistenceEnum
-                                                                )
-                                                                BeaconRepository.addChannel(beaconId, channel)
-                                                                BoundaryEngine.joinChannel(backendChannelId)
-                                                                BoundaryEngine.broadcastChannelInvite(backendChannelId, name)
-                                                                errorMessage = null
-                                                                onChannelCreated(channel)
-                                                            }
-                                                        }
-                                                    }
-                                                } else if (supabaseChannel != null) {
-                                                    Log.i("CreateChannel", "✅ Channel created in Supabase: #${supabaseChannel.name} (${supabaseChannel.id})")
-
-                                                    // Create locally with the Supabase UUID
-                                                    val channel = Channel(
-                                                        id = supabaseChannel.id,
-                                                        beaconId = beaconId,
-                                                        name = supabaseChannel.name,
-                                                        type = channelType,
-                                                        visibility = channelVisibility,
-                                                        requiresApproval = requiresApproval,
-                                                        creatorId = creatorId,
-                                                        persistence = persistenceEnum
-                                                    )
-                                                    BeaconRepository.addChannel(beaconId, channel)
-                                                    BoundaryEngine.joinChannel(supabaseChannel.id)
-
-                                                    // Broadcast invite to nearby peers via mesh
-                                                    BoundaryEngine.broadcastChannelInvite(supabaseChannel.id, supabaseChannel.name)
-
-                                                    errorMessage = null
-                                                    onChannelCreated(channel)
-                                                }
+                                    GatewayClient.createChannel(name, channelType.name.lowercase()) { backendChannel, backendError ->
+                                        // Always run UI updates on main thread
+                                        mainHandler.post {
+                                            if (backendError != null) {
+                                                Log.e("CreateChannel", "Backend creation failed", backendError)
+                                                // Fallback: create locally only
+                                                errorMessage = "Offline - created locally only"
+                                                createChannelLocally(name, channelType, channelVisibility, requiresApproval, persistenceEnum, beaconId, creatorId, onChannelCreated)
+                                            } else if (backendChannel != null) {
+                                                val backendChannelId = backendChannel.getString("id")
+                                                val channel = Channel(
+                                                    id = backendChannelId,
+                                                    beaconId = beaconId,
+                                                    name = name,
+                                                    type = channelType,
+                                                    visibility = channelVisibility,
+                                                    requiresApproval = requiresApproval,
+                                                    creatorId = creatorId,
+                                                    persistence = persistenceEnum
+                                                )
+                                                BeaconRepository.addChannel(beaconId, channel)
+                                                BoundaryEngine.joinChannel(backendChannelId)
+                                                BoundaryEngine.broadcastChannelInvite(backendChannelId, name)
+                                                errorMessage = null
+                                                onChannelCreated(channel)
                                             }
                                         }
                                     }

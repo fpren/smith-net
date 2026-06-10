@@ -67,7 +67,6 @@ fun ChannelListScreen(
     onChannelClick: (Channel) -> Unit,
     onBackClick: () -> Unit,
     onCreateChannel: (() -> Unit)? = null,
-    onJoinDashboardChannels: (() -> Unit)? = null,  // Navigate to dashboard channels discovery
     modifier: Modifier = Modifier
 ) {
     val beacons by BeaconRepository.beacons.collectAsState()
@@ -172,18 +171,6 @@ fun ChannelListScreen(
                                if (archivedChannels.isNotEmpty()) " · ${archivedChannels.size} archived" else "",
                         style = ConsoleTheme.caption
                     )
-                }
-                
-                // Join dashboard channels button
-                if (onJoinDashboardChannels != null) {
-                    Text(
-                        text = "[⊕]",
-                        style = ConsoleTheme.title.copy(color = ConsoleTheme.accent),
-                        modifier = Modifier
-                            .clickable(onClick = onJoinDashboardChannels)
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
                 }
                 
                 // Toggle archived view
