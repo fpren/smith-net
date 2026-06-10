@@ -1,8 +1,14 @@
 import { pg, isPgEnabled } from '../db';
 import { enqueue } from '../queue/queue';
 import { tick } from '../workers/geocodeWorker';
+import { createUserAndProfile } from '../jobsService';
+import { UserRole } from '../auth';
 
 const describeDb = isPgEnabled() ? describe : describe.skip;
+
+// jobs.foreman_id references profiles(id), so the foreman must be created
+// via the transactional createUserAndProfile path (users + profiles atomically).
+let foremanId: string;
 
 async function cleanJobs() {
   if (!isPgEnabled()) return;
@@ -13,7 +19,6 @@ async function cleanJobs() {
 async function insertJob(): Promise<string> {
   const { v4: uuidv4 } = require('uuid');
   const id = uuidv4();
-  const foremanId = 'admin-001'; // bootstrapped by usersService
   await pg!.query(
     `INSERT INTO jobs (id, foreman_id, title, status, created_at, updated_at)
      VALUES ($1::uuid, $2, 'geocode-worker-test-' || $1::text, 'planned', NOW(), NOW())`,
@@ -24,6 +29,15 @@ async function insertJob(): Promise<string> {
 
 describeDb('geocodeWorker.tick', () => {
   let origFetch: typeof fetch;
+  beforeAll(async () => {
+    const user = await createUserAndProfile({
+      email: `foreman-geocode-${Date.now()}@example.com`,
+      password: 'password123',
+      displayName: 'Geocode Foreman',
+      role: UserRole.FOREMAN,
+    });
+    foremanId = user.id;
+  });
   beforeEach(async () => {
     await cleanJobs();
     origFetch = global.fetch;
