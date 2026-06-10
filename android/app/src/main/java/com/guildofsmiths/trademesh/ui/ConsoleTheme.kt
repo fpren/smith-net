@@ -68,10 +68,10 @@ object ConsoleTheme {
     val surface = Color(0xFFFAFAF8)
 
     val text = Color(0xFF2A2520)
-    val textSecondary = Color(0xFF5C5347)
-    val textMuted = Color(0xFF8C8478)
-    val textQuiet = Color(0xFF8C8478)
-    val textDim = Color(0xFFB0A898)
+    val textSecondary = Color(0xFF494137)
+    val textMuted = Color(0xFF6E675B)
+    val textQuiet = Color(0xFF6E675B)
+    val textDim = Color(0xFF948C7C)
     val placeholder = Color(0xFFB0A898)
 
     val accent = Color(0xFF9A6F2E)            // Gold
@@ -114,7 +114,7 @@ object ConsoleTheme {
 
     val title = TextStyle(
         fontFamily = syne,
-        fontSize = 20.sp,
+        fontSize = 22.sp,
         fontWeight = FontWeight.Bold,
         color = text,
         letterSpacing = 0.3.sp
@@ -122,44 +122,44 @@ object ConsoleTheme {
 
     val header = TextStyle(
         fontFamily = syne,
-        fontSize = 16.sp,
-        fontWeight = FontWeight.SemiBold,
+        fontSize = 18.sp,
+        fontWeight = FontWeight.Bold,
         color = text,
         letterSpacing = 0.2.sp
     )
 
     val body = TextStyle(
         fontFamily = plexSans,
-        fontSize = 15.sp,
-        fontWeight = FontWeight.Normal,
+        fontSize = 16.sp,
+        fontWeight = FontWeight.Medium,
         color = text
     )
 
     val bodyBold = TextStyle(
         fontFamily = plexSans,
-        fontSize = 15.sp,
+        fontSize = 16.sp,
         fontWeight = FontWeight.SemiBold,
         color = text
     )
 
     val bodySmall = TextStyle(
         fontFamily = plexSans,
-        fontSize = 13.sp,
-        fontWeight = FontWeight.Normal,
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Medium,
         color = textSecondary
     )
 
     val caption = TextStyle(
         fontFamily = plexMono,
-        fontSize = 11.sp,
-        fontWeight = FontWeight.Normal,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Medium,
         color = textMuted
     )
 
     val captionBold = TextStyle(
         fontFamily = plexMono,
-        fontSize = 11.sp,
-        fontWeight = FontWeight.Medium,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.SemiBold,
         color = textMuted
     )
 
