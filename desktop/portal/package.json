@@ -1,7 +1,7 @@
 {
   "name": "smithnet-portal",
   "version": "1.0.0",
-  "description": "Smith Net Desktop Portal - Global Chat via Supabase",
+  "description": "Smith Net Desktop Portal",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -10,9 +10,6 @@
     "test:run": "vitest run"
   },
   "dependencies": {
-    "@supabase/auth-ui-react": "^0.4.7",
-    "@supabase/auth-ui-shared": "^0.1.8",
-    "@supabase/supabase-js": "^2.39.0",
     "clsx": "^2.1.1",
     "idb": "^8.0.3",
     "maplibre-gl": "^4.7.1",

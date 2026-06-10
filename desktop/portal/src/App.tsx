@@ -1,7 +1,4 @@
 import { Routes, Route, Outlet, Navigate } from 'react-router-dom';
-import Auth from './Auth';
-import AuthCallback from './AuthCallback';
-import Portal from './Portal';
 import { LoginForm } from './console/auth/LoginForm';
 import { RegisterForm } from './console/auth/RegisterForm';
 import { RequireAuth } from './console/auth/RequireAuth';
@@ -26,15 +23,12 @@ import { TimeRoute } from './console/routes/TimeRoute';
 
 /**
  * Guild of Smiths Web Portal
- * Routes between authentication, the chat portal, the dashboard, and the
- * operator console (foundation only — feature routes added in later plans).
+ * Routes between authentication and the operator console.
  */
 export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/console" replace />} />
-      <Route path="/auth/callback" element={<AuthCallback onAuthSuccess={() => {}} />} />
-      <Route path="/portal" element={<Portal />} />
       <Route path="/surface-lab" element={<SurfaceLabRoute />} />
       <Route path="/home-preview" element={<SurfaceHomePreviewRoute />} />
 

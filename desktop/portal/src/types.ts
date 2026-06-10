@@ -4,9 +4,6 @@
 
 export interface Channel {
   id: string;
-  // Backend (migration 015) makes this NOT NULL; kept optional in the portal
-  // type so legacy supabase-derived Channel constructions in supabaseClient.ts
-  // still compile without forcing a cross-cutting refactor.
   organizationId?: string;
   name: string;
   type: 'broadcast' | 'group' | 'dm';
