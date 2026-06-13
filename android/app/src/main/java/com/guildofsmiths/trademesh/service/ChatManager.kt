@@ -53,7 +53,10 @@ object ChatManager {
         Log.i(TAG, "Rotating backend URL → $httpUrl")
     }
     
-    private val httpClient = OkHttpClient()
+    // Shared authenticated client (adds Authorization: Bearer <token>). The bare
+    // OkHttpClient sent no token, so JWT-guarded routes like /api/messages/inject
+    // returned 401 on a real device.
+    private val httpClient = HttpClientFactory.client
     private val wsClient = OkHttpClient.Builder()
         .readTimeout(0, TimeUnit.MILLISECONDS)
         .build()
@@ -124,30 +127,28 @@ object ChatManager {
             Log.e(TAG, "❌ No user ID - cannot connect")
             return
         }
-        val userName = UserPreferences.getUserName() ?: "Unknown"
-        
+        // The backend (wsAuth) authenticates the JWT on the upgrade request, the
+        // same way the browser rides its cookie. Native clients send the access
+        // token as a Bearer header — without it the upgrade is denied (401).
+        val token = AuthService.getAccessToken()
+        if (token.isNullOrBlank()) {
+            Log.e(TAG, "❌ No access token - cannot connect")
+            return
+        }
+
         Log.i(TAG, "🌐 Connecting to online chat: $wsUrl")
-        
+
         val request = Request.Builder()
             .url(wsUrl)
+            .addHeader("Authorization", "Bearer $token")
             .build()
-        
+
         webSocket = wsClient.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
+                // Server validated the JWT on the upgrade and sends `auth_ok`
+                // proactively, so no in-band auth message is needed here.
                 Log.d(TAG, "✅ WebSocket connected")
                 isConnected = true
-                
-                // Authenticate as regular client (NOT a relay)
-                val authPayload = JSONObject().apply {
-                    put("type", "auth")
-                    put("payload", JSONObject().apply {
-                        put("userId", userId)
-                        put("userName", userName)
-                        put("isRelay", false) // Regular online client, not gateway
-                    })
-                    put("timestamp", System.currentTimeMillis())
-                }
-                webSocket.send(authPayload.toString())
             }
             
             override fun onMessage(webSocket: WebSocket, text: String) {
@@ -196,6 +197,15 @@ object ChatManager {
                     Log.d(TAG, "✅ Authenticated with backend")
                     isAuthenticated = true
                     _connectionMode.value = ConnectionMode.ONLINE
+                    // auth_ok carries the caller's full channel list (server-side
+                    // listForUser, which includes cross-org DMs). Upsert them so
+                    // the Comm screen is correct the moment the WS authenticates,
+                    // independent of the REST sync.
+                    payload?.optJSONArray("channels")?.let { arr ->
+                        for (i in 0 until arr.length()) {
+                            arr.optJSONObject(i)?.let { handleChannelUpsert(it) }
+                        }
+                    }
                     // Pull anything missed while we were disconnected (relay cold start,
                     // or app was force-stopped while peers kept messaging online).
                     com.guildofsmiths.trademesh.engine.BoundaryEngine.reconcileOnAuth()
@@ -215,7 +225,14 @@ object ChatManager {
                     // Incoming message from another user
                     payload?.let { handleIncomingMessage(it) }
                 }
-                
+
+                "channel_created", "channel_updated" -> {
+                    // A channel we're a member of was created/updated server-side
+                    // (e.g. a cross-org DM someone opened with us). Add it locally
+                    // so it shows in the Comm list without waiting for a resync.
+                    payload?.let { handleChannelUpsert(it) }
+                }
+
                 "channel_cleared" -> {
                     val channelId = payload?.optString("channelId")
                     if (channelId != null) {
@@ -267,7 +284,43 @@ object ChatManager {
             Log.e(TAG, "Error parsing message: ${e.message}")
         }
     }
-    
+
+    /**
+     * Add (or refresh) a channel pushed from the backend via a
+     * channel_created / channel_updated event, then join it for routing.
+     * Mirrors GatewayClient.handleChannelCreated for the online (non-relay) path.
+     */
+    private fun handleChannelUpsert(payload: JSONObject) {
+        try {
+            val channelId = payload.getString("id")
+            val channelName = payload.getString("name")
+            val channelType = payload.getString("type")
+            Log.i(TAG, "📢 Channel upserted: #$channelName ($channelId)")
+            handler.post {
+                if (com.guildofsmiths.trademesh.data.BeaconRepository.getChannel("default", channelId) == null) {
+                    com.guildofsmiths.trademesh.data.BeaconRepository.addChannel(
+                        "default",
+                        com.guildofsmiths.trademesh.data.Channel(
+                            id = channelId,
+                            beaconId = "default",
+                            name = channelName,
+                            type = when (channelType) {
+                                "broadcast" -> com.guildofsmiths.trademesh.data.ChannelType.BROADCAST
+                                "group" -> com.guildofsmiths.trademesh.data.ChannelType.GROUP
+                                "dm" -> com.guildofsmiths.trademesh.data.ChannelType.DM
+                                else -> com.guildofsmiths.trademesh.data.ChannelType.GROUP
+                            }
+                        )
+                    )
+                    Log.i(TAG, "✅ Added backend channel locally: #$channelName ($channelId)")
+                }
+                com.guildofsmiths.trademesh.engine.BoundaryEngine.joinChannel(channelId)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling channel upsert", e)
+        }
+    }
+
     /**
      * Opportunistically upgrade this WS client to a mesh relay once the
      * MeshService is up and BLE advertising is available. Server then
@@ -333,14 +386,10 @@ object ChatManager {
             return
         }
         
-        // Normalize channelId - backend uses UUID, we use "general" locally
-        // For now, treat any UUID channel as "general" since that's our main channel
-        var channelId = payload.getString("channelId")
-        if (channelId.contains("-")) {
-            // It's a UUID, normalize to "general"
-            channelId = "general"
-            Log.d(TAG, "Normalized channel UUID to 'general'")
-        }
+        // Keep the real channelId. We now sync real backend channels (DMs,
+        // groups) by their UUID, so the old "normalize any UUID to general"
+        // hack mis-routed every incoming DM/group message into #general.
+        val channelId = payload.getString("channelId")
         
         val message = Message(
             id = payload.getString("id"),
