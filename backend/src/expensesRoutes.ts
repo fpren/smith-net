@@ -11,9 +11,13 @@ import { requestLogger } from './log';
 
 export const expensesRouter = Router();
 
-expensesRouter.use(authenticateToken, requireConsoleTier);
+// Per-route auth + tier gate. NOT a router-level `.use`: this router is mounted
+// at the broad '/api' path, and a router-level requireConsoleTier there 403s
+// unrelated /api/* requests (e.g. /api/shifts/* for non-foreman) before they ever
+// reach their own router. Gating each route keeps the leak closed.
+const consoleGate = [authenticateToken, requireConsoleTier];
 
-expensesRouter.post('/expenses', idempotency(), validateBody(CreateExpenseBody),
+expensesRouter.post('/expenses', consoleGate, idempotency(), validateBody(CreateExpenseBody),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const body = req.body as CreateExpenseBody;
@@ -30,7 +34,7 @@ expensesRouter.post('/expenses', idempotency(), validateBody(CreateExpenseBody),
     }
   });
 
-expensesRouter.patch('/expenses/:id', requireExpenseOwner, validateBody(UpdateExpenseBody),
+expensesRouter.patch('/expenses/:id', consoleGate, requireExpenseOwner, validateBody(UpdateExpenseBody),
   async (req: ExpenseOwnerRequest, res: Response) => {
     try {
       const body = req.body as UpdateExpenseBody;
@@ -43,7 +47,7 @@ expensesRouter.patch('/expenses/:id', requireExpenseOwner, validateBody(UpdateEx
     }
   });
 
-expensesRouter.delete('/expenses/:id', requireExpenseOwner,
+expensesRouter.delete('/expenses/:id', consoleGate, requireExpenseOwner,
   async (req: ExpenseOwnerRequest, res: Response) => {
     try {
       await expensesService.hardDelete(req.expense!.id, req.user!.id);

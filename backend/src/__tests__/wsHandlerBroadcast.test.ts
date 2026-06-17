@@ -115,6 +115,38 @@ describe('wsHandler.shouldBroadcastTo', () => {
     });
   });
 
+  describe('cross-org DM exception', () => {
+    const dm = {
+      id: 'dm1',
+      type: 'dm',
+      organizationId: 'org-A',
+      memberIds: ['u-A', 'u-B'],
+      creatorId: 'u-A',
+      allowedUsers: [],
+      visibility: 'private',
+    };
+
+    it('channel_created for a dm reaches both members despite different orgs', () => {
+      expect(wsHandler.shouldBroadcastTo('channel_created', dm, client('u-A', [], 'org-A'))).toBe(true);
+      expect(wsHandler.shouldBroadcastTo('channel_created', dm, client('u-B', [], 'org-B'))).toBe(true);
+    });
+
+    it('a dm never reaches a non-member — same org, different org, or even its nominal creator-impostor', () => {
+      expect(wsHandler.shouldBroadcastTo('channel_created', dm, client('u-stranger', [], 'org-A'))).toBe(false);
+      expect(wsHandler.shouldBroadcastTo('channel_created', dm, client('u-stranger', [], 'org-B'))).toBe(false);
+    });
+
+    it('the dm path is membership-only: allowedUsers does not grant access', () => {
+      const dmWithAllowed = { ...dm, allowedUsers: ['u-allowed'] };
+      expect(wsHandler.shouldBroadcastTo('channel_created', dmWithAllowed, client('u-allowed', [], 'org-A'))).toBe(false);
+    });
+
+    it('non-dm channels keep the org fence (exception does not widen)', () => {
+      const grp = { ...dm, type: 'group' };
+      expect(wsHandler.shouldBroadcastTo('channel_created', grp, client('u-B', [], 'org-B'))).toBe(false);
+    });
+  });
+
   describe('message_deleted', () => {
     it('broadcasts to every client — payload is only { messageId } and receivers no-op without the message', () => {
       expect(wsHandler.shouldBroadcastTo('message_deleted', { messageId: 'm1' }, client('any'))).toBe(true);

@@ -56,8 +56,13 @@ interface JwtAccessPayload {
 }
 
 async function authorize(req: http.IncomingMessage): Promise<WsIdentity | null> {
+  // Browser clients ride the httpOnly cookie; native clients (Android) send a
+  // Bearer token in the Authorization header on the upgrade. Accept either,
+  // mirroring the REST auth path in auth.ts.
   const cookies = parseCookieHeader(req.headers.cookie);
-  const token = cookies[ACCESS_COOKIE_NAME];
+  const authHeader = req.headers.authorization;
+  const bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  const token = cookies[ACCESS_COOKIE_NAME] || bearer;
   if (!token) return null;
 
   let payload: JwtAccessPayload;

@@ -35,6 +35,7 @@ import { setupWsServer } from './wsAuth';
 import { channelRegistry } from './channelRegistry';
 import { gatewayManager } from './gatewayManager';
 import { mediaRouter, IMAGES_DIR, VOICE_DIR, FILES_DIR, cleanupOldMedia } from './mediaHandler';
+import { avatarRouter } from './avatarRoutes';
 import { auditLog, AuditAction } from './auditLog';
 import { llm } from './llmInterface';
 import { reconcile, acceptClientMessages } from './reconciliationEngine';
@@ -178,6 +179,10 @@ app.use('/p', proposalPublicRouter);
 
 // Mount Media API
 app.use('/api/media', mediaRouter);
+
+// Profile avatar upload (auth-gated; distinct from /api/media which is
+// unauthenticated + message-keyed)
+app.use('/api/profile', avatarRouter);
 
 // Serve static media files
 app.use('/media/images', express.static(IMAGES_DIR));

@@ -437,6 +437,13 @@ class WSHandler {
         allowedUsers?: string[];
       } | null;
       if (!ch) return false;
+      // DM exception: a direct message crosses the org fence for its members
+      // only (mirrors channelRegistry.listForUser). Strictly type === 'dm' +
+      // explicit membership — never creator/allowedUsers shortcuts, so a
+      // non-member in either org still gets nothing.
+      if (ch.type === 'dm') {
+        return Array.isArray(ch.memberIds) && ch.memberIds.includes(client.userId);
+      }
       // Tenant fence — even broadcast channels stay scoped to one org.
       // Defense-in-depth on top of the REST list filter: if memberIds is
       // stale or includes a cross-org user, the org gate still drops the

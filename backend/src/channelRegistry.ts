@@ -147,6 +147,11 @@ class ChannelRegistry {
    */
   listForUser(userId: string, organizationId: string): Channel[] {
     return this.list().filter((c) => {
+      // DM exception: a direct message is visible to its two members even when
+      // they belong to different orgs (a network of solos). This is the ONLY
+      // cross-org path; it is scoped strictly to type === 'dm' + membership, so
+      // group/broadcast channels stay fully org-fenced.
+      if (c.type === 'dm') return c.memberIds.includes(userId);
       if (c.organizationId !== organizationId) return false;
       return this.canUserAccess(c, userId) || this.canUserSeeInList(c, userId);
     });

@@ -21,6 +21,7 @@ function mapProfile(r: any) {
     displayName: r.display_name,
     role: r.role,
     publicId: r.public_id ?? null,
+    avatarUrl: r.avatar_url ?? null,
     organizationId: r.organization_id ?? null,
   };
 }
@@ -48,6 +49,25 @@ profilesRouter.get('/', validateQuery(ProfileQuery), async (req: AuthenticatedRe
   res.json({ profiles: matches });
 });
 
+// The caller's own profile. toPublicUser() (auth.ts) intentionally does not
+// carry public_id / avatar_url — widening it touches every auth flow — so the
+// comm surface fetches them here to render the user's own id card + photo.
+profilesRouter.get('/me', async (req: AuthenticatedRequest, res: Response) => {
+  const selfId = req.user!.id;
+  if (!isPgEnabled() || !pg) return res.json({ profile: null });
+  try {
+    const { rows } = await pg.query(
+      `SELECT id, email, display_name, role, public_id, avatar_url, organization_id
+         FROM profiles WHERE id = $1 LIMIT 1`,
+      [selfId]
+    );
+    res.json({ profile: rows[0] ? mapProfile(rows[0]) : null });
+  } catch (e: any) {
+    console.error('[Profiles] me error:', e.message);
+    res.status(500).json({ error: 'Failed to load profile' });
+  }
+});
+
 // Lookup by shared 8-char public handle. Intentionally cross-org: a public_id is
 // how you add someone you don't already share an org with.
 profilesRouter.get('/lookup', async (req: AuthenticatedRequest, res: Response) => {
@@ -58,7 +78,7 @@ profilesRouter.get('/lookup', async (req: AuthenticatedRequest, res: Response) =
   if (!isPgEnabled() || !pg) return res.json({ profile: null });
   try {
     const { rows } = await pg.query(
-      `SELECT id, email, display_name, role, public_id, organization_id
+      `SELECT id, email, display_name, role, public_id, avatar_url, organization_id
          FROM profiles WHERE public_id = $1 LIMIT 1`,
       [publicId]
     );
@@ -76,7 +96,7 @@ profilesRouter.get('/teammates', async (req: AuthenticatedRequest, res: Response
   if (!isPgEnabled() || !pg) return res.json({ profiles: [] });
   try {
     const { rows } = await pg.query(
-      `SELECT id, email, display_name, role, public_id, organization_id
+      `SELECT id, email, display_name, role, public_id, avatar_url, organization_id
          FROM profiles
         WHERE organization_id = $1 AND id <> $2
         ORDER BY display_name
@@ -99,7 +119,7 @@ profilesRouter.get('/crew', requireConsoleTier, async (req: AuthenticatedRequest
   try {
     const { rows } = await pg.query(
       `SELECT DISTINCT
-         p.id, p.email, p.display_name, p.role,
+         p.id, p.email, p.display_name, p.role, p.avatar_url,
          ij.id AS active_job_id, ij.title AS active_job_title, ij.status AS active_job_status
        FROM profiles p
        INNER JOIN job_crew jc ON jc.profile_id = p.id
@@ -121,6 +141,7 @@ profilesRouter.get('/crew', requireConsoleTier, async (req: AuthenticatedRequest
         email: r.email,
         displayName: r.display_name,
         role: r.role,
+        avatarUrl: r.avatar_url ?? null,
         activeJob: r.active_job_id
           ? { id: r.active_job_id, title: r.active_job_title, status: r.active_job_status }
           : null,

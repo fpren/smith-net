@@ -441,13 +441,21 @@ const ORG_ADMIN_ROLES: ReadonlySet<UserRole> = new Set<UserRole>([
   UserRole.ADMIN,
 ]);
 
+// Issuing an invite is also open to SOLO: a solo invites others into their
+// org-of-one, forming a team of peers. (Reading the org member list and other
+// org-admin actions below stay foreman+.)
+const INVITE_ROLES: ReadonlySet<UserRole> = new Set<UserRole>([
+  ...ORG_ADMIN_ROLES,
+  UserRole.SOLO,
+]);
+
 authRouter.post(
   '/org/invites',
   authenticateToken,
   async (req: AuthenticatedRequest, res: Response) => {
     try {
-      if (!ORG_ADMIN_ROLES.has(req.user!.role as UserRole)) {
-        return res.status(403).json({ error: 'foreman role required' });
+      if (!INVITE_ROLES.has(req.user!.role as UserRole)) {
+        return res.status(403).json({ error: 'cannot issue invites' });
       }
       const organizationId = req.user!.organizationId;
       if (!organizationId) {
