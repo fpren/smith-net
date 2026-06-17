@@ -693,6 +693,9 @@ class MainActivity : ComponentActivity() {
                                 onPeersClick = {
                                     navController.navigate(NavRoutes.PEERS)
                                 },
+                                onIncomingClick = {
+                                    navController.navigate(NavRoutes.INCOMING)
+                                },
                                 onSmithAIClick = {
                                     val gate = com.guildofsmiths.trademesh.ai.SmithAITierGate.requireAdvanced(this@MainActivity)
                                     if (gate is com.guildofsmiths.trademesh.ai.SmithAITierGate.GateResult.Blocked) {
@@ -720,6 +723,42 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
+                        // Incoming & Requests front (stranger cross-org DMs)
+                        composable(NavRoutes.INCOMING) {
+                            com.guildofsmiths.trademesh.ui.comm.IncomingScreen(
+                                onOpen = { beaconId, channelId ->
+                                    navController.navigate(NavRoutes.conversation(beaconId, channelId))
+                                },
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+
+                        // Scan a peer's SmithNet id QR -> open a DM
+                        composable(NavRoutes.SCAN_ID) {
+                            com.guildofsmiths.trademesh.ui.comm.ScanIdScreen(
+                                onId = { id ->
+                                    lifecycleScope.launch {
+                                        val match = com.guildofsmiths.trademesh.data.ProfileDirectoryRepository
+                                            .search(id).firstOrNull()
+                                        if (match != null) {
+                                            val myUserId = UserPreferences.getUserId()
+                                            val dm = BeaconRepository.getOrCreateDM("default", myUserId, match.id, match.display_name)
+                                            BoundaryEngine.joinChannel(dm.id)
+                                            navController.navigate(
+                                                NavRoutes.conversationDM("default", dm.id, match.id, match.display_name)
+                                            ) { popUpTo(NavRoutes.SCAN_ID) { inclusive = true } }
+                                        } else {
+                                            android.widget.Toast.makeText(
+                                                this@MainActivity, "No user with that id", android.widget.Toast.LENGTH_SHORT
+                                            ).show()
+                                            navController.popBackStack()
+                                        }
+                                    }
+                                },
+                                onCancel = { navController.popBackStack() }
+                            )
+                        }
+
                         // New conversation screen (contact picker)
                         composable(NavRoutes.NEW_CONVERSATION) {
                             val jobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel =
@@ -731,7 +770,8 @@ class MainActivity : ComponentActivity() {
                                     navController.popBackStack()
                                     navController.navigate(NavRoutes.conversationDM(beaconId, channelId, peerId, peerName))
                                 },
-                                onBackClick = { navController.popBackStack() }
+                                onBackClick = { navController.popBackStack() },
+                                onScanClick = { navController.navigate(NavRoutes.SCAN_ID) }
                             )
                         }
 

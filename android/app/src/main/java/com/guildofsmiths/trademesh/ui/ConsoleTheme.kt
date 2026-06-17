@@ -60,6 +60,21 @@ object ConsoleTheme {
     // Backward-compatibility alias
     val mono = plexMono
 
+    // Comm-surface fonts (sanctioned exception, 2026-06-15): the redesigned
+    // comm "softphone" pairs a proportional sans (Public Sans, names +
+    // conversation) with a technical mono (JetBrains Mono, ids + dialpad +
+    // timestamps). Additive ONLY — applied via the comm* TextStyles below and
+    // referenced solely by comm screens, so the rest of the app keeps Plex/Syne.
+    val publicSans = FontFamily(
+        Font(R.font.public_sans_regular, FontWeight.Normal),
+        Font(R.font.public_sans_medium, FontWeight.Medium),
+        Font(R.font.public_sans_semibold, FontWeight.SemiBold),
+    )
+    val jetBrainsMono = FontFamily(
+        Font(R.font.jetbrains_mono_regular, FontWeight.Normal),
+        Font(R.font.jetbrains_mono_medium, FontWeight.Medium),
+    )
+
     // ═══════════════════════════════════════════════════════════════
     // COLORS — Warm parchment palette
     // ═══════════════════════════════════════════════════════════════
@@ -190,6 +205,47 @@ object ConsoleTheme {
         fontSize = 13.sp,
         fontWeight = FontWeight.SemiBold,
         color = accent
+    )
+
+    // ── Comm-surface typography (Public Sans + JetBrains Mono) ──────────
+    // Additive; used only by comm screens. Names + conversation in sans, the
+    // "machine" parts (ids, dialpad, timestamps) in mono.
+
+    val commName = TextStyle(
+        fontFamily = publicSans,
+        fontSize = 15.sp,
+        fontWeight = FontWeight.SemiBold,
+        color = text
+    )
+
+    val commBody = TextStyle(
+        fontFamily = publicSans,
+        fontSize = 15.sp,
+        fontWeight = FontWeight.Normal,
+        color = text
+    )
+
+    val commId = TextStyle(
+        fontFamily = jetBrainsMono,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Medium,
+        color = textDim,
+        letterSpacing = 1.sp
+    )
+
+    val commTimestamp = TextStyle(
+        fontFamily = jetBrainsMono,
+        fontSize = 10.sp,
+        fontWeight = FontWeight.Normal,
+        color = textDim
+    )
+
+    val dialpad = TextStyle(
+        fontFamily = jetBrainsMono,
+        fontSize = 16.sp,
+        fontWeight = FontWeight.Medium,
+        color = text,
+        letterSpacing = 4.sp
     )
 }
 

@@ -501,6 +501,7 @@ private fun PrivacySection() {
     var level by remember(user?.discoverability) {
         mutableStateOf(user?.discoverability ?: "team")
     }
+    var showQr by remember { mutableStateOf(false) }
 
     Text(text = "PRIVACY", style = ConsoleTheme.captionBold)
     Spacer(modifier = Modifier.height(10.dp))
@@ -532,6 +533,19 @@ private fun PrivacySection() {
                     }
                     .padding(8.dp)
             )
+            Text(
+                text = if (showQr) "[Hide]" else "[QR]",
+                style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                modifier = Modifier
+                    .clickable { showQr = !showQr }
+                    .padding(8.dp)
+            )
+        }
+    }
+    if (showQr && publicId != null) {
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+            com.guildofsmiths.trademesh.ui.comm.MyIdQrCard(publicId = publicId)
         }
     }
 

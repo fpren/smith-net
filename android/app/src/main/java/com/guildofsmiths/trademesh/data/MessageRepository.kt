@@ -177,7 +177,8 @@ object MessageRepository {
             channelId = message.channelId,
             preview = message.content,
             time = message.timestamp,
-            incrementUnread = message.isMeshOrigin
+            incrementUnread = message.isMeshOrigin,
+            outgoing = message.senderId == UserPreferences.getUserId()
         )
         
         // If mesh origin, queue for later sync

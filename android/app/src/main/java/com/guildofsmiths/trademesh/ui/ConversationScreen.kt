@@ -53,6 +53,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.guildofsmiths.trademesh.service.ChatManager
 import com.guildofsmiths.trademesh.service.ConnectionMode
 import com.guildofsmiths.trademesh.data.Channel
@@ -171,18 +172,27 @@ fun ConversationScreen(
                     text = "←",
                     style = ConsoleTheme.title.copy(color = ConsoleTheme.text)
                 )
-                Spacer(modifier = Modifier.width(14.dp))
+                Spacer(modifier = Modifier.width(12.dp))
             }
-            
+
+            // Screen-pop context avatar (DM peer / channel glyph)
+            if (isDmChannel && initialDmPeer != null) {
+                com.guildofsmiths.trademesh.ui.components.SmithAvatar(
+                    name = initialDmPeer.userName,
+                    size = 36,
+                    statusColor = if (isOnline) ConsoleTheme.success else ConsoleTheme.textDim
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+            }
+
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    // For DM channels, show "DM · peername", otherwise show channel name
                     text = if (isDmChannel && initialDmPeer != null) {
-                        "DM · ${initialDmPeer.userName}"
+                        initialDmPeer.userName
                     } else {
                         channel?.name?.uppercase() ?: "GENERAL"
                     },
-                    style = ConsoleTheme.title
+                    style = if (isDmChannel) ConsoleTheme.commName.copy(fontSize = 17.sp) else ConsoleTheme.title
                 )
                 if (beaconName != null && !isDmChannel) {
                     Text(
@@ -191,8 +201,8 @@ fun ConversationScreen(
                     )
                 } else if (isDmChannel) {
                     Text(
-                        text = "private conversation",
-                        style = ConsoleTheme.caption
+                        text = if (isOnline) "[*] online · direct message" else "direct message",
+                        style = ConsoleTheme.commId
                     )
                 }
             }

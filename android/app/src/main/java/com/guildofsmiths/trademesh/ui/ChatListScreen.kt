@@ -84,6 +84,7 @@ fun ChatListScreen(
     onBackClick: () -> Unit,
     onPeersClick: () -> Unit = {},
     onSmithAIClick: () -> Unit = {},
+    onIncomingClick: () -> Unit = {},
     typingState: Map<String, Boolean> = emptyMap(),
     modifier: Modifier = Modifier
 ) {
@@ -131,6 +132,12 @@ fun ChatListScreen(
     val dispatchUnread = taggedChannels.filter { it.third == ContactRole.DISPATCH }.sumOf { it.second.unreadCount }
     val totalUnread = taggedChannels.sumOf { it.second.unreadCount }
 
+    // Incoming = unread DMs from people not in your network (stranger cross-org
+    // DMs auto-open; this surfaces them). Drives the header [Inbox N] entry.
+    val incomingCount = taggedChannels.count { (_, ch, role) ->
+        ch.type == ChannelType.DM && role != ContactRole.CREW && ch.unreadCount > 0
+    }
+
     // Mesh peer count
     val meshPeerCount = remember(isMeshConnected) {
         if (isMeshConnected) PeerRepository.getActivePeers().size else 0
@@ -166,6 +173,8 @@ fun ChatListScreen(
                     else -> "offline"
                 },
                 onBackClick = onBackClick,
+                actionText = if (incomingCount > 0) "[Inbox $incomingCount]" else "[Inbox]",
+                onActionClick = onIncomingClick,
                 modifier = Modifier.background(ConsoleTheme.surface)
             )
 
@@ -662,8 +671,12 @@ private fun ChatRow(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Avatar with status dot
-        ChatAvatar(channel = channel, isOnline = isMeshConnected)
+        // Avatar with status dot (photo when available, initials fallback)
+        com.guildofsmiths.trademesh.ui.components.SmithAvatar(
+            name = chatDisplayName(channel),
+            size = 44,
+            statusColor = if (isMeshConnected) ConsoleTheme.success else ConsoleTheme.textDim
+        )
 
         Spacer(modifier = Modifier.width(12.dp))
 
@@ -683,12 +696,29 @@ private fun ChatRow(
                     maxLines = 1
                 )
             } else if (channel.lastMessagePreview != null) {
-                Text(
-                    text = channel.lastMessagePreview,
-                    style = ConsoleTheme.caption,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                val marker = when {
+                    channel.unreadCount > 0 && channel.lastMessageOutgoing != true -> "[x]"
+                    channel.lastMessageOutgoing == true -> "[>]"
+                    else -> "[<]"
+                }
+                val markerColor = when (marker) {
+                    "[x]" -> ConsoleTheme.error
+                    "[>]" -> ConsoleTheme.textDim
+                    else -> ConsoleTheme.textMuted
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = marker,
+                        style = ConsoleTheme.commTimestamp.copy(color = markerColor)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = channel.lastMessagePreview,
+                        style = ConsoleTheme.caption,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             } else {
                 Text(
                     text = "no messages yet",

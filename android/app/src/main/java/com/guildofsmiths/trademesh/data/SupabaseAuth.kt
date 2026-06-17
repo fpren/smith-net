@@ -336,6 +336,7 @@ data class ProfileRow(
     val trade: String? = null,
     val hourly_rate: Double? = null,
     val public_id: String? = null,
+    val avatar_url: String? = null,
     val discoverability: String = "team",
     val org_id: String? = null,
 )
