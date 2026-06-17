@@ -1,6 +1,6 @@
 // desktop/portal/src/console/stores/commStore.ts
 import { create } from 'zustand';
-import type { Channel, Message } from '../../types';
+import type { Channel, Message, Presence } from '../../types';
 
 const TYPING_TTL_MS = 5_000;
 
@@ -18,6 +18,12 @@ interface CommState {
   typingByChannel: Record<string, Record<string, TypingEntry>>;
   // messageId → set of userIds who have read it.
   readByMessage: Record<string, Set<string>>;
+  // userId → latest presence (online/away/offline). Fed by the WS presence_update.
+  presenceByUser: Record<string, Presence>;
+  // channelId → count of unread incoming messages (reset when selected).
+  unreadByChannel: Record<string, number>;
+  // channelId → most recent message (for the activity-feed preview + sort).
+  lastMessageByChannel: Record<string, Message>;
   isLoadingChannels: boolean;
   isLoadingMessages: boolean;
   isStaleChannels: boolean;
@@ -34,6 +40,8 @@ interface CommState {
   setTyping: (channelId: string, userId: string, userName: string, isTyping: boolean) => void;
   sweepTyping: () => void;
   markRead: (messageId: string, readBy: string) => void;
+  setPresence: (list: Presence[]) => void;
+  clearUnread: (channelId: string) => void;
   markLoadingChannels: (b: boolean) => void;
   markLoadingMessages: (b: boolean) => void;
   markStaleChannels: (b: boolean) => void;
@@ -47,25 +55,48 @@ export const useCommStore = create<CommState>((set) => ({
   messagesByChannel: {},
   typingByChannel: {},
   readByMessage: {},
+  presenceByUser: {},
+  unreadByChannel: {},
+  lastMessageByChannel: {},
   isLoadingChannels: false,
   isLoadingMessages: false,
   isStaleChannels: false,
   isStaleMessages: false,
 
   setChannels: (channels) => set({ channels, isStaleChannels: false }),
-  selectChannel: (selectedChannelId) => set({ selectedChannelId }),
-  setMessages: (channelId, msgs) =>
+  selectChannel: (selectedChannelId) =>
     set((s) => ({
-      messagesByChannel: { ...s.messagesByChannel, [channelId]: msgs },
-      isStaleMessages: false,
+      selectedChannelId,
+      // Opening a channel clears its unread count.
+      unreadByChannel: selectedChannelId
+        ? { ...s.unreadByChannel, [selectedChannelId]: 0 }
+        : s.unreadByChannel,
     })),
+  setMessages: (channelId, msgs) =>
+    set((s) => {
+      const last = msgs.length ? msgs[msgs.length - 1] : undefined;
+      return {
+        messagesByChannel: { ...s.messagesByChannel, [channelId]: msgs },
+        lastMessageByChannel: last
+          ? { ...s.lastMessageByChannel, [channelId]: last }
+          : s.lastMessageByChannel,
+        isStaleMessages: false,
+      };
+    }),
   appendMessage: (msg) =>
     set((s) => {
       const existing = s.messagesByChannel[msg.channelId] ?? [];
       if (existing.some((m) => m.id === msg.id)) return {};
       const next = [...existing, msg].sort((a, b) => a.timestamp - b.timestamp);
+      // Count as unread unless this channel is currently open.
+      const isOpen = s.selectedChannelId === msg.channelId;
+      const prevUnread = s.unreadByChannel[msg.channelId] ?? 0;
       return {
         messagesByChannel: { ...s.messagesByChannel, [msg.channelId]: next },
+        lastMessageByChannel: { ...s.lastMessageByChannel, [msg.channelId]: msg },
+        unreadByChannel: isOpen
+          ? s.unreadByChannel
+          : { ...s.unreadByChannel, [msg.channelId]: prevUnread + 1 },
       };
     }),
   addChannel: (channel) =>
@@ -137,6 +168,14 @@ export const useCommStore = create<CommState>((set) => ({
       updated.add(readBy);
       return { readByMessage: { ...s.readByMessage, [messageId]: updated } };
     }),
+  setPresence: (list) =>
+    set((s) => {
+      const next = { ...s.presenceByUser };
+      for (const p of list) next[p.userId] = p;
+      return { presenceByUser: next };
+    }),
+  clearUnread: (channelId) =>
+    set((s) => ({ unreadByChannel: { ...s.unreadByChannel, [channelId]: 0 } })),
   markLoadingChannels: (isLoadingChannels) => set({ isLoadingChannels }),
   markLoadingMessages: (isLoadingMessages) => set({ isLoadingMessages }),
   markStaleChannels: (isStaleChannels) => set({ isStaleChannels }),
@@ -148,6 +187,9 @@ export const useCommStore = create<CommState>((set) => ({
       messagesByChannel: {},
       typingByChannel: {},
       readByMessage: {},
+      presenceByUser: {},
+      unreadByChannel: {},
+      lastMessageByChannel: {},
       isLoadingChannels: false,
       isLoadingMessages: false,
       isStaleChannels: false,

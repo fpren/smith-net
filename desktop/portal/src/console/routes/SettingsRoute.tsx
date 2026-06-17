@@ -1,7 +1,10 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../auth/authStore';
 import { authClient } from '../auth/authClient';
+import { commClient } from '../api/commClient';
+import { useMyProfile, setMyProfile } from '../hooks/useMyProfile';
+import { MyIdCard } from '../components/comm/MyIdCard';
 import { Avatar } from '../components/ui/Avatar';
 import { Chip } from '../components/ui/Chip';
 import { Button } from '../components/ui/Button';
@@ -51,6 +54,9 @@ export function SettingsRoute() {
   const pushToast = useToastStore((s) => s.push);
   const [name, setName] = useState(user?.displayName ?? '');
   const [saving, setSaving] = useState(false);
+  const me = useMyProfile();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [switching, setSwitching] = useState(false);
   // Team
   const [invite, setInvite] = useState<{ code: string; expiresAt: string } | null>(null);
@@ -62,6 +68,19 @@ export function SettingsRoute() {
 
   const dirty = name.trim() !== '' && name.trim() !== user.displayName;
   const currentMode: 'solo' | 'foreman' = user.role === 'solo' ? 'solo' : 'foreman';
+
+  async function onPickAvatar(file: File | undefined) {
+    if (!file || uploadingAvatar) return;
+    setUploadingAvatar(true);
+    const r = await commClient.uploadAvatar(file);
+    setUploadingAvatar(false);
+    if (r.ok) {
+      if (me) setMyProfile({ ...me, avatarUrl: r.avatarUrl });
+      pushToast({ message: 'Photo updated', tone: 'info', duration: 2500 });
+    } else {
+      pushToast({ message: r.error || 'Upload failed', tone: 'error', duration: 3000 });
+    }
+  }
 
   async function saveName() {
     if (!dirty || saving) return;
@@ -134,7 +153,25 @@ export function SettingsRoute() {
       <SectionHeader>Profile</SectionHeader>
       <Row>
         <div className="flex items-center gap-4 mb-3">
-          <Avatar name={user.displayName} color={accentForId(user.id)} size={56} />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="relative rounded-full focus:outline-none focus:ring-2 focus:ring-console-accent"
+            aria-label="Change photo"
+            title="Change photo"
+          >
+            <Avatar name={user.displayName} color={accentForId(user.id)} size={56} photoUrl={me?.avatarUrl} />
+            <span className="absolute -bottom-1 -right-1 bg-console-accent text-white rounded-full w-5 h-5 grid place-items-center text-[10px] font-mono">
+              {uploadingAvatar ? '…' : '+'}
+            </span>
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => onPickAvatar(e.target.files?.[0])}
+          />
           <div className="flex flex-col gap-1.5">
             <span className="text-console-text text-base">{user.displayName}</span>
             <span>
@@ -143,8 +180,12 @@ export function SettingsRoute() {
           </div>
         </div>
         <p className="text-console-text-muted text-xs mb-3">
-          Avatar is generated from your name.
+          Tap your photo to upload one. Falls back to your initials.
         </p>
+        {/* SmithNet id + copy / share / QR (shared with the comm dial rail). */}
+        <div className="comm-surface mb-1">
+          <MyIdCard />
+        </div>
         <label className="block text-xs text-console-text-muted mb-1">Display name</label>
         <div className="flex items-center gap-2">
           <input

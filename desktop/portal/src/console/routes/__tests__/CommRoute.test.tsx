@@ -51,7 +51,7 @@ describe('CommRoute', () => {
   it('shows the "select a channel" prompt when none is selected', () => {
     useCommStore.getState().setChannels([makeChannel('ch-x', 'general')]);
     render(<MemoryRouter><CommRoute /></MemoryRouter>);
-    expect(screen.getByText(/select a channel to start/i)).toBeInTheDocument();
+    expect(screen.getByText(/dial an id to start one/i)).toBeInTheDocument();
   });
 
   it('renders channel rows from seeded state', () => {
@@ -80,7 +80,9 @@ describe('CommRoute', () => {
     fireEvent.click(screen.getByText('general'));
     expect(useCommStore.getState().selectedChannelId).toBe('ch-general');
     expect(await screen.findByText('Hello team')).toBeInTheDocument();
-    expect(screen.getByText('How are you')).toBeInTheDocument();
+    // The last message renders both in the thread bubble and as the activity-feed
+    // preview, so it legitimately appears more than once.
+    expect(screen.getAllByText('How are you').length).toBeGreaterThan(0);
   });
 
   it('shows empty-channel state when a channel has no messages', async () => {
@@ -115,7 +117,7 @@ describe('CommRoute', () => {
     useCommStore.getState().markRead('m-mine', 'u-other-1');
     useCommStore.getState().markRead('m-mine', 'u-other-2');
     render(<MemoryRouter><CommRoute /></MemoryRouter>);
-    expect(await screen.findByText(/seen by 2/i)).toBeInTheDocument();
+    expect(await screen.findByText(/seen 2/i)).toBeInTheDocument();
   });
 
   it('does NOT render the mobile [← back] row when no channel is selected', () => {

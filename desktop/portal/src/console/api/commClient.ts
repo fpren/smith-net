@@ -8,6 +8,17 @@
 
 import type { Channel, Message } from '../../types';
 
+// Directory/profile shape returned by backend/src/profilesRoutes.ts mapProfile().
+export interface Profile {
+  id: string;
+  email?: string;
+  displayName: string;
+  role?: string;
+  publicId?: string | null;
+  avatarUrl?: string | null;
+  organizationId?: string | null;
+}
+
 export type CommResult<T> =
   | ({ ok: true } & T)
   | { ok: false; status: number; error: string };
@@ -89,5 +100,55 @@ export const commClient = {
     const body = r.data as any;
     const { meshInjected: _m, relayCount: _r, ...rest } = body ?? {};
     return { ok: true, message: rest as Message };
+  },
+
+  // Start (or return existing) a direct message with the owner of a public id.
+  // Cross-org by design — this is how two solos reach each other. Backend:
+  // POST /api/dm {publicId} (channelsRoutes.ts).
+  createDm: async (publicId: string): Promise<CommResult<{ channel: Channel }>> => {
+    const r = await fetchJson('/api/dm', { method: 'POST', body: { publicId } });
+    if (!r.ok) return r;
+    const data = r.data as any;
+    const channel = (data && data.channel ? data.channel : data) as Channel;
+    return { ok: true, channel };
+  },
+
+  // The caller's own profile (public id + avatar) — not carried on the auth
+  // user object. Backend: GET /api/profiles/me.
+  getMe: async (): Promise<CommResult<{ profile: Profile | null }>> => {
+    const r = await fetchJson('/api/profiles/me');
+    if (!r.ok) return r;
+    return { ok: true, profile: (r.data as any).profile ?? null };
+  },
+
+  // Look up one profile by 8-char public id. Backend: GET /api/profiles/lookup.
+  lookupProfile: async (publicId: string): Promise<CommResult<{ profile: Profile | null }>> => {
+    const r = await fetchJson(`/api/profiles/lookup?publicId=${encodeURIComponent(publicId)}`);
+    if (!r.ok) return r;
+    return { ok: true, profile: (r.data as any).profile ?? null };
+  },
+
+  // Everyone in the caller's org (excl. self). Backend: GET /api/profiles/teammates.
+  listTeammates: async (): Promise<CommResult<{ profiles: Profile[] }>> => {
+    const r = await fetchJson('/api/profiles/teammates');
+    if (!r.ok) return r;
+    return { ok: true, profiles: (r.data as any).profiles ?? [] };
+  },
+
+  // Multipart avatar upload. Backend: POST /api/profile/avatar -> { avatarUrl }.
+  uploadAvatar: async (file: File): Promise<CommResult<{ avatarUrl: string }>> => {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch('/api/profile/avatar', {
+      method: 'POST',
+      credentials: 'include',
+      body: form,
+    });
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({ error: res.statusText }));
+      return { ok: false, status: res.status, error: errBody.error || 'Upload failed' };
+    }
+    const data = await res.json();
+    return { ok: true, avatarUrl: data.avatarUrl };
   },
 };
