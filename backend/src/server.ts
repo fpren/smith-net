@@ -10,6 +10,10 @@
  * - C-05: Data Retention Core
  */
 
+// Load .env into process.env before any other module reads it (e.g. db.ts
+// reads DATABASE_URL at import time). Must stay the first import. No-op in
+// production, where the platform injects real env vars.
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
