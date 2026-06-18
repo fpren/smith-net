@@ -41,6 +41,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.guildofsmiths.trademesh.ai.AIRouter
 import com.guildofsmiths.trademesh.ai.AIStatus
 import com.guildofsmiths.trademesh.ai.BatteryGate
@@ -502,6 +503,24 @@ private fun PrivacySection() {
         mutableStateOf(user?.discoverability ?: "team")
     }
     var showQr by remember { mutableStateOf(false) }
+    var uploadingAvatar by remember { mutableStateOf(false) }
+    val avatarPicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            uploadingAvatar = true
+            scope.launch {
+                val url = com.guildofsmiths.trademesh.service.AvatarUploader.upload(context, uri)
+                uploadingAvatar = false
+                if (url != null) {
+                    SupabaseAuth.updateLocalAvatar(url)
+                    Toast.makeText(context, "Photo updated", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Upload failed", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     Text(text = "PRIVACY", style = ConsoleTheme.captionBold)
     Spacer(modifier = Modifier.height(10.dp))
@@ -515,6 +534,22 @@ private fun PrivacySection() {
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Box(modifier = Modifier.clickable { avatarPicker.launch("image/*") }) {
+            com.guildofsmiths.trademesh.ui.components.SmithAvatar(
+                name = user?.displayName ?: "",
+                size = 44,
+                photoUrl = user?.avatarUrl
+            )
+            Text(
+                text = if (uploadingAvatar) "…" else "+",
+                style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.surface, fontSize = 11.sp),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .background(ConsoleTheme.accent, androidx.compose.foundation.shape.CircleShape)
+                    .padding(horizontal = 4.dp, vertical = 1.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text("Your SmithNet ID", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
             Text(

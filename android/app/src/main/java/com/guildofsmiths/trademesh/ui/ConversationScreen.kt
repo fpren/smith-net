@@ -691,11 +691,7 @@ fun ConversationScreen(
                 }
                 
                 Spacer(modifier = Modifier.width(8.dp))
-                
-                Text(text = ">", style = ConsoleTheme.prompt)
-                
-                Spacer(modifier = Modifier.width(8.dp))
-                
+
                 BasicTextField(
                     value = inputText,
                     onValueChange = {
@@ -706,8 +702,11 @@ fun ConversationScreen(
                             lastTypingSent = now
                         }
                     },
-                    modifier = Modifier.weight(1f),
-                    textStyle = ConsoleTheme.body,
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(ConsoleTheme.background, RoundedCornerShape(20.dp))
+                        .padding(horizontal = 14.dp, vertical = 9.dp),
+                    textStyle = ConsoleTheme.commBody,
                     cursorBrush = SolidColor(ConsoleTheme.cursor),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(onSend = {
@@ -739,10 +738,8 @@ fun ConversationScreen(
                 // Right side: SEND or Voice record button
                 if (inputText.isNotBlank()) {
                     Text(
-                        text = if (isDmChannel || selectedPeer != null) "DM" else "SEND",
-                        style = ConsoleTheme.action.copy(
-                            color = if (isDmChannel || selectedPeer != null) ConsoleTheme.accent else ConsoleTheme.action.color
-                        ),
+                        text = if (isDmChannel || selectedPeer != null) "DM" else "send",
+                        style = ConsoleTheme.commName.copy(color = ConsoleTheme.surface, fontSize = 14.sp),
                         modifier = Modifier
                             .clickable {
                                 ChatManager.sendTypingStop(channel?.id ?: "")
@@ -750,7 +747,8 @@ fun ConversationScreen(
                                 inputText = ""
                                 if (!isDmChannel) selectedPeer = null  // Only clear if not in DM channel
                             }
-                            .padding(4.dp)
+                            .background(ConsoleTheme.accent, RoundedCornerShape(20.dp))
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                 } else {
                     // Pixel art mic — tap to start recording

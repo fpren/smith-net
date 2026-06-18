@@ -26,8 +26,8 @@ android {
         applicationId = "com.guildofsmiths.trademesh"
         minSdk = 26
         targetSdk = 34
-        versionCode = 18
-        versionName = "0.6.1-map-jobs"
+        versionCode = 19
+        versionName = "0.6.2-comm-avatar"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
