@@ -58,7 +58,10 @@ fun JobBoardScreen(
     currentClockedInTaskId: String? = null,
     /** Called when the user confirms a clock-switch (clock-out current then
      *  clock-in new). The old job's stage is not regressed by the caller. */
-    onSwitchClock: (jobId: String, jobTitle: String, taskId: String?) -> Unit = { _, _, _ -> }
+    onSwitchClock: (jobId: String, jobTitle: String, taskId: String?) -> Unit = { _, _, _ -> },
+    /** Invoked by the "+ NEW" button. Navigates to the guided NewJobFlow wizard
+     *  (NavRoutes.NEW_JOB) so this matches the dashboard JOBS "[+ NEW]" action. */
+    onNewJob: () -> Unit = {}
 ) {
     val jobs by viewModel.jobs.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -193,7 +196,7 @@ fun JobBoardScreen(
                     Text(
                         text = "+ NEW",
                         style = ConsoleTheme.action,
-                        modifier = Modifier.clickable { showCreateDialog = true }
+                        modifier = Modifier.clickable { onNewJob() }
                     )
                 }
             }

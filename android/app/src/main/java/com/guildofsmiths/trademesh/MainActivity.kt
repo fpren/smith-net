@@ -843,6 +843,9 @@ class MainActivity : ComponentActivity() {
                                 onNavigateBack = {
                                     navController.popBackStack()
                                 },
+                                onNewJob = {
+                                    navController.navigate(NavRoutes.NEW_JOB)
+                                },
                                 currentlyClockedIn = isClockedIn,
                                 currentClockedInJobId = activeEntry?.jobId?.takeIf { it.isNotBlank() },
                                 currentClockedInJobTitle = activeEntry?.jobTitle,
