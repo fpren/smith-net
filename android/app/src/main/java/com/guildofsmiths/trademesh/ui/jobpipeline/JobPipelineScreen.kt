@@ -485,7 +485,17 @@ fun JobPipelineScreen(
                     }
                     OutlinedActionButton("VIEW INVOICE") { showInvoice = true }
                     Spacer(modifier = Modifier.height(4.dp))
-                    OutlinedActionButton("MARK PAID — CLOSE") { onStageAction(job, JobStage.CLOSED) }
+                    val nothingBillable = total <= 0.0
+                    if (nothingBillable) {
+                        Text(
+                            text = "! Nothing to bill - clock in to log hours or add materials",
+                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.warning)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                    OutlinedActionButton("MARK PAID — CLOSE", enabled = !nothingBillable) {
+                        onStageAction(job, JobStage.CLOSED)
+                    }
                 }
                 JobStage.CLOSED -> {
                     Text(text = "Job closed.", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
