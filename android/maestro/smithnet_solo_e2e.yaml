@@ -269,7 +269,18 @@ env:
     text: ".*START WORK.*"
 - assertVisible:
     text: ".*IN PROGRESS.*"
-# Add a purchased material via the add-menu (Material -> search -> SAVE).
+# Clock in then out for this job (verifies the labor wiring; an instant clock-out
+# logs ~0 min, so labor stays $0 here -- real hours come from genuine elapsed time).
+- tapOn:
+    id: "solo_e2e_job_clock_in"
+- tapOn:
+    id: "solo_e2e_job_clock_out"
+# Add a purchased material WITH a price via the add-menu
+# (Material -> search -> price -> SAVE). The price makes it a billable line item.
+- scrollUntilVisible:
+    element:
+      id: "solo_e2e_job_add_menu"
+    direction: DOWN
 - tapOn:
     id: "solo_e2e_job_add_menu"
 - tapOn:
@@ -277,6 +288,10 @@ env:
 - tapOn:
     id: "solo_e2e_job_material_search"
 - inputText: "APC UPS Battery Backup 1500VA"
+- tapOn:
+    id: "solo_e2e_job_material_cost"
+- inputText: "189.99"
+- hideKeyboard
 - tapOn:
     text: ".*SAVE.*"
 # Mark the work complete to advance toward REVIEW / INVOICE.

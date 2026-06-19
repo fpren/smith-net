@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
@@ -52,6 +54,8 @@ fun JobPipelineScreen(
     onStageAction: (Job, JobStage) -> Unit,
     onToggleMaterial: (Int) -> Unit,
     onClockIn: () -> Unit,
+    onClockOut: () -> Unit = {},
+    isClockedInThisJob: Boolean = false,
     onAddNote: ((String) -> Unit)? = null,
     onAddPhoto: (() -> Unit)? = null,
     onAddMaterial: ((Material, orderIt: Boolean, vendor: String?) -> Unit)? = null,
@@ -458,6 +462,21 @@ fun JobPipelineScreen(
                     OutlinedActionButton("START WORK") { onStageAction(job, JobStage.IN_PROGRESS) }
                 }
                 JobStage.IN_PROGRESS -> {
+                    // Clock in/out for this job. Logged time feeds the invoice's
+                    // Hours/Labor lines (hourlyRate x hoursLogged) on REVIEW/INVOICE.
+                    if (isClockedInThisJob) {
+                        OutlinedActionButton(
+                            text = "CLOCK OUT",
+                            color = ConsoleTheme.warning,
+                            modifier = Modifier.testTag("solo_e2e_job_clock_out")
+                        ) { onClockOut() }
+                    } else {
+                        OutlinedActionButton(
+                            text = "CLOCK IN",
+                            modifier = Modifier.testTag("solo_e2e_job_clock_in")
+                        ) { onClockIn() }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
                     Box(Modifier.testTag("solo_e2e_job_add_menu")) {
                         com.guildofsmiths.trademesh.ui.PixelPlusButton(
                             enabled = true,
@@ -533,6 +552,7 @@ private fun OutlinedActionButton(
     text: String,
     color: Color = ConsoleTheme.accent,
     enabled: Boolean = true,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     val drawColor = if (enabled) color else ConsoleTheme.textMuted
@@ -551,7 +571,7 @@ private fun OutlinedActionButton(
     Text(
         text = text,
         style = ConsoleTheme.action.copy(color = drawColor),
-        modifier = Modifier
+        modifier = modifier
             .scale(scale)
             .shadow(elevation, RoundedCornerShape(4.dp))
             .clickable(
@@ -717,6 +737,7 @@ private fun AddMaterialDialog(
 ) {
     val context = LocalContext.current
     var query by remember { mutableStateOf("") }
+    var price by remember { mutableStateOf("") }
     var showVendorPicker by remember { mutableStateOf(false) }
     val catalog = remember {
         val occ = UserPreferences.getOccupation()
@@ -741,12 +762,18 @@ private fun AddMaterialDialog(
     }
 
     fun materialFrom(text: String): Material {
+        // A typed price makes this a purchased line item: stamp unit/total cost
+        // (so it feeds the invoice materials subtotal) and mark it checked.
+        val cost = price.trim().toDoubleOrNull() ?: 0.0
         val match = catalog.firstOrNull { it.name.equals(text, ignoreCase = true) }
-        return if (match != null) {
-            Material(name = match.name, unit = match.unit, quantity = 1.0)
-        } else {
-            Material(name = text.trim(), unit = "ea", quantity = 1.0)
-        }
+        return Material(
+            name = match?.name ?: text.trim(),
+            unit = match?.unit ?: "ea",
+            quantity = 1.0,
+            unitCost = cost,
+            totalCost = cost,
+            checked = cost > 0.0
+        )
     }
 
     AlertDialog(
@@ -777,6 +804,31 @@ private fun AddMaterialDialog(
                         }
                     }
                 )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("$", style = ConsoleTheme.body)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    BasicTextField(
+                        value = price,
+                        onValueChange = { new -> price = new.filter { it.isDigit() || it == '.' } },
+                        textStyle = ConsoleTheme.body,
+                        cursorBrush = SolidColor(ConsoleTheme.cursor),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("solo_e2e_job_material_cost")
+                            .background(ConsoleTheme.surface)
+                            .padding(10.dp),
+                        decorationBox = { inner ->
+                            Box {
+                                if (price.isEmpty()) {
+                                    Text("Price (e.g. 189.99)", style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder))
+                                }
+                                inner()
+                            }
+                        }
+                    )
+                }
                 Column(
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                     modifier = Modifier

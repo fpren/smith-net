@@ -597,6 +597,8 @@ class MainActivity : ComponentActivity() {
                             val jobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel(viewModelStoreOwner = this@MainActivity)
                             val jobs by jobViewModel.jobs.collectAsState()
                             val job = jobs.find { it.id == jobId }
+                            val pipelineActiveEntry by ttvm.activeEntry.collectAsState()
+                            val pipelineIsClockedIn by ttvm.isClockedIn.collectAsState()
 
                             if (job != null) {
                                 com.guildofsmiths.trademesh.ui.jobpipeline.JobPipelineScreen(
@@ -609,8 +611,16 @@ class MainActivity : ComponentActivity() {
                                         jobViewModel.toggleMaterial(jobId, index)
                                     },
                                     onClockIn = {
-                                        navController.navigate(NavRoutes.TIME_TRACKING)
+                                        // Clock into THIS job (switch off any other active job first).
+                                        if (pipelineIsClockedIn) ttvm.clockOut()
+                                        ttvm.clockIn(
+                                            jobId = jobId,
+                                            jobTitle = job.title,
+                                            entryType = com.guildofsmiths.trademesh.ui.timetracking.EntryType.REGULAR
+                                        )
                                     },
+                                    onClockOut = { ttvm.clockOut() },
+                                    isClockedInThisJob = pipelineIsClockedIn && pipelineActiveEntry?.jobId == jobId,
                                     onAddNote = { noteText ->
                                         jobViewModel.addWorkLog(jobId, noteText)
                                     },
