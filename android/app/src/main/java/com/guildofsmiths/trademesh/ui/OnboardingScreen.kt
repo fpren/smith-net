@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
@@ -266,6 +267,7 @@ private fun TradeScreen(
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
+                .testTag("solo_e2e_onboarding_trade_search")
                 .background(ConsoleTheme.surface)
                 .padding(16.dp),
             decorationBox = { innerTextField ->
@@ -436,6 +438,7 @@ private fun AboutYouScreen(
         ConsoleLabel("YOUR NAME")
         Spacer(modifier = Modifier.height(8.dp))
         ConsoleTextField(
+            modifier = Modifier.testTag("solo_e2e_onboarding_name"),
             value = data.name,
             onValueChange = { onDataChange(data.copy(name = it)) },
             placeholder = "Enter your name",
@@ -512,6 +515,7 @@ private fun AboutYouScreen(
         ConsoleLabel("HOURLY RATE")
         Spacer(modifier = Modifier.height(8.dp))
         ConsoleTextField(
+            modifier = Modifier.testTag("solo_e2e_onboarding_rate"),
             value = data.hourlyRate,
             onValueChange = { onDataChange(data.copy(hourlyRate = it)) },
             placeholder = "What do you charge per hour?",
@@ -682,7 +686,8 @@ private fun ConsoleTextField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     keyboardType: KeyboardType = KeyboardType.Text,
-    imeAction: ImeAction = ImeAction.Next
+    imeAction: ImeAction = ImeAction.Next,
+    modifier: Modifier = Modifier
 ) {
     BasicTextField(
         value = value,
@@ -694,7 +699,7 @@ private fun ConsoleTextField(
             imeAction = imeAction
         ),
         singleLine = true,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .background(ConsoleTheme.surface)
             .padding(16.dp),

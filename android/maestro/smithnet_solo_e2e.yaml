@@ -1,0 +1,314 @@
+# SmithNet APK — E2E Solo Mode (Plan -> Job -> Tasks -> Invoice)
+# Framework: Maestro.  Run:  maestro test android/maestro/smithnet_solo_e2e.yaml
+#
+# Persona : Sam Will Smith / Electrician / Solo
+# Client  : Acme Motors, 1123 East 57th Street, Brooklyn NY 11234, Apt 3
+# Expected: invoice materials $293.95 + labor $760.00 = $1,053.95
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# PREREQUISITES (this flow drives the REAL UI)
+#   1. Debug APK installed:  ./gradlew installDebug
+#   2. Backend reachable:    cd backend && npm run dev
+#      adb reverse tcp:3030 tcp:3030     (device loopback -> host :3030)
+#   3. RECOMMENDED: start already logged-in + onboarded so the flow begins at
+#      the dashboard. The login + onboarding blocks are guarded (run only when
+#      their screen is visible); seeding a Solo account (e.g. the instrumented
+#      SoloPipelineE2ETest account solo-e2e@smithnet.test) is the reliable path.
+#
+# testTags: the app root sets testTagsAsResourceId=true (MainActivity), and the
+# typed input fields on this path carry stable `solo_e2e_*` ids. Buttons/labels
+# are matched by visible monospace text. NOTE: Maestro treats `text:` as a REGEX,
+# so bracketed labels are escaped (e.g. \[Clients\]).
+#
+# EXECUTED: runs clean end-to-end on Maestro 2.6.1 (Medium_Phone_API_36.1,
+# 2026-06-19) -- every command COMPLETED and the invoice renders with client +
+# contractor. Renders-only by design (see STEP 5/7): the live UI can't supply
+# backdated hours or per-item material costs, so the dollar amounts
+# (materials $293.95, labor $760, total $1,053.95) are owned by the instrumented
+# SoloPipelineE2ETest.
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: com.guildofsmiths.trademesh
+env:
+  EMAIL: "solo-e2e@smithnet.test"
+  PASSWORD: "SoloE2E!2026"
+  CLIENT_NAME: "Acme Motors"
+  CLIENT_ADDRESS: "1123 East 57th Street, Brooklyn NY 11234, Apt 3"
+  CLIENT_NOTE: "Client currently running XAMPP server on-premise"
+  START_DATE: "09/01/2026"
+---
+
+# ── STEP 0: LAUNCH (app loads without crash) ─────────────────────────────────
+- launchApp:
+    clearState: true
+# Tolerant of launch/splash timing: wait for either the auth screen or a
+# logged-in surface to render.
+- extendedWaitUntil:
+    visible:
+      text: "GUILD OF SMITHS|Built for the trades|Your Trade|JOBS|PROPOSALS|TODAY|Dashboard"
+    timeout: 20000
+
+# ── STEP 0b: LOGIN (only if the auth screen is showing) ───────────────────────
+- runFlow:
+    when:
+      visible:
+        id: "solo_e2e_auth_email"
+    commands:
+      - tapOn:
+          id: "solo_e2e_auth_email"
+      - inputText: "${EMAIL}"
+      - tapOn:
+          id: "solo_e2e_auth_password"
+      - inputText: "${PASSWORD}"
+      - hideKeyboard
+      # Submit button is "[▶] LOGIN" in login mode (brackets escaped for regex).
+      - tapOn:
+          text: "\\[▶\\] LOGIN"
+      - extendedWaitUntil:
+          visible:
+            text: "JOBS|PROPOSALS|Your Trade|Welcome|Dashboard|TODAY"
+          timeout: 20000
+
+# ── STEP 0c/1: ONBOARDING / PROFILE (only if onboarding appears) ──────────────
+# Adapted: the app uses single-profile onboarding (name + trade + Solo mode),
+# not a multi-profile "Create New Profile" screen. Skipped entirely when the
+# account is already onboarded.
+- runFlow:
+    when:
+      visible:
+        text: "Your Trade"
+    commands:
+      - tapOn:
+          id: "solo_e2e_onboarding_trade_search"
+      - inputText: "Electrician"
+      - hideKeyboard
+      - tapOn:
+          text: ".*NEXT.*"
+      - tapOn:
+          id: "solo_e2e_onboarding_name"
+      - eraseText: 50
+      - inputText: "Sam Will Smith"
+      - tapOn:
+          id: "solo_e2e_onboarding_rate"
+      - eraseText: 10
+      - inputText: "95"
+      - hideKeyboard
+      - scrollUntilVisible:
+          element:
+            text: ".*SAVE & CONTINUE.*"
+          direction: DOWN
+      - tapOn:
+          text: ".*SAVE & CONTINUE.*"
+      - tapOn:
+          text: ".*I work solo.*"
+      - tapOn:
+          text: ".*GO TO DASHBOARD.*"
+
+# ── STEP 2: CREATE CLIENT (with note) ─────────────────────────────────────────
+# Clients is a dashboard quick action below the calendar; scroll it into view.
+# Exact "[Clients]" disambiguates from the "[All Clients v]" financials filter.
+- scrollUntilVisible:
+    element:
+      text: "\\[Clients\\]"
+    direction: DOWN
+- tapOn:
+    text: "\\[Clients\\]"
+- assertVisible:
+    text: ".*CLIENTS.*"
+- tapOn:
+    text: ".*\\+ ADD.*"
+- assertVisible:
+    text: ".*Add Client.*"
+- tapOn:
+    id: "solo_e2e_client_name"
+- inputText: "${CLIENT_NAME}"
+- tapOn:
+    id: "solo_e2e_client_address"
+- inputText: "${CLIENT_ADDRESS}"
+- tapOn:
+    id: "solo_e2e_client_note"
+- inputText: "${CLIENT_NOTE}"
+- tapOn:
+    text: "\\[Save\\]"
+# ASSERT: client appears in the list with its address
+- assertVisible:
+    text: ".*Acme Motors.*"
+- assertVisible:
+    text: ".*1123 East 57th Street.*"
+
+# ── STEP 3: CREATE PLAN (proposal with 6 ordered tasks) ───────────────────────
+# Plan/Proposals is the bottom-nav "[Plan]" tab.
+- tapOn:
+    text: "\\[Plan\\]"
+- assertVisible:
+    text: ".*PROPOSALS.*"
+- tapOn:
+    text: ".*NEW PROPOSAL.*"
+- assertVisible:
+    text: ".*NEW PROPOSAL.*"
+- tapOn:
+    id: "solo_e2e_intent_scope"
+- inputText: "Build server infrastructure on Acme Motors' existing XAMPP setup. Solo electrician."
+- tapOn:
+    id: "solo_e2e_intent_client"
+- inputText: "${CLIENT_NAME}"
+# Typing the scope triggers rule-based assist, which pre-fills ~5 task rows.
+# Overwrite those rows with the spec's tasks (scroll to each in the dialog's
+# inner scroll), then add a 6th. eraseText clears any pre-filled/auto content.
+- scrollUntilVisible:
+    element:
+      id: "solo_e2e_intent_task_0"
+    direction: DOWN
+- tapOn:
+    id: "solo_e2e_intent_task_0"
+- eraseText: 80
+- inputText: "Site assessment and XAMPP server audit"
+- tapOn:
+    id: "solo_e2e_intent_task_1"
+- eraseText: 80
+- inputText: "Procure all required equipment and materials"
+- tapOn:
+    id: "solo_e2e_intent_task_2"
+- eraseText: 80
+- inputText: "Install UPS battery backup and rack PDU"
+- tapOn:
+    id: "solo_e2e_intent_task_3"
+- eraseText: 80
+- inputText: "Run and label Cat6 ethernet from switch to server"
+- tapOn:
+    id: "solo_e2e_intent_task_4"
+- eraseText: 80
+- inputText: "Configure network, test connectivity, verify XAMPP handoff"
+- hideKeyboard
+# Add the 6th task row and fill it.
+- scrollUntilVisible:
+    element:
+      id: "solo_e2e_intent_task_add"
+    direction: DOWN
+- tapOn:
+    id: "solo_e2e_intent_task_add"
+- scrollUntilVisible:
+    element:
+      id: "solo_e2e_intent_task_5"
+    direction: DOWN
+- tapOn:
+    id: "solo_e2e_intent_task_5"
+- eraseText: 80
+- inputText: "Client walkthrough and documentation handoff"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      text: "\\[OK\\] CREATE"
+    direction: DOWN
+- tapOn:
+    text: "\\[OK\\] CREATE"
+# ASSERT: proposal saved (scope visible back on the proposals list)
+- assertVisible:
+    text: ".*Build server infrastructure.*"
+
+# ── STEP 4: CONVERT PLAN -> JOB (scheduled, start date set) ───────────────────
+# Drive the 4-step New Job wizard. "CREATE JOB" from a proposal requires the
+# intent to be PROPOSED then CONFIRMED first (the build gates it). Each action
+# closes the detail dialog, so re-open the (top) proposal between transitions.
+- tapOn:
+    text: ".*Build server infrastructure.*"
+- tapOn:
+    text: ".*PROPOSE.*"
+- tapOn:
+    text: ".*Build server infrastructure.*"
+- tapOn:
+    text: ".*CONFIRM.*"
+- tapOn:
+    text: ".*Build server infrastructure.*"
+- tapOn:
+    text: ".*CREATE JOB.*"
+- assertVisible:
+    text: ".*NEW JOB.*"
+# The create-from-proposal dialog is pre-filled (title, client "Acme Motors",
+# tasks). Proceed to the preview/summary and create the job.
+- tapOn:
+    text: ".*PREVIEW.*"
+- tapOn:
+    text: ".*CREATE JOB.*"
+
+# ── STEP 5: OPEN JOB IN SOLO PIPELINE -> LIFECYCLE -> MATERIALS ───────────────
+# Open the job via the dashboard JOBS panel (rows are client-labeled) -> this is
+# JobPipelineScreen, the Solo lifecycle with stages + GENERATE INVOICE.
+#
+# Renders-only by design: this flow drives the full journey and asserts the
+# invoice RENDERS with client + contractor. The exact monetary amounts
+# (materials $293.95, labor $760, total $1,053.95) are verified deterministically
+# by the instrumented SoloPipelineE2ETest, because in the live UI labor requires
+# real clocked time and the per-item cost dialog isn't reliably automatable.
+- tapOn:
+    text: "\\[Home\\]"
+- tapOn:
+    text: ".*Acme Motors"
+- assertVisible:
+    text: ".*SCOPE.*"
+# Advance the Solo lifecycle to IN_PROGRESS: LEAD -> PROPOSAL -> APPROVED -> WORK.
+- scrollUntilVisible:
+    element:
+      text: ".*CREATE PROPOSAL.*"
+    direction: DOWN
+- tapOn:
+    text: ".*CREATE PROPOSAL.*"
+- tapOn:
+    text: ".*CLOSE.*"
+- scrollUntilVisible:
+    element:
+      text: ".*MARK APPROVED.*"
+    direction: DOWN
+- tapOn:
+    text: ".*MARK APPROVED.*"
+- scrollUntilVisible:
+    element:
+      text: ".*START WORK.*"
+    direction: DOWN
+- tapOn:
+    text: ".*START WORK.*"
+- assertVisible:
+    text: ".*IN PROGRESS.*"
+# Add a purchased material via the add-menu (Material -> search -> SAVE).
+- tapOn:
+    id: "solo_e2e_job_add_menu"
+- tapOn:
+    text: ".*Material.*"
+- tapOn:
+    id: "solo_e2e_job_material_search"
+- inputText: "APC UPS Battery Backup 1500VA"
+- tapOn:
+    text: ".*SAVE.*"
+# Mark the work complete to advance toward REVIEW / INVOICE.
+- scrollUntilVisible:
+    element:
+      id: "solo_e2e_job_add_menu"
+    direction: DOWN
+- tapOn:
+    id: "solo_e2e_job_add_menu"
+- tapOn:
+    text: ".*Mark complete.*"
+
+# ── STEP 6: GENERATE INVOICE ─────────────────────────────────────────────────
+- scrollUntilVisible:
+    element:
+      text: ".*GENERATE INVOICE.*"
+    direction: DOWN
+- tapOn:
+    text: ".*GENERATE INVOICE.*"
+
+# ── STEP 7: VERIFY INVOICE RENDERS (client + contractor) ─────────────────────
+- runFlow:
+    when:
+      visible:
+        text: ".*VIEW INVOICE.*"
+    commands:
+      - tapOn:
+          text: ".*VIEW INVOICE.*"
+- assertVisible:
+    text: ".*INVOICE.*"
+- assertVisible:
+    text: ".*Acme Motors.*"
+- assertVisible:
+    text: ".*Sam Will Smith.*"
+- takeScreenshot: solo_e2e_invoice

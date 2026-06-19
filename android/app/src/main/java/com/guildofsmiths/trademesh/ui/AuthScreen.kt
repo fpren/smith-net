@@ -3,6 +3,7 @@ package com.guildofsmiths.trademesh.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -279,6 +280,7 @@ fun AuthScreen(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 ConsoleTextField(
+                    modifier = Modifier.testTag("solo_e2e_auth_email"),
                     value = email,
                     onValueChange = { email = it.lowercase().trim() },
                     placeholder = "you@example.com",
@@ -311,6 +313,7 @@ fun AuthScreen(
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 ConsoleTextField(
+                    modifier = Modifier.testTag("solo_e2e_auth_password"),
                     value = password,
                     onValueChange = { password = it },
                     placeholder = "min 6 characters",
@@ -347,7 +350,7 @@ fun AuthScreen(
                     }
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(24.dp))
             
             // Success message

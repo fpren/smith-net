@@ -3,6 +3,9 @@ package com.guildofsmiths.trademesh.ui.plan
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -24,6 +27,7 @@ import kotlinx.coroutines.launch
 // CREATE INTENT DIALOG — Proposal Template
 // ════════════════════════════════════════════════════════════════════
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun CreateIntentDialog(
     onDismiss: () -> Unit,
@@ -93,7 +97,8 @@ fun CreateIntentDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 500.dp)
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(rememberScrollState())
+                    .semantics { testTagsAsResourceId = true },
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // ── SCOPE ──
@@ -104,6 +109,7 @@ fun CreateIntentDialog(
                         placeholder = { Text("Describe the work to be performed...", style = ConsoleTheme.caption) },
                         modifier = Modifier
                             .fillMaxWidth()
+                            .testTag("solo_e2e_intent_scope")
                             .onFocusChanged { state ->
                                 if (!state.isFocused) triggerAssist()
                             },
@@ -129,7 +135,8 @@ fun CreateIntentDialog(
                     ProposalTextField(
                         value = clientName,
                         onValueChange = { clientName = it },
-                        placeholder = "Client or property name"
+                        placeholder = "Client or property name",
+                        modifier = Modifier.testTag("solo_e2e_intent_client")
                     )
                 }
 
@@ -138,7 +145,8 @@ fun CreateIntentDialog(
                     DynamicListField(
                         lines = taskLines,
                         onLinesChange = { taskLines = it },
-                        placeholder = "Task description"
+                        placeholder = "Task description",
+                        tagPrefix = "solo_e2e_intent_task"
                     )
                 }
 
@@ -241,13 +249,14 @@ private fun ProposalSection(label: String, content: @Composable () -> Unit) {
 private fun ProposalTextField(
     value: String,
     onValueChange: (String) -> Unit,
-    placeholder: String
+    placeholder: String,
+    modifier: Modifier = Modifier
 ) {
     TextField(
         value = value,
         onValueChange = onValueChange,
         placeholder = { Text(placeholder, style = ConsoleTheme.caption) },
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         textStyle = ConsoleTheme.body,
         colors = TextFieldDefaults.colors(
             focusedContainerColor = Color.White,
@@ -262,7 +271,8 @@ private fun ProposalTextField(
 private fun DynamicListField(
     lines: List<String>,
     onLinesChange: (List<String>) -> Unit,
-    placeholder: String
+    placeholder: String,
+    tagPrefix: String? = null
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         lines.forEachIndexed { index, line ->
@@ -283,7 +293,7 @@ private fun DynamicListField(
                         onLinesChange(updated)
                     },
                     placeholder = { Text(placeholder, style = ConsoleTheme.caption) },
-                    modifier = Modifier.weight(1f),
+                    modifier = (if (tagPrefix != null) Modifier.testTag("${tagPrefix}_$index") else Modifier).weight(1f),
                     textStyle = ConsoleTheme.bodySmall,
                     singleLine = true,
                     colors = TextFieldDefaults.colors(
@@ -313,6 +323,7 @@ private fun DynamicListField(
             text = "[+] Add",
             style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent),
             modifier = Modifier
+                .then(if (tagPrefix != null) Modifier.testTag("${tagPrefix}_add") else Modifier)
                 .clickable { onLinesChange(lines + "") }
                 .padding(vertical = 4.dp)
         )

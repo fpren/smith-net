@@ -428,7 +428,8 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
         equipmentList: List<String> = emptyList(),
         stage: JobStage = JobStage.LEAD,
         taskDescriptions: List<String> = emptyList(),
-        proposalId: String? = null
+        proposalId: String? = null,
+        status: JobStatus = JobStatus.TODO
     ) {
         val userId = UserPreferences.getUserId()
         val now = System.currentTimeMillis()
@@ -437,7 +438,7 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
             id = UUID.randomUUID().toString(),
             title = title,
             description = description,
-            status = JobStatus.TODO,
+            status = status,
             priority = priority,
             createdBy = userId,
             createdAt = now,

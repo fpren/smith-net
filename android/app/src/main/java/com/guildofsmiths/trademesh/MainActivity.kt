@@ -27,6 +27,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -229,6 +231,7 @@ class MainActivity : ComponentActivity() {
         }
     }
     
+    @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -250,7 +253,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             TradeMeshTheme {
                 Surface(
-                    modifier = Modifier.fillMaxSize(),
+                    // Expose Compose testTags as Android resource-ids so Maestro / UI
+                    // automation can target stable ids (e.g. id: "solo_e2e_*").
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .semantics { testTagsAsResourceId = true },
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
@@ -635,6 +642,10 @@ class MainActivity : ComponentActivity() {
                                 onBack = { navController.popBackStack() },
                                 allJobs = allJobsForPicker,
                                 onJobCreated = { newJob ->
+                                    // A job created from the guided flow with a start date is
+                                    // SCHEDULED (and shows on the dashboard calendar via
+                                    // estimatedStartDate); without a date it is a plain TODO.
+                                    val startDate = newJob.estimatedStartDate
                                     jobViewModel.createJob(
                                         title = newJob.clientName.ifBlank { "New Job" },
                                         description = newJob.description,
@@ -645,7 +656,10 @@ class MainActivity : ComponentActivity() {
                                         clientAddress = newJob.clientAddress,
                                         hourlyRate = com.guildofsmiths.trademesh.data.UserPreferences.getHourlyRate(),
                                         equipmentList = newJob.equipmentList,
-                                        taskDescriptions = newJob.taskDescriptions
+                                        taskDescriptions = newJob.taskDescriptions,
+                                        estimatedStartDate = startDate,
+                                        status = if (startDate != null) com.guildofsmiths.trademesh.ui.jobboard.JobStatus.SCHEDULED
+                                                 else com.guildofsmiths.trademesh.ui.jobboard.JobStatus.TODO
                                     )
                                     navController.popBackStack()
                                 }

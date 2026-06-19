@@ -17,6 +17,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
@@ -455,10 +458,12 @@ fun JobPipelineScreen(
                     OutlinedActionButton("START WORK") { onStageAction(job, JobStage.IN_PROGRESS) }
                 }
                 JobStage.IN_PROGRESS -> {
-                    com.guildofsmiths.trademesh.ui.PixelPlusButton(
-                        enabled = true,
-                        onClick = { showAddMenu = true }
-                    )
+                    Box(Modifier.testTag("solo_e2e_job_add_menu")) {
+                        com.guildofsmiths.trademesh.ui.PixelPlusButton(
+                            enabled = true,
+                            onClick = { showAddMenu = true }
+                        )
+                    }
                 }
                 JobStage.REVIEW -> {
                     val unchecked = job.materials.count { !it.checked }
@@ -703,6 +708,7 @@ private val MATERIAL_VENDORS = listOf(
     MaterialVendor("Store", "Buy in store", null)
 )
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 private fun AddMaterialDialog(
     existing: List<Material>,
@@ -748,7 +754,10 @@ private fun AddMaterialDialog(
         containerColor = ConsoleTheme.background,
         title = { Text("ADD MATERIAL", style = ConsoleTheme.captionBold) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.semantics { testTagsAsResourceId = true },
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 BasicTextField(
                     value = query,
                     onValueChange = { query = it },
@@ -756,6 +765,7 @@ private fun AddMaterialDialog(
                     cursorBrush = SolidColor(ConsoleTheme.cursor),
                     modifier = Modifier
                         .fillMaxWidth()
+                        .testTag("solo_e2e_job_material_search")
                         .background(ConsoleTheme.surface)
                         .padding(10.dp),
                     decorationBox = { inner ->

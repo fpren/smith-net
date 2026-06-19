@@ -6,6 +6,7 @@ import android.content.IntentFilter
 import android.os.BatteryManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.guildofsmiths.trademesh.data.Message
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -125,7 +126,7 @@ class BatteryImpactTest {
             val start = System.currentTimeMillis()
             
             AIRouter.processMessage(
-                message = "@AI checklist",
+                message = msg("@AI checklist"),
                 messageContext = MessageContext.CHAT,
                 metadata = AIMetadata()
             ) { response ->
@@ -220,7 +221,7 @@ class BatteryImpactTest {
         
         repeat(requests) { i ->
             AIRouter.processMessage(
-                message = "@AI confirm step $i",
+                message = msg("@AI confirm step $i"),
                 messageContext = MessageContext.CHAT,
                 metadata = AIMetadata()
             ) { response ->
@@ -266,7 +267,7 @@ class BatteryImpactTest {
         // Fire all at once
         repeat(burstSize) { i ->
             AIRouter.processMessage(
-                message = "@AI checklist $i",
+                message = msg("@AI checklist $i"),
                 messageContext = MessageContext.JOB_BOARD,
                 metadata = AIMetadata()
             ) { response ->
@@ -313,7 +314,7 @@ class BatteryImpactTest {
             val start = System.currentTimeMillis()
             
             AIRouter.processMessage(
-                message = "@AI quick task",
+                message = msg("@AI quick task"),
                 messageContext = MessageContext.CHAT,
                 metadata = AIMetadata()
             ) { _ -> }
@@ -346,4 +347,8 @@ class BatteryImpactTest {
         
         assertTrue("Test completed successfully", true)
     }
+
+    /** Wrap a raw test string into the Message that AIRouter.processMessage now expects. */
+    private fun msg(text: String) =
+        Message(senderId = "test-user", senderName = "Test", content = text)
 }

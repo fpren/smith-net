@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.BatteryManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.guildofsmiths.trademesh.data.Message
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.*
@@ -69,7 +70,7 @@ class AIFlowInstrumentedTest {
         // 4. Process through AIRouter
         var response: AIResponse? = null
         AIRouter.processMessage(
-            message = message,
+            message = msg(message),
             messageContext = MessageContext.MESH,
             metadata = AIMetadata()
         ) { result ->
@@ -112,7 +113,7 @@ class AIFlowInstrumentedTest {
         // 3. Process with job context
         var response: AIResponse? = null
         AIRouter.processMessage(
-            message = message,
+            message = msg(message),
             messageContext = MessageContext.JOB_BOARD,
             metadata = AIMetadata(jobTitle = "Panel Upgrade")
         ) { result ->
@@ -147,7 +148,7 @@ class AIFlowInstrumentedTest {
         
         var response: AIResponse? = null
         AIRouter.processMessage(
-            message = message,
+            message = msg(message),
             messageContext = MessageContext.CHAT,
             metadata = AIMetadata()
         ) { result ->
@@ -227,7 +228,7 @@ class AIFlowInstrumentedTest {
         
         // Process a message
         AIRouter.processMessage(
-            message = "@AI confirm",
+            message = msg("@AI confirm"),
             messageContext = MessageContext.CHAT,
             metadata = AIMetadata(channelId = "test-channel")
         ) { _ -> }
@@ -304,7 +305,7 @@ class AIFlowInstrumentedTest {
         
         var response: AIResponse? = null
         AIRouter.processMessage(
-            message = "@AI help",
+            message = msg("@AI help"),
             messageContext = MessageContext.CHAT,
             metadata = AIMetadata()
         ) { result ->
@@ -345,8 +346,12 @@ class AIFlowInstrumentedTest {
     @Test
     fun testLlamaInference_ModelsDirectory() {
         val dir = LlamaInference.getModelsDirectory(context)
-        
+
         assertNotNull(dir)
         assertTrue("Models directory should exist or be created", dir.exists() || dir.mkdirs())
     }
+
+    /** Wrap a raw test string into the Message that AIRouter.processMessage now expects. */
+    private fun msg(text: String) =
+        Message(senderId = "test-user", senderName = "Test", content = text)
 }
