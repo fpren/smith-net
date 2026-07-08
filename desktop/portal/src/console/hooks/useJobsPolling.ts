@@ -1,45 +1,23 @@
 // desktop/portal/src/console/hooks/useJobsPolling.ts
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { jobsClient } from '../api/jobsClient';
 import { useJobsStore } from '../stores/jobsStore';
 
 type Scope = 'list' | { detail: string };
 
-// Standalone reload functions used by the retry buttons on JobsListRoute /
-// JobDetailRoute's ErrorState. These write to the store unconditionally on
-// resolve — safe for a user-triggered retry, unlike the interval-driven
-// fetchOnce below which guards against a response landing after unmount.
-export async function reloadJobsList(): Promise<void> {
-  useJobsStore.getState().markListLoading(true);
-  try {
-    const result = await jobsClient.list();
-    if (result.ok) {
-      useJobsStore.getState().setJobs(result.jobs);
-    } else {
-      useJobsStore.getState().markStale(true);
-    }
-  } finally {
-    useJobsStore.getState().markListLoading(false);
-  }
+export interface UseJobsPollingResult {
+  reload: () => void;
 }
 
-export async function reloadJobDetail(id: string): Promise<void> {
-  useJobsStore.getState().markDetailLoading(true);
-  try {
-    const result = await jobsClient.getById(id);
-    if (result.ok) {
-      useJobsStore.getState().setDetail(result.job, result.crew);
-      useJobsStore.getState().markStale(false);
-    } else {
-      useJobsStore.getState().markStale(true);
-    }
-  } finally {
-    useJobsStore.getState().markDetailLoading(false);
-  }
-}
-
-export function useJobsPolling(scope: Scope, intervalMs: number = 15_000): void {
+export function useJobsPolling(scope: Scope, intervalMs: number = 15_000): UseJobsPollingResult {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Retry buttons need to trigger a fresh fetch that still respects the
+  // "response landed after unmount" guard below. A function created inside
+  // the effect can't be returned directly from the hook, so it's stashed in
+  // a ref: the effect (re)assigns it to the closure's own `fetchOnce` on
+  // mount and resets it to a no-op on cleanup. `reload` is a stable
+  // useCallback wrapper so it's a valid effect dep / prop reference.
+  const reloadRef = useRef<() => Promise<void>>(async () => {});
 
   useEffect(() => {
     // A response that lands after unmount must not write data into the store:
@@ -55,7 +33,7 @@ export function useJobsPolling(scope: Scope, intervalMs: number = 15_000): void 
         if (result.ok) {
           useJobsStore.getState().setJobs(result.jobs);
         } else {
-          useJobsStore.getState().markStale(true);
+          useJobsStore.getState().markListStale(true);
         }
       } else {
         const id = scope.detail;
@@ -65,12 +43,14 @@ export function useJobsPolling(scope: Scope, intervalMs: number = 15_000): void 
         if (cancelled) return;
         if (result.ok) {
           useJobsStore.getState().setDetail(result.job, result.crew);
-          useJobsStore.getState().markStale(false);
+          useJobsStore.getState().markDetailStale(false);
         } else {
-          useJobsStore.getState().markStale(true);
+          useJobsStore.getState().markDetailStale(true);
         }
       }
     };
+
+    reloadRef.current = fetchOnce;
 
     const startInterval = () => {
       if (intervalRef.current !== null) return;
@@ -100,9 +80,16 @@ export function useJobsPolling(scope: Scope, intervalMs: number = 15_000): void 
 
     return () => {
       cancelled = true;
+      reloadRef.current = async () => {};
       stopInterval();
       document.removeEventListener('visibilitychange', onVisibility);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [intervalMs, scope === 'list' ? 'list' : scope.detail]);
+
+  const reload = useCallback(() => {
+    void reloadRef.current();
+  }, []);
+
+  return { reload };
 }

@@ -7,7 +7,7 @@ import { JobStageControls } from '../components/jobs/JobStageControls';
 import { StatusButtons } from '../components/jobs/StatusButtons';
 import { AssignCrewModal } from '../components/jobs/AssignCrewModal';
 import { EditJobModal } from '../components/jobs/EditJobModal';
-import { useJobsPolling, reloadJobDetail } from '../hooks/useJobsPolling';
+import { useJobsPolling } from '../hooks/useJobsPolling';
 import { useJobsStore } from '../stores/jobsStore';
 import { LoadingState, ErrorState } from '../components/ui/StateViews';
 import { jobsClient } from '../api/jobsClient';
@@ -25,21 +25,22 @@ const EMPTY_TASKS: Task[] = [];
 
 export function JobDetailRoute() {
   const { id } = useParams<{ id: string }>();
-  useJobsPolling({ detail: id ?? '' });
+  const { reload } = useJobsPolling({ detail: id ?? '' });
   useTasksPolling(id ?? '');
   const job = useJobsStore((s) => s.detailJob);
   const crew = useJobsStore((s) => s.detailCrew);
   const upsertJob = useJobsStore((s) => s.upsertJob);
   const setDetail = useJobsStore((s) => s.setDetail);
-  const isStale = useJobsStore((s) => s.isStale);
+  const detailStale = useJobsStore((s) => s.detailStale);
   const tasks = useTasksStore((s) => (id ? s.tasksByJob[id] : undefined) ?? EMPTY_TASKS);
   const [showAssign, setShowAssign] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const toast = useToast();
 
+  // Precedence: loading -> error (detailStale, with retry) -> not-loaded -> data.
   if (!job || job.id !== id) {
-    if (isStale) {
-      return <ErrorState message="Couldn't load this job." onRetry={() => void reloadJobDetail(id ?? '')} />;
+    if (detailStale) {
+      return <ErrorState message="Couldn't load this job." onRetry={reload} />;
     }
     return <LoadingState label="Loading job" />;
   }

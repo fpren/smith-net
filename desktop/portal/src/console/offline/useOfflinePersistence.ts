@@ -43,7 +43,7 @@ export function useOfflinePersistence(): void {
         pick: (s) => ({ jobs: s.jobs }),
         hydrate: (api, d) => {
           api.setJobs(d.jobs);
-          api.markStale(true);
+          api.markListStale(true);
         },
         shouldPersist: (s) => s.lastFetchedAt != null,
       }),

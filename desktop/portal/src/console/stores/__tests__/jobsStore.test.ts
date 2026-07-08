@@ -39,7 +39,8 @@ describe('jobsStore', () => {
     expect(s.jobs).toEqual([]);
     expect(s.detailJob).toBeNull();
     expect(s.detailCrew).toEqual([]);
-    expect(s.isStale).toBe(false);
+    expect(s.listStale).toBe(false);
+    expect(s.detailStale).toBe(false);
   });
 
   it('setJobs replaces the list and updates lastFetchedAt', () => {
@@ -81,22 +82,33 @@ describe('jobsStore', () => {
     expect(useJobsStore.getState().detailJob?.status).toBe('complete');
   });
 
-  it('markStale toggles the flag', () => {
-    useJobsStore.getState().markStale(true);
-    expect(useJobsStore.getState().isStale).toBe(true);
-    useJobsStore.getState().markStale(false);
-    expect(useJobsStore.getState().isStale).toBe(false);
+  it('markListStale toggles the list flag independently of detail', () => {
+    useJobsStore.getState().markListStale(true);
+    expect(useJobsStore.getState().listStale).toBe(true);
+    expect(useJobsStore.getState().detailStale).toBe(false);
+    useJobsStore.getState().markListStale(false);
+    expect(useJobsStore.getState().listStale).toBe(false);
+  });
+
+  it('markDetailStale toggles the detail flag independently of list', () => {
+    useJobsStore.getState().markDetailStale(true);
+    expect(useJobsStore.getState().detailStale).toBe(true);
+    expect(useJobsStore.getState().listStale).toBe(false);
+    useJobsStore.getState().markDetailStale(false);
+    expect(useJobsStore.getState().detailStale).toBe(false);
   });
 
   it('clear resets everything', () => {
     useJobsStore.getState().setJobs([sampleJob]);
     useJobsStore.getState().setDetail(sampleJob, [sampleCrew]);
-    useJobsStore.getState().markStale(true);
+    useJobsStore.getState().markListStale(true);
+    useJobsStore.getState().markDetailStale(true);
     useJobsStore.getState().clear();
     const s = useJobsStore.getState();
     expect(s.jobs).toEqual([]);
     expect(s.detailJob).toBeNull();
     expect(s.detailCrew).toEqual([]);
-    expect(s.isStale).toBe(false);
+    expect(s.listStale).toBe(false);
+    expect(s.detailStale).toBe(false);
   });
 });

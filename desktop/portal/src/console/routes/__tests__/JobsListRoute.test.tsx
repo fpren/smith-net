@@ -61,9 +61,9 @@ describe('JobsListRoute', () => {
     expect(screen.getByRole('button', { name: /create job/i })).toBeInTheDocument();
   });
 
-  it('renders stale strip when isStale is true', () => {
+  it('renders stale strip when listStale is true', () => {
     useJobsStore.getState().setJobs([j('a', 'planned')]);
-    useJobsStore.getState().markStale(true);
+    useJobsStore.getState().markListStale(true);
     render(<MemoryRouter><JobsListRoute /></MemoryRouter>);
     expect(screen.getByText(/couldn't refresh/i)).toBeInTheDocument();
   });
@@ -72,7 +72,7 @@ describe('JobsListRoute', () => {
     server.use(http.get('/api/jobs', () => HttpResponse.json({ jobs: [j('a', 'planned')] })));
     render(<MemoryRouter><JobsListRoute /></MemoryRouter>);
     await screen.findByText('PLANNED (1)');
-    useJobsStore.getState().markStale(true);
+    useJobsStore.getState().markListStale(true);
     const retry = await screen.findByRole('button', { name: /retry/i });
 
     server.use(
@@ -81,6 +81,22 @@ describe('JobsListRoute', () => {
     fireEvent.click(retry);
 
     await waitFor(() => expect(screen.getByText('IN PROGRESS (1)')).toBeInTheDocument());
-    expect(useJobsStore.getState().isStale).toBe(false);
+    expect(useJobsStore.getState().listStale).toBe(false);
+  });
+
+  it('finding #3: initial fetch failure shows ErrorState with retry, not EmptyState', async () => {
+    server.use(http.get('/api/jobs', () => HttpResponse.json({ error: 'boom' }, { status: 500 })));
+    render(<MemoryRouter><JobsListRoute /></MemoryRouter>);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toBeInTheDocument();
+    expect(screen.queryByText(/no jobs yet/i)).not.toBeInTheDocument();
+    const retry = screen.getByRole('button', { name: /retry/i });
+
+    server.use(http.get('/api/jobs', () => HttpResponse.json({ jobs: [j('a', 'planned')] })));
+    fireEvent.click(retry);
+
+    await waitFor(() => expect(screen.getByText('PLANNED (1)')).toBeInTheDocument());
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

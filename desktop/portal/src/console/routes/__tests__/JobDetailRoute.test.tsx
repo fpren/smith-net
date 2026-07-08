@@ -157,6 +157,21 @@ describe('JobDetailRoute', () => {
     fireEvent.click(retry);
 
     expect(await screen.findByText('Recovered Job')).toBeInTheDocument();
-    expect(useJobsStore.getState().isStale).toBe(false);
+    expect(useJobsStore.getState().detailStale).toBe(false);
+  });
+
+  it('finding #2: a stale list poll does not false-flash an ErrorState on a fresh detail mount', async () => {
+    // listStale simulates a concurrent/previous list-scope poll failure (or
+    // the offline-persistence hydrate marking cached list data stale). It
+    // must not leak into the detail scope, which hasn't fetched yet.
+    useJobsStore.getState().markListStale(true);
+    renderAt('/console/jobs/fresh-job');
+
+    // No alert (ErrorState) should render while the detail fetch is in
+    // flight or once it resolves -- listStale must not gate detailStale's view.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Detail Job')).toBeInTheDocument());
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(useJobsStore.getState().listStale).toBe(true); // untouched by the detail fetch
   });
 });

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '../components/ui/Button';
 import { CreateJobModal } from '../components/jobs/CreateJobModal';
 import { JobCard } from '../components/jobs/JobCard';
-import { useJobsPolling, reloadJobsList } from '../hooks/useJobsPolling';
+import { useJobsPolling } from '../hooks/useJobsPolling';
 import { useJobsStore } from '../stores/jobsStore';
 import { LoadingState, EmptyState, ErrorState } from '../components/ui/StateViews';
 import type { JobStatus, Job } from '../api/jobsClient';
@@ -37,17 +37,26 @@ function StatusSection({ label, jobs, defaultOpen }: { label: string; jobs: Job[
 }
 
 export function JobsListRoute() {
-  useJobsPolling('list');
+  const { reload } = useJobsPolling('list');
   const jobs = useJobsStore((s) => s.jobs);
   const isLoadingList = useJobsStore((s) => s.isLoadingList);
-  const isStale = useJobsStore((s) => s.isStale);
+  const listStale = useJobsStore((s) => s.listStale);
   const upsertJob = useJobsStore((s) => s.upsertJob);
   const [showCreate, setShowCreate] = useState(false);
 
   const byStatus = (st: JobStatus) => jobs.filter((j) => j.status === st);
 
+  // Precedence: loading -> error (no cached data to fall back on) -> empty -> data.
   if (isLoadingList && jobs.length === 0) {
     return <LoadingState label="Loading jobs" />;
+  }
+
+  if (listStale && jobs.length === 0) {
+    return (
+      <div className="flex flex-col items-center mt-24 gap-4">
+        <ErrorState message="Couldn't load jobs." onRetry={reload} />
+      </div>
+    );
   }
 
   if (jobs.length === 0) {
@@ -68,8 +77,8 @@ export function JobsListRoute() {
         <h1 className="text-sn-ink text-lg">Jobs</h1>
         <Button onClick={() => setShowCreate(true)}>+ Create Job</Button>
       </div>
-      {isStale && (
-        <ErrorState message="Couldn't refresh — showing cached data." onRetry={() => void reloadJobsList()} />
+      {listStale && (
+        <ErrorState message="Couldn't refresh — showing cached data." onRetry={reload} />
       )}
       {STATUSES.map((s) => (
         <StatusSection key={s.status} label={s.label} jobs={byStatus(s.status)} defaultOpen={s.defaultOpen} />

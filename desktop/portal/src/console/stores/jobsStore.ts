@@ -9,14 +9,20 @@ interface JobsState {
   isLoadingList: boolean;
   isLoadingDetail: boolean;
   lastFetchedAt: number | null;
-  isStale: boolean;
+  // Split per Plan 4A Task 5 review finding #2: list and detail scopes poll
+  // independently (see useJobsPolling), so a single shared flag let a stale
+  // list poll false-flash an ErrorState on a detail view that hadn't even
+  // fetched yet. Each scope now owns its own flag.
+  listStale: boolean;
+  detailStale: boolean;
 
   setJobs: (jobs: Job[]) => void;
   setDetail: (job: Job, crew: CrewAssignment[]) => void;
   upsertJob: (job: Job) => void;
   markListLoading: (b: boolean) => void;
   markDetailLoading: (b: boolean) => void;
-  markStale: (b: boolean) => void;
+  markListStale: (b: boolean) => void;
+  markDetailStale: (b: boolean) => void;
   clear: () => void;
 }
 
@@ -27,9 +33,10 @@ export const useJobsStore = create<JobsState>((set) => ({
   isLoadingList: false,
   isLoadingDetail: false,
   lastFetchedAt: null,
-  isStale: false,
+  listStale: false,
+  detailStale: false,
 
-  setJobs: (jobs) => set({ jobs, lastFetchedAt: Date.now(), isStale: false }),
+  setJobs: (jobs) => set({ jobs, lastFetchedAt: Date.now(), listStale: false }),
   setDetail: (detailJob, detailCrew) => set({ detailJob, detailCrew }),
 
   upsertJob: (job) => set((state) => {
@@ -43,7 +50,8 @@ export const useJobsStore = create<JobsState>((set) => ({
 
   markListLoading: (isLoadingList) => set({ isLoadingList }),
   markDetailLoading: (isLoadingDetail) => set({ isLoadingDetail }),
-  markStale: (isStale) => set({ isStale }),
+  markListStale: (listStale) => set({ listStale }),
+  markDetailStale: (detailStale) => set({ detailStale }),
 
   clear: () => set({
     jobs: [],
@@ -52,6 +60,7 @@ export const useJobsStore = create<JobsState>((set) => ({
     isLoadingList: false,
     isLoadingDetail: false,
     lastFetchedAt: null,
-    isStale: false,
+    listStale: false,
+    detailStale: false,
   }),
 }));
