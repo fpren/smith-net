@@ -660,7 +660,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 - Consumes: `LocalSmithColors`, `SmithButton` (Task 5), `androidx.compose.ui.window.Dialog` (non-Material base).
 - Produces:
   - `SmithDialog(title, onDismiss, destructive = false, sizeFraction: Pair<Float,Float>? = null, actions: @Composable RowScope.() -> Unit = {}, content: @Composable ColumnScope.() -> Unit)` — `Dialog(properties = DialogProperties(dismissOnClickOutside = !destructive, dismissOnBackPress = true))`; panel = `bgPanel`, 20.dp corners, title in Inter SemiBold 16sp, `sizeFraction` (e.g. `0.95f to 0.9f`) for the preview/detail dialogs that currently size themselves.
-  - `SmithConfirmDialog(title, body, confirmText, onConfirm, onDismiss, confirmIsDanger = true)` — built on SmithDialog with `destructive = true`; Ghost cancel ("CANCEL") + Danger/Primary confirm.
+  - `SmithConfirmDialog(title, body, confirmText, onConfirm, onDismiss, confirmIsDanger = true, confirmEnabled = true)` — built on SmithDialog with `destructive = true`; Ghost cancel ("CANCEL") + Danger/Primary confirm. `confirmEnabled = false` disables the confirm button while an operation is in flight (double-submit guard, added in Task 7's fix round).
   - `SmithSheet(onDismiss, content)` — non-Material bottom sheet: full-screen scrim (`colors.overlay`, click = dismiss), content panel aligned to bottom, `bgPanel`, top corners 20.dp, slides in with `animateFloatAsState`-free simple `AnimatedVisibility(slideInVertically)` capped at 250ms tween. No drag gesture in v1.
 
 - [ ] **Step 1: Implement both files** (complete code below)
