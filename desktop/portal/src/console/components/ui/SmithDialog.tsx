@@ -8,9 +8,11 @@ interface SmithDialogProps {
   footer?: ReactNode;
   /** Destructive dialogs cannot be dismissed by tapping outside. */
   destructive?: boolean;
+  /** 'md' (default) for confirms; 'lg' regains the v1 600px form width. */
+  size?: 'md' | 'lg';
 }
 
-export function SmithDialog({ open, onClose, title, children, footer, destructive = false }: SmithDialogProps) {
+export function SmithDialog({ open, onClose, title, children, footer, destructive = false, size = 'md' }: SmithDialogProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const restoreRef = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
@@ -48,7 +50,7 @@ export function SmithDialog({ open, onClose, title, children, footer, destructiv
         role="dialog"
         aria-modal="true"
         tabIndex={-1}
-        className="w-full max-w-md rounded-sn-card bg-sn-bg-panel text-sn-ink shadow-sn-md outline-none"
+        className={`w-full ${size === 'lg' ? 'max-w-[600px]' : 'max-w-md'} max-h-[90vh] overflow-y-auto rounded-sn-card bg-sn-bg-panel text-sn-ink shadow-sn-md outline-none`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-5 pt-4 pb-2 font-semibold">{title}</div>
@@ -82,14 +84,14 @@ export function ConfirmDialog({ open, title, body, confirmLabel, cancelLabel = '
             type="button"
             data-autofocus
             onClick={onCancel}
-            className="rounded-sn-input px-4 py-2 font-data text-sm text-sn-ink-muted hover:text-sn-ink transition-opacity duration-sn-fast"
+            className="rounded-sn-input px-4 py-2 font-data text-sm text-sn-ink-muted hover:text-sn-ink transition-opacity duration-sn-fast focus-visible:outline focus-visible:outline-2 focus-visible:outline-sn-accent"
           >
             {cancelLabel}
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="rounded-sn-input px-4 py-2 font-data text-sm bg-sn-status-error text-sn-ink-on-accent hover:opacity-90 transition-opacity duration-sn-fast"
+            className="rounded-sn-input px-4 py-2 font-data text-sm bg-sn-status-error text-sn-ink-on-accent hover:opacity-90 transition-opacity duration-sn-fast focus-visible:outline focus-visible:outline-2 focus-visible:outline-sn-accent"
           >
             {confirmLabel}
           </button>

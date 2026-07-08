@@ -28,4 +28,12 @@ describe('Modal', () => {
     await userEvent.click(screen.getByText('b'));
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  it('regains the v1 600px width and stays height-contained', () => {
+    render(<Modal open onClose={() => {}} title="X">b</Modal>);
+    const panel = screen.getByRole('dialog');
+    expect(panel.className).toContain('max-w-[600px]');
+    expect(panel.className).toContain('max-h-[90vh]');
+    expect(panel.className).toContain('overflow-y-auto');
+  });
 });

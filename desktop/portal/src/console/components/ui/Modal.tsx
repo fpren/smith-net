@@ -12,7 +12,7 @@ interface ModalProps {
 
 export function Modal({ open, onClose, title, children }: ModalProps) {
   return (
-    <SmithDialog open={open} onClose={onClose} title={title}>
+    <SmithDialog open={open} onClose={onClose} title={title} size="lg">
       {children}
     </SmithDialog>
   );

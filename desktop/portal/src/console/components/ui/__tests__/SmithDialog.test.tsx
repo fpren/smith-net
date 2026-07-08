@@ -85,6 +85,22 @@ describe('SmithDialog', () => {
     expect(screen.getByTestId('tick')).toHaveTextContent('1');
     expect(second).toHaveFocus();
   });
+
+  it('default (md) panel is height-contained and scrolls tall content', () => {
+    render(<SmithDialog open onClose={() => {}} title="t">x</SmithDialog>);
+    const panel = screen.getByRole('dialog');
+    expect(panel.className).toContain('max-w-md');
+    expect(panel.className).toContain('max-h-[90vh]');
+    expect(panel.className).toContain('overflow-y-auto');
+  });
+
+  it('size="lg" panel is wider (v1 600px) but still height-contained', () => {
+    render(<SmithDialog open onClose={() => {}} title="t" size="lg">x</SmithDialog>);
+    const panel = screen.getByRole('dialog');
+    expect(panel.className).toContain('max-w-[600px]');
+    expect(panel.className).toContain('max-h-[90vh]');
+    expect(panel.className).toContain('overflow-y-auto');
+  });
 });
 
 describe('ConfirmDialog', () => {
@@ -105,5 +121,23 @@ describe('ConfirmDialog', () => {
     render(<ConfirmDialog open title="t" body="b" confirmLabel="Delete"
       onConfirm={() => {}} onCancel={() => {}} />);
     expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus();
+  });
+
+  it('panel stays md width (not the wide 600px form size)', () => {
+    render(<ConfirmDialog open title="t" body="b" confirmLabel="Delete"
+      onConfirm={() => {}} onCancel={() => {}} />);
+    expect(screen.getByRole('dialog').className).toContain('max-w-md');
+  });
+
+  it('Cancel and confirm buttons carry the focus-visible outline convention', () => {
+    render(<ConfirmDialog open title="t" body="b" confirmLabel="Delete"
+      onConfirm={() => {}} onCancel={() => {}} />);
+    const cancel = screen.getByRole('button', { name: 'Cancel' });
+    const confirm = screen.getByRole('button', { name: 'Delete' });
+    for (const btn of [cancel, confirm]) {
+      expect(btn.className).toContain('focus-visible:outline');
+      expect(btn.className).toContain('focus-visible:outline-2');
+      expect(btn.className).toContain('focus-visible:outline-sn-accent');
+    }
   });
 });
