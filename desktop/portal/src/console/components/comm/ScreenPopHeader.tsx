@@ -43,24 +43,24 @@ export function ScreenPopHeader({ channel }: Props) {
   return (
     <div
       key={channel.id}
-      className="comm-surface flex items-center gap-3 px-4 py-3 border-b border-console-border bg-console-surface"
+      className="comm-surface flex items-center gap-3 px-4 py-3 border-b border-sn-line bg-sn-bg-panel"
       style={{ animation: 'commPop .28s cubic-bezier(.2,.8,.2,1)' }}
     >
       {isDm ? (
         <Avatar name={name} color={accentForId(peerId ?? channel.id)} size={36} photoUrl={peer?.avatarUrl} statusColor={ring} />
       ) : (
-        <span className="w-9 h-9 rounded-lg grid place-items-center bg-console-border text-console-text-muted font-commmono">#</span>
+        <span className="w-9 h-9 rounded-lg grid place-items-center bg-sn-line text-sn-ink-muted font-commmono">#</span>
       )}
       <div className="min-w-0">
-        <div className="font-commsans font-semibold text-console-text truncate">
+        <div className="font-commsans font-semibold text-sn-ink truncate">
           {name}
           {isDm && (
-            <span className="ml-2 font-commmono text-[10px]" style={{ color: online ? 'var(--color-ok)' : 'var(--color-text-dim)' }}>
+            <span className="ml-2 font-commmono text-[10px]" style={{ color: online ? 'var(--sn-status-online)' : 'var(--sn-ink-muted)' }}>
               {online ? '[*] online' : 'offline'}
             </span>
           )}
         </div>
-        <div className="font-commmono text-[11px] text-console-text-dim truncate">{sub}</div>
+        <div className="font-commmono text-[11px] text-sn-ink-muted truncate">{sub}</div>
       </div>
     </div>
   );

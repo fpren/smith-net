@@ -19,8 +19,8 @@ export function normalizePublicId(input: string): string | null {
 /** Presence status -> ring/dot color (console palette). null = no dot. */
 export function presenceColor(p: Presence | undefined): string | null {
   if (!p) return null;
-  if (p.status === 'online') return 'var(--color-ok)';
-  if (p.status === 'away') return 'var(--color-warn)';
+  if (p.status === 'online') return 'var(--sn-status-online)';
+  if (p.status === 'away') return 'var(--sn-attention)';
   return null; // offline -> no dot
 }
 
@@ -43,7 +43,7 @@ export function directionMarker(
 }
 
 export function markerColor(marker: string): string {
-  if (marker === '[x]') return 'var(--color-danger)';
-  if (marker === '[>]') return 'var(--color-text-dim)';
-  return 'var(--color-text-muted)';
+  if (marker === '[x]') return 'var(--sn-status-error)';
+  if (marker === '[>]') return 'var(--sn-ink-muted)';
+  return 'var(--sn-ink-muted)';
 }

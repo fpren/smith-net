@@ -159,4 +159,30 @@ describe('CommRoute', () => {
     render(<MemoryRouter><CommRoute /></MemoryRouter>);
     expect(await screen.findByText(/couldn't refresh/i)).toBeInTheDocument();
   });
+
+  it('renders LoadingState while channels are loading', () => {
+    useCommStore.getState().markLoadingChannels(true);
+    render(<MemoryRouter><CommRoute /></MemoryRouter>);
+    expect(screen.getByRole('status')).toBeInTheDocument();
+  });
+
+  it('renders the empty state when there are zero conversations', () => {
+    render(<MemoryRouter><CommRoute /></MemoryRouter>);
+    expect(
+      screen.getByText('No conversations yet — dial a public id to start one'),
+    ).toBeInTheDocument();
+  });
+
+  it('retry on the channels-fetch error re-fires the fetch and clears the banner', async () => {
+    render(<MemoryRouter><CommRoute /></MemoryRouter>);
+    const retry = await screen.findByRole('button', { name: /retry/i });
+
+    server.use(
+      http.get('/api/channels', () => HttpResponse.json([makeChannel('ch-retried', 'recovered')])),
+    );
+    fireEvent.click(retry);
+
+    expect(await screen.findByText('recovered')).toBeInTheDocument();
+    expect(useCommStore.getState().isStaleChannels).toBe(false);
+  });
 });

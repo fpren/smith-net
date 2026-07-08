@@ -45,27 +45,27 @@ export function ActivityRow({ channel, selfId, selfName, selected, unread, last,
       onClick={onSelect}
       className={
         'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl mx-1 my-0.5 text-left transition-transform duration-150 hover:translate-x-0.5 ' +
-        (selected ? 'bg-console-bg shadow-sm border-l-[3px] border-console-accent' : 'hover:bg-console-bg/60')
+        (selected ? 'bg-sn-bg-base shadow-sm border-l-[3px] border-sn-accent' : 'hover:bg-sn-bg-base/60')
       }
     >
       {isDm ? (
         <Avatar name={title} color={accentForId(peerId)} size={30} statusColor={ring} />
       ) : (
-        <span className="w-[30px] h-[30px] rounded-lg flex-shrink-0 grid place-items-center bg-console-border text-console-text-muted font-commmono text-sm">#</span>
+        <span className="w-[30px] h-[30px] rounded-lg flex-shrink-0 grid place-items-center bg-sn-line text-sn-ink-muted font-commmono text-sm">#</span>
       )}
       <span className="flex-1 min-w-0">
         <span className="flex items-baseline justify-between gap-2">
           <span
             className={
-              'font-commsans text-sm text-console-text truncate ' +
+              'font-commsans text-sm text-sn-ink truncate ' +
               (unread > 0 ? 'font-bold' : 'font-medium')
             }
           >
             {title}
           </span>
-          <span className="font-commmono text-[10px] text-console-text-dim flex-shrink-0">{fmtTime(last?.timestamp)}</span>
+          <span className="font-commmono text-[10px] text-sn-ink-muted flex-shrink-0">{fmtTime(last?.timestamp)}</span>
         </span>
-        <span className="block text-[12px] text-console-text-muted truncate">
+        <span className="block text-[12px] text-sn-ink-muted truncate">
           {marker && <span className="font-commmono mr-1" style={{ color: markerColor(marker) }}>{marker}</span>}
           {last?.content ?? 'No messages'}
         </span>

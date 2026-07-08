@@ -6,7 +6,7 @@ import { MyIdCard } from './MyIdCard';
 
 export function DialRail() {
   return (
-    <aside className="comm-surface hidden lg:flex lg:flex-col lg:w-80 lg:flex-shrink-0 border-l border-console-border bg-console-surface p-4">
+    <aside className="comm-surface hidden lg:flex lg:flex-col lg:w-80 lg:flex-shrink-0 border-l border-sn-line bg-sn-bg-panel p-4">
       <DialField />
       <div className="mt-auto" />
       <MyIdCard />

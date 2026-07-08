@@ -54,8 +54,8 @@ export function MyIdCard() {
   }
 
   return (
-    <div className="border-t border-console-border pt-3">
-      <div className="text-[10px] tracking-[0.15em] text-console-text-dim font-commmono">
+    <div className="border-t border-sn-line pt-3">
+      <div className="text-[10px] tracking-[0.15em] text-sn-ink-muted font-commmono">
         YOUR SMITHNET ID
       </div>
       <div className="flex items-center gap-2 mt-1.5">
@@ -65,7 +65,7 @@ export function MyIdCard() {
           size={28}
           photoUrl={me?.avatarUrl}
         />
-        <span className="font-commmono text-sm font-semibold tracking-[0.12em] text-console-text">
+        <span className="font-commmono text-sm font-semibold tracking-[0.12em] text-sn-ink">
           {pretty}
         </span>
       </div>
@@ -75,9 +75,9 @@ export function MyIdCard() {
         <Pill active={showQr} onClick={() => setShowQr((v) => !v)} disabled={!qr} className="flex-1 justify-center">[qr]</Pill>
       </div>
       {showQr && qr && (
-        <div className="mt-2 flex flex-col items-center gap-1 rounded-xl bg-console-surface border border-console-border p-3">
+        <div className="mt-2 flex flex-col items-center gap-1 rounded-xl bg-sn-bg-panel border border-sn-line p-3">
           <img src={qr} alt={`QR for ${pretty}`} width={160} height={160} className="rounded" />
-          <span className="font-commmono text-[10px] text-console-text-dim">scan to message me</span>
+          <span className="font-commmono text-[10px] text-sn-ink-muted">scan to message me</span>
         </div>
       )}
     </div>

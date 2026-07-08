@@ -46,20 +46,15 @@ export function ActivityFeed({ channels, selectedId, onSelect }: Props) {
     <div className="comm-surface flex flex-col py-1 overflow-y-auto">
       {dms.length > 0 && (
         <>
-          <div className="px-3 pt-2 pb-1 text-[10px] tracking-[0.15em] text-console-text-dim font-commmono">DIRECT</div>
+          <div className="px-3 pt-2 pb-1 text-[10px] tracking-[0.15em] text-sn-ink-muted font-commmono">DIRECT</div>
           {dms.map(rowFor)}
         </>
       )}
       {rooms.length > 0 && (
         <>
-          <div className="px-3 pt-3 pb-1 text-[10px] tracking-[0.15em] text-console-text-dim font-commmono">CHANNELS</div>
+          <div className="px-3 pt-3 pb-1 text-[10px] tracking-[0.15em] text-sn-ink-muted font-commmono">CHANNELS</div>
           {rooms.map(rowFor)}
         </>
-      )}
-      {channels.length === 0 && (
-        <div className="px-3 py-6 text-center text-console-text-muted text-sm">
-          No conversations yet. Dial an id to start one.
-        </div>
       )}
     </div>
   );

@@ -12,11 +12,11 @@ interface Props {
 
 export function DirectoryRow({ profile, busy, onMessage }: Props) {
   return (
-    <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl mx-1 hover:bg-console-bg/60 transition-colors">
+    <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl mx-1 hover:bg-sn-bg-base/60 transition-colors">
       <Avatar name={profile.displayName} color={accentForId(profile.id)} size={30} photoUrl={profile.avatarUrl} />
       <span className="flex-1 min-w-0">
-        <span className="block font-commsans text-sm font-semibold text-console-text truncate">{profile.displayName}</span>
-        <span className="block font-commmono text-[11px] text-console-text-dim truncate">
+        <span className="block font-commsans text-sm font-semibold text-sn-ink truncate">{profile.displayName}</span>
+        <span className="block font-commmono text-[11px] text-sn-ink-muted truncate">
           {[profile.role, profile.publicId ? formatPublicId(profile.publicId) : null].filter(Boolean).join(' · ')}
         </span>
       </span>
@@ -24,7 +24,7 @@ export function DirectoryRow({ profile, busy, onMessage }: Props) {
         type="button"
         onClick={onMessage}
         disabled={busy}
-        className="flex-shrink-0 rounded-full border border-console-accent text-console-accent font-commmono text-[11px] px-3 py-1 hover:bg-console-accent hover:text-white transition-colors disabled:opacity-40"
+        className="flex-shrink-0 rounded-full border border-sn-accent text-sn-accent font-commmono text-[11px] px-3 py-1 hover:bg-sn-accent hover:text-sn-ink-on-accent transition-colors disabled:opacity-40"
       >
         {busy ? '…' : 'message'}
       </button>

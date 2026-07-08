@@ -240,7 +240,7 @@ export function MessageInput({ channelId }: Props) {
   }, [channelId]);
 
   return (
-    <div className="comm-surface border-t border-console-border bg-console-surface px-3 py-2.5 flex items-center gap-2">
+    <div className="comm-surface border-t border-sn-line bg-sn-bg-panel px-3 py-2.5 flex items-center gap-2">
       <input
         ref={fileInputRef}
         type="file"
@@ -253,7 +253,7 @@ export function MessageInput({ channelId }: Props) {
         type="button"
         aria-label="Attach"
         onClick={() => fileInputRef.current?.click()}
-        className="w-8 h-8 flex-shrink-0 rounded-full border border-console-border text-console-text-muted font-commmono grid place-items-center hover:border-console-accent hover:text-console-accent transition-colors"
+        className="w-8 h-8 flex-shrink-0 rounded-full border border-sn-line text-sn-ink-muted font-commmono grid place-items-center hover:border-sn-accent hover:text-sn-accent transition-colors"
       >
         [+]
       </button>
@@ -265,13 +265,13 @@ export function MessageInput({ channelId }: Props) {
         onBlur={() => flagTyping(false)}
         placeholder="Type a message…"
         disabled={sending}
-        className="flex-1 rounded-full bg-console-bg border border-console-border px-4 py-2 text-sm text-console-text placeholder-console-text-dim font-commsans focus:outline-none focus:border-console-accent"
+        className="flex-1 rounded-full bg-sn-bg-base border border-sn-line px-4 py-2 text-sm text-sn-ink placeholder-sn-ink-muted font-commsans focus:outline-none focus:border-sn-accent"
       />
       <button
         type="button"
         onClick={doSend}
         disabled={sending || text.trim().length === 0}
-        className="flex-shrink-0 rounded-full bg-console-accent text-white font-commsans font-semibold text-sm px-5 py-2 disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+        className="flex-shrink-0 rounded-full bg-sn-accent text-sn-ink-on-accent font-commsans font-semibold text-sm px-5 py-2 disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
       >
         {sending ? '…' : 'send'}
       </button>
