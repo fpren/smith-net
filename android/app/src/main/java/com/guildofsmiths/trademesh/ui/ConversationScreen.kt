@@ -992,14 +992,16 @@ private fun MessageStatusLine(
     val readByMessage by MessageRepository.readByMessage.collectAsState()
     val isSeen = readByMessage[message.id]?.isNotEmpty() == true
 
+    // Precedence: failed > pending > seen > sent. A FAILED message keeps its
+    // retry affordance even if a receipt arrived via the other transport.
     val (statusText, statusColor) = when {
-        isSeen -> "SEEN" to colors.statusOnline
         message.deliveryStatus == DeliveryStatus.FAILED -> "FAILED · TAP TO RETRY" to colors.attention
         message.deliveryStatus == DeliveryStatus.PENDING -> "PENDING" to colors.inkMuted
+        isSeen -> "SEEN" to colors.statusOnline
         else -> "SENT" to colors.inkMuted
     }
 
-    val isFailed = !isSeen && message.deliveryStatus == DeliveryStatus.FAILED
+    val isFailed = message.deliveryStatus == DeliveryStatus.FAILED
     Text(
         text = statusText,
         style = TextStyle(
