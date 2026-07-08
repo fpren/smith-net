@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse, delay } from 'msw';
 import { server } from '../../test/msw-server';
-import { httpCall } from '../httpCall';
+import { httpCall, resetSessionExpiredGuard } from '../httpCall';
 import { useAuthStore } from '../../auth/authStore';
 import { useToastStore } from '../../stores/toastStore';
 
@@ -21,6 +21,7 @@ describe('httpCall', () => {
   beforeEach(() => {
     seedAuthedUser();
     useToastStore.setState({ toasts: [] });
+    resetSessionExpiredGuard();
   });
 
   afterEach(() => {
@@ -75,6 +76,35 @@ describe('httpCall', () => {
     expect(useToastStore.getState().toasts[0]?.message).toBe('Session expired — sign in again');
     expect(useToastStore.getState().toasts[0]?.tone).toBe('error');
     expect(assignSpy).toHaveBeenCalledWith('/console/login');
+  });
+
+  it('(e) three concurrent 401s + dead refresh -> ONE toast, one redirect', async () => {
+    server.use(
+      http.get('/api/widgets', () => HttpResponse.json({ error: 'unauthorized' }, { status: 401 })),
+      http.get('/api/gadgets', () => HttpResponse.json({ error: 'unauthorized' }, { status: 401 })),
+      http.get('/api/gizmos', () => HttpResponse.json({ error: 'unauthorized' }, { status: 401 })),
+      http.post('/api/auth/refresh', async () => {
+        await delay(20);
+        return HttpResponse.json({ error: 'invalid refresh token' }, { status: 401 });
+      }),
+    );
+
+    const assignSpy = vi.fn();
+    Object.defineProperty(window, 'location', {
+      value: { ...window.location, assign: assignSpy },
+      writable: true,
+      configurable: true,
+    });
+
+    const results = await Promise.all([
+      httpCall('/api/widgets'),
+      httpCall('/api/gadgets'),
+      httpCall('/api/gizmos'),
+    ]);
+
+    expect(results.every((r) => !r.ok)).toBe(true);
+    expect(useToastStore.getState().toasts).toHaveLength(1);
+    expect(assignSpy).toHaveBeenCalledTimes(1);
   });
 
   it('(c) two concurrent 401 requests -> one refresh (single-flight)', async () => {

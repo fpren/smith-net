@@ -51,7 +51,15 @@ async function parseJsonBody(res: Response): Promise<any> {
   return res.json().catch(() => null);
 }
 
+// Fires once per expiry event, not once per failing request: a dashboard
+// load runs several fetches in parallel and each would otherwise stack its
+// own toast + redirect. location.assign is a full navigation, so module
+// state (and this flag) resets with the next page load — no re-arm needed.
+let sessionExpiredHandled = false;
+
 function sessionExpired(): void {
+  if (sessionExpiredHandled) return;
+  sessionExpiredHandled = true;
   useAuthStore.getState().clear();
   useToastStore.getState().push({
     message: 'Session expired — sign in again',
@@ -59,6 +67,11 @@ function sessionExpired(): void {
     duration: 4000,
   });
   window.location.assign('/console/login');
+}
+
+/** Test hook: re-arm the session-expired guard between cases. */
+export function resetSessionExpiredGuard(): void {
+  sessionExpiredHandled = false;
 }
 
 /**
