@@ -22,6 +22,11 @@ interface CommState {
   presenceByUser: Record<string, Presence>;
   // channelId → count of unread incoming messages (reset when selected).
   unreadByChannel: Record<string, number>;
+  // channelId → unread count captured the instant the channel was selected,
+  // BEFORE unreadByChannel got zeroed. Feeds the MessageList "NEW" divider.
+  // Selecting a different channel replaces this whole map, so a stale
+  // snapshot for the previously-open channel never lingers.
+  unreadAtSelect: Record<string, number>;
   // channelId → most recent message (for the activity-feed preview + sort).
   lastMessageByChannel: Record<string, Message>;
   isLoadingChannels: boolean;
@@ -58,6 +63,7 @@ export const useCommStore = create<CommState>((set) => ({
   readByMessage: {},
   presenceByUser: {},
   unreadByChannel: {},
+  unreadAtSelect: {},
   lastMessageByChannel: {},
   isLoadingChannels: false,
   isLoadingMessages: false,
@@ -66,13 +72,20 @@ export const useCommStore = create<CommState>((set) => ({
 
   setChannels: (channels) => set({ channels, isStaleChannels: false }),
   selectChannel: (selectedChannelId) =>
-    set((s) => ({
-      selectedChannelId,
-      // Opening a channel clears its unread count.
-      unreadByChannel: selectedChannelId
-        ? { ...s.unreadByChannel, [selectedChannelId]: 0 }
-        : s.unreadByChannel,
-    })),
+    set((s) => {
+      if (!selectedChannelId) {
+        return { selectedChannelId, unreadAtSelect: {} };
+      }
+      // Snapshot BEFORE zeroing — this is what the NEW divider anchors to.
+      // Replacing the whole map (not merging) is what clears the previous
+      // channel's snapshot on every switch.
+      const snapshot = s.unreadByChannel[selectedChannelId] ?? 0;
+      return {
+        selectedChannelId,
+        unreadAtSelect: { [selectedChannelId]: snapshot },
+        unreadByChannel: { ...s.unreadByChannel, [selectedChannelId]: 0 },
+      };
+    }),
   setMessages: (channelId, msgs) =>
     set((s) => {
       const last = msgs.length ? msgs[msgs.length - 1] : undefined;
@@ -199,6 +212,7 @@ export const useCommStore = create<CommState>((set) => ({
       readByMessage: {},
       presenceByUser: {},
       unreadByChannel: {},
+      unreadAtSelect: {},
       lastMessageByChannel: {},
       isLoadingChannels: false,
       isLoadingMessages: false,

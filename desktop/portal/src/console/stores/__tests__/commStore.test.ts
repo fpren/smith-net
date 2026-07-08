@@ -38,6 +38,34 @@ describe('commStore', () => {
     });
   });
 
+  describe('selectChannel + unreadAtSelect', () => {
+    it('snapshots the prior unread count into unreadAtSelect before zeroing unreadByChannel', () => {
+      const s = useCommStore.getState();
+      s.setChannels([channel('a')]);
+      s.appendMessage(message('m1', 'a'));
+      s.appendMessage(message('m2', 'a'));
+      expect(useCommStore.getState().unreadByChannel['a']).toBe(2);
+
+      s.selectChannel('a');
+      const state = useCommStore.getState();
+      expect(state.unreadAtSelect['a']).toBe(2);
+      expect(state.unreadByChannel['a']).toBe(0);
+    });
+
+    it('clears the previous channel snapshot when a different channel is selected', () => {
+      const s = useCommStore.getState();
+      s.appendMessage(message('m1', 'a'));
+      s.selectChannel('a');
+      expect(useCommStore.getState().unreadAtSelect['a']).toBe(1);
+
+      s.appendMessage(message('m2', 'b'));
+      s.selectChannel('b');
+      const state = useCommStore.getState();
+      expect(state.unreadAtSelect['a']).toBeUndefined();
+      expect(state.unreadAtSelect['b']).toBe(1);
+    });
+  });
+
   describe('removeChannel', () => {
     it('drops the channel, its messages, its typing state, and clears selection if it was selected', () => {
       const s = useCommStore.getState();

@@ -1,5 +1,5 @@
 // desktop/portal/src/console/components/comm/MessageList.tsx
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { useCommStore } from '../../stores/commStore';
 import { useAuthStore } from '../../auth/authStore';
 import { commClient } from '../../api/commClient';
@@ -35,25 +35,72 @@ export function MessageList({ channelId }: Props) {
   const isStale = useCommStore((s) => s.isStaleMessages);
   const typingMap = useCommStore((s) => s.typingByChannel[channelId] ?? EMPTY_TYPING);
   const readByMessage = useCommStore((s) => s.readByMessage);
+  const unreadAtSelect = useCommStore((s) => s.unreadAtSelect[channelId] ?? 0);
   const selfId = useAuthStore((s) => s.user?.id);
   const pushToast = useToastStore((s) => s.push);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [distanceFromBottom, setDistanceFromBottom] = useState(0);
 
   // Track which message ids we've already sent a read receipt for in this
   // session — keeps the WS quiet on re-renders.
   const sentReceipts = useRef<Set<string>>(new Set());
 
+  // NEW-divider anchor: computed once, on the first render after messages
+  // load for this channel, then frozen until channelId changes. Late
+  // arrivals (appendMessage while the channel stays open) must not move it —
+  // recomputing on every messages.length change would shove the divider
+  // toward the bottom as new messages come in.
+  const dividerAnchorRef = useRef<{ channelId: string; index: number } | null>(null);
+  if (dividerAnchorRef.current?.channelId !== channelId) {
+    dividerAnchorRef.current =
+      messages.length > 0
+        ? {
+            channelId,
+            index: unreadAtSelect > 0 ? Math.max(0, messages.length - unreadAtSelect) : -1,
+          }
+        : null; // messages haven't loaded yet — try again next render
+  }
+  const dividerIndex = dividerAnchorRef.current?.index ?? -1;
+
+  function measureDistanceFromBottom(el: HTMLDivElement): number {
+    return el.scrollHeight - el.scrollTop - el.clientHeight;
+  }
+
   // Auto-scroll on new messages, but only if the user is already near the
   // bottom (within 120px) — never steal scroll while they're reading history.
+  // Also refreshes the jump-to-latest pill's distance state so it appears
+  // immediately if new messages arrive while scrolled up.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-    if (nearBottom) {
+    const distance = measureDistanceFromBottom(el);
+    if (distance < 120) {
       el.scrollTop = el.scrollHeight;
+      setDistanceFromBottom(0);
+    } else {
+      setDistanceFromBottom(distance);
     }
   }, [messages.length]);
+
+  function handleScroll() {
+    const el = scrollRef.current;
+    if (!el) return;
+    setDistanceFromBottom(measureDistanceFromBottom(el));
+  }
+
+  function jumpToLatest() {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (typeof el.scrollTo === 'function') {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    } else {
+      // jsdom (tests) doesn't implement scrollTo.
+      el.scrollTop = el.scrollHeight;
+    }
+  }
+
+  const showJumpToLatest = distanceFromBottom > 300;
 
   // Send read receipts for messages that aren't mine, once per id per session.
   useEffect(() => {
@@ -115,30 +162,55 @@ export function MessageList({ channelId }: Props) {
           [OFFLINE] Couldn't refresh messages
         </div>
       )}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 bg-console-bg">
-        {messages.length === 0 ? (
-          <div className="text-console-text-muted text-sm font-commsans">No messages yet.</div>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {groupMessages(messages).map(({ message: m, firstOfGroup }) => {
-              const mine = selfId === m.senderId;
-              const readers = readByMessage[m.id];
-              const seenByOthers = readers
-                ? Array.from(readers).filter((id) => id !== selfId).length
-                : 0;
-              return (
-                <MessageRow
-                  key={m.id}
-                  message={m}
-                  firstOfGroup={firstOfGroup}
-                  mine={mine}
-                  seenByOthers={seenByOthers}
-                  onDelete={(messageId) => setConfirmingId(messageId)}
-                  onRetry={onRetry}
-                />
-              );
-            })}
-          </ul>
+      <div className="relative flex-1 min-h-0 flex flex-col">
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto px-4 py-3 bg-console-bg"
+        >
+          {messages.length === 0 ? (
+            <div className="text-console-text-muted text-sm font-commsans">No messages yet.</div>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {groupMessages(messages).map(({ message: m, firstOfGroup }, index) => {
+                const mine = selfId === m.senderId;
+                const readers = readByMessage[m.id];
+                const seenByOthers = readers
+                  ? Array.from(readers).filter((id) => id !== selfId).length
+                  : 0;
+                return (
+                  <Fragment key={m.id}>
+                    {index === dividerIndex && (
+                      <li className="flex items-center gap-2 my-1">
+                        <span className="flex-1 border-t border-sn-attention" />
+                        <span className="font-data text-[10px] uppercase text-sn-attention bg-sn-bg-base px-2">
+                          NEW
+                        </span>
+                        <span className="flex-1 border-t border-sn-attention" />
+                      </li>
+                    )}
+                    <MessageRow
+                      message={m}
+                      firstOfGroup={firstOfGroup}
+                      mine={mine}
+                      seenByOthers={seenByOthers}
+                      onDelete={(messageId) => setConfirmingId(messageId)}
+                      onRetry={onRetry}
+                    />
+                  </Fragment>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+        {showJumpToLatest && (
+          <button
+            type="button"
+            onClick={jumpToLatest}
+            className="absolute bottom-3 left-1/2 -translate-x-1/2 font-data text-xs bg-sn-accent text-sn-ink-on-accent rounded-full px-3 py-1 shadow-sn-sm"
+          >
+            ↓ latest
+          </button>
         )}
       </div>
       {typingNames.length > 0 && (

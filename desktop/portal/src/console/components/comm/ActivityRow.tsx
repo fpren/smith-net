@@ -55,7 +55,14 @@ export function ActivityRow({ channel, selfId, selfName, selected, unread, last,
       )}
       <span className="flex-1 min-w-0">
         <span className="flex items-baseline justify-between gap-2">
-          <span className="font-commsans text-sm font-semibold text-console-text truncate">{title}</span>
+          <span
+            className={
+              'font-commsans text-sm text-console-text truncate ' +
+              (unread > 0 ? 'font-bold' : 'font-medium')
+            }
+          >
+            {title}
+          </span>
           <span className="font-commmono text-[10px] text-console-text-dim flex-shrink-0">{fmtTime(last?.timestamp)}</span>
         </span>
         <span className="block text-[12px] text-console-text-muted truncate">
@@ -64,7 +71,7 @@ export function ActivityRow({ channel, selfId, selfName, selected, unread, last,
         </span>
       </span>
       {unread > 0 && (
-        <span className="flex-shrink-0 bg-console-accent text-white rounded-full font-commmono text-[10px] px-1.5 min-w-[18px] text-center">
+        <span className="flex-shrink-0 bg-sn-attention text-sn-ink-on-accent rounded-full font-commmono text-[10px] px-1.5 min-w-[18px] text-center">
           {unread}
         </span>
       )}
