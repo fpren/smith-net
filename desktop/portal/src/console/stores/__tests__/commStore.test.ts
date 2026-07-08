@@ -127,4 +127,36 @@ describe('commStore', () => {
       expect(Array.from(readers!).sort()).toEqual(['u2', 'u3']);
     });
   });
+
+  describe('updateMessage', () => {
+    it('merges a patch into the matching message', () => {
+      const s = useCommStore.getState();
+      s.setMessages('a', [message('m1', 'a'), message('m2', 'a')]);
+      s.updateMessage('a', 'm1', { status: 'sent' });
+      const list = useCommStore.getState().messagesByChannel['a'];
+      expect(list.find((m) => m.id === 'm1')?.status).toBe('sent');
+      expect(list.find((m) => m.id === 'm2')?.status).toBeUndefined();
+    });
+
+    it('is a no-op for an unknown message id', () => {
+      const s = useCommStore.getState();
+      s.setMessages('a', [message('m1', 'a')]);
+      s.updateMessage('a', 'missing', { status: 'failed' });
+      expect(useCommStore.getState().messagesByChannel['a']).toEqual([message('m1', 'a')]);
+    });
+
+    it('is a no-op for an unknown channel', () => {
+      const s = useCommStore.getState();
+      s.updateMessage('missing-channel', 'm1', { status: 'failed' });
+      expect(useCommStore.getState().messagesByChannel['missing-channel']).toBeUndefined();
+    });
+
+    it('re-sorts by timestamp after patch', () => {
+      const s = useCommStore.getState();
+      s.setMessages('a', [message('m1', 'a', 1000), message('m2', 'a', 2000)]);
+      s.updateMessage('a', 'm1', { timestamp: 3000 });
+      const ids = useCommStore.getState().messagesByChannel['a'].map((m) => m.id);
+      expect(ids).toEqual(['m2', 'm1']);
+    });
+  });
 });

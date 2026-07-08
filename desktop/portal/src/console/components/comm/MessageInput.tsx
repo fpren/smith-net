@@ -2,8 +2,9 @@
 import { useState, useRef, useEffect, KeyboardEvent } from 'react';
 import { commClient } from '../../api/commClient';
 import { useCommStore } from '../../stores/commStore';
-import { useToastStore } from '../../stores/toastStore';
+import { useAuthStore } from '../../auth/authStore';
 import { wsClient } from '../../../websocket';
+import type { Message } from '../../../types';
 
 interface Props {
   channelId: string;
@@ -11,11 +12,44 @@ interface Props {
 
 const TYPING_IDLE_MS = 3_000;
 
+// Optimistic send: appends a `pending` message to the store immediately,
+// fires the network request, then settles the same id to `sent` (merging the
+// server's canonical fields) or `failed`. Exported standalone (not a hook) so
+// Task 4's retry flow can re-invoke it with the same tempId without needing a
+// mounted MessageInput.
+export async function sendOptimistic(
+  channelId: string,
+  content: string,
+  selfId: string,
+  selfName: string
+): Promise<void> {
+  const trimmed = content.trim();
+  if (!trimmed) return;
+  const tempId = crypto.randomUUID();
+  const optimistic: Message = {
+    id: tempId,
+    channelId,
+    senderId: selfId,
+    senderName: selfName,
+    content: trimmed,
+    timestamp: Date.now(),
+    origin: 'online',
+    status: 'pending',
+  };
+  useCommStore.getState().appendMessage(optimistic);
+  const result = await commClient.send(channelId, trimmed, { id: tempId }).catch(() => ({ ok: false as const }));
+  if (result.ok) {
+    useCommStore.getState().updateMessage(channelId, tempId, { ...result.message, status: 'sent' });
+  } else {
+    useCommStore.getState().updateMessage(channelId, tempId, { status: 'failed' });
+  }
+}
+
 export function MessageInput({ channelId }: Props) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
-  const appendMessage = useCommStore((s) => s.appendMessage);
-  const pushToast = useToastStore((s) => s.push);
+  const selfId = useAuthStore((s) => s.user?.id);
+  const selfName = useAuthStore((s) => s.user?.displayName);
 
   // Whether we have an active "I am typing" claim out. Cleared on idle, send,
   // blur, channel change, and unmount so peers don't see a stale indicator.
@@ -49,24 +83,18 @@ export function MessageInput({ channelId }: Props) {
 
   async function doSend() {
     const trimmed = text.trim();
-    if (!trimmed || sending) return;
+    if (!trimmed || sending || !selfId) return;
     setSending(true);
     flagTyping(false);
     if (idleTimerRef.current) {
       clearTimeout(idleTimerRef.current);
       idleTimerRef.current = null;
     }
-    const result = await commClient.send(channelId, trimmed);
-    setSending(false);
-    if (result.ok) {
-      appendMessage(result.message);
-      setText('');
-    } else {
-      pushToast({
-        message: result.error || 'Send failed',
-        tone: 'error',
-        duration: 3000,
-      });
+    setText('');
+    try {
+      await sendOptimistic(channelId, trimmed, selfId, selfName ?? '');
+    } finally {
+      setSending(false);
     }
   }
 

@@ -601,16 +601,22 @@ export const handlers = [
   http.delete('/api/messages/:id', () => new HttpResponse(null, { status: 204 })),
 
   http.post('/api/messages/inject', async ({ request }) => {
-    const body = (await request.json()) as { channelId: string; content: string };
+    const body = (await request.json()) as {
+      channelId: string;
+      content: string;
+      id?: string;
+      media?: unknown;
+    };
     return HttpResponse.json(
       {
-        id: 'msg-new',
+        id: body.id ?? 'msg-new',
         channelId: body.channelId,
         senderId: 'user-1',
         senderName: 'Test Foreman',
         content: body.content,
         timestamp: 1716000099000,
         origin: 'online',
+        ...(body.media !== undefined ? { media: body.media } : {}),
         meshInjected: false,
         relayCount: 0,
       },

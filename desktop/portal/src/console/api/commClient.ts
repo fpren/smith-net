@@ -6,7 +6,7 @@
 // not wrapped) for /api/messages/inject — handlers below normalize all three
 // shapes to a stable { ok, channels|messages|message } envelope.
 
-import type { Channel, Message } from '../../types';
+import type { Channel, Message, MediaAttachment } from '../../types';
 
 // Directory/profile shape returned by backend/src/profilesRoutes.ts mapProfile().
 export interface Profile {
@@ -89,10 +89,14 @@ export const commClient = {
     return { ok: true, channel };
   },
 
-  send: async (channelId: string, content: string): Promise<CommResult<{ message: Message }>> => {
+  send: async (
+    channelId: string,
+    content: string,
+    opts?: { id?: string; media?: MediaAttachment }
+  ): Promise<CommResult<{ message: Message }>> => {
     const r = await fetchJson('/api/messages/inject', {
       method: 'POST',
-      body: { channelId, content },
+      body: { channelId, content, id: opts?.id, media: opts?.media },
     });
     if (!r.ok) return r;
     // /messages/inject responds with ...message + meshInjected/relayCount. Strip

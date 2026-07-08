@@ -33,6 +33,7 @@ interface CommState {
   selectChannel: (id: string | null) => void;
   setMessages: (channelId: string, msgs: Message[]) => void;
   appendMessage: (msg: Message) => void;
+  updateMessage: (channelId: string, messageId: string, patch: Partial<Message>) => void;
   addChannel: (channel: Channel) => void;
   removeChannel: (channelId: string) => void;
   clearChannelMessages: (channelId: string) => void;
@@ -98,6 +99,15 @@ export const useCommStore = create<CommState>((set) => ({
           ? s.unreadByChannel
           : { ...s.unreadByChannel, [msg.channelId]: prevUnread + 1 },
       };
+    }),
+  updateMessage: (channelId, messageId, patch) =>
+    set((state) => {
+      const list = state.messagesByChannel[channelId];
+      if (!list?.some((m) => m.id === messageId)) return state;
+      const next = list
+        .map((m) => (m.id === messageId ? { ...m, ...patch } : m))
+        .sort((a, b) => a.timestamp - b.timestamp);
+      return { messagesByChannel: { ...state.messagesByChannel, [channelId]: next } };
     }),
   addChannel: (channel) =>
     set((s) => {

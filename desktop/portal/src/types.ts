@@ -29,6 +29,8 @@ export interface MediaAttachment {
   thumbnailUrl?: string;
 }
 
+export type MessageStatus = 'pending' | 'sent' | 'delivered' | 'failed' | 'seen';
+
 export interface Message {
   id: string;
   channelId: string;
@@ -40,6 +42,7 @@ export interface Message {
   recipientId?: string;
   recipientName?: string;
   media?: MediaAttachment; // Optional media attachment
+  status?: MessageStatus; // Client-side only; absent means settled/sent.
 }
 
 export interface Presence {
