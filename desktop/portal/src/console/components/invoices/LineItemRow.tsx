@@ -31,28 +31,28 @@ export function LineItemRow({ item, readOnly }: { item: InvoiceLineItem; readOnl
   }
 
   return (
-    <div className="px-3 py-2 border-b border-console-border text-sm font-mono md:grid md:grid-cols-[1fr_5rem_5rem_6rem_5rem_2rem] md:gap-2 md:items-center">
+    <div className="px-3 py-2 border-b border-sn-line text-sm font-mono md:grid md:grid-cols-[1fr_5rem_5rem_6rem_5rem_2rem] md:gap-2 md:items-center">
       {/* Row 1 (mobile + desktop col 1): description on the left, mobile-only
           delete button on the right. */}
       <div className="flex items-start justify-between gap-2 md:contents">
-        <div className="text-console-text break-words flex-1 min-w-0">{item.description}</div>
+        <div className="text-sn-ink break-words flex-1 min-w-0">{item.description}</div>
         {!readOnly && (
           <button
             type="button"
             onClick={() => setConfirmingDelete(true)}
             aria-label="Delete line item"
-            className="md:order-last text-xs text-console-text-muted opacity-40 hover:opacity-100 focus:opacity-100 hover:text-console-danger focus:text-console-danger transition-opacity flex-shrink-0"
+            className="md:order-last text-xs text-sn-ink-muted opacity-40 hover:opacity-100 focus:opacity-100 hover:text-sn-status-error focus:text-sn-status-error transition-opacity flex-shrink-0"
           >
             [x]
           </button>
         )}
       </div>
       {/* Row 2 (mobile only — md:contents promotes each child into grid cols). */}
-      <div className="md:contents flex items-baseline gap-3 mt-1 text-xs text-console-text-muted">
+      <div className="md:contents flex items-baseline gap-3 mt-1 text-xs text-sn-ink-muted">
         <span className="tabular-nums md:text-sm">{item.quantity} {item.unit}</span>
         <span className="tabular-nums md:text-sm">@ {fmtMoney(item.rate)}</span>
         <span className="uppercase md:text-sm">{item.category}</span>
-        <span className="ml-auto md:ml-0 md:text-right text-console-text tabular-nums font-semibold md:font-normal md:text-sm">
+        <span className="ml-auto md:ml-0 md:text-right text-sn-ink tabular-nums font-semibold md:font-normal md:text-sm">
           {fmtMoney(item.total)}
         </span>
       </div>

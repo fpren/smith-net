@@ -34,12 +34,37 @@ function line(id: string, invoiceId: string, sortOrder = 0): InvoiceLineItem {
 describe('invoicesStore', () => {
   beforeEach(() => useInvoicesStore.getState().clear());
 
-  it('setInvoices replaces the list and clears stale', () => {
-    useInvoicesStore.getState().markStale(true);
+  it('setInvoices replaces the list and clears listStale', () => {
+    useInvoicesStore.getState().markListStale(true);
     useInvoicesStore.getState().setInvoices([inv('a'), inv('b')]);
     const s = useInvoicesStore.getState();
     expect(s.invoices.map((i) => i.id)).toEqual(['a', 'b']);
-    expect(s.isStale).toBe(false);
+    expect(s.listStale).toBe(false);
+  });
+
+  it('markListStale toggles the list flag independently of detail', () => {
+    useInvoicesStore.getState().markListStale(true);
+    expect(useInvoicesStore.getState().listStale).toBe(true);
+    expect(useInvoicesStore.getState().detailStale).toBe(false);
+    useInvoicesStore.getState().markListStale(false);
+    expect(useInvoicesStore.getState().listStale).toBe(false);
+  });
+
+  it('markDetailStale toggles the detail flag independently of list', () => {
+    useInvoicesStore.getState().markDetailStale(true);
+    expect(useInvoicesStore.getState().detailStale).toBe(true);
+    expect(useInvoicesStore.getState().listStale).toBe(false);
+    useInvoicesStore.getState().markDetailStale(false);
+    expect(useInvoicesStore.getState().detailStale).toBe(false);
+  });
+
+  it('clear resets both stale flags', () => {
+    useInvoicesStore.getState().markListStale(true);
+    useInvoicesStore.getState().markDetailStale(true);
+    useInvoicesStore.getState().clear();
+    const s = useInvoicesStore.getState();
+    expect(s.listStale).toBe(false);
+    expect(s.detailStale).toBe(false);
   });
 
   it('upsertInvoice updates an existing row in place and mirrors into detail when matched', () => {

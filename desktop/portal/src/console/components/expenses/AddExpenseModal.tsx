@@ -74,27 +74,27 @@ export function AddExpenseModal({ open, jobId, editing, onClose }: Props) {
       <form onSubmit={handleSubmit} className="w-full sm:w-[420px] max-w-full flex flex-col gap-2 font-mono text-sm">
         <input value={category} onChange={(e) => setCategory(e.target.value)}
           list="expense-category-suggestions" placeholder="Category" autoFocus required
-          className="bg-console-bg border border-console-border rounded px-2 py-1 text-console-text focus:border-console-accent outline-none" />
+          className="bg-sn-bg-base border border-sn-line rounded px-2 py-1 text-sn-ink focus:border-sn-accent outline-none" />
         <datalist id="expense-category-suggestions">
           {CATEGORY_SUGGESTIONS.map((c) => <option key={c} value={c} />)}
         </datalist>
         <input value={description} onChange={(e) => setDescription(e.target.value)}
           placeholder="Description" required
-          className="bg-console-bg border border-console-border rounded px-2 py-1 text-console-text focus:border-console-accent outline-none" />
+          className="bg-sn-bg-base border border-sn-line rounded px-2 py-1 text-sn-ink focus:border-sn-accent outline-none" />
         <div className="flex gap-2">
           <input value={amount} onChange={(e) => setAmount(e.target.value)}
             type="number" min="0" step="0.01" placeholder="amount"
-            className="flex-1 bg-console-bg border border-console-border rounded px-2 py-1 text-console-text focus:border-console-accent outline-none" />
+            className="flex-1 bg-sn-bg-base border border-sn-line rounded px-2 py-1 text-sn-ink focus:border-sn-accent outline-none" />
           <input value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)}
             type="date" placeholder="date"
-            className="flex-1 bg-console-bg border border-console-border rounded px-2 py-1 text-console-text focus:border-console-accent outline-none" />
+            className="flex-1 bg-sn-bg-base border border-sn-line rounded px-2 py-1 text-sn-ink focus:border-sn-accent outline-none" />
         </div>
         <input value={vendor} onChange={(e) => setVendor(e.target.value)}
           placeholder="Vendor (optional)"
-          className="bg-console-bg border border-console-border rounded px-2 py-1 text-console-text focus:border-console-accent outline-none" />
+          className="bg-sn-bg-base border border-sn-line rounded px-2 py-1 text-sn-ink focus:border-sn-accent outline-none" />
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)}
           placeholder="Notes (optional)" rows={2}
-          className="bg-console-bg border border-console-border rounded px-2 py-1 text-console-text focus:border-console-accent outline-none" />
+          className="bg-sn-bg-base border border-sn-line rounded px-2 py-1 text-sn-ink focus:border-sn-accent outline-none" />
         <div className="flex gap-2 justify-end pt-2">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
           <Button type="submit" disabled={busy}>Save</Button>

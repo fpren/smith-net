@@ -7,9 +7,12 @@ const h = vi.hoisted(() => ({
     onClock: false, startedAt: null as string | null, entryType: null as string | null,
     jobTitle: null as string | null, busy: false, clockIn: vi.fn(), clockOut: vi.fn(),
   },
+  todayEntries: {
+    entries: [] as unknown[], loading: false, error: false, reload: vi.fn(),
+  },
 }));
 vi.mock('../../header/useShiftToggle', () => ({ useShiftToggle: () => h.toggle }));
-vi.mock('../useTodayEntries', () => ({ useTodayEntries: () => [] }));
+vi.mock('../useTodayEntries', () => ({ useTodayEntries: () => h.todayEntries }));
 // ClockInDialog (opened on clock-in) fetches the user's jobs (all-tier); stub to
 // an empty list so no real fetch fires.
 vi.mock('../../../api/presenceClient', () => ({
@@ -22,6 +25,7 @@ vi.mock('../../../api/presenceClient', () => ({
 describe('TimeScreen container', () => {
   beforeEach(() => {
     h.toggle = { onClock: false, startedAt: null, entryType: null, jobTitle: null, busy: false, clockIn: vi.fn(), clockOut: vi.fn() };
+    h.todayEntries = { entries: [], loading: false, error: false, reload: vi.fn() };
   });
 
   it('off-clock: the switch opens the clock-in dialog (does not clock in instantly)', () => {
@@ -43,5 +47,27 @@ describe('TimeScreen container', () => {
     fireEvent.click(screen.getByRole('button', { name: /clock out/i }));
     expect(h.toggle.clockOut).toHaveBeenCalled();
     expect(screen.queryByTestId('sn-dialog-backdrop')).not.toBeInTheDocument(); // no dialog
+  });
+
+  it('renders LoadingState while today\'s entries are loading and none are cached yet', () => {
+    h.todayEntries = { entries: [], loading: true, error: false, reload: vi.fn() };
+    render(<TimeScreen />);
+    expect(screen.getByRole('status')).toBeInTheDocument();
+  });
+
+  it('renders ErrorState with retry when today\'s entries fail to load', () => {
+    const reload = vi.fn();
+    h.todayEntries = { entries: [], loading: false, error: true, reload };
+    render(<TimeScreen />);
+    const alert = screen.getByRole('alert');
+    expect(alert).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the entries empty state once loaded with zero entries', () => {
+    h.todayEntries = { entries: [], loading: false, error: false, reload: vi.fn() };
+    render(<TimeScreen />);
+    expect(screen.getByText(/no entries today/i)).toBeInTheDocument();
   });
 });

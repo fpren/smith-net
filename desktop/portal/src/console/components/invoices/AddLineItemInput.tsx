@@ -55,7 +55,7 @@ export function AddLineItemInput({ invoiceId }: { invoiceId: string }) {
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         placeholder="Description"
-        className="w-full bg-transparent border border-console-border px-2 py-1 text-sm text-console-text placeholder-console-text-muted focus:outline-none focus:border-console-accent"
+        className="w-full bg-transparent border border-sn-line px-2 py-1 text-sm text-sn-ink placeholder-sn-ink-muted focus:outline-none focus:border-sn-accent"
       />
       <div className="flex gap-2 md:contents">
         <input
@@ -65,7 +65,7 @@ export function AddLineItemInput({ invoiceId }: { invoiceId: string }) {
           value={quantity}
           onChange={(e) => setQuantity(e.target.value)}
           placeholder="qty"
-          className="flex-1 md:flex-none bg-transparent border border-console-border px-2 py-1 text-sm text-console-text placeholder-console-text-muted tabular-nums focus:outline-none focus:border-console-accent"
+          className="flex-1 md:flex-none bg-transparent border border-sn-line px-2 py-1 text-sm text-sn-ink placeholder-sn-ink-muted tabular-nums focus:outline-none focus:border-sn-accent"
         />
         <input
           type="number"
@@ -74,14 +74,14 @@ export function AddLineItemInput({ invoiceId }: { invoiceId: string }) {
           value={rate}
           onChange={(e) => setRate(e.target.value)}
           placeholder="rate"
-          className="flex-1 md:flex-none bg-transparent border border-console-border px-2 py-1 text-sm text-console-text placeholder-console-text-muted tabular-nums focus:outline-none focus:border-console-accent"
+          className="flex-1 md:flex-none bg-transparent border border-sn-line px-2 py-1 text-sm text-sn-ink placeholder-sn-ink-muted tabular-nums focus:outline-none focus:border-sn-accent"
         />
       </div>
       <div className="flex gap-2 md:contents">
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value as LineCategory)}
-          className="flex-1 md:flex-none bg-transparent border border-console-border px-2 py-1 text-sm text-console-text focus:outline-none focus:border-console-accent"
+          className="flex-1 md:flex-none bg-transparent border border-sn-line px-2 py-1 text-sm text-sn-ink focus:outline-none focus:border-sn-accent"
         >
           {CATEGORIES.map((c) => (
             <option key={c} value={c}>{c}</option>
@@ -91,7 +91,7 @@ export function AddLineItemInput({ invoiceId }: { invoiceId: string }) {
           type="button"
           onClick={submit}
           disabled={submitting || !description.trim() || !rate}
-          className="px-3 py-1 text-xs uppercase tracking-wide text-console-accent border border-console-accent disabled:opacity-40 disabled:cursor-not-allowed hover:bg-console-accent hover:text-console-bg transition-colors whitespace-nowrap"
+          className="px-3 py-1 text-xs uppercase tracking-wide text-sn-accent border border-sn-accent disabled:opacity-40 disabled:cursor-not-allowed hover:bg-sn-accent hover:text-sn-ink-on-accent transition-colors whitespace-nowrap"
         >
           {submitting ? '[Adding…]' : '[+ Add line]'}
         </button>

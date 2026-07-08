@@ -35,16 +35,16 @@ export function ExpensesTable({ jobId }: { jobId: string }) {
   return (
     <section className="font-mono mb-4">
       <header className="flex items-center justify-between mb-2">
-        <h2 className="text-console-text text-sm uppercase tracking-wider">Expenses ({items.length})</h2>
+        <h2 className="text-sn-ink text-sm uppercase tracking-wider">Expenses ({items.length})</h2>
         <Button variant="secondary" onClick={() => { setEditing(null); setShowAdd(true); }}>+ Add expense</Button>
       </header>
       {items.length === 0 ? (
-        <div className="text-console-text-muted text-sm py-2">No expenses yet.</div>
+        <div className="text-sn-ink-muted text-sm py-2">No expenses yet.</div>
       ) : (
-        <div className="border border-console-border overflow-x-auto">
+        <div className="border border-sn-line overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-console-text-muted border-b border-console-border">
+              <tr className="text-left text-sn-ink-muted border-b border-sn-line">
                 <th className="px-3 py-2 font-normal">Category</th>
                 <th className="px-3 py-2 font-normal">Description</th>
                 <th className="px-3 py-2 font-normal text-right">Amount</th>
@@ -55,20 +55,20 @@ export function ExpensesTable({ jobId }: { jobId: string }) {
             </thead>
             <tbody>
               {items.map((e) => (
-                <tr key={e.id} className="border-b border-console-border last:border-b-0">
-                  <td className="px-3 py-2 text-console-text">{e.category}</td>
-                  <td className="px-3 py-2 text-console-text">{e.description}</td>
-                  <td className="px-3 py-2 text-console-text tabular-nums text-right">{USD.format(e.amount)}</td>
-                  <td className="px-3 py-2 text-console-text-muted">{e.vendor ?? '-'}</td>
-                  <td className="px-3 py-2 text-console-text-muted">{e.expenseDate ?? '-'}</td>
+                <tr key={e.id} className="border-b border-sn-line last:border-b-0">
+                  <td className="px-3 py-2 text-sn-ink">{e.category}</td>
+                  <td className="px-3 py-2 text-sn-ink">{e.description}</td>
+                  <td className="px-3 py-2 text-sn-ink tabular-nums text-right">{USD.format(e.amount)}</td>
+                  <td className="px-3 py-2 text-sn-ink-muted">{e.vendor ?? '-'}</td>
+                  <td className="px-3 py-2 text-sn-ink-muted">{e.expenseDate ?? '-'}</td>
                   <td className="px-3 py-2 text-right whitespace-nowrap">
-                    <button onClick={() => { setEditing(e); setShowAdd(true); }} className="text-xs text-console-text-muted hover:text-console-text mr-2">[edit]</button>
-                    <button onClick={() => setConfirmingId(e.id)} aria-label="Delete expense" className="text-xs text-console-text-muted hover:text-console-warn">[delete]</button>
+                    <button onClick={() => { setEditing(e); setShowAdd(true); }} className="text-xs text-sn-ink-muted hover:text-sn-ink mr-2">[edit]</button>
+                    <button onClick={() => setConfirmingId(e.id)} aria-label="Delete expense" className="text-xs text-sn-ink-muted hover:text-sn-attention">[delete]</button>
                   </td>
                 </tr>
               ))}
-              <tr className="border-t-2 border-console-border">
-                <td colSpan={6} className="px-3 py-2 text-right text-console-text font-bold tabular-nums">Expenses: {USD.format(subtotal)}</td>
+              <tr className="border-t-2 border-sn-line">
+                <td colSpan={6} className="px-3 py-2 text-right text-sn-ink font-bold tabular-nums">Expenses: {USD.format(subtotal)}</td>
               </tr>
             </tbody>
           </table>
