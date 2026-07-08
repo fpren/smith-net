@@ -597,7 +597,7 @@ private fun AddMenuDialog(
     onMarkComplete: () -> Unit
 ) {
     SmithDialog(
-        title = "ADD",
+        title = "Add",
         onDismiss = onDismiss,
         actions = {
             SmithButton(text = "CLOSE", onClick = onDismiss, variant = SmithButtonVariant.Ghost)
@@ -673,7 +673,7 @@ private fun AddNoteDialog(
     onCancel: () -> Unit
 ) {
     SmithDialog(
-        title = "ADD NOTE",
+        title = "Add note",
         onDismiss = onCancel,
         actions = {
             SmithButton(text = "CANCEL", onClick = onCancel, variant = SmithButtonVariant.Ghost)
@@ -762,7 +762,7 @@ private fun AddMaterialDialog(
     }
 
     SmithDialog(
-        title = "ADD MATERIAL",
+        title = "Add material",
         onDismiss = onCancel,
         actions = {
             SmithButton(text = "CANCEL", onClick = onCancel, variant = SmithButtonVariant.Ghost)
@@ -866,7 +866,7 @@ private fun AddMaterialDialog(
 
     if (showVendorPicker && query.isNotBlank()) {
         SmithDialog(
-            title = "ORDER FROM",
+            title = "Order from",
             onDismiss = { showVendorPicker = false },
             actions = {
                 SmithButton(

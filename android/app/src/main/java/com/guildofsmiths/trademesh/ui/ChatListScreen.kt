@@ -284,6 +284,7 @@ private fun DeleteChatDialog(
         confirmText = if (isDm) "HIDE" else "DELETE",
         onConfirm = onConfirm,
         onDismiss = onDismiss,
+        confirmIsDanger = !isDm,
     )
 }
 

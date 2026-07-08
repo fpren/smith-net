@@ -38,7 +38,7 @@ fun InvoicePreviewDialog(
     var attachBol by remember { mutableStateOf(false) }
     
     SmithDialog(
-        title = "INVOICE PREVIEW",
+        title = "Invoice preview",
         onDismiss = onDismiss,
         sizeFraction = 0.98f to 0.95f,
         actions = {
