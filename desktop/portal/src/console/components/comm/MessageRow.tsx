@@ -98,7 +98,11 @@ function StatusFooter({
 }
 
 export function MessageRow({ message, firstOfGroup, mine, seenByOthers, onDelete, onRetry }: Props) {
-  const isMesh = message.origin !== 'online';
+  // Chip marks messages that ARRIVED via mesh, not online messages that were
+  // also relayed outward. The backend stamps `origin: 'online+mesh'` on every
+  // injected message whenever a gateway relay is connected, so `!== 'online'`
+  // over-fired on plain online traffic.
+  const isMesh = message.origin === 'mesh' || message.origin === 'gateway';
   const canRetry = message.status === 'failed';
 
   const copyContent = async () => {

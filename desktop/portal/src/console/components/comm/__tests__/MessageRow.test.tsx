@@ -107,10 +107,19 @@ describe('MessageRow', () => {
     expect(screen.queryByText('SENT')).toBeNull();
   });
 
-  it('shows mesh chip when origin is not online', () => {
+  it('shows mesh chip when origin is mesh', () => {
     render(
       <ul>
         <MessageRow message={msg({ origin: 'mesh' })} firstOfGroup mine={false} seenByOthers={0} onDelete={noop} onRetry={noop} />
+      </ul>
+    );
+    expect(screen.getByText('mesh')).toBeInTheDocument();
+  });
+
+  it('shows mesh chip when origin is gateway', () => {
+    render(
+      <ul>
+        <MessageRow message={msg({ origin: 'gateway' })} firstOfGroup mine={false} seenByOthers={0} onDelete={noop} onRetry={noop} />
       </ul>
     );
     expect(screen.getByText('mesh')).toBeInTheDocument();
@@ -120,6 +129,15 @@ describe('MessageRow', () => {
     render(
       <ul>
         <MessageRow message={msg({ origin: 'online' })} firstOfGroup mine={false} seenByOthers={0} onDelete={noop} onRetry={noop} />
+      </ul>
+    );
+    expect(screen.queryByText('mesh')).toBeNull();
+  });
+
+  it('omits mesh chip when origin is online+mesh (online message also relayed outward via gateway)', () => {
+    render(
+      <ul>
+        <MessageRow message={msg({ origin: 'online+mesh' })} firstOfGroup mine={false} seenByOthers={0} onDelete={noop} onRetry={noop} />
       </ul>
     );
     expect(screen.queryByText('mesh')).toBeNull();
