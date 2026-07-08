@@ -7,11 +7,15 @@ on:
       - 'desktop/portal/**'
       - 'design/**'
       - 'scripts/gen-tokens.mjs'
+      - 'android/app/src/main/java/com/guildofsmiths/trademesh/ui/Tokens2.kt'
+      - '.github/workflows/portal-ci.yml'
   pull_request:
     paths:
       - 'desktop/portal/**'
       - 'design/**'
       - 'scripts/gen-tokens.mjs'
+      - 'android/app/src/main/java/com/guildofsmiths/trademesh/ui/Tokens2.kt'
+      - '.github/workflows/portal-ci.yml'
 
 jobs:
   tokens-and-tests:

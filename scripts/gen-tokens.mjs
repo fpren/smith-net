@@ -10,10 +10,10 @@ const t = JSON.parse(readFileSync(resolve(root, 'design/tokens.json'), 'utf8'));
 const kebab = (s) => s.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
 const upper = (s) => s[0].toUpperCase() + s.slice(1);
 
-function cssVars(theme) {
-  const lines = Object.entries(t.color[theme]).map(([k, v]) => `  --sn-${kebab(k)}: ${v};`);
-  lines.push(`  --sn-shadow-sm: ${t.shadow[theme].sm};`);
-  lines.push(`  --sn-shadow-md: ${t.shadow[theme].md};`);
+function cssVars(theme, pad = '  ') {
+  const lines = Object.entries(t.color[theme]).map(([k, v]) => `${pad}--sn-${kebab(k)}: ${v};`);
+  lines.push(`${pad}--sn-shadow-sm: ${t.shadow[theme].sm};`);
+  lines.push(`${pad}--sn-shadow-md: ${t.shadow[theme].md};`);
   return lines.join('\n');
 }
 
@@ -29,7 +29,7 @@ ${cssVars('dark')}
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-${cssVars('dark')}
+${cssVars('dark', '    ')}
   }
 }
 `;

@@ -1,7 +1,7 @@
 # Smith Net Glyph Registry (v2)
 
 Glyphs are the icon language of the comm surface. They render ONLY in
-JetBrains Mono, inside a fixed-width cell (1.3em web / 1.3.em-equivalent
+JetBrains Mono, inside a fixed-width cell (1.3em web / 1.3em-equivalent
 Compose width), baseline-aligned with adjacent text. New iconography on the
 comm surface must be added here first. Other surfaces may use Lucide line
 icons (1.5px stroke, ink-muted default) where no glyph exists.

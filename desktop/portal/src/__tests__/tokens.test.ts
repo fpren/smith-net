@@ -42,6 +42,9 @@ describe('portal wiring', () => {
     const html = readFileSync(resolve(repo, 'desktop/portal/index.html'), 'utf8');
     expect(html).not.toContain('#0a0a0a');
     expect(html).toContain(tokens.color.light.bgBase);
+    expect(html).toContain(tokens.color.light.ink);
+    expect(html).toContain(tokens.color.dark.bgBase);
+    expect(html).toContain(tokens.color.dark.ink);
   });
 
   it('tailwind.config consumes the generated preset', () => {
