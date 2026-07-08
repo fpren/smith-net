@@ -33,6 +33,15 @@ object Tokens2 {
         val Overlay = Color(0x66000000)
         val InkOnAccent = Color(0xFFFFFFFF)
     }
+    object Avatar {
+        val A1 = Color(0xFF2F5FE8)
+        val A2 = Color(0xFF3E9B4F)
+        val A3 = Color(0xFF8A5FE8)
+        val A4 = Color(0xFFE8590C)
+        val A5 = Color(0xFF1F8A99)
+        val A6 = Color(0xFFC2417E)
+    }
+    val AvatarPalette = listOf(Avatar.A1, Avatar.A2, Avatar.A3, Avatar.A4, Avatar.A5, Avatar.A6)
     val RadiusCard = 20.dp
     val RadiusBubble = 14.dp
     val RadiusOps = 0.dp

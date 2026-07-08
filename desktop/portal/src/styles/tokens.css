@@ -14,6 +14,12 @@
   --sn-ink-on-accent: #FFFFFF;
   --sn-shadow-sm: 0 1px 3px rgba(28,33,40,0.10);
   --sn-shadow-md: 0 2px 8px rgba(28,33,40,0.10);
+  --sn-avatar-a1: #2F5FE8;
+  --sn-avatar-a2: #3E9B4F;
+  --sn-avatar-a3: #8A5FE8;
+  --sn-avatar-a4: #E8590C;
+  --sn-avatar-a5: #1F8A99;
+  --sn-avatar-a6: #C2417E;
   --sn-ease: cubic-bezier(.2,.8,.2,1);
   --sn-dur-fast: 200ms;
   --sn-dur-base: 250ms;
