@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
+
 package com.guildofsmiths.trademesh.ui
 
 import androidx.compose.foundation.background
@@ -20,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -57,9 +60,18 @@ object ConsoleTheme {
         Font(R.font.ibm_plex_mono_medium, FontWeight.Medium),
     )
     val inter = FontFamily(
-        Font(R.font.inter_variable, FontWeight.Normal),
-        Font(R.font.inter_variable, FontWeight.Medium),
-        Font(R.font.inter_variable, FontWeight.SemiBold),
+        Font(
+            R.font.inter_variable, FontWeight.Normal,
+            variationSettings = FontVariation.Settings(FontVariation.weight(400)),
+        ),
+        Font(
+            R.font.inter_variable, FontWeight.Medium,
+            variationSettings = FontVariation.Settings(FontVariation.weight(500)),
+        ),
+        Font(
+            R.font.inter_variable, FontWeight.SemiBold,
+            variationSettings = FontVariation.Settings(FontVariation.weight(600)),
+        ),
     )
 
     // Backward-compatibility alias
