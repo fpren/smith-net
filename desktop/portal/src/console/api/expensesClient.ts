@@ -2,6 +2,7 @@
 // Mirrors materialsClient shape: typed result + thin wrapper around fetch.
 import { mutate } from '../offline/outbox';
 import { useAuthStore } from '../auth/authStore';
+import { httpCall } from './httpCall';
 
 export interface Expense {
   id: string;
@@ -32,19 +33,16 @@ async function outboxMutate<T>(path: string, method: string, body: unknown, labe
 }
 
 async function call<T>(path: string, opts: { method?: string; body?: any } = {}): Promise<ExpensesResult<T>> {
-  const res = await fetch(path, {
+  const r = await httpCall<T>(path, {
     method: opts.method ?? 'GET',
     headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
   });
-  if (res.status === 204) return { ok: true } as ExpensesResult<T>;
-  if (!res.ok) {
-    const errBody = await res.json().catch(() => ({ error: res.statusText }));
-    return { ok: false, status: res.status, error: errBody.error ?? res.statusText, details: errBody.details, code: errBody.code };
+  if (!r.ok) {
+    const errBody = r.body ?? {};
+    return { ok: false, status: r.status, error: r.error, details: errBody.details, code: errBody.code };
   }
-  const data = (await res.json()) as T;
-  return { ok: true, ...data } as ExpensesResult<T>;
+  return { ok: true, ...((r.data ?? {}) as T) } as ExpensesResult<T>;
 }
 
 export interface CreateExpenseInput {

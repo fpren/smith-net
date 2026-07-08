@@ -6,6 +6,8 @@
 //   { positions: [{ userId, displayName, latitude, longitude,
 //                   accuracyM, recordedAt, source, batteryPct }, ...] }
 
+import { httpCall } from './httpCall';
+
 export interface CrewPosition {
   userId: string;
   displayName: string;
@@ -25,12 +27,10 @@ interface ListResp { positions: CrewPosition[] }
 
 export const crewPositionsClient = {
   list: async (): Promise<CrewPositionsResult<ListResp>> => {
-    const res = await fetch('/api/crew/positions', { credentials: 'include' });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({ error: res.statusText }));
-      return { ok: false, status: res.status, error: body.error || 'Failed', code: body.code };
+    const r = await httpCall<ListResp>('/api/crew/positions');
+    if (!r.ok) {
+      return { ok: false, status: r.status, error: r.error, code: r.body?.code };
     }
-    const data = (await res.json()) as ListResp;
-    return { ok: true, ...data };
+    return { ok: true, ...r.data };
   },
 };

@@ -3,6 +3,8 @@
 // REST wrapper for /api/notifications. Mirrors invoicesClient.ts
 // (credentials:'include' cookie auth, ok/err result envelope).
 
+import { httpCall } from './httpCall';
+
 export interface NotificationItem {
   id: string;
   type: string;
@@ -21,19 +23,15 @@ export type NotificationsResult<T> =
 interface JsonInit { method?: string; body?: unknown }
 
 async function call<T>(path: string, init: JsonInit = {}): Promise<NotificationsResult<T>> {
-  const res = await fetch(path, {
+  const r = await httpCall<T>(path, {
     method: init.method ?? 'GET',
-    credentials: 'include',
     headers: init.body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
   });
-  if (res.status === 204) return { ok: true } as NotificationsResult<T>;
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    return { ok: false, status: res.status, error: err.error || 'Request failed' };
+  if (!r.ok) {
+    return { ok: false, status: r.status, error: r.error };
   }
-  const data = (await res.json()) as T;
-  return { ok: true, ...data } as NotificationsResult<T>;
+  return { ok: true, ...((r.data ?? {}) as T) } as NotificationsResult<T>;
 }
 
 export const notificationsClient = {

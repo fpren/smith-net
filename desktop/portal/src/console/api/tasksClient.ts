@@ -7,6 +7,8 @@
 //   PATCH  /api/tasks/:id     body { title?, status?, sortOrder? }
 //   DELETE /api/tasks/:id
 
+import { httpCall } from './httpCall';
+
 export type TaskStatus = 'pending' | 'done';
 
 export interface Task {
@@ -28,19 +30,15 @@ export type TasksResult<T> =
 interface JsonInit { method?: string; body?: unknown }
 
 async function call<T>(path: string, init: JsonInit = {}): Promise<TasksResult<T>> {
-  const res = await fetch(path, {
+  const r = await httpCall<T>(path, {
     method: init.method ?? 'GET',
-    credentials: 'include',
     headers: init.body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
   });
-  if (res.status === 204) return { ok: true } as TasksResult<T>;
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    return { ok: false, status: res.status, error: err.error || 'Request failed' };
+  if (!r.ok) {
+    return { ok: false, status: r.status, error: r.error };
   }
-  const data = (await res.json()) as T;
-  return { ok: true, ...data } as TasksResult<T>;
+  return { ok: true, ...((r.data ?? {}) as T) } as TasksResult<T>;
 }
 
 export const tasksClient = {

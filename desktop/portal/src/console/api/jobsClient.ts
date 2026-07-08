@@ -1,6 +1,7 @@
 // desktop/portal/src/console/api/jobsClient.ts
 import { mutate } from '../offline/outbox';
 import { useAuthStore } from '../auth/authStore';
+import { httpCall } from './httpCall';
 
 export type JobStatus = 'planned' | 'in_progress' | 'complete' | 'cancelled';
 
@@ -60,32 +61,26 @@ async function outboxMutate<T>(path: string, method: string, body: unknown, labe
 }
 
 async function call<T>(path: string, init: JsonInit = {}): Promise<JobsResult<T>> {
-  const res = await fetch(path, {
+  const r = await httpCall<T>(path, {
     method: init.method ?? 'GET',
-    credentials: 'include',
     headers: init.body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
   });
 
-  if (res.status === 204) {
-    return { ok: true } as JobsResult<T>;
+  if (r.ok) {
+    return { ok: true, ...((r.data ?? {}) as T) } as JobsResult<T>;
   }
 
-  if (!res.ok) {
-    const errBody = await res.json().catch(() => ({ error: res.statusText }));
-    return {
-      ok: false,
-      status: res.status,
-      error: errBody.error || 'Request failed',
-      details: errBody.details,
-      code: errBody.code,
-      from: errBody.from,
-      to: errBody.to,
-    };
-  }
-
-  const data = (await res.json()) as T;
-  return { ok: true, ...data } as JobsResult<T>;
+  const errBody = r.body ?? {};
+  return {
+    ok: false,
+    status: r.status,
+    error: r.error,
+    details: errBody.details,
+    code: errBody.code,
+    from: errBody.from,
+    to: errBody.to,
+  };
 }
 
 interface ListResp { jobs: Job[] }

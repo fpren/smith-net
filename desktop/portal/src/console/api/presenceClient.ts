@@ -10,6 +10,7 @@
 
 import { mutate } from '../offline/outbox';
 import { useAuthStore } from '../auth/authStore';
+import { httpCall } from './httpCall';
 
 export type PresenceResult<T> =
   | ({ ok: true } & T)
@@ -38,15 +39,6 @@ export interface PostLocationInput {
   batteryPct?: number;
 }
 
-async function parseError(res: Response): Promise<{ error: string; code?: string }> {
-  try {
-    const body = await res.json();
-    return { error: body.error || res.statusText, code: body.code };
-  } catch {
-    return { error: res.statusText };
-  }
-}
-
 export const presenceClient = {
   startShift: async (
     source: string,
@@ -73,9 +65,8 @@ export const presenceClient = {
   },
 
   postLocation: async (input: PostLocationInput): Promise<PresenceResult<{}>> => {
-    const res = await fetch('/api/presence/location', {
+    const r = await httpCall<{}>('/api/presence/location', {
       method: 'POST',
-      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         lat: input.lat,
@@ -84,20 +75,18 @@ export const presenceClient = {
         battery_pct: input.batteryPct,
       }),
     });
-    if (!res.ok) {
-      const e = await parseError(res);
-      return { ok: false, status: res.status, ...e };
+    if (!r.ok) {
+      return { ok: false, status: r.status, error: r.error, code: r.body?.code };
     }
     return { ok: true };
   },
 
   getCurrentShift: async (): Promise<PresenceResult<{ shiftId: string | null; startedAt: string | null; entryType: string | null; jobTitle: string | null; taskTitle: string | null }>> => {
-    const res = await fetch('/api/shifts/current', { credentials: 'include' });
-    if (!res.ok) {
-      const e = await parseError(res);
-      return { ok: false, status: res.status, ...e };
+    const r = await httpCall<{ shift?: any }>('/api/shifts/current');
+    if (!r.ok) {
+      return { ok: false, status: r.status, error: r.error, code: r.body?.code };
     }
-    const data = await res.json();
+    const data = r.data;
     return {
       ok: true,
       shiftId: data.shift?.id ?? null,
@@ -109,36 +98,31 @@ export const presenceClient = {
   },
 
   getMyJobs: async (): Promise<PresenceResult<{ jobs: Array<{ id: string; title: string; status: string }> }>> => {
-    const res = await fetch('/api/shifts/jobs', { credentials: 'include' });
-    if (!res.ok) {
-      const e = await parseError(res);
-      return { ok: false, status: res.status, ...e };
+    const r = await httpCall<{ jobs?: any[] }>('/api/shifts/jobs');
+    if (!r.ok) {
+      return { ok: false, status: r.status, error: r.error, code: r.body?.code };
     }
-    const data = await res.json();
-    return { ok: true, jobs: data.jobs ?? [] };
+    return { ok: true, jobs: r.data.jobs ?? [] };
   },
 
   getJobTasks: async (
     jobId: string,
   ): Promise<PresenceResult<{ tasks: Array<{ id: string; title: string; status: string }> }>> => {
-    const res = await fetch(`/api/shifts/jobs/${encodeURIComponent(jobId)}/tasks`, { credentials: 'include' });
-    if (!res.ok) {
-      const e = await parseError(res);
-      return { ok: false, status: res.status, ...e };
+    const r = await httpCall<{ tasks?: any[] }>(`/api/shifts/jobs/${encodeURIComponent(jobId)}/tasks`);
+    if (!r.ok) {
+      return { ok: false, status: r.status, error: r.error, code: r.body?.code };
     }
-    const data = await res.json();
-    return { ok: true, tasks: data.tasks ?? [] };
+    return { ok: true, tasks: r.data.tasks ?? [] };
   },
 
   getTodayShifts: async (
     sinceMs: number,
   ): Promise<PresenceResult<{ shifts: TimeEntryRow[] }>> => {
-    const res = await fetch(`/api/shifts/today?since=${sinceMs}`, { credentials: 'include' });
-    if (!res.ok) {
-      const e = await parseError(res);
-      return { ok: false, status: res.status, ...e };
+    const r = await httpCall<{ shifts?: Array<Partial<TimeEntryRow>> }>(`/api/shifts/today?since=${sinceMs}`);
+    if (!r.ok) {
+      return { ok: false, status: r.status, error: r.error, code: r.body?.code };
     }
-    const data = await res.json();
+    const data = r.data;
     return {
       ok: true,
       shifts: (data.shifts ?? []).map((s: Partial<TimeEntryRow>) => ({

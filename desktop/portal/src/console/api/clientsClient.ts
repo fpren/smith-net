@@ -1,4 +1,6 @@
 // desktop/portal/src/console/api/clientsClient.ts
+import { httpCall } from './httpCall';
+
 export interface Client {
   id: string;
   ownerId: string;
@@ -19,18 +21,16 @@ export type ClientsResult<T> =
 interface JsonInit { method?: string; body?: unknown }
 
 async function call<T>(path: string, init: JsonInit = {}): Promise<ClientsResult<T>> {
-  const res = await fetch(path, {
+  const r = await httpCall<T>(path, {
     method: init.method ?? 'GET',
-    credentials: 'include',
     headers: init.body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
   });
-  if (res.status === 204) return { ok: true } as ClientsResult<T>;
-  if (!res.ok) {
-    const e = await res.json().catch(() => ({ error: res.statusText }));
-    return { ok: false, status: res.status, error: e.error || 'Request failed', details: e.details, code: e.code };
+  if (!r.ok) {
+    const e = r.body ?? {};
+    return { ok: false, status: r.status, error: r.error, details: e.details, code: e.code };
   }
-  return { ok: true, ...(await res.json() as T) } as ClientsResult<T>;
+  return { ok: true, ...((r.data ?? {}) as T) } as ClientsResult<T>;
 }
 
 interface ListResp { clients: Client[] }
