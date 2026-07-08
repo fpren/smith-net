@@ -23,7 +23,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
@@ -46,6 +45,9 @@ import com.guildofsmiths.trademesh.ui.invoice.InvoiceGenerator
 import com.guildofsmiths.trademesh.ui.invoice.InvoiceFormatter
 import com.guildofsmiths.trademesh.ui.invoice.InvoicePreviewDialog
 import com.guildofsmiths.trademesh.ui.jobboard.*
+import com.guildofsmiths.trademesh.ui.theme2.SmithButton
+import com.guildofsmiths.trademesh.ui.theme2.SmithButtonVariant
+import com.guildofsmiths.trademesh.ui.theme2.SmithDialog
 
 @Composable
 fun JobPipelineScreen(
@@ -594,48 +596,42 @@ private fun AddMenuDialog(
     onAddMaterial: (() -> Unit)?,
     onMarkComplete: () -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = ConsoleTheme.background,
-        title = { Text("ADD", style = ConsoleTheme.captionBold) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                AddMenuRow(
-                    label = "Note",
-                    icon = { com.guildofsmiths.trademesh.ui.PixelNote(enabled = true) },
-                    enabled = true,
-                    onClick = onAddNote
-                )
-                AddMenuRow(
-                    label = "Photo",
-                    icon = { com.guildofsmiths.trademesh.ui.PixelCamera(enabled = onAddPhoto != null) },
-                    enabled = onAddPhoto != null,
-                    onClick = { onAddPhoto?.invoke() }
-                )
-                AddMenuRow(
-                    label = "Material",
-                    icon = { com.guildofsmiths.trademesh.ui.PixelPackage(enabled = onAddMaterial != null) },
-                    enabled = onAddMaterial != null,
-                    onClick = { onAddMaterial?.invoke() }
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                AddMenuRow(
-                    label = "Mark complete",
-                    icon = { com.guildofsmiths.trademesh.ui.PixelCheckmark(enabled = true) },
-                    enabled = true,
-                    onClick = onMarkComplete,
-                    accent = true
-                )
-            }
+    SmithDialog(
+        title = "ADD",
+        onDismiss = onDismiss,
+        actions = {
+            SmithButton(text = "CLOSE", onClick = onDismiss, variant = SmithButtonVariant.Ghost)
         },
-        confirmButton = {
-            OutlinedActionButton(
-                text = "CLOSE",
-                color = ConsoleTheme.textMuted,
-                onClick = onDismiss
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            AddMenuRow(
+                label = "Note",
+                icon = { com.guildofsmiths.trademesh.ui.PixelNote(enabled = true) },
+                enabled = true,
+                onClick = onAddNote
+            )
+            AddMenuRow(
+                label = "Photo",
+                icon = { com.guildofsmiths.trademesh.ui.PixelCamera(enabled = onAddPhoto != null) },
+                enabled = onAddPhoto != null,
+                onClick = { onAddPhoto?.invoke() }
+            )
+            AddMenuRow(
+                label = "Material",
+                icon = { com.guildofsmiths.trademesh.ui.PixelPackage(enabled = onAddMaterial != null) },
+                enabled = onAddMaterial != null,
+                onClick = { onAddMaterial?.invoke() }
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            AddMenuRow(
+                label = "Mark complete",
+                icon = { com.guildofsmiths.trademesh.ui.PixelCheckmark(enabled = true) },
+                enabled = true,
+                onClick = onMarkComplete,
+                accent = true
             )
         }
-    )
+    }
 }
 
 @Composable
@@ -676,46 +672,35 @@ private fun AddNoteDialog(
     onSave: () -> Unit,
     onCancel: () -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onCancel,
-        containerColor = ConsoleTheme.background,
-        title = { Text("ADD NOTE", style = ConsoleTheme.captionBold) },
-        text = {
-            BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
-                textStyle = ConsoleTheme.body,
-                cursorBrush = SolidColor(ConsoleTheme.cursor),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
-                    .padding(10.dp)
-                    .height(100.dp),
-                decorationBox = { inner ->
-                    Box {
-                        if (value.isEmpty()) {
-                            Text("Work notes, extras, issues...", style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder))
-                        }
-                        inner()
+    SmithDialog(
+        title = "ADD NOTE",
+        onDismiss = onCancel,
+        actions = {
+            SmithButton(text = "CANCEL", onClick = onCancel, variant = SmithButtonVariant.Ghost)
+            Spacer(modifier = Modifier.width(8.dp))
+            SmithButton(text = "SAVE", onClick = onSave)
+        },
+    ) {
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            textStyle = ConsoleTheme.body,
+            cursorBrush = SolidColor(ConsoleTheme.cursor),
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(ConsoleTheme.surface)
+                .padding(10.dp)
+                .height(100.dp),
+            decorationBox = { inner ->
+                Box {
+                    if (value.isEmpty()) {
+                        Text("Work notes, extras, issues...", style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder))
                     }
+                    inner()
                 }
-            )
-        },
-        confirmButton = {
-            Text(
-                "SAVE",
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
-                modifier = Modifier.clickable(onClick = onSave).padding(8.dp)
-            )
-        },
-        dismissButton = {
-            Text(
-                "CANCEL",
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
-                modifier = Modifier.clickable(onClick = onCancel).padding(8.dp)
-            )
-        }
-    )
+            }
+        )
+    }
 }
 
 private data class MaterialVendor(val tag: String, val label: String, val url: String?)
@@ -776,174 +761,159 @@ private fun AddMaterialDialog(
         )
     }
 
-    AlertDialog(
-        onDismissRequest = onCancel,
-        containerColor = ConsoleTheme.background,
-        title = { Text("ADD MATERIAL", style = ConsoleTheme.captionBold) },
-        text = {
-            Column(
-                modifier = Modifier.semantics { testTagsAsResourceId = true },
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+    SmithDialog(
+        title = "ADD MATERIAL",
+        onDismiss = onCancel,
+        actions = {
+            SmithButton(text = "CANCEL", onClick = onCancel, variant = SmithButtonVariant.Ghost)
+            Spacer(modifier = Modifier.width(8.dp))
+            SmithButton(
+                text = "ORDER",
+                onClick = { showVendorPicker = true },
+                enabled = query.isNotBlank(),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            SmithButton(
+                text = "SAVE",
+                onClick = { onSave(materialFrom(query), false, null) },
+                enabled = query.isNotBlank(),
+            )
+        },
+    ) {
+        Column(
+            modifier = Modifier.semantics { testTagsAsResourceId = true },
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            BasicTextField(
+                value = query,
+                onValueChange = { query = it },
+                textStyle = ConsoleTheme.body,
+                cursorBrush = SolidColor(ConsoleTheme.cursor),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("solo_e2e_job_material_search")
+                    .background(ConsoleTheme.surface)
+                    .padding(10.dp),
+                decorationBox = { inner ->
+                    Box {
+                        if (query.isEmpty()) {
+                            Text("Type a material name...", style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder))
+                        }
+                        inner()
+                    }
+                }
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("$", style = ConsoleTheme.body)
+                Spacer(modifier = Modifier.width(6.dp))
                 BasicTextField(
-                    value = query,
-                    onValueChange = { query = it },
+                    value = price,
+                    onValueChange = { new -> price = new.filter { it.isDigit() || it == '.' } },
                     textStyle = ConsoleTheme.body,
                     cursorBrush = SolidColor(ConsoleTheme.cursor),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("solo_e2e_job_material_search")
+                        .weight(1f)
+                        .testTag("solo_e2e_job_material_cost")
                         .background(ConsoleTheme.surface)
                         .padding(10.dp),
                     decorationBox = { inner ->
                         Box {
-                            if (query.isEmpty()) {
-                                Text("Type a material name...", style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder))
+                            if (price.isEmpty()) {
+                                Text("Price (e.g. 189.99)", style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder))
                             }
                             inner()
                         }
                     }
                 )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("$", style = ConsoleTheme.body)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    BasicTextField(
-                        value = price,
-                        onValueChange = { new -> price = new.filter { it.isDigit() || it == '.' } },
-                        textStyle = ConsoleTheme.body,
-                        cursorBrush = SolidColor(ConsoleTheme.cursor),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            }
+            Column(
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 240.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                if (query.isNotBlank() && !hasExactMatch) {
+                    Text(
+                        text = "[+]  Add \"${query.trim()}\" as new",
+                        style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
                         modifier = Modifier
-                            .weight(1f)
-                            .testTag("solo_e2e_job_material_cost")
-                            .background(ConsoleTheme.surface)
-                            .padding(10.dp),
-                        decorationBox = { inner ->
-                            Box {
-                                if (price.isEmpty()) {
-                                    Text("Price (e.g. 189.99)", style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder))
-                                }
-                                inner()
-                            }
-                        }
+                            .fillMaxWidth()
+                            .clickable { onSave(materialFrom(query), false, null) }
+                            .padding(vertical = 8.dp)
                     )
                 }
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 240.dp)
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    if (query.isNotBlank() && !hasExactMatch) {
-                        Text(
-                            text = "[+]  Add \"${query.trim()}\" as new",
-                            style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onSave(materialFrom(query), false, null) }
-                                .padding(vertical = 8.dp)
-                        )
-                    }
-                    suggestions.forEach { mat ->
-                        val already = mat.name.lowercase() in existingNames
-                        val marker = if (already) "[x]" else "[ ]"
-                        val suffix = if (already) "  — added" else ""
-                        Text(
-                            text = "$marker  ${mat.name}  (${mat.unit})$suffix",
-                            style = ConsoleTheme.caption.copy(
-                                color = if (already) ConsoleTheme.textMuted else ConsoleTheme.text
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable(enabled = !already) { query = mat.name }
-                                .padding(vertical = 6.dp)
-                        )
-                    }
+                suggestions.forEach { mat ->
+                    val already = mat.name.lowercase() in existingNames
+                    val marker = if (already) "[x]" else "[ ]"
+                    val suffix = if (already) "  — added" else ""
+                    Text(
+                        text = "$marker  ${mat.name}  (${mat.unit})$suffix",
+                        style = ConsoleTheme.caption.copy(
+                            color = if (already) ConsoleTheme.textMuted else ConsoleTheme.text
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = !already) { query = mat.name }
+                            .padding(vertical = 6.dp)
+                    )
                 }
             }
-        },
-        confirmButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedActionButton(
-                    text = "ORDER",
-                    color = ConsoleTheme.warning,
-                    enabled = query.isNotBlank(),
-                    onClick = { showVendorPicker = true }
-                )
-                OutlinedActionButton(
-                    text = "SAVE",
-                    color = ConsoleTheme.accent,
-                    enabled = query.isNotBlank(),
-                    onClick = { onSave(materialFrom(query), false, null) }
-                )
-            }
-        },
-        dismissButton = {
-            OutlinedActionButton(
-                text = "CANCEL",
-                color = ConsoleTheme.textMuted,
-                onClick = onCancel
-            )
         }
-    )
+    }
 
     if (showVendorPicker && query.isNotBlank()) {
-        AlertDialog(
-            onDismissRequest = { showVendorPicker = false },
-            containerColor = ConsoleTheme.background,
-            title = {
-                Column {
-                    Text("ORDER FROM", style = ConsoleTheme.captionBold)
-                    Text(query, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
-                }
+        SmithDialog(
+            title = "ORDER FROM",
+            onDismiss = { showVendorPicker = false },
+            actions = {
+                SmithButton(
+                    text = "CANCEL",
+                    onClick = { showVendorPicker = false },
+                    variant = SmithButtonVariant.Ghost,
+                )
             },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    MATERIAL_VENDORS.forEach { vendor ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                                .clickable {
-                                    showVendorPicker = false
-                                    if (vendor.url != null) {
-                                        val url = vendor.url + Uri.encode(query.trim())
-                                        runCatching {
-                                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                                        }
+        ) {
+            Text(query, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+            Spacer(modifier = Modifier.height(8.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                MATERIAL_VENDORS.forEach { vendor ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+                            .clickable {
+                                showVendorPicker = false
+                                if (vendor.url != null) {
+                                    val url = vendor.url + Uri.encode(query.trim())
+                                    runCatching {
+                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                                     }
-                                    onSave(materialFrom(query), true, vendor.label)
                                 }
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                vendor.tag,
-                                style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent),
-                                modifier = Modifier.width(60.dp)
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(vendor.label, style = ConsoleTheme.bodySmall)
-                                Text(
-                                    if (vendor.url != null) "Search & order" else "Pickup / in-store",
-                                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
-                                )
+                                onSave(materialFrom(query), true, vendor.label)
                             }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            vendor.tag,
+                            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent),
+                            modifier = Modifier.width(60.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(vendor.label, style = ConsoleTheme.bodySmall)
+                            Text(
+                                if (vendor.url != null) "Search & order" else "Pickup / in-store",
+                                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                            )
                         }
                     }
                 }
-            },
-            confirmButton = {
-                OutlinedActionButton(
-                    text = "CANCEL",
-                    color = ConsoleTheme.textMuted,
-                    onClick = { showVendorPicker = false }
-                )
             }
-        )
+        }
     }
 }
 

@@ -18,7 +18,6 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -258,7 +257,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier
                         .fillMaxSize()
                         .semantics { testTagsAsResourceId = true },
-                    color = MaterialTheme.colorScheme.background
+                    color = ConsoleTheme.background
                 ) {
                     val navController = rememberNavController()
 

@@ -8,7 +8,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -21,6 +20,9 @@ import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.IntentRepository
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.theme2.SmithButton
+import com.guildofsmiths.trademesh.ui.theme2.SmithButtonVariant
+import com.guildofsmiths.trademesh.ui.theme2.SmithDialog
 import kotlinx.coroutines.launch
 
 // ════════════════════════════════════════════════════════════════════
@@ -79,28 +81,41 @@ fun CreateIntentDialog(
         }
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = ConsoleTheme.surface,
-        title = {
-            Column {
-                Text(text = "NEW PROPOSAL", style = ConsoleTheme.header)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Define scope, tasks, equipment, and crew",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
-                )
-            }
+    SmithDialog(
+        title = "NEW PROPOSAL",
+        onDismiss = onDismiss,
+        actions = {
+            SmithButton(text = "CANCEL", onClick = onDismiss, variant = SmithButtonVariant.Ghost)
+            Spacer(modifier = Modifier.width(8.dp))
+            SmithButton(
+                text = "CREATE",
+                onClick = {
+                    onCreate(
+                        scopeStatement.trim(),
+                        clientName.trim().ifBlank { null },
+                        taskLines.filter { it.isNotBlank() },
+                        equipmentLines.filter { it.isNotBlank() },
+                        supplyLines.filter { it.isNotBlank() },
+                        crewSizeText.toIntOrNull() ?: 1
+                    )
+                },
+                enabled = scopeStatement.isNotBlank(),
+            )
         },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 500.dp)
-                    .verticalScroll(rememberScrollState())
-                    .semantics { testTagsAsResourceId = true },
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
+    ) {
+        Text(
+            text = "Define scope, tasks, equipment, and crew",
+            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 500.dp)
+                .verticalScroll(rememberScrollState())
+                .semantics { testTagsAsResourceId = true },
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
                 // ── SCOPE ──
                 ProposalSection(label = "SCOPE OF WORK *") {
                     TextField(
@@ -200,36 +215,7 @@ fun CreateIntentDialog(
                     }
                 }
             }
-        },
-        confirmButton = {
-            Text(
-                text = "[OK] CREATE",
-                style = if (scopeStatement.isNotBlank()) ConsoleTheme.action
-                    else ConsoleTheme.action.copy(color = ConsoleTheme.textDim),
-                modifier = Modifier
-                    .clickable(enabled = scopeStatement.isNotBlank()) {
-                        onCreate(
-                            scopeStatement.trim(),
-                            clientName.trim().ifBlank { null },
-                            taskLines.filter { it.isNotBlank() },
-                            equipmentLines.filter { it.isNotBlank() },
-                            supplyLines.filter { it.isNotBlank() },
-                            crewSizeText.toIntOrNull() ?: 1
-                        )
-                    }
-                    .padding(8.dp)
-            )
-        },
-        dismissButton = {
-            Text(
-                text = "[x] CANCEL",
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.text.copy(alpha = 0.6f)),
-                modifier = Modifier
-                    .clickable(onClick = onDismiss)
-                    .padding(8.dp)
-            )
         }
-    )
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -341,96 +327,61 @@ fun IntentDetailDialog(
     onDismiss: () -> Unit,
     onCreateJob: (IntentVersionData) -> Unit = {}
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = ConsoleTheme.surface,
-        title = {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "${version.status.icon} ${version.scopeStatement.take(30)}",
-                    style = ConsoleTheme.header
-                )
-                Text(
-                    text = version.status.displayName.uppercase(),
-                    style = ConsoleTheme.caption,
-                    color = ConsoleTheme.accent
-                )
-            }
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 500.dp)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                when (version.status) {
-                    IntentStatus.DRAFT -> DraftIntentUI(intent, version, onDismiss)
-                    IntentStatus.PROPOSED -> ProposedIntentUI(intent, version, onDismiss)
-                    IntentStatus.CONFIRMED -> ConfirmedIntentUI(intent, version, onDismiss, onCreateJob)
-                    IntentStatus.SUPERSEDED -> SupersededIntentUI(intent, version, onDismiss)
-                }
-            }
-        },
-        confirmButton = {
+    SmithDialog(
+        title = "${version.status.icon} ${version.scopeStatement.take(30)}",
+        onDismiss = onDismiss,
+        actions = {
+            SmithButton(text = "CLOSE", onClick = onDismiss, variant = SmithButtonVariant.Ghost)
             when (version.status) {
                 IntentStatus.DRAFT -> {
-                    val enabled = version.canPropose()
-                    Text(
-                        text = "[>] PROPOSE",
-                        style = if (enabled) ConsoleTheme.action
-                            else ConsoleTheme.action.copy(color = ConsoleTheme.textDim),
-                        modifier = Modifier
-                            .clickable(enabled = enabled) {
-                                IntentRepository.proposeVersion(version.id)
-                                onDismiss()
-                            }
-                            .padding(8.dp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    SmithButton(
+                        text = "PROPOSE",
+                        onClick = {
+                            IntentRepository.proposeVersion(version.id)
+                            onDismiss()
+                        },
+                        enabled = version.canPropose(),
                     )
                 }
                 IntentStatus.PROPOSED -> {
-                    val enabled = version.canConfirm()
-                    Text(
-                        text = "[v] CONFIRM",
-                        style = if (enabled) ConsoleTheme.action
-                            else ConsoleTheme.action.copy(color = ConsoleTheme.textDim),
-                        modifier = Modifier
-                            .clickable(enabled = enabled) {
-                                IntentRepository.confirmVersion(version.id, UserPreferences.getUserId())
-                                onDismiss()
-                            }
-                            .padding(8.dp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    SmithButton(
+                        text = "CONFIRM",
+                        onClick = {
+                            IntentRepository.confirmVersion(version.id, UserPreferences.getUserId())
+                            onDismiss()
+                        },
+                        enabled = version.canConfirm(),
                     )
                 }
                 IntentStatus.CONFIRMED -> {
-                    Text(
-                        text = "[+ JOB] CREATE JOB",
-                        style = ConsoleTheme.action,
-                        modifier = Modifier
-                            .clickable {
-                                onCreateJob(version)
-                                onDismiss()
-                            }
-                            .padding(8.dp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    SmithButton(
+                        text = "CREATE JOB",
+                        onClick = {
+                            onCreateJob(version)
+                            onDismiss()
+                        },
                     )
                 }
                 IntentStatus.SUPERSEDED -> Unit
             }
         },
-        dismissButton = {
-            Text(
-                text = "[x] CLOSE",
-                style = ConsoleTheme.action,
-                modifier = Modifier
-                    .clickable(onClick = onDismiss)
-                    .padding(8.dp)
-            )
+    ) {
+        Text(
+            text = version.status.displayName.uppercase(),
+            style = ConsoleTheme.caption,
+            color = ConsoleTheme.accent
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        when (version.status) {
+            IntentStatus.DRAFT -> DraftIntentUI(intent, version, onDismiss)
+            IntentStatus.PROPOSED -> ProposedIntentUI(intent, version, onDismiss)
+            IntentStatus.CONFIRMED -> ConfirmedIntentUI(intent, version, onDismiss, onCreateJob)
+            IntentStatus.SUPERSEDED -> SupersededIntentUI(intent, version, onDismiss)
         }
-    )
+    }
 }
 
 // ════════════════════════════════════════════════════════════════════

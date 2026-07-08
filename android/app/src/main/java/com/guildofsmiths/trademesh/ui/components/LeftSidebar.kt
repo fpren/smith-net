@@ -5,7 +5,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,7 +41,7 @@ fun LeftSidebar(
         Column(
             modifier = Modifier
                 .background(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    color = ConsoleTheme.surface,
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(
                         topEnd = 8.dp,
                         bottomEnd = 8.dp
@@ -97,7 +96,7 @@ private fun SidebarButton(
         modifier = Modifier
             .clickable(onClick = onClick)
             .background(
-                color = if (isExpanded) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                color = if (isExpanded) ConsoleTheme.accent.copy(alpha = 0.1f)
                         else Color.Transparent
             )
             .padding(horizontal = 12.dp, vertical = 10.dp),
@@ -108,7 +107,7 @@ private fun SidebarButton(
         Text(
             text = icon,
             style = ConsoleTheme.bodyBold,
-            color = MaterialTheme.colorScheme.primary
+            color = ConsoleTheme.accent
         )
 
         // Label (animated expand/collapse)
@@ -122,7 +121,7 @@ private fun SidebarButton(
             Text(
                 text = " $label",
                 style = ConsoleTheme.body,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = ConsoleTheme.text,
                 modifier = Modifier.padding(start = 4.dp)
             )
         }

@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -323,13 +322,11 @@ private fun createChannelLocally(
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
 private fun CreateChannelScreenPreview() {
-    MaterialTheme {
-        CreateChannelScreen(
-            beaconId = "default",
-            onBackClick = { },
-            onChannelCreated = { }
-        )
-    }
+    CreateChannelScreen(
+        beaconId = "default",
+        onBackClick = { },
+        onChannelCreated = { }
+    )
 }
 
 @Composable

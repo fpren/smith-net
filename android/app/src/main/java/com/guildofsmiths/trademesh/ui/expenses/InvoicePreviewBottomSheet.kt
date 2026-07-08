@@ -13,10 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,10 +27,10 @@ import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.invoice.Invoice
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.LegalFooterScope
+import com.guildofsmiths.trademesh.ui.theme2.SmithSheet
 import com.guildofsmiths.trademesh.ui.timetracking.TimeEntry
 import java.io.File
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InvoicePreviewBottomSheet(
     invoice: Invoice,
@@ -43,7 +40,6 @@ fun InvoicePreviewBottomSheet(
 ) {
     val context = LocalContext.current
     val legal by BolLegalPreferences.state.collectAsState()
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var mode by remember { mutableStateOf(OutputMode.INVOICE_AND_BOL) }
     var scope by remember { mutableStateOf(autoDefaultScope(job)) }
@@ -63,10 +59,8 @@ fun InvoicePreviewBottomSheet(
         )
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = ConsoleTheme.surface
+    SmithSheet(
+        onDismiss = onDismiss,
     ) {
         Column(
             modifier = Modifier
