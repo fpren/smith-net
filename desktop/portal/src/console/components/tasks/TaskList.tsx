@@ -47,7 +47,7 @@ export function TaskList({ jobId }: Props) {
 
   if (tasks.length === 0) {
     return (
-      <div className="text-console-text-muted text-sm py-2">
+      <div className="text-sn-ink-muted text-sm py-2">
         No tasks yet. Add one below.
       </div>
     );
@@ -55,7 +55,7 @@ export function TaskList({ jobId }: Props) {
 
   return (
     <Fragment>
-      <ul className="divide-y divide-console-border border border-console-border font-mono">
+      <ul className="divide-y divide-sn-line border border-sn-line font-mono">
         {tasks.map((t) => {
           const done = t.status === 'done';
           return (
@@ -67,8 +67,8 @@ export function TaskList({ jobId }: Props) {
                 className={
                   'w-5 h-5 flex items-center justify-center border text-xs flex-shrink-0 transition-colors ' +
                   (done
-                    ? 'border-console-accent text-console-accent'
-                    : 'border-console-border text-transparent hover:border-console-accent')
+                    ? 'border-sn-accent text-sn-accent'
+                    : 'border-sn-line text-transparent hover:border-sn-accent')
                 }
               >
                 {done ? '✓' : ''}
@@ -76,7 +76,7 @@ export function TaskList({ jobId }: Props) {
               <span
                 className={
                   'flex-1 break-words ' +
-                  (done ? 'text-console-text-muted line-through' : 'text-console-text')
+                  (done ? 'text-sn-ink-muted line-through' : 'text-sn-ink')
                 }
               >
                 {t.title}
@@ -85,7 +85,7 @@ export function TaskList({ jobId }: Props) {
                 type="button"
                 onClick={() => setConfirmingId(t.id)}
                 aria-label="Delete task"
-                className="text-xs text-console-text-muted opacity-40 hover:opacity-100 focus:opacity-100 hover:text-console-danger focus:text-console-danger transition-opacity"
+                className="text-xs text-sn-ink-muted opacity-40 hover:opacity-100 focus:opacity-100 hover:text-sn-status-error focus:text-sn-status-error transition-opacity"
               >
                 [x]
               </button>

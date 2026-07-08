@@ -62,18 +62,18 @@ export function CreateJobModal({ open, onClose, onCreated }: Props) {
         <Input label="Location" value={location} onChange={(e) => setLocation(e.target.value)} />
         <Input label="Scheduled At" type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} />
         <label className="flex flex-col gap-1 font-mono text-sm">
-          <span className="text-console-text-muted text-xs uppercase tracking-wide">Description</span>
+          <span className="text-sn-ink-muted text-xs uppercase tracking-wide">Description</span>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="bg-console-bg border border-console-border px-3 py-2 text-console-text focus:outline-none focus:border-console-accent font-mono"
+            className="bg-sn-bg-base border border-sn-line px-3 py-2 text-sn-ink focus:outline-none focus:border-sn-accent font-mono"
             rows={4}
           />
         </label>
         <label className="flex flex-col gap-1 font-mono text-sm">
-          <span className="text-console-text-muted">Client (optional)</span>
+          <span className="text-sn-ink-muted">Client (optional)</span>
           <select value={clientId} onChange={(e) => setClientId(e.target.value)}
-            className="bg-console-bg border border-console-border rounded px-2 py-1 text-sm text-console-text focus:border-console-accent outline-none">
+            className="bg-sn-bg-base border border-sn-line rounded px-2 py-1 text-sm text-sn-ink focus:border-sn-accent outline-none">
             <option value="">No client</option>
             {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>

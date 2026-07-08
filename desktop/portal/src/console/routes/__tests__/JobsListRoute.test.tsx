@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { JobsListRoute } from '../JobsListRoute';
@@ -37,14 +37,22 @@ describe('JobsListRoute', () => {
     expect(screen.getByText('COMPLETE (0)')).toBeInTheDocument();
   });
 
-  it('shows empty state when zero jobs total', () => {
+  it('shows empty state when zero jobs total', async () => {
     // The route's poller fetches on mount; the default MSW handler returns one
     // job. A "zero jobs" test must actually mock zero jobs, or it is racing
     // the mocked response (this exact race failed on CI, run 28919295385).
+    // The mount also renders LoadingState synchronously until that fetch
+    // settles, so this must await rather than assert immediately.
     server.use(http.get('/api/jobs', () => HttpResponse.json({ jobs: [] })));
     render(<MemoryRouter><JobsListRoute /></MemoryRouter>);
-    expect(screen.getByText(/no jobs yet/i)).toBeInTheDocument();
+    expect(await screen.findByText(/no jobs yet/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /create your first/i })).toBeInTheDocument();
+  });
+
+  it('renders LoadingState while jobs are loading', () => {
+    useJobsStore.getState().markListLoading(true);
+    render(<MemoryRouter><JobsListRoute /></MemoryRouter>);
+    expect(screen.getByRole('status')).toBeInTheDocument();
   });
 
   it('renders [+ Create Job] button when jobs exist', () => {
@@ -58,5 +66,21 @@ describe('JobsListRoute', () => {
     useJobsStore.getState().markStale(true);
     render(<MemoryRouter><JobsListRoute /></MemoryRouter>);
     expect(screen.getByText(/couldn't refresh/i)).toBeInTheDocument();
+  });
+
+  it('retry on the stale banner re-fires the fetch and clears the banner', async () => {
+    server.use(http.get('/api/jobs', () => HttpResponse.json({ jobs: [j('a', 'planned')] })));
+    render(<MemoryRouter><JobsListRoute /></MemoryRouter>);
+    await screen.findByText('PLANNED (1)');
+    useJobsStore.getState().markStale(true);
+    const retry = await screen.findByRole('button', { name: /retry/i });
+
+    server.use(
+      http.get('/api/jobs', () => HttpResponse.json({ jobs: [j('a', 'planned'), j('b', 'in_progress')] })),
+    );
+    fireEvent.click(retry);
+
+    await waitFor(() => expect(screen.getByText('IN PROGRESS (1)')).toBeInTheDocument());
+    expect(useJobsStore.getState().isStale).toBe(false);
   });
 });

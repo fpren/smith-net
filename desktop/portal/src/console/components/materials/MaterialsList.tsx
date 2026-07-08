@@ -50,15 +50,15 @@ export function MaterialsList({ jobId }: { jobId: string }) {
   return (
     <section className="font-mono mb-4">
       <header className="flex items-center justify-between mb-2">
-        <h2 className="text-console-text text-sm uppercase tracking-wider">Materials ({items.filter((m) => m.checked).length}/{items.length})</h2>
+        <h2 className="text-sn-ink text-sm uppercase tracking-wider">Materials ({items.filter((m) => m.checked).length}/{items.length})</h2>
         <Button variant="secondary" onClick={() => { setEditing(null); setShowAdd(true); }}>+ Add material</Button>
       </header>
       {items.length === 0 ? (
-        <div className="text-console-text-muted text-sm py-2">No materials yet.</div>
+        <div className="text-sn-ink-muted text-sm py-2">No materials yet.</div>
       ) : (
-        <div className="border border-console-border">
+        <div className="border border-sn-line">
           {items.map((m) => (
-            <div key={m.id} className="flex items-center gap-2 px-3 py-2 border-b border-console-border last:border-b-0 text-sm">
+            <div key={m.id} className="flex items-center gap-2 px-3 py-2 border-b border-sn-line last:border-b-0 text-sm">
               <input
                 type="checkbox"
                 checked={m.checked}
@@ -67,18 +67,18 @@ export function MaterialsList({ jobId }: { jobId: string }) {
                 aria-label={`Toggle ${m.name}`}
               />
               <div className="flex-1 min-w-0">
-                <div className={m.checked ? 'line-through text-console-text-muted' : 'text-console-text'}>{m.name}</div>
-                <div className="text-xs text-console-text-muted">
+                <div className={m.checked ? 'line-through text-sn-ink-muted' : 'text-sn-ink'}>{m.name}</div>
+                <div className="text-xs text-sn-ink-muted">
                   {m.quantity} {m.unit} @ {USD.format(m.unitCost)}
                   {m.vendor ? ` - ${m.vendor}` : ''}
                 </div>
               </div>
-              <div className="text-console-text tabular-nums">{USD.format(m.quantity * m.unitCost)}</div>
-              <button onClick={() => { setEditing(m); setShowAdd(true); }} className="text-xs text-console-text-muted hover:text-console-text">[edit]</button>
-              <button onClick={() => setConfirmingId(m.id)} aria-label="Delete material" className="text-xs text-console-text-muted hover:text-console-warn">[delete]</button>
+              <div className="text-sn-ink tabular-nums">{USD.format(m.quantity * m.unitCost)}</div>
+              <button onClick={() => { setEditing(m); setShowAdd(true); }} className="text-xs text-sn-ink-muted hover:text-sn-ink">[edit]</button>
+              <button onClick={() => setConfirmingId(m.id)} aria-label="Delete material" className="text-xs text-sn-ink-muted hover:text-sn-attention">[delete]</button>
             </div>
           ))}
-          <div className="px-3 py-2 text-right text-console-text font-bold border-t-2 border-console-border">
+          <div className="px-3 py-2 text-right text-sn-ink font-bold border-t-2 border-sn-line">
             Materials: {USD.format(subtotal)}
           </div>
         </div>

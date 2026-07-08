@@ -40,18 +40,18 @@ export function JobCard({ job, variant = 'card', onClick }: Props) {
       <button
         type="button"
         onClick={onClick}
-        className="w-full text-left bg-console-surface border-b border-console-border hover:bg-console-bg transition-colors font-mono"
+        className="w-full text-left bg-sn-bg-panel border-b border-sn-line hover:bg-sn-bg-base transition-colors font-mono"
       >
         <div className="px-3 py-2 flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <div className="text-console-text text-sm font-medium truncate">{job.title}</div>
-            <div className="text-console-accent text-xs">{idShort}</div>
+            <div className="text-sn-ink text-sm font-medium truncate">{job.title}</div>
+            <div className="text-sn-accent text-xs">{idShort}</div>
           </div>
           <JobStatusBadge status={job.status} xs />
         </div>
         <div className="px-3 pb-2 flex items-center justify-between text-xs">
-          <span className="text-console-text-muted truncate">{location}</span>
-          <span className="text-console-text-muted whitespace-nowrap ml-2">{time}</span>
+          <span className="text-sn-ink-muted truncate">{location}</span>
+          <span className="text-sn-ink-muted whitespace-nowrap ml-2">{time}</span>
         </div>
       </button>
     );
@@ -59,22 +59,22 @@ export function JobCard({ job, variant = 'card', onClick }: Props) {
 
   // Default: card variant for the /console/jobs list.
   return (
-    <div className="bg-console-surface border border-console-border mb-2 font-mono">
+    <div className="bg-sn-bg-panel border border-sn-line mb-2 font-mono">
       <div className="px-4 py-3 flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <div className="text-console-text font-medium truncate">{job.title}</div>
-          <div className="text-console-accent text-xs mt-0.5">{idShort}</div>
+          <div className="text-sn-ink font-medium truncate">{job.title}</div>
+          <div className="text-sn-accent text-xs mt-0.5">{idShort}</div>
         </div>
         <JobStatusBadge status={job.status} />
       </div>
       <div className="px-4 pb-3 flex items-center justify-between text-xs">
-        <span className="text-console-text-muted truncate">{location}</span>
-        <span className="text-console-text-muted">{time}</span>
+        <span className="text-sn-ink-muted truncate">{location}</span>
+        <span className="text-sn-ink-muted">{time}</span>
       </div>
-      <div className="px-4 py-2 border-t border-console-border bg-console-bg flex items-center justify-end">
+      <div className="px-4 py-2 border-t border-sn-line bg-sn-bg-base flex items-center justify-end">
         <Link
           to={`/console/jobs/${job.id}`}
-          className="text-console-accent text-xs hover:underline"
+          className="text-sn-accent text-xs hover:underline"
         >
           {'[-> open detail]'}
         </Link>

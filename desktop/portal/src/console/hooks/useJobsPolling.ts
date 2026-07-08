@@ -5,6 +5,39 @@ import { useJobsStore } from '../stores/jobsStore';
 
 type Scope = 'list' | { detail: string };
 
+// Standalone reload functions used by the retry buttons on JobsListRoute /
+// JobDetailRoute's ErrorState. These write to the store unconditionally on
+// resolve — safe for a user-triggered retry, unlike the interval-driven
+// fetchOnce below which guards against a response landing after unmount.
+export async function reloadJobsList(): Promise<void> {
+  useJobsStore.getState().markListLoading(true);
+  try {
+    const result = await jobsClient.list();
+    if (result.ok) {
+      useJobsStore.getState().setJobs(result.jobs);
+    } else {
+      useJobsStore.getState().markStale(true);
+    }
+  } finally {
+    useJobsStore.getState().markListLoading(false);
+  }
+}
+
+export async function reloadJobDetail(id: string): Promise<void> {
+  useJobsStore.getState().markDetailLoading(true);
+  try {
+    const result = await jobsClient.getById(id);
+    if (result.ok) {
+      useJobsStore.getState().setDetail(result.job, result.crew);
+      useJobsStore.getState().markStale(false);
+    } else {
+      useJobsStore.getState().markStale(true);
+    }
+  } finally {
+    useJobsStore.getState().markDetailLoading(false);
+  }
+}
+
 export function useJobsPolling(scope: Scope, intervalMs: number = 15_000): void {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
