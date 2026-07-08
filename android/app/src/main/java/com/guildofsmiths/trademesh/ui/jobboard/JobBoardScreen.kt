@@ -28,6 +28,10 @@ import com.guildofsmiths.trademesh.ui.ConsoleHeader
 import com.guildofsmiths.trademesh.ui.ConsoleSeparator
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.invoice.InvoicePreviewDialog
+import com.guildofsmiths.trademesh.ui.theme2.SmithButton
+import com.guildofsmiths.trademesh.ui.theme2.SmithButtonVariant
+import com.guildofsmiths.trademesh.ui.theme2.SmithConfirmDialog
+import com.guildofsmiths.trademesh.ui.theme2.SmithDialog
 import com.guildofsmiths.trademesh.data.ClientInfo
 import com.guildofsmiths.trademesh.data.ClientRepository
 import com.guildofsmiths.trademesh.data.RoleContext
@@ -332,36 +336,17 @@ fun JobBoardScreen(
     }
 
     pendingSwitch?.let { req ->
-        AlertDialog(
-            onDismissRequest = { pendingSwitch = null },
-            containerColor = ConsoleTheme.surface,
-            title = { Text("SWITCH CLOCK?", style = ConsoleTheme.header) },
-            text = {
-                Text(
-                    text = "You're on the clock for ${req.oldJobTitle}.\nClock out and start ${req.jobTitle}?",
-                    style = ConsoleTheme.body
-                )
+        SmithConfirmDialog(
+            title = "Switch clock?",
+            body = "You're on the clock for ${req.oldJobTitle}.\nClock out and start ${req.jobTitle}?",
+            confirmText = "SWITCH",
+            confirmIsDanger = false,
+            onConfirm = {
+                req.performStart()
+                onSwitchClock(req.jobId, req.jobTitle, req.taskId)
+                pendingSwitch = null
             },
-            confirmButton = {
-                Text(
-                    text = "[v] SWITCH",
-                    style = ConsoleTheme.action.copy(color = ConsoleTheme.success),
-                    modifier = Modifier
-                        .clickable {
-                            req.performStart()
-                            onSwitchClock(req.jobId, req.jobTitle, req.taskId)
-                            pendingSwitch = null
-                        }
-                        .padding(8.dp)
-                )
-            },
-            dismissButton = {
-                Text(
-                    text = "[x] CANCEL",
-                    style = ConsoleTheme.action,
-                    modifier = Modifier.clickable { pendingSwitch = null }.padding(8.dp)
-                )
-            }
+            onDismiss = { pendingSwitch = null },
         )
     }
 
@@ -603,71 +588,30 @@ private fun SwipeableJobRow(
     
     // Archive confirmation dialog
     if (showArchiveConfirm) {
-        AlertDialog(
-            onDismissRequest = { showArchiveConfirm = false },
-            containerColor = ConsoleTheme.background,
-            title = { Text("ARCHIVE JOB?", style = ConsoleTheme.header) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(text = job.title, style = ConsoleTheme.bodyBold)
-                    Text(
-                        text = "Archived jobs are saved for reference but hidden from active view.",
-                        style = ConsoleTheme.caption
-                    )
-                }
+        SmithConfirmDialog(
+            title = "Archive job?",
+            body = "${job.title}\n\nArchived jobs are saved for reference but hidden from active view.",
+            confirmText = "ARCHIVE",
+            confirmIsDanger = false,
+            onConfirm = {
+                onArchive()
+                showArchiveConfirm = false
             },
-            confirmButton = {
-                Text(
-                    text = "ARCHIVE",
-                    style = ConsoleTheme.action,
-                    modifier = Modifier.clickable {
-                        onArchive()
-                        showArchiveConfirm = false
-                    }
-                )
-            },
-            dismissButton = {
-                Text(
-                    text = "CANCEL",
-                    style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
-                    modifier = Modifier.clickable { showArchiveConfirm = false }
-                )
-            }
+            onDismiss = { showArchiveConfirm = false },
         )
     }
 
     // Delete confirmation dialog
     if (showDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            containerColor = ConsoleTheme.background,
-            title = { Text("DELETE JOB?", style = ConsoleTheme.header) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(text = job.title, style = ConsoleTheme.bodyBold)
-                    Text(
-                        text = "This will permanently delete the job and all associated data. This cannot be undone.",
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.error)
-                    )
-                }
+        SmithConfirmDialog(
+            title = "Delete job?",
+            body = "${job.title}\n\nThis will permanently delete the job and all associated data. This cannot be undone.",
+            confirmText = "DELETE",
+            onConfirm = {
+                onDelete()
+                showDeleteConfirm = false
             },
-            confirmButton = {
-                Text(
-                    text = "DELETE",
-                    style = ConsoleTheme.action.copy(color = ConsoleTheme.error),
-                    modifier = Modifier.clickable {
-                        onDelete()
-                        showDeleteConfirm = false
-                    }
-                )
-            },
-            dismissButton = {
-                Text(
-                    text = "CANCEL",
-                    style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
-                    modifier = Modifier.clickable { showDeleteConfirm = false }
-                )
-            }
+            onDismiss = { showDeleteConfirm = false },
         )
     }
 }
@@ -730,43 +674,37 @@ private fun JobWorkflowDialog(
         else -> false
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = ConsoleTheme.background,
-        modifier = Modifier.fillMaxWidth(0.95f).fillMaxHeight(0.9f),
-        title = {
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(text = job.title, style = ConsoleTheme.header)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                text = "[${job.status.displayName}]",
-                                style = ConsoleTheme.captionBold.copy(
-                                    color = when (job.status) {
-                                        JobStatus.IN_PROGRESS -> ConsoleTheme.warning
-                                        JobStatus.REVIEW -> ConsoleTheme.accent
-                                        JobStatus.DONE -> ConsoleTheme.success
-                                        else -> ConsoleTheme.textMuted
-                                    }
-                                )
-                            )
-                            Text(text = job.priority.displayName, style = ConsoleTheme.caption)
+    SmithDialog(
+        title = job.title,
+        onDismiss = onDismiss,
+        sizeFraction = 0.95f to 0.9f,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "[${job.status.displayName}]",
+                    style = ConsoleTheme.captionBold.copy(
+                        color = when (job.status) {
+                            JobStatus.IN_PROGRESS -> ConsoleTheme.warning
+                            JobStatus.REVIEW -> ConsoleTheme.accent
+                            JobStatus.DONE -> ConsoleTheme.success
+                            else -> ConsoleTheme.textMuted
                         }
-                    }
-                    Text(text = "X", style = ConsoleTheme.action, modifier = Modifier.clickable { onDismiss() })
-                }
+                    )
+                )
+                Text(text = job.priority.displayName, style = ConsoleTheme.caption)
             }
-        },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+            Text(text = "X", style = ConsoleTheme.action, modifier = Modifier.clickable { onDismiss() })
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Column(
+            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
                 // ═══════════════════════════════════════════════════
                 // CLIENT
                 // ═══════════════════════════════════════════════════
@@ -1351,41 +1289,21 @@ private fun JobWorkflowDialog(
                         )
                     }
                 }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {}
-    )
+        }
+    }
 
     // Confirm advance dialog
     if (showConfirmAdvance) {
-        AlertDialog(
-            onDismissRequest = { showConfirmAdvance = false },
-            containerColor = ConsoleTheme.background,
-            title = { Text("SUBMIT FOR REVIEW?", style = ConsoleTheme.header) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("This will mark the work phase as complete.", style = ConsoleTheme.body)
-                    Text("Make sure all tasks are done and materials are checked.", style = ConsoleTheme.caption)
-                }
+        SmithConfirmDialog(
+            title = "Submit for review?",
+            body = "This will mark the work phase as complete.\n\nMake sure all tasks are done and materials are checked.",
+            confirmText = "SUBMIT",
+            confirmIsDanger = false,
+            onConfirm = {
+                viewModel.moveJob(job.id, JobStatus.REVIEW)
+                showConfirmAdvance = false
             },
-            confirmButton = {
-                Text(
-                    text = "SUBMIT",
-                    style = ConsoleTheme.action,
-                    modifier = Modifier.clickable {
-                        viewModel.moveJob(job.id, JobStatus.REVIEW)
-                        showConfirmAdvance = false
-                    }
-                )
-            },
-            dismissButton = {
-                Text(
-                    text = "CANCEL",
-                    style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
-                    modifier = Modifier.clickable { showConfirmAdvance = false }
-                )
-            }
+            onDismiss = { showConfirmAdvance = false },
         )
     }
     
@@ -1393,11 +1311,39 @@ private fun JobWorkflowDialog(
     showMaterialCostDialog?.let { materialIndex ->
         val material = job.materials.getOrNull(materialIndex)
         if (material != null) {
-            AlertDialog(
-                onDismissRequest = { showMaterialCostDialog = null },
-                containerColor = ConsoleTheme.background,
-                title = { Text("MATERIAL PURCHASED", style = ConsoleTheme.header) },
-                text = {
+            SmithDialog(
+                title = "Material purchased",
+                onDismiss = { showMaterialCostDialog = null },
+                actions = {
+                    SmithButton(
+                        text = "SKIP",
+                        onClick = {
+                            viewModel.toggleMaterial(job.id, materialIndex)
+                            showMaterialCostDialog = null
+                        },
+                        variant = SmithButtonVariant.Ghost,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    SmithButton(
+                        text = "SAVE",
+                        onClick = {
+                            val qty = materialQty.toDoubleOrNull() ?: 1.0
+                            val cost = materialCost.toDoubleOrNull() ?: 0.0
+                            val unitCost = if (qty > 0) cost / qty else 0.0
+                            viewModel.updateMaterialCost(
+                                jobId = job.id,
+                                materialIndex = materialIndex,
+                                quantity = qty,
+                                unit = materialUnit,
+                                unitCost = unitCost,
+                                totalCost = cost,
+                                vendor = materialVendor
+                            )
+                            showMaterialCostDialog = null
+                        },
+                    )
+                },
+            ) {
                     Column(
                         modifier = Modifier
                             .verticalScroll(rememberScrollState())
@@ -1477,39 +1423,7 @@ private fun JobWorkflowDialog(
                             style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
                         )
                     }
-                },
-                confirmButton = {
-                    Text(
-                        text = "SAVE",
-                        style = ConsoleTheme.action,
-                        modifier = Modifier.clickable {
-                            val qty = materialQty.toDoubleOrNull() ?: 1.0
-                            val cost = materialCost.toDoubleOrNull() ?: 0.0
-                            val unitCost = if (qty > 0) cost / qty else 0.0
-                            viewModel.updateMaterialCost(
-                                jobId = job.id,
-                                materialIndex = materialIndex,
-                                quantity = qty,
-                                unit = materialUnit,
-                                unitCost = unitCost,
-                                totalCost = cost,
-                                vendor = materialVendor
-                            )
-                            showMaterialCostDialog = null
-                        }
-                    )
-                },
-                dismissButton = {
-                    Text(
-                        text = "SKIP",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
-                        modifier = Modifier.clickable {
-                            viewModel.toggleMaterial(job.id, materialIndex)
-                            showMaterialCostDialog = null
-                        }
-                    )
-                }
-            )
+            }
         }
     }
 }
@@ -1603,38 +1517,46 @@ private fun CreateJobDialogWithPreview(
         } catch (e: Exception) { null }
     }
 
-    AlertDialog(
-        onDismissRequest = handleDismiss,
-        containerColor = ConsoleTheme.background,
-        modifier = Modifier.fillMaxWidth(0.95f).fillMaxHeight(0.55f),
-        title = { 
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (currentStep == JobDialogStep.EDIT) "NEW JOB" else "PREVIEW",
-                        style = ConsoleTheme.header
-                    )
-                    if (currentStep == JobDialogStep.PREVIEW) {
-                        Text(
-                            text = "[EDIT]",
-                            style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
-                            modifier = Modifier.clickable { currentStep = JobDialogStep.EDIT }
-                        )
-                    }
-                }
-                if (hasEnteredData && currentStep == JobDialogStep.EDIT) {
-                    Text(
-                        text = "Use CANCEL to close or PREVIEW to view summary",
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.warning)
-                    )
-                }
+    SmithDialog(
+        title = if (currentStep == JobDialogStep.EDIT) "New job" else "Preview",
+        onDismiss = handleDismiss,
+        sizeFraction = 0.95f to 0.55f,
+        actions = {
+            SmithButton(text = "CANCEL", onClick = onDismiss, variant = SmithButtonVariant.Ghost)
+            Spacer(modifier = Modifier.width(8.dp))
+            if (currentStep == JobDialogStep.EDIT) {
+                SmithButton(
+                    text = "PREVIEW >>",
+                    onClick = { if (title.isNotBlank()) currentStep = JobDialogStep.PREVIEW },
+                    enabled = title.isNotBlank(),
+                )
+            } else {
+                SmithButton(
+                    text = "CREATE JOB",
+                    onClick = {
+                        onCreate(title, description, priority, expenses, crewSize.toIntOrNull() ?: 1,
+                                 crewMembers, materials, parseDate(startDateStr), parseDate(endDateStr),
+                                 clientName.trim(), clientPhone.trim(), clientAddress.trim())
+                    },
+                )
             }
         },
-        text = {
+    ) {
+        if (currentStep == JobDialogStep.PREVIEW) {
+            Text(
+                text = "[EDIT]",
+                style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                modifier = Modifier.clickable { currentStep = JobDialogStep.EDIT }
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+        if (hasEnteredData && currentStep == JobDialogStep.EDIT) {
+            Text(
+                text = "Use CANCEL to close or PREVIEW to view summary",
+                style = ConsoleTheme.caption.copy(color = ConsoleTheme.warning)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
             if (currentStep == JobDialogStep.EDIT) {
                 // ═══════════════════════════════════════════════════════════════
                 // EDIT MODE
@@ -2003,36 +1925,7 @@ private fun CreateJobDialogWithPreview(
                     )
                 }
             }
-        },
-        confirmButton = {
-            if (currentStep == JobDialogStep.EDIT) {
-                Text(
-                    text = "PREVIEW >>",
-                    style = ConsoleTheme.action.copy(color = if (title.isNotBlank()) ConsoleTheme.accent else ConsoleTheme.textDim),
-                    modifier = Modifier.clickable {
-                        if (title.isNotBlank()) currentStep = JobDialogStep.PREVIEW
-                    }
-                )
-            } else {
-                Text(
-                    text = "CREATE JOB",
-                    style = ConsoleTheme.action.copy(color = ConsoleTheme.success),
-                    modifier = Modifier.clickable {
-                        onCreate(title, description, priority, expenses, crewSize.toIntOrNull() ?: 1,
-                                 crewMembers, materials, parseDate(startDateStr), parseDate(endDateStr),
-                                 clientName.trim(), clientPhone.trim(), clientAddress.trim())
-                    }
-                )
-            }
-        },
-        dismissButton = {
-            Text(
-                text = "CANCEL",
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
-                modifier = Modifier.clickable { onDismiss() }
-            )
-        }
-    )
+    }
 }
 
 // ════════════════════════════════════════════════════════════════════
