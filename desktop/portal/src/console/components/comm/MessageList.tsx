@@ -8,6 +8,7 @@ import { wsClient } from '../../../websocket';
 import { ConfirmDialog } from '../ui/SmithDialog';
 import { groupMessages } from './messageGrouping';
 import { MessageRow } from './MessageRow';
+import { retryUpload } from './MessageInput';
 import type { Message } from '../../../types';
 
 interface Props {
@@ -88,6 +89,15 @@ export function MessageList({ channelId }: Props) {
   }
 
   function onRetry(m: Message) {
+    // An attachment that never made it past the upload leg still points at
+    // a blob: url the server has never seen — re-running upload+send (with
+    // the File kept in MessageInput's module-level map) is the only retry
+    // that can succeed. Falls back to a plain re-send if the File is gone
+    // (e.g. after a page reload); that will fail again on the stale blob
+    // url, settling back to failed.
+    if (m.media?.url?.startsWith('blob:') && retryUpload(m.id)) {
+      return;
+    }
     updateMessage(m.channelId, m.id, { status: 'pending' });
     void commClient
       .send(m.channelId, m.content, { id: m.id, media: m.media })

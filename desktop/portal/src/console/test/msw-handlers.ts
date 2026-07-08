@@ -748,4 +748,12 @@ export const handlers = [
   }),
 
   http.delete('/api/expenses/:id', () => new HttpResponse(null, { status: 204 })),
+
+  // Media upload (Design System v2 Plan 3, Task 4) — echoes a deterministic url.
+  http.post('/api/media/upload', async () =>
+    HttpResponse.json(
+      { id: 'media-1', url: '/media/images/media-1.jpg', filename: 'photo.jpg', size: 100, mimeType: 'image/jpeg' },
+      { status: 201 },
+    ),
+  ),
 ];

@@ -155,4 +155,38 @@ export const commClient = {
     const data = await res.json();
     return { ok: true, avatarUrl: data.avatarUrl };
   },
+
+  // Multipart message attachment upload, used by the composer's [+] flow.
+  // Backend: POST /api/media/upload (field `file`, body fields messageId /
+  // channelId / senderId, optional mediaType IMAGE|VOICE|FILE) -> 201
+  // { id, url, filename, size, mimeType }.
+  uploadMedia: async (
+    file: File,
+    messageId: string,
+    channelId: string,
+    senderId: string
+  ): Promise<
+    | { ok: true; url: string; filename?: string; size?: number; mimeType?: string }
+    | { ok: false }
+  > => {
+    const mediaType = file.type.startsWith('image/')
+      ? 'IMAGE'
+      : file.type.startsWith('audio/')
+        ? 'VOICE'
+        : 'FILE';
+    const form = new FormData();
+    form.append('file', file);
+    form.append('messageId', messageId);
+    form.append('channelId', channelId);
+    form.append('senderId', senderId);
+    form.append('mediaType', mediaType);
+    const res = await fetch('/api/media/upload', {
+      method: 'POST',
+      credentials: 'include',
+      body: form,
+    });
+    if (!res.ok) return { ok: false };
+    const data = await res.json();
+    return { ok: true, url: data.url, filename: data.filename, size: data.size, mimeType: data.mimeType };
+  },
 };
