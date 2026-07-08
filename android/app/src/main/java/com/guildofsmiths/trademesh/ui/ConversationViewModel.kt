@@ -120,20 +120,25 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
         BeaconRepository.setActiveBeacon(beaconId)
         BeaconRepository.setActiveChannel(channelId)
 
-        // Snapshot unread count BEFORE clearing — only on an actual channel
-        // switch, so repeat calls for the same channel (this is invoked from
-        // composable bodies, which recompose) don't stomp the snapshot with
-        // the already-cleared value.
-        if (channelChanged) {
-            _unreadAtOpen.value = BeaconRepository.beacons.value
-                .find { it.id == beaconId }
-                ?.channels
-                ?.find { it.id == channelId }
-                ?.unreadCount ?: 0
+        // Snapshot BEFORE clearing. Refresh whenever there is fresh unread to
+        // capture (covers same-channel re-entry) or the channel truly changed.
+        // Recomposition re-calls read 0 (already cleared) and leave the snapshot
+        // alone; the screen's remember freeze keeps the rendered divider stable
+        // even if a mid-open mesh arrival re-snapshots here.
+        val fresh = BeaconRepository.beacons.value
+            .find { it.id == beaconId }?.channels?.find { it.id == channelId }?.unreadCount ?: 0
+        if (channelChanged || fresh > 0) {
+            _unreadAtOpen.value = fresh
         }
 
         // Clear unread for this channel
         BeaconRepository.clearUnread(beaconId, channelId)
+    }
+
+    /** The conversation left composition: retire the snapshot so a later
+     *  re-entry with zero new unread shows no divider. */
+    fun onConversationClosed() {
+        _unreadAtOpen.value = 0
     }
     
     /**

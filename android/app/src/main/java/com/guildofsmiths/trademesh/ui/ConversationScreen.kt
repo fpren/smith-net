@@ -42,6 +42,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.IntOffset
 import kotlin.math.roundToInt
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -107,6 +108,7 @@ fun ConversationScreen(
     unreadAtOpen: Int = 0,
     canDeleteForAll: Boolean = false,  // True if user created channel or has permission
     onBackClick: (() -> Unit)? = null,
+    onConversationClosed: (() -> Unit)? = null,
     onVoiceClick: (() -> Unit)? = null,
     onCameraClick: (() -> Unit)? = null,
     onVideoClick: (() -> Unit)? = null,
@@ -123,8 +125,17 @@ fun ConversationScreen(
 
     // NEW divider position — frozen the first time it's computed for this
     // channel so late-arriving messages don't shift it. -1 means "no divider".
-    val newDividerIndex = remember(channel?.id) {
-        if (unreadAtOpen > 0) (messages.size - unreadAtOpen).coerceAtLeast(0) else -1
+    // Keyed on messages.isEmpty() too: on cold start / deep link the messages
+    // StateFlow can still be emptyList() the first frame channel.id is
+    // non-null, which would freeze the index at the wrong (zero) size; this
+    // lets it recompute once when messages first load, then stays frozen.
+    val newDividerIndex = remember(channel?.id, messages.isEmpty()) {
+        if (messages.isEmpty() || unreadAtOpen <= 0) -1
+        else (messages.size - unreadAtOpen).coerceAtLeast(0)
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { onConversationClosed?.invoke() }
     }
 
     var inputText by remember { mutableStateOf("") }

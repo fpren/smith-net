@@ -1248,6 +1248,9 @@ class MainActivity : ComponentActivity() {
                                 onBackClick = {
                                     navController.popBackStack()
                                 },
+                                onConversationClosed = {
+                                    viewModel.onConversationClosed()
+                                },
                                 onVoiceClick = {
                                     pendingDmPeerId = currentDmPeer?.userId ?: initialDmPeer?.userId
                                     pendingDmPeerName = currentDmPeer?.userName ?: initialDmPeer?.userName
