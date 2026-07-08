@@ -1,0 +1,37 @@
+name: portal CI
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'desktop/portal/**'
+      - 'design/**'
+      - 'scripts/gen-tokens.mjs'
+  pull_request:
+    paths:
+      - 'desktop/portal/**'
+      - 'design/**'
+      - 'scripts/gen-tokens.mjs'
+
+jobs:
+  tokens-and-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: desktop/portal
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: desktop/portal/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Token drift check
+        working-directory: .
+        run: node scripts/gen-tokens.mjs --check
+      - name: Unit tests
+        run: npx vitest run
+      - name: Build
+        run: npm run build
