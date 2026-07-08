@@ -1236,6 +1236,9 @@ class MainActivity : ComponentActivity() {
                                 onMessageAction = { message, action ->
                                     viewModel.handleMessageAction(message, action)
                                 },
+                                onRetryMessage = { messageId ->
+                                    viewModel.retryMessage(messageId)
+                                },
                                 localUserId = viewModel.getLocalUserId(),
                                 channel = channel,
                                 beaconName = beacon?.name,

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -45,8 +46,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
@@ -63,6 +66,8 @@ import com.guildofsmiths.trademesh.data.MessageRepository
 import com.guildofsmiths.trademesh.data.Peer
 import com.guildofsmiths.trademesh.data.PeerRepository
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
+import com.guildofsmiths.trademesh.ui.components.SmithAvatar
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithConfirmDialog
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -86,6 +91,7 @@ fun ConversationScreen(
     messages: List<Message>,
     onSendMessage: (String, Peer?) -> Unit,  // content + optional DM recipient
     onMessageAction: ((Message, MessageAction) -> Unit)? = null,  // Swipe action handler
+    onRetryMessage: ((String) -> Unit)? = null,  // Retry a FAILED own-message send
     localUserId: String = "",
     channel: Channel? = null,
     beaconName: String? = null,
@@ -425,9 +431,6 @@ fun ConversationScreen(
                     if (canDeleteForAll) actionButtonWidth.toPx() * 2 else actionButtonWidth.toPx()
                 }
 
-                // Fixed height for swipe actions
-                val messageHeight = 60.dp
-
                 // Can only delete YOUR OWN messages
                 // Archive is available for any message (just hides from your view)
                 val canDelete = isSentByMe
@@ -445,70 +448,50 @@ fun ConversationScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(messageHeight)
+                        .height(IntrinsicSize.Min)
                 ) {
-                    // LEFT SIDE - Archive button (revealed on swipe RIGHT)
-                    // Archive is always available - just hides from YOUR view
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.CenterStart)
-                            .width(actionButtonWidth)
-                            .fillMaxHeight()
-                            .background(ConsoleTheme.accent)
-                            .clickable {
-                                offsetX = 0f
-                                onMessageAction?.invoke(message, MessageAction.ARCHIVE)
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            "Archive",
-                            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.background)
-                        )
-                    }
-
-                    // RIGHT SIDE - Delete buttons (only for YOUR OWN messages)
-                    if (canDelete) {
-                        Row(
+                    // Reveal layer: sized to match the foreground content's
+                    // resolved height (via matchParentSize) instead of a fixed
+                    // 60dp — tall/media messages no longer clip their swipe
+                    // reveal backgrounds.
+                    Box(modifier = Modifier.matchParentSize()) {
+                        // LEFT SIDE - Archive button (revealed on swipe RIGHT)
+                        // Archive is always available - just hides from YOUR view
+                        Box(
                             modifier = Modifier
-                                .align(Alignment.CenterEnd)
-                                .fillMaxHeight(),
-                            verticalAlignment = Alignment.CenterVertically
+                                .align(Alignment.CenterStart)
+                                .width(actionButtonWidth)
+                                .fillMaxHeight()
+                                .background(ConsoleTheme.accent)
+                                .clickable {
+                                    offsetX = 0f
+                                    onMessageAction?.invoke(message, MessageAction.ARCHIVE)
+                                },
+                            contentAlignment = Alignment.Center
                         ) {
-                            // Delete for me button (only for your own messages)
-                            Box(
-                                modifier = Modifier
-                                    .width(actionButtonWidth)
-                                    .fillMaxHeight()
-                                    .background(ConsoleTheme.warning)
-                                    .clickable {
-                                        offsetX = 0f
-                                        onMessageAction?.invoke(message, MessageAction.DELETE_FOR_ME)
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        "Delete",
-                                        style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.background)
-                                    )
-                                    Text(
-                                        "for me",
-                                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.background)
-                                    )
-                                }
-                            }
+                            Text(
+                                "Archive",
+                                style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.background)
+                            )
+                        }
 
-                            // Delete for everyone (only if you sent it AND have permission)
-                            if (canDeleteAll) {
+                        // RIGHT SIDE - Delete buttons (only for YOUR OWN messages)
+                        if (canDelete) {
+                            Row(
+                                modifier = Modifier
+                                    .align(Alignment.CenterEnd)
+                                    .fillMaxHeight(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Delete for me button (only for your own messages)
                                 Box(
                                     modifier = Modifier
                                         .width(actionButtonWidth)
                                         .fillMaxHeight()
-                                        .background(ConsoleTheme.error)
+                                        .background(ConsoleTheme.warning)
                                         .clickable {
                                             offsetX = 0f
-                                            onMessageAction?.invoke(message, MessageAction.DELETE_FOR_EVERYONE)
+                                            onMessageAction?.invoke(message, MessageAction.DELETE_FOR_ME)
                                         },
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -518,9 +501,35 @@ fun ConversationScreen(
                                             style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.background)
                                         )
                                         Text(
-                                            "for all",
+                                            "for me",
                                             style = ConsoleTheme.caption.copy(color = ConsoleTheme.background)
                                         )
+                                    }
+                                }
+
+                                // Delete for everyone (only if you sent it AND have permission)
+                                if (canDeleteAll) {
+                                    Box(
+                                        modifier = Modifier
+                                            .width(actionButtonWidth)
+                                            .fillMaxHeight()
+                                            .background(ConsoleTheme.error)
+                                            .clickable {
+                                                offsetX = 0f
+                                                onMessageAction?.invoke(message, MessageAction.DELETE_FOR_EVERYONE)
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text(
+                                                "Delete",
+                                                style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.background)
+                                            )
+                                            Text(
+                                                "for all",
+                                                style = ConsoleTheme.caption.copy(color = ConsoleTheme.background)
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -530,7 +539,7 @@ fun ConversationScreen(
                     // Foreground message (swipeable)
                     Box(
                         modifier = Modifier
-                            .fillMaxSize()
+                            .fillMaxWidth()
                             .offset { IntOffset(animatedOffsetX.roundToInt(), 0) }
                             .background(ConsoleTheme.background)
                             .draggable(
@@ -552,7 +561,12 @@ fun ConversationScreen(
                             ),
                         contentAlignment = Alignment.CenterStart
                     ) {
-                        MessageBlock(message = message, isSentByMe = isSentByMe, showHeader = showHeader)
+                        MessageBlock(
+                            message = message,
+                            isSentByMe = isSentByMe,
+                            showHeader = showHeader,
+                            onRetryMessage = onRetryMessage
+                        )
                     }
                 }
             }
@@ -846,17 +860,26 @@ private fun DateSeparator(date: String) {
     }
 }
 
+// Left rail reserved for the first-of-group avatar; grouped rows start-pad
+// by this width so bubbles line up under the header row above them.
+private val MessageRailAvatarSize = 28.dp
+private val MessageRailGap = 8.dp
+private val MessageRailWidth = MessageRailAvatarSize + MessageRailGap
+
 /**
- * Message block with left/right alignment.
- * Bold sender, clear hierarchy. Shows media placeholders.
+ * Message block — always left-aligned (Signal/Slack-style single-column
+ * feed). First-of-group rows show an avatar + sender + time + MeshChip;
+ * grouped rows show the bubble only, start-padded to line up under it.
  */
 @Composable
 private fun MessageBlock(
     message: Message,
     isSentByMe: Boolean,
     showHeader: Boolean = true,
+    onRetryMessage: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     val time = formatTime(message.timestamp)
     // Try to get a better display name from PeerRepository
     val peerName = if (!isSentByMe) {
@@ -871,60 +894,40 @@ private fun MessageBlock(
 
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = if (isSentByMe) Arrangement.End else Arrangement.Start
+        horizontalArrangement = Arrangement.Start
     ) {
-        Column(
-            horizontalAlignment = if (isSentByMe) Alignment.End else Alignment.Start
-        ) {
+        if (showHeader) {
+            SmithAvatar(name = message.senderName, size = 28)
+            Spacer(modifier = Modifier.width(MessageRailGap))
+        } else {
+            Spacer(modifier = Modifier.width(MessageRailWidth))
+        }
+
+        Column(horizontalAlignment = Alignment.Start) {
             if (showHeader) {
-                // Header: arrow + sender + time + [sub] + [DM]
+                // Header: sender + time + MeshChip + [DM] + [queued]
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = if (isSentByMe) "▶" else "◀",
-                        style = ConsoleTheme.prefix.copy(
-                            color = if (isSentByMe) ConsoleTheme.sentPrefix else ConsoleTheme.receivedPrefix
-                        )
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
                         text = sender,
-                        style = ConsoleTheme.captionBold.copy(
-                            color = if (isSentByMe) ConsoleTheme.accent else ConsoleTheme.textSecondary
+                        style = TextStyle(
+                            fontFamily = ConsoleTheme.inter,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp,
+                            color = if (isSentByMe) colors.accent else colors.ink
                         )
                     )
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = " · $time",
-                        style = ConsoleTheme.timestamp
+                        text = time,
+                        style = TextStyle(
+                            fontFamily = ConsoleTheme.jetBrainsMono,
+                            fontSize = 10.sp,
+                            color = colors.inkMuted
+                        )
                     )
-                    if (isSentByMe) {
-                        val statusText = when (message.deliveryStatus) {
-                            DeliveryStatus.PENDING -> "[...]"
-                            DeliveryStatus.SENT -> "[✓]"
-                            DeliveryStatus.DELIVERED -> "[✓✓]"
-                            DeliveryStatus.READ -> "[✓✓]"
-                            DeliveryStatus.FAILED -> "[!]"
-                        }
-                        val statusColor = if (message.deliveryStatus == DeliveryStatus.READ)
-                            Color(0xFF5A8C76)  // sage green
-                        else if (message.deliveryStatus == DeliveryStatus.FAILED)
-                            ConsoleTheme.error
-                        else
-                            ConsoleTheme.textMuted
-                        Text(
-                            text = " $statusText",
-                            style = ConsoleTheme.timestamp.copy(color = statusColor)
-                        )
-                    }
-                    if (message.isMeshOrigin && !isSentByMe) {
-                        Text(
-                            text = " [sub]",
-                            style = ConsoleTheme.timestamp.copy(color = ConsoleTheme.textDim)
-                        )
-                    } else if (!message.isMeshOrigin && !isSentByMe) {
-                        Text(
-                            text = " [online]",
-                            style = ConsoleTheme.timestamp.copy(color = ConsoleTheme.textDim)
-                        )
+                    if (message.isMeshOrigin) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        MeshChip()
                     }
                     if (message.isDirectMessage()) {
                         Text(
@@ -944,50 +947,93 @@ private fun MessageBlock(
             } else {
                 Spacer(modifier = Modifier.height(3.dp))
             }
-            
-            // Content — with media indicator
-            Row {
-                if (isSentByMe) {
-                    Column(horizontalAlignment = Alignment.End) {
-                        // Interactive media player (voice/image/file)
-                        if (message.hasMedia()) {
-                            MediaIndicator(
-                                type = message.mediaType, 
-                                media = message.media
-                            )
-                        }
-                        // Text content
-                        MessageTextContent(
-                            message = message,
-                                modifier = Modifier.padding(end = 8.dp)
-                            )
-                    }
-                    // Faint vertical line
-                    Box(
-                        modifier = Modifier
-                            .width(2.dp)
-                            .height(18.dp)
-                            .background(ConsoleTheme.sentLine)
-                    )
-                } else {
-                    Column(horizontalAlignment = Alignment.Start) {
-                        // Interactive media player (voice/image/file)
-                        if (message.hasMedia()) {
-                            MediaIndicator(
-                                type = message.mediaType, 
-                                media = message.media
-                            )
-                        }
-                        // Text content
-                        MessageTextContent(
-                            message = message,
-                            modifier = Modifier.padding(start = 16.dp)
+
+            // Bubble — left-aligned, same shape for sent and received.
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(Tokens2.RadiusBubble))
+                    .background(colors.bgSunken)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Column(horizontalAlignment = Alignment.Start) {
+                    // Interactive media player (voice/image/file)
+                    if (message.hasMedia()) {
+                        MediaIndicator(
+                            type = message.mediaType,
+                            media = message.media
                         )
                     }
+                    // Text content
+                    MessageTextContent(message = message)
                 }
+            }
+
+            // Status microcopy — own messages only, every row (not gated by
+            // showHeader) so PENDING/FAILED is visible even inside a group.
+            if (isSentByMe) {
+                MessageStatusLine(message = message, onRetryMessage = onRetryMessage)
             }
         }
     }
+}
+
+/**
+ * Own-message delivery status, in mono uppercase words. SEEN (from Task 7's
+ * read-receipt set, self already excluded at write time) takes precedence
+ * over SENT/DELIVERED/READ. FAILED is tap-to-retry.
+ */
+@Composable
+private fun MessageStatusLine(
+    message: Message,
+    onRetryMessage: ((String) -> Unit)?,
+    modifier: Modifier = Modifier
+) {
+    val colors = LocalSmithColors.current
+    val readByMessage by MessageRepository.readByMessage.collectAsState()
+    val isSeen = readByMessage[message.id]?.isNotEmpty() == true
+
+    val (statusText, statusColor) = when {
+        isSeen -> "SEEN" to colors.statusOnline
+        message.deliveryStatus == DeliveryStatus.FAILED -> "FAILED · TAP TO RETRY" to colors.attention
+        message.deliveryStatus == DeliveryStatus.PENDING -> "PENDING" to colors.inkMuted
+        else -> "SENT" to colors.inkMuted
+    }
+
+    val isFailed = !isSeen && message.deliveryStatus == DeliveryStatus.FAILED
+    Text(
+        text = statusText,
+        style = TextStyle(
+            fontFamily = ConsoleTheme.jetBrainsMono,
+            fontSize = 9.sp,
+            color = statusColor
+        ),
+        modifier = modifier
+            .padding(top = 2.dp)
+            .then(
+                if (isFailed) Modifier.clickable { onRetryMessage?.invoke(message.id) }
+                else Modifier
+            )
+    )
+}
+
+/**
+ * MeshChip — small pill badge marking a message as mesh-origin (replaces the
+ * old [sub]/[online] text pair).
+ */
+@Composable
+private fun MeshChip(modifier: Modifier = Modifier) {
+    val colors = LocalSmithColors.current
+    Text(
+        text = "MESH",
+        style = TextStyle(
+            fontFamily = ConsoleTheme.jetBrainsMono,
+            fontSize = 9.sp,
+            color = colors.accent
+        ),
+        modifier = modifier
+            .border(1.dp, colors.accent, RoundedCornerShape(999.dp))
+            .padding(horizontal = 6.dp, vertical = 1.dp)
+    )
 }
 
 /**
@@ -1119,7 +1165,8 @@ private fun PixelMicButton(
 private fun shouldShowHeader(current: Message, previous: Message?): Boolean {
     if (previous == null) return true
     if (current.senderId != previous.senderId) return true
-    if (current.timestamp - previous.timestamp > 120_000) return true // 2 min gap
+    if (isDifferentDay(current, previous)) return true // grouping also breaks on day change
+    if (current.timestamp - previous.timestamp > 420_000) return true // 7 min gap
     return false
 }
 
