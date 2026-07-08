@@ -345,7 +345,7 @@ channelsRouter.post('/messages/inject', async (req: Request, res: Response, next
     // upload path or an absolute http(s) URL -- never javascript:, data:, etc.
     if (media) {
       const validType = ['image', 'voice', 'video', 'file'].includes(media.type);
-      const validUrl = typeof media.url === 'string' && (media.url.startsWith('/media/') || media.url.startsWith('http'));
+      const validUrl = typeof media.url === 'string' && (media.url.startsWith('/media/') || /^https?:\/\//i.test(media.url));
       if (!validType || !validUrl) {
         return res.status(400).json({ error: 'invalid media' });
       }
