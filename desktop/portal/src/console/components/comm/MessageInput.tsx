@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect, KeyboardEvent } from 'react';
 import { commClient } from '../../api/commClient';
 import { useCommStore } from '../../stores/commStore';
+import { useToastStore } from '../../stores/toastStore';
 import { useAuthStore } from '../../auth/authStore';
 import { wsClient } from '../../../websocket';
 import type { Message } from '../../../types';
@@ -42,6 +43,11 @@ export async function sendOptimistic(
     useCommStore.getState().updateMessage(channelId, tempId, { ...result.message, status: 'sent' });
   } else {
     useCommStore.getState().updateMessage(channelId, tempId, { status: 'failed' });
+    useToastStore.getState().push({
+      message: 'Send failed',
+      tone: 'error',
+      duration: 3000,
+    });
   }
 }
 

@@ -3,12 +3,14 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { MessageInput } from '../MessageInput';
 import { useCommStore } from '../../../stores/commStore';
+import { useToastStore } from '../../../stores/toastStore';
 import { useAuthStore } from '../../../auth/authStore';
 import { server } from '../../../test/msw-server';
 
 describe('MessageInput optimistic send', () => {
   beforeEach(() => {
     useCommStore.getState().clear();
+    useToastStore.setState({ toasts: [] });
     useAuthStore.getState().setUser({
       id: 'user-1',
       email: 'me@example.com',
@@ -41,6 +43,8 @@ describe('MessageInput optimistic send', () => {
     await waitFor(() => {
       const m = useCommStore.getState().messagesByChannel['ch-general']?.find((x) => x.content === 'doomed');
       expect(m?.status).toBe('failed');
+      const errorToast = useToastStore.getState().toasts.find((t) => t.tone === 'error');
+      expect(errorToast).toBeDefined();
     });
   });
 });
