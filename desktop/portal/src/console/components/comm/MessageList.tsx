@@ -6,6 +6,8 @@ import { commClient } from '../../api/commClient';
 import { useToastStore } from '../../stores/toastStore';
 import { wsClient } from '../../../websocket';
 import { ConfirmDialog } from '../ui/SmithDialog';
+import { groupMessages } from './messageGrouping';
+import { MessageRow } from './MessageRow';
 import type { Message } from '../../../types';
 
 interface Props {
@@ -19,13 +21,6 @@ interface Props {
 const EMPTY_MESSAGES: Message[] = [];
 const EMPTY_TYPING: Record<string, { name: string; expiresAt: number }> = {};
 
-function formatTime(ts: number): string {
-  const d = new Date(ts);
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  return `${hh}:${mm}`;
-}
-
 function typingLabel(names: string[]): string {
   if (names.length === 1) return `${names[0]} is typing…`;
   if (names.length === 2) return `${names[0]} and ${names[1]} are typing…`;
@@ -35,6 +30,7 @@ function typingLabel(names: string[]): string {
 export function MessageList({ channelId }: Props) {
   const messages = useCommStore((s) => s.messagesByChannel[channelId] ?? EMPTY_MESSAGES);
   const removeMessage = useCommStore((s) => s.removeMessage);
+  const updateMessage = useCommStore((s) => s.updateMessage);
   const isStale = useCommStore((s) => s.isStaleMessages);
   const typingMap = useCommStore((s) => s.typingByChannel[channelId] ?? EMPTY_TYPING);
   const readByMessage = useCommStore((s) => s.readByMessage);
@@ -91,6 +87,13 @@ export function MessageList({ channelId }: Props) {
     }
   }
 
+  function onRetry(m: Message) {
+    updateMessage(m.channelId, m.id, { status: 'pending' });
+    void commClient
+      .send(m.channelId, m.content, { id: m.id, media: m.media })
+      .then((r) => updateMessage(m.channelId, m.id, r.ok ? { ...r.message, status: 'sent' } : { status: 'failed' }));
+  }
+
   const typingNames = Object.entries(typingMap)
     .filter(([userId]) => userId !== selfId)
     .map(([, entry]) => entry.name || 'Someone');
@@ -107,43 +110,22 @@ export function MessageList({ channelId }: Props) {
           <div className="text-console-text-muted text-sm font-commsans">No messages yet.</div>
         ) : (
           <ul className="flex flex-col gap-2">
-            {messages.map((m) => {
+            {groupMessages(messages).map(({ message: m, firstOfGroup }) => {
               const mine = selfId === m.senderId;
               const readers = readByMessage[m.id];
-              const seenCount = readers
+              const seenByOthers = readers
                 ? Array.from(readers).filter((id) => id !== selfId).length
                 : 0;
               return (
-                <li key={m.id} className={`group flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
-                  <div
-                    className={
-                      'comm-bubble max-w-[78%] px-3 py-2 text-sm font-commsans whitespace-pre-wrap break-words shadow-sm ' +
-                      (mine
-                        ? 'bg-console-accent text-white rounded-[14px_14px_4px_14px]'
-                        : 'bg-console-surface text-console-text rounded-[14px_14px_14px_4px]')
-                    }
-                  >
-                    {m.content}
-                  </div>
-                  <div className={`flex items-center gap-2 mt-0.5 ${mine ? 'flex-row-reverse' : ''}`}>
-                    <span className="text-[10px] text-console-text-dim font-commmono tabular-nums">
-                      {formatTime(m.timestamp)}
-                    </span>
-                    {mine && seenCount > 0 && (
-                      <span className="text-[10px] text-console-text-dim font-commmono">seen {seenCount}</span>
-                    )}
-                    {mine && (
-                      <button
-                        type="button"
-                        onClick={() => setConfirmingId(m.id)}
-                        className="text-[10px] text-console-text-muted opacity-40 group-hover:opacity-100 focus:opacity-100 hover:text-console-danger transition-opacity font-commmono"
-                        aria-label="Delete message"
-                      >
-                        [x]
-                      </button>
-                    )}
-                  </div>
-                </li>
+                <MessageRow
+                  key={m.id}
+                  message={m}
+                  firstOfGroup={firstOfGroup}
+                  mine={mine}
+                  seenByOthers={seenByOthers}
+                  onDelete={(messageId) => setConfirmingId(messageId)}
+                  onRetry={onRetry}
+                />
               );
             })}
           </ul>
