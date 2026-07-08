@@ -1,5 +1,5 @@
 // desktop/portal/src/console/components/ui/SectionHeader.tsx
-// Ported from dashboard module. Uppercase IBM Plex Mono label with optional
+// Ported from dashboard module. Uppercase JetBrains Mono label with optional
 // right-side slot. Use for card/section titles to match Altara aesthetic.
 
 import type { ReactNode } from 'react';

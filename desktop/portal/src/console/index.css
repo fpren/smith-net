@@ -1,9 +1,16 @@
 @import '../styles/tokens.css';
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+@import '@fontsource/syne/600.css';
+@import '@fontsource/syne/700.css';
 
 /* Visual lift (2026-05-16): adopt the dashboard module's Altara palette
-   typography. Syne for display, IBM Plex Sans for body, IBM Plex Mono
-   throughout. */
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+   typography. Syne for display, Inter for body, JetBrains Mono
+   throughout. Self-hosted via fontsource (Task 4, 2026-07-08) — no
+   external font URL imports. */
 
 @tailwind base;
 @tailwind components;
@@ -33,19 +40,19 @@
     --color-ok:         #5A8C76;
     --color-warn:       #8C5A2E;
     --color-danger:     #8C3A3A;
-    --font-display: 'Syne', 'IBM Plex Sans', system-ui, sans-serif;
-    --font-body:    'IBM Plex Sans', system-ui, sans-serif;
-    --font-mono:    'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    --font-display: 'Syne', 'Inter', system-ui, sans-serif;
+    --font-body:    'Inter', system-ui, sans-serif;
+    --font-mono:    'JetBrains Mono', ui-monospace, monospace;
   }
 
   /* Comm-surface typography exception (sanctioned 2026-06-15): the redesigned
-     comm "softphone" uses a proportional sans (Public Sans) for names +
+     comm "softphone" uses a proportional sans (Inter) for names +
      conversation and JetBrains Mono for ids/dialpad/timestamps. Scoped to
      .comm-surface so it CANNOT leak into the rest of the monospace-only
      portal. Apply via the font-commsans / font-commmono utilities. */
   .comm-surface {
-    --font-comm-name: 'Public Sans', system-ui, sans-serif;
-    --font-comm-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace;
+    --font-comm-name: 'Inter', system-ui, sans-serif;
+    --font-comm-mono: 'JetBrains Mono', ui-monospace, monospace;
   }
   .font-commsans { font-family: var(--font-comm-name); }
   .font-commmono { font-family: var(--font-comm-mono); }
