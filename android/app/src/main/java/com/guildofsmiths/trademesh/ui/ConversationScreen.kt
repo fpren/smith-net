@@ -1,9 +1,11 @@
 package com.guildofsmiths.trademesh.ui
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -35,6 +37,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.IntOffset
 import kotlin.math.roundToInt
 import androidx.compose.runtime.Composable
@@ -69,6 +73,7 @@ import com.guildofsmiths.trademesh.engine.BoundaryEngine
 import com.guildofsmiths.trademesh.ui.components.SmithAvatar
 import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithConfirmDialog
+import com.guildofsmiths.trademesh.ui.theme2.SmithSheet
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -166,6 +171,9 @@ fun ConversationScreen(
     // Channel-options overflow menu + clear confirmation
     var menuExpanded by remember { mutableStateOf(false) }
     var showClearDialog by remember { mutableStateOf(false) }
+
+    // Long-press action sheet target (Task 9)
+    var actionTarget by remember { mutableStateOf<Message?>(null) }
     
     Column(
         modifier = modifier
@@ -565,7 +573,8 @@ fun ConversationScreen(
                             message = message,
                             isSentByMe = isSentByMe,
                             showHeader = showHeader,
-                            onRetryMessage = onRetryMessage
+                            onRetryMessage = onRetryMessage,
+                            onLongPress = { actionTarget = message }
                         )
                     }
                 }
@@ -820,6 +829,80 @@ fun ConversationScreen(
             onDismiss = { showClearDialog = false },
         )
     }
+
+    // Long-press action sheet (Task 9) — COPY, DELETE FOR ME, DELETE FOR
+    // EVERYONE (same canDeleteForAll && isSentByMe gate as the swipe path),
+    // RETRY (FAILED own-messages only).
+    actionTarget?.let { target ->
+        val sheetColors = LocalSmithColors.current
+        val clipboardManager = LocalClipboardManager.current
+        val targetIsSentByMe = if (localUserId.isNotEmpty()) {
+            target.senderId == localUserId
+        } else {
+            !target.isMeshOrigin
+        }
+        val targetCanDeleteAll = targetIsSentByMe && canDeleteForAll
+
+        SmithSheet(onDismiss = { actionTarget = null }) {
+            ActionSheetRow(
+                label = "COPY",
+                color = sheetColors.ink,
+                onClick = {
+                    clipboardManager.setText(AnnotatedString(target.content))
+                    actionTarget = null
+                }
+            )
+            ActionSheetRow(
+                label = "DELETE FOR ME",
+                color = sheetColors.statusError,
+                onClick = {
+                    onMessageAction?.invoke(target, MessageAction.DELETE_FOR_ME)
+                    actionTarget = null
+                }
+            )
+            if (targetCanDeleteAll) {
+                ActionSheetRow(
+                    label = "DELETE FOR EVERYONE",
+                    color = sheetColors.statusError,
+                    onClick = {
+                        onMessageAction?.invoke(target, MessageAction.DELETE_FOR_EVERYONE)
+                        actionTarget = null
+                    }
+                )
+            }
+            if (target.deliveryStatus == DeliveryStatus.FAILED) {
+                ActionSheetRow(
+                    label = "RETRY",
+                    color = sheetColors.ink,
+                    onClick = {
+                        onRetryMessage?.invoke(target.id)
+                        actionTarget = null
+                    }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Single full-width row in the long-press action sheet — matches the
+ * SmithSheet row idiom used by InvoicePreviewBottomSheet's action rows.
+ */
+@Composable
+private fun ActionSheetRow(label: String, color: Color, onClick: () -> Unit) {
+    Text(
+        text = label,
+        style = TextStyle(
+            fontFamily = ConsoleTheme.inter,
+            fontWeight = FontWeight.Medium,
+            fontSize = 14.sp,
+            color = color
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp)
+    )
 }
 
 
@@ -871,12 +954,14 @@ private val MessageRailWidth = MessageRailAvatarSize + MessageRailGap
  * feed). First-of-group rows show an avatar + sender + time + MeshChip;
  * grouped rows show the bubble only, start-padded to line up under it.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MessageBlock(
     message: Message,
     isSentByMe: Boolean,
     showHeader: Boolean = true,
     onRetryMessage: ((String) -> Unit)? = null,
+    onLongPress: ((Message) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val colors = LocalSmithColors.current
@@ -949,10 +1034,18 @@ private fun MessageBlock(
             }
 
             // Bubble — left-aligned, same shape for sent and received.
+            // combinedClickable lives here (on the bubble), not on the
+            // outer swipe container Box, so it never shares a pointer-input
+            // node with the horizontal `draggable` on that container — see
+            // Task 9 report for the gesture-coexistence reasoning.
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(Tokens2.RadiusBubble))
                     .background(colors.bgSunken)
+                    .combinedClickable(
+                        onClick = {},
+                        onLongClick = { onLongPress?.invoke(message) }
+                    )
                     .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 Column(horizontalAlignment = Alignment.Start) {
