@@ -6,6 +6,7 @@
 import type { Message, MediaAttachment } from '../../../types';
 import { Avatar } from '../ui/Avatar';
 import { accentForId } from '../../lib/utils';
+import { useToastStore } from '../../stores/toastStore';
 
 interface Props {
   message: Message;
@@ -100,12 +101,31 @@ export function MessageRow({ message, firstOfGroup, mine, seenByOthers, onDelete
   const isMesh = message.origin !== 'online';
   const canRetry = message.status === 'failed';
 
+  const copyContent = async () => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(message.content);
+      } else {
+        // Legacy fallback for non-secure contexts
+        const ta = document.createElement('textarea');
+        ta.value = message.content;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      }
+      useToastStore.getState().push({ message: 'Copied', tone: 'info', duration: 2000 });
+    } catch {
+      useToastStore.getState().push({ message: 'Copy failed', tone: 'error', duration: 3000 });
+    }
+  };
+
   return (
     <li className="group relative flex flex-col items-start px-2 py-0.5">
       <div className="absolute right-2 top-0 flex items-center gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
         <button
           type="button"
-          onClick={() => navigator.clipboard.writeText(message.content)}
+          onClick={() => void copyContent()}
           className="font-data text-[10px] text-sn-ink-muted hover:text-sn-ink"
         >
           copy

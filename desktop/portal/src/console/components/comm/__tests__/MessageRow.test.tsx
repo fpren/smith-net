@@ -1,6 +1,7 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MessageRow } from '../MessageRow';
+import { useToastStore } from '../../../stores/toastStore';
 import type { Message } from '../../../../types';
 
 function msg(overrides: Partial<Message> = {}): Message {
@@ -175,19 +176,80 @@ describe('MessageRow', () => {
     expect(screen.getByText(/\[≡\] contract\.pdf/)).toBeInTheDocument();
   });
 
-  it('copy button writes message content to the clipboard', () => {
-    const writeText = vi.fn();
+  it('copy button writes message content to the clipboard and shows success toast', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    const originalClipboard = navigator.clipboard;
     Object.defineProperty(navigator, 'clipboard', {
       value: { writeText },
       configurable: true,
     });
+
+    const pushToast = vi.spyOn(useToastStore.getState(), 'push');
+
     render(
       <ul>
         <MessageRow message={msg({ content: 'copy me' })} firstOfGroup mine={false} seenByOthers={0} onDelete={noop} onRetry={noop} />
       </ul>
     );
     fireEvent.click(screen.getByText('copy'));
-    expect(writeText).toHaveBeenCalledWith('copy me');
+
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith('copy me');
+      expect(pushToast).toHaveBeenCalledWith({
+        message: 'Copied',
+        tone: 'info',
+        duration: 2000,
+      });
+    });
+
+    pushToast.mockRestore();
+    Object.defineProperty(navigator, 'clipboard', {
+      value: originalClipboard,
+      configurable: true,
+    });
+  });
+
+  it('copy button falls back to textarea when navigator.clipboard is undefined', async () => {
+    const originalClipboard = navigator.clipboard;
+    Object.defineProperty(navigator, 'clipboard', {
+      value: undefined,
+      configurable: true,
+    });
+
+    // Mock document.execCommand
+    const execCommand = vi.fn();
+    Object.defineProperty(document, 'execCommand', {
+      value: execCommand,
+      configurable: true,
+    });
+
+    const pushToast = vi.spyOn(useToastStore.getState(), 'push');
+
+    render(
+      <ul>
+        <MessageRow message={msg({ content: 'fallback copy' })} firstOfGroup mine={false} seenByOthers={0} onDelete={noop} onRetry={noop} />
+      </ul>
+    );
+    fireEvent.click(screen.getByText('copy'));
+
+    await waitFor(() => {
+      expect(execCommand).toHaveBeenCalledWith('copy');
+      expect(pushToast).toHaveBeenCalledWith({
+        message: 'Copied',
+        tone: 'info',
+        duration: 2000,
+      });
+    });
+
+    pushToast.mockRestore();
+    Object.defineProperty(document, 'execCommand', {
+      value: undefined,
+      configurable: true,
+    });
+    Object.defineProperty(navigator, 'clipboard', {
+      value: originalClipboard,
+      configurable: true,
+    });
   });
 
   it('delete button only renders when mine, and calls onDelete with the message id', () => {
