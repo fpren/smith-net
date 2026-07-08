@@ -164,10 +164,10 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
         android.util.Log.i("ConversationVM", "   Routing message via BoundaryEngine...")
         try {
             BoundaryEngine.routeMessage(getApplication(), message)
-            android.util.Log.i("ConversationVM", "   ✅ Message routed")
+            android.util.Log.i("ConversationVM", "   [+] Message routed")
             MessageRepository.updateDeliveryStatus(message.id, DeliveryStatus.SENT)
         } catch (e: Exception) {
-            android.util.Log.e("ConversationVM", "   ❌ Message routing failed: ${e.message}")
+            android.util.Log.e("ConversationVM", "   [x] Message routing failed: ${e.message}")
             MessageRepository.updateDeliveryStatus(message.id, DeliveryStatus.FAILED)
         }
 
@@ -197,7 +197,7 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
             BoundaryEngine.routeMessage(getApplication(), message)
             MessageRepository.updateDeliveryStatus(messageId, DeliveryStatus.SENT)
         } catch (e: Exception) {
-            android.util.Log.e("ConversationVM", "   ❌ Message retry failed: ${e.message}")
+            android.util.Log.e("ConversationVM", "   [x] Message retry failed: ${e.message}")
             MessageRepository.updateDeliveryStatus(messageId, DeliveryStatus.FAILED)
         }
     }
