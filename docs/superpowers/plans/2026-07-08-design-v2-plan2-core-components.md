@@ -732,7 +732,7 @@ fun SmithDialog(
                     color = colors.ink,
                 ),
             )
-            Spacer(modifier = Modifier.padding(top = 10.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             Column(
                 modifier = Modifier
                     .weight(1f, fill = false)
@@ -763,7 +763,7 @@ fun SmithConfirmDialog(
         destructive = true,
         actions = {
             SmithButton(text = "CANCEL", onClick = onDismiss, variant = SmithButtonVariant.Ghost)
-            Spacer(modifier = Modifier.padding(horizontal = 4.dp))
+            Spacer(modifier = Modifier.width(8.dp))
             SmithButton(
                 text = confirmText,
                 onClick = onConfirm,
@@ -789,6 +789,7 @@ fun SmithConfirmDialog(
 package com.guildofsmiths.trademesh.ui.theme2
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -837,8 +838,9 @@ fun SmithSheet(
                 ),
             contentAlignment = Alignment.BottomCenter,
         ) {
+            val sheetState = remember { MutableTransitionState(false) }.apply { targetState = true }
             AnimatedVisibility(
-                visible = true,
+                visibleState = sheetState,
                 enter = slideInVertically(animationSpec = tween(250)) { it },
                 exit = slideOutVertically(animationSpec = tween(200)) { it },
             ) {
@@ -919,7 +921,7 @@ SmithDialog(
     onDismiss = { showAddClient = false },
     actions = {
         SmithButton(text = "CANCEL", onClick = { showAddClient = false }, variant = SmithButtonVariant.Ghost)
-        Spacer(modifier = Modifier.padding(horizontal = 4.dp))
+        Spacer(modifier = Modifier.width(8.dp))
         SmithButton(text = "ADD", onClick = { submitClient() })
     },
 ) {
