@@ -148,6 +148,10 @@ const authLimiter = rateLimit({
 
 app.use('/api', apiLimiter);
 
+// Public liveness probe — no auth, no DB. The operator health endpoint (worker
+// heartbeats + queue depth, admin-gated) is a different route: /api/admin/health.
+app.get('/api/health', (_req, res) => res.status(200).json({ status: 'ok' }));
+
 // Mount Auth API (C-01, C-02)
 app.use('/api/auth', authLimiter, authRouter);
 
