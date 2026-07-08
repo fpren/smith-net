@@ -51,6 +51,10 @@ export function MessageList({ channelId }: Props) {
   // arrivals (appendMessage while the channel stays open) must not move it —
   // recomputing on every messages.length change would shove the divider
   // toward the bottom as new messages come in.
+  // NOTE: the frozen value is an ABSOLUTE index, valid only while messages
+  // load as a single full replace (appends afterward). If pagination ever
+  // prepends older history to the front, this anchor must switch to a
+  // message id or from-the-end offset.
   const dividerAnchorRef = useRef<{ channelId: string; index: number } | null>(null);
   if (dividerAnchorRef.current?.channelId !== channelId) {
     dividerAnchorRef.current =
