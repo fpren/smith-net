@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { CrewRoute } from '../CrewRoute';
@@ -12,10 +12,35 @@ describe('CrewRoute', () => {
     useCrewPositionsStore.getState().clear();
   });
 
+  it('renders LoadingState while the roster is loading', () => {
+    render(<CrewRoute />);
+    expect(screen.getByRole('status')).toBeInTheDocument();
+  });
+
   it('renders Alice + Bob from the MSW handler', async () => {
     render(<CrewRoute />);
     await waitFor(() => expect(screen.getByText('Alice')).toBeInTheDocument());
     expect(screen.getByText('Bob')).toBeInTheDocument();
+  });
+
+  it('renders EmptyState when the roster is empty', async () => {
+    server.use(http.get('/api/profiles/crew', () => HttpResponse.json({ crew: [] })));
+    render(<CrewRoute />);
+    await waitFor(() => expect(screen.getByText('No crew yet — assign someone to a job first.')).toBeInTheDocument());
+  });
+
+  it('initial roster fetch failure shows ErrorState with retry, not empty or loading', async () => {
+    server.use(http.get('/api/profiles/crew', () => HttpResponse.json({ error: 'boom' }, { status: 500 })));
+    render(<CrewRoute />);
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    expect(screen.queryByText('No crew yet — assign someone to a job first.')).not.toBeInTheDocument();
+
+    server.use(http.get('/api/profiles/crew', () => HttpResponse.json({
+      crew: [{ id: 'p-1', email: 'alice@example.com', displayName: 'Alice', role: 'team', activeJob: null }],
+    })));
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+    await waitFor(() => expect(screen.getByText('Alice')).toBeInTheDocument());
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('shows on-shift indicator for users whose userId appears in /api/crew/positions', async () => {

@@ -21,11 +21,11 @@ interface Props {
 function Section({ label, jobs, defaultOpen, onSelectJob }: { label: string; jobs: Job[]; defaultOpen: boolean; onSelectJob: (id: string) => void }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border-b border-console-border">
+    <div className="border-b border-sn-line">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-3 py-2 bg-console-surface text-console-text-muted text-xs uppercase tracking-wide font-mono"
+        className="w-full flex items-center justify-between px-3 py-2 bg-sn-bg-panel text-sn-ink-muted text-xs uppercase tracking-wide font-mono"
       >
         <span>{label} ({jobs.length})</span>
         <span>{open ? '[-]' : '[+]'}</span>
@@ -43,8 +43,8 @@ export function MapSidePanel({ jobs, mode, onModeChange, onSelectJob }: Props) {
   );
 
   return (
-    <aside className="w-full md:w-[300px] border-t md:border-t-0 md:border-l border-console-border bg-console-surface flex flex-col font-mono">
-      <div className="p-3 border-b border-console-border">
+    <aside className="w-full md:w-[300px] border-t md:border-t-0 md:border-l border-sn-line bg-sn-bg-panel flex flex-col font-mono">
+      <div className="p-3 border-b border-sn-line">
         <MapFilterChips mode={mode} onChange={onModeChange} />
       </div>
       <div className="flex-1 overflow-y-auto">

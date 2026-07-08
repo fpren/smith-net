@@ -20,6 +20,52 @@ function renderAt(id: string) {
 describe('ClientDetailRoute depth', () => {
   beforeEach(() => useClientsStore.getState().clear());
 
+  it('renders LoadingState before the client detail loads', () => {
+    renderAt('c1');
+    expect(screen.getByRole('status')).toBeInTheDocument();
+  });
+
+  it('renders ErrorState and retry re-fires the detail fetch on failure', async () => {
+    server.use(http.get('/api/clients/c1', () => HttpResponse.json({ error: 'boom' }, { status: 500 })));
+    renderAt('c1');
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+
+    server.use(
+      http.get('/api/clients/c1', () =>
+        HttpResponse.json({
+          client: {
+            id: 'c1', ownerId: 'f-1', name: 'Acme', email: null, phone: null, address: null,
+            company: null, notes: null, createdAt: '2026-05-10T10:00:00Z', updatedAt: '2026-05-10T10:00:00Z',
+          },
+          jobs: [],
+        }),
+      ),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+    await waitFor(() => expect(screen.getByText('Acme')).toBeInTheDocument());
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(useClientsStore.getState().detailStale).toBe(false);
+  });
+
+  it('a stale list poll does not false-flash an ErrorState on a fresh detail mount', async () => {
+    useClientsStore.getState().markListStale(true);
+    server.use(
+      http.get('/api/clients/c1', () =>
+        HttpResponse.json({
+          client: {
+            id: 'c1', ownerId: 'f-1', name: 'Acme', email: null, phone: null, address: null,
+            company: null, notes: null, createdAt: '2026-05-10T10:00:00Z', updatedAt: '2026-05-10T10:00:00Z',
+          },
+          jobs: [],
+        }),
+      ),
+    );
+    renderAt('c1');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Acme')).toBeInTheDocument());
+    expect(useClientsStore.getState().listStale).toBe(true);
+  });
+
   it('shows notes, open tasks (pending only), recent jobs, and an activity timeline', async () => {
     server.use(
       http.get('/api/clients/c1', () =>

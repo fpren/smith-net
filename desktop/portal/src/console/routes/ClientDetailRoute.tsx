@@ -10,6 +10,7 @@ import { useClientsStore } from '../stores/clientsStore';
 import { clientsClient } from '../api/clientsClient';
 import { tasksClient, type Task } from '../api/tasksClient';
 import { useToast } from '../hooks/useToast';
+import { LoadingState, ErrorState } from '../components/ui/StateViews';
 
 // Mirrors the relative-time helper in adaptive-home/cards.tsx (module-local there).
 function formatRelative(iso: string): string {
@@ -31,8 +32,9 @@ export function ClientDetailRoute() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const toast = useToast();
-  useClientsPolling({ detail: id ?? '' });
+  const { reload } = useClientsPolling({ detail: id ?? '' });
   const client = useClientsStore((s) => s.detailClient);
+  const detailStale = useClientsStore((s) => s.detailStale);
   const jobs = useClientsStore((s) => s.detailJobs) as any[];
   const [showEdit, setShowEdit] = useState(false);
   const [showAllActivity, setShowAllActivity] = useState(false);
@@ -87,14 +89,21 @@ export function ClientDetailRoute() {
   }
 
   if (!client || client.id !== id) {
-    return <div className="text-console-text-muted">Loading...</div>;
+    if (detailStale) {
+      return (
+        <div className="flex flex-col items-center mt-24 gap-4">
+          <ErrorState message="Couldn't load this client." onRetry={reload} />
+        </div>
+      );
+    }
+    return <LoadingState label="Loading client" />;
   }
 
   return (
     <div className="font-mono">
-      <Link to="/console/clients" className="text-console-accent text-sm">back to clients</Link>
+      <Link to="/console/clients" className="text-sn-accent text-sm">back to clients</Link>
       <div className="flex items-center justify-between mt-2 mb-4">
-        <h1 className="text-console-text text-lg">{client.name}</h1>
+        <h1 className="text-sn-ink text-lg">{client.name}</h1>
         <div className="flex gap-2">
           <Button variant="danger" onClick={() => setConfirmingDelete(true)}>Delete</Button>
           <Button onClick={() => setShowEdit(true)}>Edit</Button>
@@ -114,23 +123,23 @@ export function ClientDetailRoute() {
 
       {client.notes && (
         <div className="mt-4">
-          <div className="text-xs uppercase tracking-wide text-console-text-muted mb-1">Notes</div>
-          <div className="text-sm text-console-text whitespace-pre-wrap">{client.notes}</div>
+          <div className="text-xs uppercase tracking-wide text-sn-ink-muted mb-1">Notes</div>
+          <div className="text-sm text-sn-ink whitespace-pre-wrap">{client.notes}</div>
         </div>
       )}
 
       {/* Open tasks across the client's jobs */}
       <section className="mt-6">
-        <div className="text-xs uppercase tracking-wide text-console-text-muted mb-2">Open tasks ({openTasks.length})</div>
+        <div className="text-xs uppercase tracking-wide text-sn-ink-muted mb-2">Open tasks ({openTasks.length})</div>
         {openTasks.length === 0
-          ? <div className="text-console-text-muted text-sm">No open tasks.</div>
-          : <div className="border border-console-border">
+          ? <div className="text-sn-ink-muted text-sm">No open tasks.</div>
+          : <div className="border border-sn-line">
               {openTasks.map(({ task, jobTitle, jobId }) => (
                 <Link key={task.id} to={`/console/jobs/${jobId}`}
-                  className="flex items-baseline gap-2 px-3 py-2 border-b border-console-border hover:bg-console-surface text-sm">
-                  <span className="text-console-text-muted text-[10px] leading-none">o</span>
+                  className="flex items-baseline gap-2 px-3 py-2 border-b border-sn-line hover:bg-sn-bg-panel text-sm">
+                  <span className="text-sn-ink-muted text-[10px] leading-none">o</span>
                   <span className="truncate">{task.title}</span>
-                  <span className="text-console-text-muted text-xs ml-auto pl-2 truncate">{jobTitle}</span>
+                  <span className="text-sn-ink-muted text-xs ml-auto pl-2 truncate">{jobTitle}</span>
                 </Link>
               ))}
             </div>}
@@ -138,15 +147,15 @@ export function ClientDetailRoute() {
 
       {/* Recent jobs */}
       <section className="mt-6">
-        <div className="text-xs uppercase tracking-wide text-console-text-muted mb-2">Jobs ({jobs.length})</div>
+        <div className="text-xs uppercase tracking-wide text-sn-ink-muted mb-2">Jobs ({jobs.length})</div>
         {jobs.length === 0
-          ? <div className="text-console-text-muted text-sm">No jobs for this client.</div>
-          : <div className="border border-console-border">
+          ? <div className="text-sn-ink-muted text-sm">No jobs for this client.</div>
+          : <div className="border border-sn-line">
               {jobs.map((j) => (
                 <Link key={j.id} to={`/console/jobs/${j.id}`}
-                  className="flex items-center justify-between px-3 py-2 border-b border-console-border hover:bg-console-surface text-sm">
+                  className="flex items-center justify-between px-3 py-2 border-b border-sn-line hover:bg-sn-bg-panel text-sm">
                   <span className="truncate">{j.title}</span>
-                  <span className="text-console-text-muted text-xs shrink-0">
+                  <span className="text-sn-ink-muted text-xs shrink-0">
                     {j.status}{j.createdAt ? ` - ${formatRelative(j.createdAt)}` : ''}
                   </span>
                 </Link>
@@ -156,20 +165,20 @@ export function ClientDetailRoute() {
 
       {/* Activity timeline (derived from timestamps) */}
       <section className="mt-6">
-        <div className="text-xs uppercase tracking-wide text-console-text-muted mb-2">Activity</div>
+        <div className="text-xs uppercase tracking-wide text-sn-ink-muted mb-2">Activity</div>
         {activity.length === 0
-          ? <div className="text-console-text-muted text-sm">No activity yet.</div>
+          ? <div className="text-sn-ink-muted text-sm">No activity yet.</div>
           : <div className="flex flex-col gap-1.5 text-sm">
               {shownActivity.map((e, i) => (
                 <div key={i} className="flex items-baseline gap-2">
-                  <span className="text-console-text-muted text-[10px] leading-none shrink-0">-</span>
+                  <span className="text-sn-ink-muted text-[10px] leading-none shrink-0">-</span>
                   <span className="truncate">{e.label}</span>
-                  <span className="text-console-text-muted text-xs ml-auto pl-2 shrink-0">{formatRelative(e.at)}</span>
+                  <span className="text-sn-ink-muted text-xs ml-auto pl-2 shrink-0">{formatRelative(e.at)}</span>
                 </div>
               ))}
               {activity.length > TIMELINE_CAP && !showAllActivity && (
                 <button type="button" onClick={() => setShowAllActivity(true)}
-                  className="text-console-accent text-xs self-start mt-1">show more</button>
+                  className="text-sn-accent text-xs self-start mt-1">show more</button>
               )}
             </div>}
       </section>

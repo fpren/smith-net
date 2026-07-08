@@ -10,8 +10,8 @@ interface Props {
 }
 
 const BASE = 'rounded-full px-3 py-1 text-xs font-mono border';
-const ACTIVE = 'bg-console-accent text-white border-console-accent';
-const INACTIVE = 'bg-console-surface text-console-text border-console-border hover:bg-console-bg';
+const ACTIVE = 'bg-sn-accent text-sn-ink-on-accent border-sn-accent';
+const INACTIVE = 'bg-sn-bg-panel text-sn-ink border-sn-line hover:bg-sn-bg-base';
 
 export function MapFilterChips({ mode, onChange }: Props) {
   return (

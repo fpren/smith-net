@@ -21,7 +21,7 @@ export function StatsStrip({ jobs }: { jobs: Job[] }) {
     // Mobile: 2x2 grid so each stat stays whole and aligned. Desktop: the
     // original inline strip with `·` separators (whitespace-nowrap ensures
     // "IN PROGRESS 0" doesn't break in two when the row is tight).
-    <div className="font-mono text-xs text-console-text-muted grid grid-cols-2 gap-x-3 gap-y-1 md:flex md:gap-3">
+    <div className="font-mono text-xs text-sn-ink-muted grid grid-cols-2 gap-x-3 gap-y-1 md:flex md:gap-3">
       <span className="whitespace-nowrap">PLANNED {stats.planned}</span>
       <span className="hidden md:inline">·</span>
       <span className="whitespace-nowrap">IN PROGRESS {stats.inProg}</span>

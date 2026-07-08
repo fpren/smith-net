@@ -86,43 +86,50 @@
   font-family: monospace;
   font-size: 14px;
   font-weight: bold;
-  border: 2px solid theme('colors.console-bg');
+  border: 2px solid var(--sn-bg-base);
   border-radius: 4px;
   cursor: pointer;
   color: white;
 }
-.job-marker-planned     { background: theme('colors.console-text-muted'); }
-.job-marker-in_progress { background: theme('colors.console-ok'); }
-.job-marker-complete    { background: theme('colors.console-ok'); opacity: 0.6; }
-.job-marker-cancelled   { background: theme('colors.console-danger'); }
+.job-marker-planned     { background: var(--sn-ink-muted); }
+.job-marker-in_progress { background: var(--sn-status-online); }
+.job-marker-complete    { background: var(--sn-status-online); opacity: 0.6; }
+.job-marker-cancelled   { background: var(--sn-status-error); }
 
 /* MapLibre default popup needs minor reset to match console aesthetic. */
 .maplibregl-popup-content {
-  background: theme('colors.console-surface');
-  color: theme('colors.console-text');
-  border: 1px solid theme('colors.console-border');
+  background: var(--sn-bg-panel);
+  color: var(--sn-ink);
+  border: 1px solid var(--sn-line);
   border-radius: 0;
   font-family: monospace;
   padding: 0;
 }
 .maplibregl-popup-tip {
-  border-top-color: theme('colors.console-surface');
+  border-top-color: var(--sn-bg-panel);
 }
 
-/* Phase 3.5 Slice 3: crew dots on the operator map. Distinct from job markers. */
+/* Phase 3.5 Slice 3: crew dots on the operator map. Distinct from job markers.
+   The raw cyan literal is gone; the fill is now the app's own accent token,
+   a saturated cobalt rather than a light cyan. The on-fill text/glyph color
+   keeps the CONTRAST job rather than the old literal's hue: since the fill
+   is now a darker, more saturated blue than the old light cyan, the
+   contrasting foreground is light, not dark -- so this uses
+   --sn-ink-on-accent (the token every other sn-accent fill in this app
+   already uses for its on-fill text), not a literal "dark ink" var. */
 .crew-marker {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: #22d3ee;
-  color: #001018;
+  background: var(--sn-accent);
+  color: var(--sn-ink-on-accent);
   font-family: ui-monospace, monospace;
   font-weight: 700;
   font-size: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid theme('colors.console-bg');
+  border: 2px solid var(--sn-bg-base);
   box-shadow: 0 0 6px rgba(34, 211, 238, 0.6);
   cursor: default;
 }

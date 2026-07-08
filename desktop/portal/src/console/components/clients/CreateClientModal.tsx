@@ -76,11 +76,11 @@ export function CreateClientModal({ open, onClose, onCreated, editing }: Props) 
         <Input label="Address" value={address} onChange={(e) => setAddress(e.target.value)} />
         <Input label="Company" value={company} onChange={(e) => setCompany(e.target.value)} />
         <label className="flex flex-col gap-1 font-mono text-sm">
-          <span className="text-console-text-muted text-xs uppercase tracking-wide">Notes</span>
+          <span className="text-sn-ink-muted text-xs uppercase tracking-wide">Notes</span>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="bg-console-bg border border-console-border px-3 py-2 text-console-text focus:outline-none focus:border-console-accent font-mono"
+            className="bg-sn-bg-base border border-sn-line px-3 py-2 text-sn-ink focus:outline-none focus:border-sn-accent font-mono"
             rows={4}
           />
         </label>
