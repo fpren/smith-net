@@ -10,16 +10,16 @@ describe('Badge', () => {
 
   it('applies tone-based styling — default tone', () => {
     const { container } = render(<Badge>x</Badge>);
-    expect(container.firstChild).toHaveClass('bg-console-surface');
+    expect(container.firstChild).toHaveClass('bg-sn-bg-panel');
   });
 
   it('applies ok tone when tone=ok', () => {
     const { container } = render(<Badge tone="ok">x</Badge>);
-    expect((container.firstChild as HTMLElement).className).toMatch(/text-console-ok/);
+    expect((container.firstChild as HTMLElement).className).toMatch(/text-sn-status-online/);
   });
 
   it('applies danger tone when tone=danger', () => {
     const { container } = render(<Badge tone="danger">x</Badge>);
-    expect((container.firstChild as HTMLElement).className).toMatch(/text-console-danger/);
+    expect((container.firstChild as HTMLElement).className).toMatch(/text-sn-status-error/);
   });
 });

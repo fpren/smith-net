@@ -9,11 +9,11 @@ interface Props extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
 export function Card({ title, className, children, ...rest }: Props) {
   return (
     <div
-      className={twMerge(clsx('bg-console-surface border border-console-border p-4', className))}
+      className={twMerge(clsx('bg-sn-bg-panel border border-sn-line rounded-sn-card shadow-sn-sm p-4', className))}
       {...rest}
     >
       {title !== undefined && (
-        <div className="font-mono text-xs uppercase tracking-wide text-console-text-muted mb-2">
+        <div className="font-mono text-xs uppercase tracking-wide text-sn-ink-muted mb-2">
           {title}
         </div>
       )}

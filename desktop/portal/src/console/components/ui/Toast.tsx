@@ -4,8 +4,8 @@ import { clsx } from 'clsx';
 import { useToastStore, ToastEntry, ToastTone } from '../../stores/toastStore';
 
 const TONE_CLASSES: Record<ToastTone, string> = {
-  info: 'bg-console-surface text-console-text border-console-border',
-  error: 'bg-console-surface text-console-danger border-console-danger',
+  info: 'bg-sn-bg-panel text-sn-ink border-sn-line',
+  error: 'bg-sn-bg-panel border-sn-status-error text-sn-status-error',
 };
 
 function ToastItem({ toast }: { toast: ToastEntry }) {
@@ -28,7 +28,7 @@ function ToastItem({ toast }: { toast: ToastEntry }) {
       <span className="flex-1">{toast.message}</span>
       <button
         aria-label="Dismiss"
-        className="text-console-text-muted hover:text-console-text font-mono"
+        className="text-sn-ink-muted hover:text-sn-ink font-mono focus-visible:outline focus-visible:outline-2 focus-visible:outline-sn-accent"
         onClick={() => dismiss(toast.id)}
       >
         [x]

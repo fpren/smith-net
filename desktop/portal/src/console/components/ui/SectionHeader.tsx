@@ -17,7 +17,7 @@ export function SectionHeader({ label, right }: Props) {
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '10px 14px 8px',
-        background: 'var(--color-surface)',
+        background: 'var(--sn-bg-panel)',
         borderBottom: '0.5px solid rgba(42,37,32,.06)',
         flexShrink: 0,
       }}
@@ -29,7 +29,7 @@ export function SectionHeader({ label, right }: Props) {
           fontWeight: 500,
           textTransform: 'uppercase',
           letterSpacing: '0.12em',
-          color: 'var(--color-text-dim)',
+          color: 'var(--sn-ink-muted)',
         }}
       >
         {label}
