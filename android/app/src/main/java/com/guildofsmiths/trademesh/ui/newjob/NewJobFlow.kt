@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.BasicTextField
@@ -43,8 +44,31 @@ data class NewJobData(
     val estimatedDays: Int,
     val laborCost: Double,
     val materialsCost: Double,
-    val totalCost: Double
+    val totalCost: Double,
+    // Parsed start date (ms). Drives the calendar entry + Scheduled status when
+    // a job is created from the guided flow. Null only if the entered date was
+    // blank/unparseable.
+    val estimatedStartDate: Long?
 )
+
+/**
+ * Parse the wizard's free-text "MM/DD/YYYY" start-date field to an epoch-ms at
+ * 09:00 local. Returns null when blank or unparseable (caller treats that as
+ * "no scheduled date").
+ */
+private fun parseStartDate(text: String): Long? {
+    val t = text.trim()
+    if (t.isBlank()) return null
+    val fmt = java.text.SimpleDateFormat("MM/dd/yyyy", java.util.Locale.US).apply { isLenient = false }
+    val parsed = runCatching { fmt.parse(t) }.getOrNull() ?: return null
+    val cal = java.util.Calendar.getInstance()
+    cal.time = parsed
+    cal.set(java.util.Calendar.HOUR_OF_DAY, 9)
+    cal.set(java.util.Calendar.MINUTE, 0)
+    cal.set(java.util.Calendar.SECOND, 0)
+    cal.set(java.util.Calendar.MILLISECOND, 0)
+    return cal.timeInMillis
+}
 
 // ════════════════════════════════════════════════════════════════════
 // MAIN FLOW
@@ -211,7 +235,8 @@ fun NewJobFlow(
                                         estimatedDays = daysInt,
                                         laborCost = laborCost,
                                         materialsCost = materialsCostOverride,
-                                        totalCost = totalCost
+                                        totalCost = totalCost,
+                                        estimatedStartDate = parseStartDate(estimatedStartDate)
                                     )
                                 )
                             }
@@ -333,7 +358,8 @@ private fun StepClient(
                 label = "CLIENT NAME *",
                 value = clientName,
                 hint = "e.g. Jane Smith",
-                onValueChange = onClientNameChange
+                onValueChange = onClientNameChange,
+                modifier = Modifier.testTag("solo_e2e_newjob_client_name")
             )
         }
         item {
@@ -350,7 +376,8 @@ private fun StepClient(
                 label = "JOB SITE ADDRESS",
                 value = clientAddress,
                 hint = "e.g. 1234 Elm St, Denver CO",
-                onValueChange = onClientAddressChange
+                onValueChange = onClientAddressChange,
+                modifier = Modifier.testTag("solo_e2e_newjob_client_address")
             )
         }
         item {
@@ -615,7 +642,8 @@ private fun StepTimeline(
                 value = estimatedStartDate,
                 hint = "MM/DD/YYYY",
                 onValueChange = onStartDateChange,
-                keyboardType = KeyboardType.Number
+                keyboardType = KeyboardType.Number,
+                modifier = Modifier.testTag("solo_e2e_newjob_start_date")
             )
         }
         item {
@@ -812,9 +840,10 @@ private fun ConsoleField(
     value: String,
     hint: String,
     onValueChange: (String) -> Unit,
-    keyboardType: KeyboardType = KeyboardType.Text
+    keyboardType: KeyboardType = KeyboardType.Text,
+    modifier: Modifier = Modifier
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(text = label, style = ConsoleTheme.caption)
         Box(
             modifier = Modifier

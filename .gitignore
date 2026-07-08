@@ -48,6 +48,9 @@ backend/dist/
 *.keystore
 *.jks
 google-services.json
+.env
+.env.*
+!.env.example
 
 # Local tool caches
 .playwright-mcp/

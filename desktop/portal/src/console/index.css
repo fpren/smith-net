@@ -1,7 +1,7 @@
 /* Visual lift (2026-05-16): adopt the dashboard module's Altara palette
    typography. Syne for display, IBM Plex Sans for body, IBM Plex Mono
    throughout. */
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -35,7 +35,36 @@
     --font-body:    'IBM Plex Sans', system-ui, sans-serif;
     --font-mono:    'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   }
+
+  /* Comm-surface typography exception (sanctioned 2026-06-15): the redesigned
+     comm "softphone" uses a proportional sans (Public Sans) for names +
+     conversation and JetBrains Mono for ids/dialpad/timestamps. Scoped to
+     .comm-surface so it CANNOT leak into the rest of the monospace-only
+     portal. Apply via the font-commsans / font-commmono utilities. */
+  .comm-surface {
+    --font-comm-name: 'Public Sans', system-ui, sans-serif;
+    --font-comm-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace;
+  }
+  .font-commsans { font-family: var(--font-comm-name); }
+  .font-commmono { font-family: var(--font-comm-mono); }
 }
+
+/* Comm motion (Aircall-style). Screen-pop header slides+fades in; message
+   bubbles pop in; the incoming card rings in from the bottom. */
+@keyframes commPop {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes commBubble {
+  from { opacity: 0; transform: translateY(8px) scale(.97); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes commRingIn {
+  from { opacity: 0; transform: translateY(16px) scale(.97); }
+  to   { opacity: 1; transform: none; }
+}
+.comm-bubble { animation: commBubble .32s cubic-bezier(.2,.8,.2,1) both; }
+.comm-ring-in { animation: commRingIn .3s cubic-bezier(.2,.8,.2,1) both; }
 
 /* Plan 4: map marker styles. Used by createJobMarkerElement(). */
 .job-marker {

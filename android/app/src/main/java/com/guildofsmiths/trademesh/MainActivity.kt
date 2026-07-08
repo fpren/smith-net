@@ -27,6 +27,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -229,6 +231,7 @@ class MainActivity : ComponentActivity() {
         }
     }
     
+    @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -250,7 +253,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             TradeMeshTheme {
                 Surface(
-                    modifier = Modifier.fillMaxSize(),
+                    // Expose Compose testTags as Android resource-ids so Maestro / UI
+                    // automation can target stable ids (e.g. id: "solo_e2e_*").
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .semantics { testTagsAsResourceId = true },
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
@@ -590,6 +597,8 @@ class MainActivity : ComponentActivity() {
                             val jobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel(viewModelStoreOwner = this@MainActivity)
                             val jobs by jobViewModel.jobs.collectAsState()
                             val job = jobs.find { it.id == jobId }
+                            val pipelineActiveEntry by ttvm.activeEntry.collectAsState()
+                            val pipelineIsClockedIn by ttvm.isClockedIn.collectAsState()
 
                             if (job != null) {
                                 com.guildofsmiths.trademesh.ui.jobpipeline.JobPipelineScreen(
@@ -602,8 +611,16 @@ class MainActivity : ComponentActivity() {
                                         jobViewModel.toggleMaterial(jobId, index)
                                     },
                                     onClockIn = {
-                                        navController.navigate(NavRoutes.TIME_TRACKING)
+                                        // Clock into THIS job (switch off any other active job first).
+                                        if (pipelineIsClockedIn) ttvm.clockOut()
+                                        ttvm.clockIn(
+                                            jobId = jobId,
+                                            jobTitle = job.title,
+                                            entryType = com.guildofsmiths.trademesh.ui.timetracking.EntryType.REGULAR
+                                        )
                                     },
+                                    onClockOut = { ttvm.clockOut() },
+                                    isClockedInThisJob = pipelineIsClockedIn && pipelineActiveEntry?.jobId == jobId,
                                     onAddNote = { noteText ->
                                         jobViewModel.addWorkLog(jobId, noteText)
                                     },
@@ -635,6 +652,10 @@ class MainActivity : ComponentActivity() {
                                 onBack = { navController.popBackStack() },
                                 allJobs = allJobsForPicker,
                                 onJobCreated = { newJob ->
+                                    // A job created from the guided flow with a start date is
+                                    // SCHEDULED (and shows on the dashboard calendar via
+                                    // estimatedStartDate); without a date it is a plain TODO.
+                                    val startDate = newJob.estimatedStartDate
                                     jobViewModel.createJob(
                                         title = newJob.clientName.ifBlank { "New Job" },
                                         description = newJob.description,
@@ -645,7 +666,10 @@ class MainActivity : ComponentActivity() {
                                         clientAddress = newJob.clientAddress,
                                         hourlyRate = com.guildofsmiths.trademesh.data.UserPreferences.getHourlyRate(),
                                         equipmentList = newJob.equipmentList,
-                                        taskDescriptions = newJob.taskDescriptions
+                                        taskDescriptions = newJob.taskDescriptions,
+                                        estimatedStartDate = startDate,
+                                        status = if (startDate != null) com.guildofsmiths.trademesh.ui.jobboard.JobStatus.SCHEDULED
+                                                 else com.guildofsmiths.trademesh.ui.jobboard.JobStatus.TODO
                                     )
                                     navController.popBackStack()
                                 }
@@ -693,6 +717,9 @@ class MainActivity : ComponentActivity() {
                                 onPeersClick = {
                                     navController.navigate(NavRoutes.PEERS)
                                 },
+                                onIncomingClick = {
+                                    navController.navigate(NavRoutes.INCOMING)
+                                },
                                 onSmithAIClick = {
                                     val gate = com.guildofsmiths.trademesh.ai.SmithAITierGate.requireAdvanced(this@MainActivity)
                                     if (gate is com.guildofsmiths.trademesh.ai.SmithAITierGate.GateResult.Blocked) {
@@ -720,6 +747,42 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
+                        // Incoming & Requests front (stranger cross-org DMs)
+                        composable(NavRoutes.INCOMING) {
+                            com.guildofsmiths.trademesh.ui.comm.IncomingScreen(
+                                onOpen = { beaconId, channelId ->
+                                    navController.navigate(NavRoutes.conversation(beaconId, channelId))
+                                },
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+
+                        // Scan a peer's SmithNet id QR -> open a DM
+                        composable(NavRoutes.SCAN_ID) {
+                            com.guildofsmiths.trademesh.ui.comm.ScanIdScreen(
+                                onId = { id ->
+                                    lifecycleScope.launch {
+                                        val match = com.guildofsmiths.trademesh.data.ProfileDirectoryRepository
+                                            .search(id).firstOrNull()
+                                        if (match != null) {
+                                            val myUserId = UserPreferences.getUserId()
+                                            val dm = BeaconRepository.getOrCreateDM("default", myUserId, match.id, match.display_name)
+                                            BoundaryEngine.joinChannel(dm.id)
+                                            navController.navigate(
+                                                NavRoutes.conversationDM("default", dm.id, match.id, match.display_name)
+                                            ) { popUpTo(NavRoutes.SCAN_ID) { inclusive = true } }
+                                        } else {
+                                            android.widget.Toast.makeText(
+                                                this@MainActivity, "No user with that id", android.widget.Toast.LENGTH_SHORT
+                                            ).show()
+                                            navController.popBackStack()
+                                        }
+                                    }
+                                },
+                                onCancel = { navController.popBackStack() }
+                            )
+                        }
+
                         // New conversation screen (contact picker)
                         composable(NavRoutes.NEW_CONVERSATION) {
                             val jobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel =
@@ -731,7 +794,8 @@ class MainActivity : ComponentActivity() {
                                     navController.popBackStack()
                                     navController.navigate(NavRoutes.conversationDM(beaconId, channelId, peerId, peerName))
                                 },
-                                onBackClick = { navController.popBackStack() }
+                                onBackClick = { navController.popBackStack() },
+                                onScanClick = { navController.navigate(NavRoutes.SCAN_ID) }
                             )
                         }
 
@@ -778,6 +842,9 @@ class MainActivity : ComponentActivity() {
                                 viewModel = jobViewModel,
                                 onNavigateBack = {
                                     navController.popBackStack()
+                                },
+                                onNewJob = {
+                                    navController.navigate(NavRoutes.NEW_JOB)
                                 },
                                 currentlyClockedIn = isClockedIn,
                                 currentClockedInJobId = activeEntry?.jobId?.takeIf { it.isNotBlank() },

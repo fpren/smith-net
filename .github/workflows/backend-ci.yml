@@ -36,6 +36,9 @@ jobs:
       DATABASE_URL: postgres://smith:ci-test-password@localhost:5432/smithnet
       SMITH_RELAY_URL: ws://localhost:3000
       PGPASSWORD: ci-test-password
+      # Shared by the relay bootstrap and the integration tests (WS test logs in
+      # as the bootstrapped admin to obtain a JWT for the authenticated upgrade).
+      DEFAULT_ADMIN_PASSWORD: ci-test-admin
 
     steps:
       - uses: actions/checkout@v4
@@ -54,15 +57,23 @@ jobs:
 
       - name: Apply schema migrations
         run: |
-          psql "$DATABASE_URL" -f migrations/002_full_schema.sql
-          psql "$DATABASE_URL" <<'SQL'
+          # Relay base tables (messages/presence/message_bus_messages) have no
+          # migration file — they are hand-created on the Hetzner server. Recreate
+          # them here. NOTE: channels is deliberately NOT defined here; migration
+          # 007 owns it (created_at TIMESTAMPTZ). The 'general' channel is created
+          # by the app at runtime, not seeded, so it carries a valid mesh_hash.
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
           CREATE EXTENSION IF NOT EXISTS pgcrypto;
           CREATE TABLE IF NOT EXISTS messages (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), channel_id TEXT NOT NULL DEFAULT 'general', sender_id TEXT NOT NULL, sender_name TEXT NOT NULL, content TEXT NOT NULL, timestamp BIGINT NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, is_mesh_origin BOOLEAN DEFAULT FALSE, origin TEXT DEFAULT 'online', media_type TEXT, media_url TEXT, is_deleted BOOLEAN DEFAULT FALSE, created_at TIMESTAMPTZ DEFAULT NOW());
-          CREATE TABLE IF NOT EXISTS channels (id TEXT PRIMARY KEY, name TEXT NOT NULL, type TEXT NOT NULL DEFAULT 'group', creator_id TEXT NOT NULL, created_at BIGINT NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, is_archived BOOLEAN DEFAULT FALSE, is_deleted BOOLEAN DEFAULT FALSE);
           CREATE TABLE IF NOT EXISTS presence (user_id TEXT PRIMARY KEY, user_name TEXT NOT NULL, last_seen BIGINT NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, status TEXT DEFAULT 'online', updated_at TIMESTAMPTZ DEFAULT NOW());
           CREATE TABLE IF NOT EXISTS message_bus_messages (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), channel_id TEXT NOT NULL, sender_id TEXT NOT NULL, sender_name TEXT NOT NULL, content TEXT NOT NULL, timestamp BIGINT NOT NULL, vector_clock JSONB NOT NULL DEFAULT '{}'::jsonb, transport_type TEXT NOT NULL DEFAULT 'ip', media_type TEXT DEFAULT 'TEXT', media_url TEXT, ai_generated BOOLEAN DEFAULT FALSE, ai_model TEXT, synced_at TIMESTAMPTZ DEFAULT NOW());
-          INSERT INTO channels (id, name, type, creator_id) VALUES ('general', 'general', 'broadcast', 'system') ON CONFLICT (id) DO NOTHING;
           SQL
+          # Apply every migration in numeric order (002..NNN). ON_ERROR_STOP so a
+          # bad migration fails the build instead of silently drifting.
+          for f in $(ls migrations/*.sql | sort -V); do
+            echo "applying $(basename "$f")"
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f"
+          done
 
       - name: Start relay in background
         env:

@@ -89,7 +89,15 @@ export function MessageInput({ channelId }: Props) {
   }, [channelId]);
 
   return (
-    <div className="border-t border-console-border bg-console-surface px-3 py-2 flex items-center gap-2 font-mono">
+    <div className="comm-surface border-t border-console-border bg-console-surface px-3 py-2.5 flex items-center gap-2">
+      {/* Attach affordance (wired to existing media path is a follow-up). */}
+      <button
+        type="button"
+        aria-label="Attach"
+        className="w-8 h-8 flex-shrink-0 rounded-full border border-console-border text-console-text-muted font-commmono grid place-items-center hover:border-console-accent hover:text-console-accent transition-colors"
+      >
+        [+]
+      </button>
       <input
         type="text"
         value={text}
@@ -98,15 +106,15 @@ export function MessageInput({ channelId }: Props) {
         onBlur={() => flagTyping(false)}
         placeholder="Type a message…"
         disabled={sending}
-        className="flex-1 bg-transparent border border-console-border px-2 py-1 text-sm text-console-text placeholder-console-text-muted focus:outline-none focus:border-console-accent"
+        className="flex-1 rounded-full bg-console-bg border border-console-border px-4 py-2 text-sm text-console-text placeholder-console-text-dim font-commsans focus:outline-none focus:border-console-accent"
       />
       <button
         type="button"
         onClick={doSend}
         disabled={sending || text.trim().length === 0}
-        className="px-3 py-1 text-xs uppercase tracking-wide text-console-accent border border-console-accent disabled:opacity-40 disabled:cursor-not-allowed hover:bg-console-accent hover:text-console-bg transition-colors"
+        className="flex-shrink-0 rounded-full bg-console-accent text-white font-commsans font-semibold text-sm px-5 py-2 disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
       >
-        {sending ? '[Sending…]' : '[Send]'}
+        {sending ? '…' : 'send'}
       </button>
     </div>
   );

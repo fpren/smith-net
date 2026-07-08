@@ -77,6 +77,11 @@ export function useCommWebSocket(): void {
       ),
     );
     subs.push(
+      // Presence was parsed by wsClient but never consumed — wire it into the
+      // store so the activity feed + screen-pop header can show online dots.
+      wsClient.onPresence((list) => useCommStore.getState().setPresence(list)),
+    );
+    subs.push(
       wsClient.onMessageDeleted((messageId) => {
         const state = useCommStore.getState();
         for (const channelId of Object.keys(state.messagesByChannel)) {

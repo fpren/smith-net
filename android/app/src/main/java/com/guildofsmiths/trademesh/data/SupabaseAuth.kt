@@ -205,6 +205,11 @@ object SupabaseAuth {
      * privacy is a post-beta follow-up; for now this updates locally so the UI
      * reflects the choice. Valid: "nobody", "team", "anyone".
      */
+    /** Reflect a just-uploaded avatar in the in-memory current user. */
+    fun updateLocalAvatar(url: String?) {
+        _currentUser.value = _currentUser.value?.copy(avatarUrl = url)
+    }
+
     suspend fun updateDiscoverability(level: String): AuthResult = withContext(Dispatchers.IO) {
         if (_currentUser.value == null) return@withContext AuthResult(success = false, error = "Not signed in")
         if (level !in setOf("nobody", "team", "anyone")) {
@@ -323,6 +328,7 @@ data class UserProfile(
     val hourlyRate: Double = 85.0,
     val isOffline: Boolean = false,
     val publicId: String? = null,
+    val avatarUrl: String? = null,
     val discoverability: String = "team",
     val orgId: String? = null,
 )
@@ -336,6 +342,7 @@ data class ProfileRow(
     val trade: String? = null,
     val hourly_rate: Double? = null,
     val public_id: String? = null,
+    val avatar_url: String? = null,
     val discoverability: String = "team",
     val org_id: String? = null,
 )

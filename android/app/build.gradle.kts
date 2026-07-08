@@ -26,8 +26,8 @@ android {
         applicationId = "com.guildofsmiths.trademesh"
         minSdk = 26
         targetSdk = 34
-        versionCode = 18
-        versionName = "0.6.1-map-jobs"
+        versionCode = 19
+        versionName = "0.6.2-comm-avatar"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -80,10 +80,12 @@ android {
 
     buildTypes {
         debug {
-            // Debug builds prefer the Hetzner relay via public Tailscale Funnel URL; Mac Mini LAN is fallback.
-            buildConfigField("String", "BACKEND_URL_PRIMARY", "\"https://ubuntu-8gb-ash-1.tail2523e7.ts.net\"")
-            buildConfigField("String", "BACKEND_URL_FALLBACK", "\"http://192.168.8.169:3030\"")
-            // USB-tethered real device: 127.0.0.1 + `adb reverse tcp:3030 tcp:3030` maps to host loopback
+            // DEMO OVERRIDE (2026-06-11, 2-party e2e): point debug at the LOCAL backend
+            // via device loopback + `adb reverse tcp:3030 tcp:3030`. Works on BOTH the
+            // emulator and USB-attached physical phones. Revert to the Funnel block to
+            // restore.
+            buildConfigField("String", "BACKEND_URL_PRIMARY", "\"http://127.0.0.1:3030\"")
+            buildConfigField("String", "BACKEND_URL_FALLBACK", "\"http://127.0.0.1:3030\"")
             buildConfigField("String", "BACKEND_URL", "\"http://127.0.0.1:3030\"")
         }
         release {
@@ -180,6 +182,17 @@ dependencies {
     
     // OpenStreetMap
     implementation("org.osmdroid:osmdroid-android:6.1.18")
+
+    // Comm redesign deps (pinned for Compose BOM 2023.10.01 / Kotlin 1.9.24):
+    // Coil for avatar photos (2.6.x — NOT 3.x, which targets newer Compose).
+    implementation("io.coil-kt:coil-compose:2.6.0")
+    // zxing core: generate the user's id QR (BitMatrix -> ImageBitmap; no UI lib).
+    implementation("com.google.zxing:core:3.5.3")
+    // Scan a peer's id QR: CameraX preview + ML Kit barcode (in-Compose).
+    implementation("androidx.camera:camera-camera2:1.3.4")
+    implementation("androidx.camera:camera-lifecycle:1.3.4")
+    implementation("androidx.camera:camera-view:1.3.4")
+    implementation("com.google.mlkit:barcode-scanning:17.2.0")
 
     // Core library desugaring
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")

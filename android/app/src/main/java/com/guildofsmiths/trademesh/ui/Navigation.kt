@@ -37,6 +37,8 @@ object NavRoutes {
     const val CREATE_BEACON = "create_beacon"
     const val PEERS = "peers"
     const val NEW_CONVERSATION = "new_conversation"
+    const val INCOMING = "incoming"
+    const val SCAN_ID = "scan_id"
 
     // REPORT & SUPPLY
     const val REPORT = "report"

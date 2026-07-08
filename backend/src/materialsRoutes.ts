@@ -16,10 +16,14 @@ import { requestLogger } from './log';
 
 export const materialsRouter = Router();
 
-materialsRouter.use(authenticateToken, requireConsoleTier);
+// Per-route auth + tier gate. NOT a router-level `.use`: this router is mounted
+// at the broad '/api' path, and a router-level requireConsoleTier there 403s
+// unrelated /api/* requests (e.g. /api/shifts/* for non-foreman) before they ever
+// reach their own router. Gating each route keeps the leak closed.
+const consoleGate = [authenticateToken, requireConsoleTier];
 
 // POST /api/materials — body carries jobId. Verifies foreman of target job.
-materialsRouter.post('/materials', validateBody(CreateMaterialBody),
+materialsRouter.post('/materials', consoleGate, validateBody(CreateMaterialBody),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const body = req.body as CreateMaterialBody;
@@ -36,7 +40,7 @@ materialsRouter.post('/materials', validateBody(CreateMaterialBody),
     }
   });
 
-materialsRouter.patch('/materials/:id', requireMaterialOwner, validateBody(UpdateMaterialBody),
+materialsRouter.patch('/materials/:id', consoleGate, requireMaterialOwner, validateBody(UpdateMaterialBody),
   async (req: MaterialOwnerRequest, res: Response) => {
     try {
       const body = req.body as UpdateMaterialBody;
@@ -49,7 +53,7 @@ materialsRouter.patch('/materials/:id', requireMaterialOwner, validateBody(Updat
     }
   });
 
-materialsRouter.delete('/materials/:id', requireMaterialOwner,
+materialsRouter.delete('/materials/:id', consoleGate, requireMaterialOwner,
   async (req: MaterialOwnerRequest, res: Response) => {
     try {
       await materialsService.hardDelete(req.material!.id, req.user!.id);

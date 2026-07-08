@@ -259,12 +259,14 @@ fun InvoicePreviewDialog(
                 // ═══════════════════════════════════════════════════
                 Text(text = "LINE ITEMS", style = ConsoleTheme.captionBold)
 
-                // Header row
+                // Header row: Description | Amount. Qty x Rate moves to a per-item
+                // sub-line so the description has room in the narrow preview and the
+                // amount stays right-aligned instead of wrapping one char per line.
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(ConsoleTheme.surface)
-                        .padding(8.dp),
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
@@ -273,21 +275,8 @@ fun InvoicePreviewDialog(
                         modifier = Modifier.weight(1f)
                     )
                     Text(
-                        text = "Qty",
-                        style = ConsoleTheme.captionBold,
-                        modifier = Modifier.width(50.dp),
-                        textAlign = TextAlign.End
-                    )
-                    Text(
-                        text = "Rate",
-                        style = ConsoleTheme.captionBold,
-                        modifier = Modifier.width(70.dp),
-                        textAlign = TextAlign.End
-                    )
-                    Text(
                         text = "Amount",
                         style = ConsoleTheme.captionBold,
-                        modifier = Modifier.width(80.dp),
                         textAlign = TextAlign.End
                     )
                 }
@@ -297,33 +286,20 @@ fun InvoicePreviewDialog(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.Top
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                             Text(text = item.description, style = ConsoleTheme.body)
                             Text(
-                                text = "[${item.code}]",
+                                text = "[${item.code}]  ${formatQty(item.quantity, item.unit)} x ${formatCurrency(item.rate)}",
                                 style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
                             )
                         }
                         Text(
-                            text = formatQty(item.quantity, item.unit),
-                            style = ConsoleTheme.body,
-                            modifier = Modifier.width(50.dp),
-                            textAlign = TextAlign.End
-                        )
-                        Text(
-                            text = formatCurrency(item.rate),
-                            style = ConsoleTheme.body,
-                            modifier = Modifier.width(70.dp),
-                            textAlign = TextAlign.End
-                        )
-                        Text(
                             text = formatCurrency(item.total),
                             style = ConsoleTheme.bodyBold,
-                            modifier = Modifier.width(80.dp),
                             textAlign = TextAlign.End
                         )
                     }

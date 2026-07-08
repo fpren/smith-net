@@ -10,6 +10,10 @@
  * Exits cleanly on SIGTERM / SIGINT.
  */
 
+// Load .env before any worker module reads process.env (db.ts reads
+// DATABASE_URL at import time). Must stay the first import. No-op in
+// production, where the platform injects real env vars.
+import 'dotenv/config';
 import { tick as geocodeTick } from './geocodeWorker';
 import { tick as auditFlushTick } from './auditFlushWorker';
 import { tick as emailTick } from './emailWorker';

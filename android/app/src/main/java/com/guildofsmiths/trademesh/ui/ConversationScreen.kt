@@ -53,6 +53,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.guildofsmiths.trademesh.service.ChatManager
 import com.guildofsmiths.trademesh.service.ConnectionMode
 import com.guildofsmiths.trademesh.data.Channel
@@ -171,18 +172,27 @@ fun ConversationScreen(
                     text = "←",
                     style = ConsoleTheme.title.copy(color = ConsoleTheme.text)
                 )
-                Spacer(modifier = Modifier.width(14.dp))
+                Spacer(modifier = Modifier.width(12.dp))
             }
-            
+
+            // Screen-pop context avatar (DM peer / channel glyph)
+            if (isDmChannel && initialDmPeer != null) {
+                com.guildofsmiths.trademesh.ui.components.SmithAvatar(
+                    name = initialDmPeer.userName,
+                    size = 36,
+                    statusColor = if (isOnline) ConsoleTheme.success else ConsoleTheme.textDim
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+            }
+
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    // For DM channels, show "DM · peername", otherwise show channel name
                     text = if (isDmChannel && initialDmPeer != null) {
-                        "DM · ${initialDmPeer.userName}"
+                        initialDmPeer.userName
                     } else {
                         channel?.name?.uppercase() ?: "GENERAL"
                     },
-                    style = ConsoleTheme.title
+                    style = if (isDmChannel) ConsoleTheme.commName.copy(fontSize = 17.sp) else ConsoleTheme.title
                 )
                 if (beaconName != null && !isDmChannel) {
                     Text(
@@ -191,8 +201,8 @@ fun ConversationScreen(
                     )
                 } else if (isDmChannel) {
                     Text(
-                        text = "private conversation",
-                        style = ConsoleTheme.caption
+                        text = if (isOnline) "[*] online · direct message" else "direct message",
+                        style = ConsoleTheme.commId
                     )
                 }
             }
@@ -681,11 +691,7 @@ fun ConversationScreen(
                 }
                 
                 Spacer(modifier = Modifier.width(8.dp))
-                
-                Text(text = ">", style = ConsoleTheme.prompt)
-                
-                Spacer(modifier = Modifier.width(8.dp))
-                
+
                 BasicTextField(
                     value = inputText,
                     onValueChange = {
@@ -696,8 +702,11 @@ fun ConversationScreen(
                             lastTypingSent = now
                         }
                     },
-                    modifier = Modifier.weight(1f),
-                    textStyle = ConsoleTheme.body,
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(ConsoleTheme.background, RoundedCornerShape(20.dp))
+                        .padding(horizontal = 14.dp, vertical = 9.dp),
+                    textStyle = ConsoleTheme.commBody,
                     cursorBrush = SolidColor(ConsoleTheme.cursor),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(onSend = {
@@ -729,10 +738,8 @@ fun ConversationScreen(
                 // Right side: SEND or Voice record button
                 if (inputText.isNotBlank()) {
                     Text(
-                        text = if (isDmChannel || selectedPeer != null) "DM" else "SEND",
-                        style = ConsoleTheme.action.copy(
-                            color = if (isDmChannel || selectedPeer != null) ConsoleTheme.accent else ConsoleTheme.action.color
-                        ),
+                        text = if (isDmChannel || selectedPeer != null) "DM" else "send",
+                        style = ConsoleTheme.commName.copy(color = ConsoleTheme.surface, fontSize = 14.sp),
                         modifier = Modifier
                             .clickable {
                                 ChatManager.sendTypingStop(channel?.id ?: "")
@@ -740,7 +747,8 @@ fun ConversationScreen(
                                 inputText = ""
                                 if (!isDmChannel) selectedPeer = null  // Only clear if not in DM channel
                             }
-                            .padding(4.dp)
+                            .background(ConsoleTheme.accent, RoundedCornerShape(20.dp))
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                 } else {
                     // Pixel art mic — tap to start recording

@@ -10,12 +10,43 @@ interface Props {
   size?: number;
   /** Fallback character set if name is empty. */
   fallback?: string;
+  /** Optional uploaded photo. When set, renders the image; falls back to
+   *  initials if it's empty or fails to load. */
+  photoUrl?: string | null;
+  /** Optional presence ring color (e.g. online sage). */
+  statusColor?: string | null;
 }
 
-export function Avatar({ name, color, size = 22, fallback = '?' }: Props) {
+export function Avatar({ name, color, size = 22, fallback = '?', photoUrl, statusColor }: Props) {
   const text = name ? initials(name) : fallback;
   const dark = darkenHex(color);
-  const radius = Math.round(size * 0.28);
+  // Circular for photos (Aircall-style); rounded-square for initials (console).
+  const radius = photoUrl ? Math.round(size / 2) : Math.round(size * 0.28);
+
+  if (photoUrl) {
+    return (
+      <div
+        aria-label={name || fallback}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: radius,
+          flexShrink: 0,
+          position: 'relative',
+          boxShadow: statusColor
+            ? `0 0 0 2px var(--console-surface, #FAFAF8), 0 0 0 3.5px ${statusColor}`
+            : '0 1px 3px rgba(0,0,0,.18)',
+        }}
+      >
+        <img
+          src={photoUrl}
+          alt={name || fallback}
+          style={{ width: '100%', height: '100%', borderRadius: radius, objectFit: 'cover', display: 'block' }}
+          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div

@@ -346,6 +346,7 @@ object InvoiceGenerator {
             fromEmail = providerEmail,
             fromAddress = providerAddress,
             toName = job.clientName ?: "",
+            toAddress = job.clientAddress,
             projectRef = job.title,
             lineItems = lineItems,
             subtotal = round2(subtotal),
@@ -491,6 +492,7 @@ object InvoiceGenerator {
             fromEmail = providerEmail,
             fromAddress = providerAddress,
             toName = job.clientName ?: "",
+            toAddress = job.clientAddress,
             projectRef = job.title,
             poNumber = "",  // Could be added to job data
             projectStart = projectStart,

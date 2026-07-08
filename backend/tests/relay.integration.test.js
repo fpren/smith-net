@@ -36,29 +36,42 @@ test('health endpoint returns ok', async () => {
   assert.strictEqual(body.status, 'ok');
 });
 
-test('WS auth + publish + ack round-trip', async (t) => {
-  const ws = new WebSocket(WS_URL);
+async function login() {
+  const password = process.env.DEFAULT_ADMIN_PASSWORD;
+  const res = await fetch(`${HTTP_URL}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@smithnet.local', password }),
+  });
+  assert.strictEqual(res.status, 200, 'admin login should succeed');
+  const body = await res.json();
+  assert.ok(body.accessToken, 'login returns an access token');
+  return body;
+}
+
+test('WS auth + publish + ack round-trip', async () => {
+  // The relay validates a JWT on the HTTP upgrade (wsAuth, Phase 2 Slice 3), so
+  // identity is server-authoritative — the client no longer supplies its own
+  // userId. Authenticate over REST, then connect with the bearer token.
+  const { accessToken, user } = await login();
+  const ws = new WebSocket(WS_URL, { headers: { Authorization: `Bearer ${accessToken}` } });
+  // Attach the auth_ok collector before 'open': on a validated upgrade the server
+  // emits auth_ok immediately, with no client auth frame, so we must be listening.
+  const authPromise = collect(ws, 'auth_ok');
   await new Promise((res, rej) => {
     ws.once('open', res);
     ws.once('error', rej);
   });
 
-  const userId = `itest-${Date.now()}`;
-  ws.send(JSON.stringify({
-    type: 'auth',
-    payload: { userId, userName: 'Integration Tester', isRelay: false },
-    timestamp: Date.now(),
-  }));
-
-  const afterAuth = await collect(ws, 'auth_ok');
+  const afterAuth = await authPromise;
   assert.ok(afterAuth.some(m => m.type === 'auth_ok'), 'expected auth_ok');
 
   ws.send(JSON.stringify({
     type: 'message',
     payload: {
       channelId: 'general',
-      senderId: userId,
-      senderName: 'Integration Tester',
+      senderId: user.id,
+      senderName: user.displayName || 'Integration Tester',
       content: `itest-${Date.now()}`,
     },
     timestamp: Date.now(),

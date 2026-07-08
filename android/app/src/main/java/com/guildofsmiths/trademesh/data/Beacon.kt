@@ -73,6 +73,9 @@ data class Channel(
     val unreadCount: Int = 0,
     val lastMessagePreview: String? = null,
     val lastMessageTime: Long? = null,
+    // True when the last message was sent by me; drives the comm activity-feed
+    // direction marker ([>] outgoing, [<]/[x] incoming). Null when unknown.
+    val lastMessageOutgoing: Boolean? = null,
     // PERSISTENT: messages are stored server-side; history available to late joiners.
     // EPHEMERAL: messages fan out to currently-connected subscribers only, no cloud copy.
     val persistence: ChannelPersistence = ChannelPersistence.PERSISTENT

@@ -188,6 +188,7 @@ enum class DailyLogStatus {
 
 enum class JobStatus(val displayName: String, val icon: String) {
     BACKLOG("Backlog", "░"),
+    SCHEDULED("Scheduled", "◷"),
     TODO("To Do", "▒"),
     IN_PROGRESS("In Progress", "▓"),
     REVIEW("Review", "█"),
@@ -207,6 +208,7 @@ enum class JobStage(val displayName: String, val icon: String) {
 
 fun JobStatus.toStage(): JobStage = when (this) {
     JobStatus.BACKLOG -> JobStage.LEAD
+    JobStatus.SCHEDULED -> JobStage.LEAD
     JobStatus.TODO -> JobStage.LEAD
     JobStatus.IN_PROGRESS -> JobStage.IN_PROGRESS
     JobStatus.REVIEW -> JobStage.REVIEW

@@ -520,7 +520,10 @@ object GatewayClient {
             .get()
             .build()
 
-        client.newCall(request).enqueue(object : okhttp3.Callback {
+        // Use the shared authenticated client so the Bearer token is attached;
+        // the bare `client` sends no Authorization header and the backend
+        // (channelsRoutes -> authenticateToken) replies 401 "No token provided".
+        HttpClientFactory.client.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
                 Log.e(TAG, "Failed to fetch channels: ${e.message}")
                 callback(null, e)

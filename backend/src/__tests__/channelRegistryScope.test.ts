@@ -126,4 +126,30 @@ describeDb('channelRegistry.listForUser scope', () => {
       expect(row.rows[0].organization_id).toBe(ORG);
     });
   });
+
+  describe('cross-org DM exception', () => {
+    // A DM between two solos in different orgs is the ONE sanctioned hole in
+    // the tenant fence: visible to its two members and nobody else.
+    const soloA = 'dm-solo-a'; // lives in ORG
+    const soloB = 'dm-solo-b'; // lives in OTHER_ORG
+
+    it('a dm is visible to BOTH members even across orgs', async () => {
+      const dm = await channelRegistry.create('a<->b', 'dm', soloA, ORG, [soloA, soloB], 'private', false);
+      expect(channelRegistry.listForUser(soloA, ORG).map((c) => c.id)).toContain(dm.id);
+      // B lists with THEIR org id (OTHER_ORG) — without the dm exception the
+      // org gate would hide it.
+      expect(channelRegistry.listForUser(soloB, OTHER_ORG).map((c) => c.id)).toContain(dm.id);
+    });
+
+    it('a dm stays invisible to a non-member in either org', async () => {
+      const dm = await channelRegistry.create('a<->b', 'dm', soloA, ORG, [soloA, soloB], 'private', false);
+      expect(channelRegistry.listForUser('dm-bystander-1', ORG).map((c) => c.id)).not.toContain(dm.id);
+      expect(channelRegistry.listForUser('dm-bystander-2', OTHER_ORG).map((c) => c.id)).not.toContain(dm.id);
+    });
+
+    it('the exception does NOT extend to group channels (fence intact)', async () => {
+      const grp = await channelRegistry.create('not-a-dm', 'group', soloA, ORG, [soloA, soloB], 'public', false);
+      expect(channelRegistry.listForUser(soloB, OTHER_ORG).map((c) => c.id)).not.toContain(grp.id);
+    });
+  });
 });

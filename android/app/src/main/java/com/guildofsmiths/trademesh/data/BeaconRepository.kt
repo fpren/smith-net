@@ -615,7 +615,7 @@ object BeaconRepository {
     /**
      * Update channel with new message info (for preview/unread).
      */
-    fun updateChannelLastMessage(beaconId: String, channelId: String, preview: String, time: Long, incrementUnread: Boolean = false) {
+    fun updateChannelLastMessage(beaconId: String, channelId: String, preview: String, time: Long, incrementUnread: Boolean = false, outgoing: Boolean? = null) {
         _beacons.update { beacons ->
             beacons.map { beacon ->
                 if (beacon.id == beaconId) {
@@ -624,6 +624,7 @@ object BeaconRepository {
                             channel.copy(
                                 lastMessagePreview = preview.take(50),
                                 lastMessageTime = time,
+                                lastMessageOutgoing = outgoing,
                                 unreadCount = if (incrementUnread) channel.unreadCount + 1 else channel.unreadCount
                             )
                         } else channel

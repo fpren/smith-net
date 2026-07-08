@@ -5,6 +5,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,8 +34,11 @@ fun ClientsScreen(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var showAddDialog by remember { mutableStateOf(false) }
+    // Bump to force the client list to recompute after a manual client is added
+    // (manual clients live in ClientRepository overrides, not in allJobs).
+    var clientsRefresh by remember { mutableStateOf(0) }
 
-    val clients = remember(allJobs) { ClientRepository.getClients(allJobs) }
+    val clients = remember(allJobs, clientsRefresh) { ClientRepository.getClients(allJobs) }
     val filteredClients = remember(clients, searchQuery) {
         if (searchQuery.isBlank()) clients
         else clients.filter { it.name.contains(searchQuery, ignoreCase = true) }
@@ -107,8 +113,9 @@ fun ClientsScreen(
     if (showAddDialog) {
         AddClientDialog(
             onDismiss = { showAddDialog = false },
-            onAdd = { name, phone, address ->
-                ClientRepository.addManualClient(name, phone, address)
+            onAdd = { name, phone, address, note ->
+                ClientRepository.addManualClient(name, phone, address, note = note)
+                clientsRefresh++
                 showAddDialog = false
             }
         )
@@ -160,24 +167,36 @@ private fun ClientRow(client: ClientInfo, onClick: () -> Unit) {
     }
 }
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 private fun AddClientDialog(
     onDismiss: () -> Unit,
-    onAdd: (name: String, phone: String, address: String) -> Unit
+    onAdd: (name: String, phone: String, address: String, note: String) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
+    var note by remember { mutableStateOf("") }
 
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = ConsoleTheme.surface,
         title = { Text("Add Client", style = ConsoleTheme.bodyBold) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                DialogField("NAME", name) { name = it }
+            Column(
+                modifier = Modifier.semantics { testTagsAsResourceId = true },
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(Modifier.fillMaxWidth().testTag("solo_e2e_client_name")) {
+                    DialogField("NAME", name) { name = it }
+                }
                 DialogField("PHONE", phone) { phone = it }
-                DialogField("ADDRESS", address) { address = it }
+                Box(Modifier.fillMaxWidth().testTag("solo_e2e_client_address")) {
+                    DialogField("ADDRESS", address) { address = it }
+                }
+                Box(Modifier.fillMaxWidth().testTag("solo_e2e_client_note")) {
+                    DialogField("NOTE", note) { note = it }
+                }
             }
         },
         confirmButton = {
@@ -185,7 +204,7 @@ private fun AddClientDialog(
                 text = "[Save]",
                 style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
                 modifier = Modifier.clickable {
-                    if (name.isNotBlank()) onAdd(name.trim(), phone.trim(), address.trim())
+                    if (name.isNotBlank()) onAdd(name.trim(), phone.trim(), address.trim(), note.trim())
                 }.padding(8.dp)
             )
         },

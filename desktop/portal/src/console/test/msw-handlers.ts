@@ -232,6 +232,60 @@ export const handlers = [
     });
   }),
 
+  http.get('/api/profiles/me', () =>
+    HttpResponse.json({
+      profile: {
+        id: 'u-1',
+        email: 'me@example.com',
+        displayName: 'Me',
+        role: 'solo',
+        publicId: 'A1B2C3D4',
+        avatarUrl: null,
+        organizationId: 'org-1',
+      },
+    })
+  ),
+
+  http.get('/api/profiles/teammates', () =>
+    HttpResponse.json({
+      profiles: [
+        { id: 'p-1', email: 'alice@example.com', displayName: 'Alice', role: 'team', publicId: 'AAAA1111', avatarUrl: null },
+        { id: 'p-2', email: 'bob@example.com', displayName: 'Bob', role: 'lead', publicId: 'BBBB2222', avatarUrl: null },
+      ],
+    })
+  ),
+
+  http.get('/api/profiles/lookup', ({ request }) => {
+    const publicId = new URL(request.url).searchParams.get('publicId') || '';
+    return HttpResponse.json({
+      profile: /^[A-Z0-9]{8}$/.test(publicId)
+        ? { id: 'p-x', displayName: 'Looked Up', role: 'solo', publicId, avatarUrl: null }
+        : null,
+    });
+  }),
+
+  http.post('/api/dm', async ({ request }) => {
+    const body = (await request.json().catch(() => ({}))) as { publicId?: string };
+    return HttpResponse.json(
+      {
+        id: 'dm-new',
+        name: 'Me <> Peer',
+        type: 'dm',
+        creatorId: 'u-1',
+        createdAt: Date.now(),
+        memberIds: ['u-1', 'p-x'],
+        isArchived: false,
+        isDeleted: false,
+        publicId: body.publicId,
+      },
+      { status: 201 }
+    );
+  }),
+
+  http.post('/api/profile/avatar', () =>
+    HttpResponse.json({ avatarUrl: '/media/images/avatar-test.png' }, { status: 201 })
+  ),
+
   http.get('/api/profiles/crew', () => {
     return HttpResponse.json({
       crew: [

@@ -627,6 +627,9 @@ object BoundaryEngine {
 
         if (wasOffline && isOnlineNow) {
             Log.i(TAG, "Connectivity restored - initiating sync")
+            // Ensure the online chat WS is (re)connected on return to online,
+            // independent of mesh/work mode. Idempotent.
+            ChatManager.connect()
             syncMeshMessagesToChat()
             syncQueuedMedia(context)
 
@@ -905,6 +908,13 @@ object BoundaryEngine {
         // This ensures all devices see the same channels
         Log.i(TAG, "🔄 Auto-syncing channels from backend on startup...")
         syncChannelsFromBackend()
+
+        // Online chat (ChatManager WS) must connect regardless of work mode.
+        // It was previously wired only inside registerMeshService(), but solo
+        // mode skips MeshService entirely (MainActivity), so solo users were
+        // left with no online chat. connect() is idempotent.
+        ChatManager.setBackendUrl(com.guildofsmiths.trademesh.BuildConfig.BACKEND_URL_PRIMARY)
+        ChatManager.connect()
     }
 
     /**

@@ -5,6 +5,9 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
@@ -55,7 +58,10 @@ fun JobBoardScreen(
     currentClockedInTaskId: String? = null,
     /** Called when the user confirms a clock-switch (clock-out current then
      *  clock-in new). The old job's stage is not regressed by the caller. */
-    onSwitchClock: (jobId: String, jobTitle: String, taskId: String?) -> Unit = { _, _, _ -> }
+    onSwitchClock: (jobId: String, jobTitle: String, taskId: String?) -> Unit = { _, _, _ -> },
+    /** Invoked by the "+ NEW" button. Navigates to the guided NewJobFlow wizard
+     *  (NavRoutes.NEW_JOB) so this matches the dashboard JOBS "[+ NEW]" action. */
+    onNewJob: () -> Unit = {}
 ) {
     val jobs by viewModel.jobs.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -81,6 +87,7 @@ fun JobBoardScreen(
     // Stats for active jobs only
     val stats = remember(jobs) {
         mapOf(
+            JobStatus.SCHEDULED to jobs.count { it.status == JobStatus.SCHEDULED },
             JobStatus.TODO to jobs.count { it.status == JobStatus.TODO },
             JobStatus.IN_PROGRESS to jobs.count { it.status == JobStatus.IN_PROGRESS },
             JobStatus.REVIEW to jobs.count { it.status == JobStatus.REVIEW },
@@ -125,6 +132,7 @@ fun JobBoardScreen(
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             listOf(
+                JobStatus.SCHEDULED to "SCHED",
                 JobStatus.TODO to "TO DO",
                 JobStatus.IN_PROGRESS to "WORKING",
                 JobStatus.REVIEW to "CHECK",
@@ -188,7 +196,7 @@ fun JobBoardScreen(
                     Text(
                         text = "+ NEW",
                         style = ConsoleTheme.action,
-                        modifier = Modifier.clickable { showCreateDialog = true }
+                        modifier = Modifier.clickable { onNewJob() }
                     )
                 }
             }
@@ -680,6 +688,7 @@ private data class ClockSwitchRequest(
     val performStart: () -> Unit
 )
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 private fun JobWorkflowDialog(
     job: Job,
@@ -714,6 +723,7 @@ private fun JobWorkflowDialog(
     val allTasksComplete = tasks.isEmpty() || tasks.all { it.status == TaskStatus.DONE }
     val allMaterialsChecked = job.materials.isEmpty() || job.materials.all { it.checked }
     val canAdvance = when (job.status) {
+        JobStatus.SCHEDULED -> true // Scheduled jobs can be started
         JobStatus.TODO -> true // Can always start
         JobStatus.IN_PROGRESS -> allTasksComplete && allMaterialsChecked // Must complete work
         JobStatus.REVIEW -> true // Can finish review
@@ -1389,7 +1399,9 @@ private fun JobWorkflowDialog(
                 title = { Text("MATERIAL PURCHASED", style = ConsoleTheme.header) },
                 text = {
                     Column(
-                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                        modifier = Modifier
+                            .verticalScroll(rememberScrollState())
+                            .semantics { testTagsAsResourceId = true },
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(text = material.name, style = ConsoleTheme.bodyBold)
@@ -1429,7 +1441,7 @@ private fun JobWorkflowDialog(
                             textStyle = ConsoleTheme.body,
                             cursorBrush = SolidColor(ConsoleTheme.cursor),
                             singleLine = true,
-                            modifier = Modifier.fillMaxWidth().background(ConsoleTheme.surface).padding(10.dp),
+                            modifier = Modifier.fillMaxWidth().testTag("solo_e2e_material_cost").background(ConsoleTheme.surface).padding(10.dp),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             decorationBox = { innerTextField ->
                                 Row {

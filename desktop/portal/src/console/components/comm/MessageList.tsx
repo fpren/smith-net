@@ -94,17 +94,17 @@ export function MessageList({ channelId }: Props) {
     .map(([, entry]) => entry.name || 'Someone');
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col font-mono">
+    <div className="comm-surface flex-1 min-h-0 flex flex-col">
       {isStale && (
-        <div className="bg-console-surface border-b border-console-warn text-console-warn px-3 py-1 text-xs">
+        <div className="bg-console-surface border-b border-console-warn text-console-warn px-3 py-1 text-xs font-commmono">
           [OFFLINE] Couldn't refresh messages
         </div>
       )}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 bg-console-bg">
         {messages.length === 0 ? (
-          <div className="text-console-text-muted text-sm">No messages yet.</div>
+          <div className="text-console-text-muted text-sm font-commsans">No messages yet.</div>
         ) : (
-          <ul className="space-y-2">
+          <ul className="flex flex-col gap-2">
             {messages.map((m) => {
               const mine = selfId === m.senderId;
               const readers = readByMessage[m.id];
@@ -112,38 +112,35 @@ export function MessageList({ channelId }: Props) {
                 ? Array.from(readers).filter((id) => id !== selfId).length
                 : 0;
               return (
-                <li key={m.id} className="text-sm group">
-                  <div className="flex items-baseline gap-2">
-                    <span
-                      className={
-                        'text-xs font-semibold ' +
-                        (mine ? 'text-console-accent' : 'text-console-text')
-                      }
-                    >
-                      {m.senderName || m.senderId}
-                    </span>
-                    <span className="text-xs text-console-text-muted tabular-nums">
+                <li key={m.id} className={`group flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
+                  <div
+                    className={
+                      'comm-bubble max-w-[78%] px-3 py-2 text-sm font-commsans whitespace-pre-wrap break-words shadow-sm ' +
+                      (mine
+                        ? 'bg-console-accent text-white rounded-[14px_14px_4px_14px]'
+                        : 'bg-console-surface text-console-text rounded-[14px_14px_14px_4px]')
+                    }
+                  >
+                    {m.content}
+                  </div>
+                  <div className={`flex items-center gap-2 mt-0.5 ${mine ? 'flex-row-reverse' : ''}`}>
+                    <span className="text-[10px] text-console-text-dim font-commmono tabular-nums">
                       {formatTime(m.timestamp)}
                     </span>
+                    {mine && seenCount > 0 && (
+                      <span className="text-[10px] text-console-text-dim font-commmono">seen {seenCount}</span>
+                    )}
                     {mine && (
                       <button
                         type="button"
                         onClick={() => doDelete(m.id)}
-                        className="ml-auto text-xs text-console-text-muted opacity-40 hover:opacity-100 focus:opacity-100 hover:text-console-danger focus:text-console-danger transition-opacity"
+                        className="text-[10px] text-console-text-muted opacity-40 group-hover:opacity-100 focus:opacity-100 hover:text-console-danger transition-opacity font-commmono"
                         aria-label="Delete message"
                       >
                         [x]
                       </button>
                     )}
                   </div>
-                  <div className="text-console-text whitespace-pre-wrap break-words">
-                    {m.content}
-                  </div>
-                  {mine && seenCount > 0 && (
-                    <div className="text-[10px] text-console-text-muted mt-0.5">
-                      · seen by {seenCount}
-                    </div>
-                  )}
                 </li>
               );
             })}

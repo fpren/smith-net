@@ -13,6 +13,7 @@ import { gatewayManager } from './gatewayManager';
 import { wsHandler } from './wsHandler';
 import { createMessage, publish } from './messageBus';
 import { AuthenticatedRequest } from './auth';
+import { pg, isPgEnabled } from './db';
 import {
   CreateChannelRequest,
   InjectMessageRequest,
@@ -22,6 +23,39 @@ import {
 } from './types';
 
 export const channelsRouter = Router();
+
+/**
+ * Channel access guard for message read/write/clear. Mirrors the visibility
+ * rules in channelRegistry.listForUser:
+ *   - dm: members only (works cross-org — that's the one sanctioned exception)
+ *   - everything else: same org AND canUserAccess
+ * Returns the channel on success; responds 404 and returns null otherwise.
+ * 404 (not 403) so an outsider can't probe which channel ids exist.
+ */
+function requireChannelAccess(req: Request, res: Response, channelId: string) {
+  const channel = channelRegistry.get(channelId);
+  const auth = (req as AuthenticatedRequest).user!;
+  if (!channel) {
+    res.status(404).json({ error: 'Channel not found' });
+    return null;
+  }
+  if (channel.type === 'dm') {
+    if (!channel.memberIds.includes(auth.id)) {
+      res.status(404).json({ error: 'Channel not found' });
+      return null;
+    }
+    return channel;
+  }
+  if (channel.organizationId && auth.organizationId && channel.organizationId !== auth.organizationId) {
+    res.status(404).json({ error: 'Channel not found' });
+    return null;
+  }
+  if (!channelRegistry.canUserAccess(channel, auth.id)) {
+    res.status(404).json({ error: 'Channel not found' });
+    return null;
+  }
+  return channel;
+}
 
 // ════════════════════════════════════════════════════════════════════
 // CHANNELS
@@ -53,6 +87,70 @@ channelsRouter.post('/channels', async (req: Request, res: Response) => {
   wsHandler.broadcastChannelEvent('channel_created', channel);
   // Pick up members already connected so they receive DMs/private channels
   // without needing to reconnect.
+  await wsHandler.refreshAllSubscriptions();
+
+  res.status(201).json(channel);
+});
+
+// POST /api/dm { publicId } — create-or-return the direct message between the
+// caller and the owner of that 8-char public id. Intentionally cross-org: this
+// is how two independent solos (each an org-of-one) start talking. The channel
+// is type 'dm' + private with exactly two memberIds; the DM exceptions in
+// channelRegistry.listForUser and wsHandler.shouldBroadcastTo scope the
+// cross-org visibility to those two members only.
+channelsRouter.post('/dm', async (req: Request, res: Response) => {
+  const auth = (req as AuthenticatedRequest).user!;
+  if (!auth.organizationId) {
+    return res.status(401).json({ error: 'user missing organization_id' });
+  }
+  const publicId = String((req.body as { publicId?: string })?.publicId ?? '')
+    .replace(/-/g, '')
+    .toUpperCase();
+  if (!/^[A-Z0-9]{8}$/.test(publicId)) {
+    return res.status(400).json({ error: 'publicId must be 8 alphanumeric characters' });
+  }
+  if (!isPgEnabled() || !pg) {
+    return res.status(503).json({ error: 'directory unavailable' });
+  }
+
+  const { rows } = await pg.query(
+    `SELECT id, display_name FROM profiles WHERE public_id = $1 LIMIT 1`,
+    [publicId]
+  );
+  const other = rows[0] as { id: string; display_name: string | null } | undefined;
+  if (!other) {
+    return res.status(404).json({ error: 'No user with that public id' });
+  }
+  if (other.id === auth.id) {
+    return res.status(400).json({ error: 'cannot DM yourself' });
+  }
+
+  // One DM per unordered pair: replays and "DM again" return the same channel.
+  const existing = channelRegistry
+    .list()
+    .find(
+      (c) =>
+        c.type === 'dm' &&
+        c.memberIds.length === 2 &&
+        c.memberIds.includes(auth.id) &&
+        c.memberIds.includes(other.id)
+    );
+  if (existing) {
+    return res.json(existing);
+  }
+
+  const name = `${auth.displayName || 'dm'} <> ${other.display_name || publicId}`;
+  const channel = await channelRegistry.create(
+    name,
+    'dm',
+    auth.id,
+    auth.organizationId,
+    [auth.id, other.id],
+    'private',
+    false
+  );
+
+  wsHandler.broadcastChannelEvent('channel_created', channel);
   await wsHandler.refreshAllSubscriptions();
 
   res.status(201).json(channel);
@@ -188,6 +286,7 @@ channelsRouter.get('/channels/:id/access/pending', (req: Request, res: Response)
 
 channelsRouter.get('/channels/:id/messages', (req: Request, res: Response) => {
   const { id } = req.params;
+  if (!requireChannelAccess(req, res, id)) return;
   const limit = parseInt(req.query.limit as string) || 100;
   const before = req.query.before ? parseInt(req.query.before as string) : undefined;
 
@@ -197,6 +296,7 @@ channelsRouter.get('/channels/:id/messages', (req: Request, res: Response) => {
 
 channelsRouter.delete('/channels/:id/messages', (req: Request, res: Response) => {
   const { id } = req.params;
+  if (!requireChannelAccess(req, res, id)) return;
 
   messageStore.clearChannel(id);
   wsHandler.broadcastChannelEvent('channel_cleared', { channelId: id });
@@ -252,6 +352,11 @@ channelsRouter.post('/messages/inject', async (req: Request, res: Response, next
         return res.status(404).json({ error: `Channel not found: ${channelId}` });
       }
     }
+
+    // Sender must actually have access to the target channel (member of the
+    // DM, or same-org + visibility rules) — otherwise any authenticated user
+    // could write into any channel by UUID.
+    if (!requireChannelAccess(req, res, channelId)) return;
 
     const hasRelay = gatewayManager.hasConnectedRelay();
     const shouldInjectToMesh = hasRelay && !meshOnly;

@@ -44,7 +44,8 @@ import kotlinx.coroutines.delay
 fun NewConversationScreen(
     allJobs: List<Job>,
     onConversationStart: (beaconId: String, channelId: String, peerId: String, peerName: String) -> Unit,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onScanClick: () -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var showAddClientDialog by remember { mutableStateOf(false) }
@@ -70,6 +71,8 @@ fun NewConversationScreen(
         ConsoleHeader(
             title = "NEW CONVERSATION",
             onBackClick = onBackClick,
+            actionText = "[Scan QR]",
+            onActionClick = onScanClick,
             modifier = Modifier.background(ConsoleTheme.surface)
         )
         ConsoleSeparator()

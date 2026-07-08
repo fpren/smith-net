@@ -103,6 +103,7 @@ object ProfileDirectoryRepository {
         display_name = o.optString("displayName", o.optString("email").substringBefore("@")),
         role = o.optString("role", "solo"),
         public_id = o.optString("publicId", null),
+        avatar_url = o.optString("avatarUrl", null),
         org_id = o.optString("organizationId", null),
     )
 }
