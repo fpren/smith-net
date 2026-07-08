@@ -17,6 +17,7 @@ icons (1.5px stroke, ink-muted default) where no glyph exists.
 | `←`   | back             | screen headers, sheet headers              | inline in sentences                |
 | `↵`   | send             | composer trailing action                   | anywhere else                      |
 | `▾`   | disclosure       | expanders, org switcher                    | sort indicators (use ops tables)   |
+| `↓`   | jump to latest   | comm jump-to-latest pill only               | not a scroll indicator elsewhere; not a sort marker |
 
 Presence colors come from tokens: statusOnline / inkMuted (offline).
 Attention states use the amber `attention` token, never a new hex.

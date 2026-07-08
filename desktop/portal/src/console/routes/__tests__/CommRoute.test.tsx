@@ -105,7 +105,7 @@ describe('CommRoute', () => {
     expect(await screen.findByText(/alice is typing/i)).toBeInTheDocument();
   });
 
-  it('renders "· seen by N" suffix on my own messages when others have read them', async () => {
+  it('renders SEEN status microcopy on my own messages when others have read them', async () => {
     server.use(
       http.get('/api/channels/:id/messages', () =>
         HttpResponse.json([makeMessage('m-mine', 'ch-r', 'my message')]),
@@ -117,7 +117,7 @@ describe('CommRoute', () => {
     useCommStore.getState().markRead('m-mine', 'u-other-1');
     useCommStore.getState().markRead('m-mine', 'u-other-2');
     render(<MemoryRouter><CommRoute /></MemoryRouter>);
-    expect(await screen.findByText(/seen 2/i)).toBeInTheDocument();
+    expect(await screen.findByText('SEEN')).toBeInTheDocument();
   });
 
   it('does NOT render the mobile [← back] row when no channel is selected', () => {

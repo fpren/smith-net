@@ -10,6 +10,7 @@ import com.guildofsmiths.trademesh.data.Channel
 import com.guildofsmiths.trademesh.data.ChannelType
 import com.guildofsmiths.trademesh.data.MediaAttachment
 import com.guildofsmiths.trademesh.data.MediaType
+import com.guildofsmiths.trademesh.data.DeliveryStatus
 import com.guildofsmiths.trademesh.data.Message
 import com.guildofsmiths.trademesh.data.MessageRepository
 import com.guildofsmiths.trademesh.data.UserPreferences
@@ -93,23 +94,57 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
     
     /** Local user ID (from UserPreferences) */
     private val localUserId: String = UserPreferences.getUserId()
-    
+
     /** Local user display name (from UserPreferences) */
     private var localUserName: String = UserPreferences.getDisplayName()
-    
+
+    /**
+     * Snapshot of the channel's unread count taken the moment it was opened,
+     * BEFORE clearUnread ran. Survives until the next real setChannel call so
+     * the conversation screen can render a "NEW" divider at the unread
+     * boundary even after BeaconRepository's live unreadCount drops to 0.
+     */
+    private val _unreadAtOpen = MutableStateFlow(0)
+    val unreadAtOpen: StateFlow<Int> = _unreadAtOpen.asStateFlow()
+
     /**
      * Set the current beacon and channel.
      */
     fun setChannel(beaconId: String, channelId: String) {
+        val channelChanged = beaconId != _beaconId.value || channelId != _channelId.value
+
         _beaconId.value = beaconId
         _channelId.value = channelId
-        
+
         // Set as active in repository
         BeaconRepository.setActiveBeacon(beaconId)
         BeaconRepository.setActiveChannel(channelId)
-        
+
+        // Snapshot BEFORE clearing. Refresh whenever there is fresh unread to
+        // capture (covers same-channel re-entry) or the channel truly changed.
+        // Recomposition re-calls read 0 (already cleared) and leave the snapshot
+        // alone; the screen's remember freeze keeps the rendered divider stable
+        // even if a mid-open mesh arrival re-snapshots here.
+        val fresh = BeaconRepository.beacons.value
+            .find { it.id == beaconId }?.channels?.find { it.id == channelId }?.unreadCount ?: 0
+        if (channelChanged || fresh > 0) {
+            _unreadAtOpen.value = fresh
+        }
+
         // Clear unread for this channel
         BeaconRepository.clearUnread(beaconId, channelId)
+    }
+
+    /**
+     * The conversation screen consumed the snapshot into its frozen divider —
+     * retire it so a later re-entry with zero new unread shows no divider.
+     * _unreadAtOpen is Activity-scoped shared state (one ViewModel for every
+     * conversation visit); only the live screen itself may retire it, never a
+     * navigation-lifecycle callback, which can fire after the next screen's
+     * setChannel already captured a fresh value.
+     */
+    fun consumeUnreadSnapshot() {
+        _unreadAtOpen.value = 0
     }
     
     /**
@@ -156,13 +191,20 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
             content = content,
             isMeshOrigin = BoundaryEngine.shouldUseMesh(getApplication()),
             recipientId = recipientId,
-            recipientName = recipientName
+            recipientName = recipientName,
+            deliveryStatus = DeliveryStatus.PENDING
         )
-        
+
         android.util.Log.i("ConversationVM", "   Routing message via BoundaryEngine...")
-        BoundaryEngine.routeMessage(getApplication(), message)
-        android.util.Log.i("ConversationVM", "   ✅ Message routed")
-        
+        try {
+            BoundaryEngine.routeMessage(getApplication(), message)
+            android.util.Log.i("ConversationVM", "   [+] Message routed")
+            MessageRepository.updateDeliveryStatus(message.id, DeliveryStatus.SENT)
+        } catch (e: Exception) {
+            android.util.Log.e("ConversationVM", "   [x] Message routing failed: ${e.message}")
+            MessageRepository.updateDeliveryStatus(message.id, DeliveryStatus.FAILED)
+        }
+
         // NOTE: BoundaryEngine.routeMessage() already sends via ChatManager when online
         // Do NOT call ChatManager.sendMessage() again here - it causes duplicates!
 
@@ -171,6 +213,26 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
             handleSmithAIChat(message)
         } else {
             observeMessageForAI(message)
+        }
+    }
+
+    /**
+     * Retry sending a message that previously ended up FAILED (or is otherwise
+     * still PENDING). Looks up the existing message, sets it back to PENDING,
+     * re-runs the same route call, and settles SENT/FAILED identically to
+     * [sendMessage].
+     */
+    fun retryMessage(messageId: String) {
+        val message = MessageRepository.getAllMessages().find { it.id == messageId } ?: return
+
+        MessageRepository.updateDeliveryStatus(messageId, DeliveryStatus.PENDING)
+
+        try {
+            BoundaryEngine.routeMessage(getApplication(), message)
+            MessageRepository.updateDeliveryStatus(messageId, DeliveryStatus.SENT)
+        } catch (e: Exception) {
+            android.util.Log.e("ConversationVM", "   [x] Message retry failed: ${e.message}")
+            MessageRepository.updateDeliveryStatus(messageId, DeliveryStatus.FAILED)
         }
     }
 

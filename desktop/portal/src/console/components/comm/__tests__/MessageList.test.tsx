@@ -60,3 +60,63 @@ describe('MessageList delete confirmation', () => {
     expect(screen.getByText('hello there')).toBeInTheDocument();
   });
 });
+
+describe('MessageList row alignment', () => {
+  beforeEach(() => {
+    useCommStore.getState().clear();
+    useAuthStore.getState().setUser({
+      id: 'me',
+      email: 'me@example.com',
+      displayName: 'Me',
+      role: 'solo',
+      emailVerified: true,
+    });
+  });
+
+  it('own messages are not right-aligned (no items-end row container)', () => {
+    useCommStore.getState().setMessages('ch1', [msg('m1', 'me', 'hello there')]);
+    const { container } = render(<MessageList channelId="ch1" />);
+    const row = container.querySelector('li');
+    expect(row).not.toBeNull();
+    expect(row!.className).not.toMatch(/items-end/);
+    expect(row!.className).not.toMatch(/flex-row-reverse/);
+  });
+});
+
+describe('MessageList NEW divider', () => {
+  beforeEach(() => {
+    useCommStore.getState().clear();
+    useAuthStore.getState().setUser({
+      id: 'me',
+      email: 'me@example.com',
+      displayName: 'Me',
+      role: 'solo',
+      emailVerified: true,
+    });
+  });
+
+  it('renders a NEW divider before the 4th message when unreadAtSelect is 2 of 5', () => {
+    const msgs = [1, 2, 3, 4, 5].map((n) => msg(`m${n}`, 'other', `msg ${n}`));
+    useCommStore.getState().setMessages('ch1', msgs);
+    useCommStore.setState({ unreadAtSelect: { ch1: 2 } });
+
+    const { container } = render(<MessageList channelId="ch1" />);
+
+    const items = container.querySelectorAll('ul > li');
+    expect(items).toHaveLength(6); // 5 messages + 1 divider row
+    expect(items[3].textContent).toContain('NEW');
+    expect(items[4].textContent).toContain('msg 4');
+  });
+
+  it('renders no NEW divider when unreadAtSelect is 0', () => {
+    const msgs = [1, 2, 3, 4, 5].map((n) => msg(`m${n}`, 'other', `msg ${n}`));
+    useCommStore.getState().setMessages('ch1', msgs);
+    useCommStore.setState({ unreadAtSelect: { ch1: 0 } });
+
+    const { container } = render(<MessageList channelId="ch1" />);
+
+    expect(screen.queryByText('NEW')).toBeNull();
+    const items = container.querySelectorAll('ul > li');
+    expect(items).toHaveLength(5);
+  });
+});

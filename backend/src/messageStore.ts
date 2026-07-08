@@ -25,7 +25,8 @@ class MessageStore {
     origin: MessageOrigin,
     recipientId?: string,
     recipientName?: string,
-    id?: string
+    id?: string,
+    media?: Message['media']
   ): Message {
     if (id && this.messages.has(id)) {
       return this.messages.get(id)!;
@@ -40,6 +41,7 @@ class MessageStore {
       origin,
       recipientId,
       recipientName,
+      media,
     };
 
     this.messages.set(message.id, message);

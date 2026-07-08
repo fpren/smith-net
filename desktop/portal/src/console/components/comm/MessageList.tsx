@@ -1,11 +1,14 @@
 // desktop/portal/src/console/components/comm/MessageList.tsx
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { useCommStore } from '../../stores/commStore';
 import { useAuthStore } from '../../auth/authStore';
 import { commClient } from '../../api/commClient';
 import { useToastStore } from '../../stores/toastStore';
 import { wsClient } from '../../../websocket';
 import { ConfirmDialog } from '../ui/SmithDialog';
+import { groupMessages } from './messageGrouping';
+import { MessageRow } from './MessageRow';
+import { retryUpload } from './MessageInput';
 import type { Message } from '../../../types';
 
 interface Props {
@@ -19,13 +22,6 @@ interface Props {
 const EMPTY_MESSAGES: Message[] = [];
 const EMPTY_TYPING: Record<string, { name: string; expiresAt: number }> = {};
 
-function formatTime(ts: number): string {
-  const d = new Date(ts);
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  return `${hh}:${mm}`;
-}
-
 function typingLabel(names: string[]): string {
   if (names.length === 1) return `${names[0]} is typing…`;
   if (names.length === 2) return `${names[0]} and ${names[1]} are typing…`;
@@ -35,28 +31,80 @@ function typingLabel(names: string[]): string {
 export function MessageList({ channelId }: Props) {
   const messages = useCommStore((s) => s.messagesByChannel[channelId] ?? EMPTY_MESSAGES);
   const removeMessage = useCommStore((s) => s.removeMessage);
+  const updateMessage = useCommStore((s) => s.updateMessage);
   const isStale = useCommStore((s) => s.isStaleMessages);
   const typingMap = useCommStore((s) => s.typingByChannel[channelId] ?? EMPTY_TYPING);
   const readByMessage = useCommStore((s) => s.readByMessage);
+  const unreadAtSelect = useCommStore((s) => s.unreadAtSelect[channelId] ?? 0);
   const selfId = useAuthStore((s) => s.user?.id);
   const pushToast = useToastStore((s) => s.push);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [distanceFromBottom, setDistanceFromBottom] = useState(0);
 
   // Track which message ids we've already sent a read receipt for in this
   // session — keeps the WS quiet on re-renders.
   const sentReceipts = useRef<Set<string>>(new Set());
 
+  // NEW-divider anchor: computed once, on the first render after messages
+  // load for this channel, then frozen until channelId changes. Late
+  // arrivals (appendMessage while the channel stays open) must not move it —
+  // recomputing on every messages.length change would shove the divider
+  // toward the bottom as new messages come in.
+  // NOTE: the frozen value is an ABSOLUTE index, valid only while messages
+  // load as a single full replace (appends afterward). If pagination ever
+  // prepends older history to the front, this anchor must switch to a
+  // message id or from-the-end offset.
+  const dividerAnchorRef = useRef<{ channelId: string; index: number } | null>(null);
+  if (dividerAnchorRef.current?.channelId !== channelId) {
+    dividerAnchorRef.current =
+      messages.length > 0
+        ? {
+            channelId,
+            index: unreadAtSelect > 0 ? Math.max(0, messages.length - unreadAtSelect) : -1,
+          }
+        : null; // messages haven't loaded yet — try again next render
+  }
+  const dividerIndex = dividerAnchorRef.current?.index ?? -1;
+
+  function measureDistanceFromBottom(el: HTMLDivElement): number {
+    return el.scrollHeight - el.scrollTop - el.clientHeight;
+  }
+
   // Auto-scroll on new messages, but only if the user is already near the
   // bottom (within 120px) — never steal scroll while they're reading history.
+  // Also refreshes the jump-to-latest pill's distance state so it appears
+  // immediately if new messages arrive while scrolled up.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-    if (nearBottom) {
+    const distance = measureDistanceFromBottom(el);
+    if (distance < 120) {
       el.scrollTop = el.scrollHeight;
+      setDistanceFromBottom(0);
+    } else {
+      setDistanceFromBottom(distance);
     }
   }, [messages.length]);
+
+  function handleScroll() {
+    const el = scrollRef.current;
+    if (!el) return;
+    setDistanceFromBottom(measureDistanceFromBottom(el));
+  }
+
+  function jumpToLatest() {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (typeof el.scrollTo === 'function') {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    } else {
+      // jsdom (tests) doesn't implement scrollTo.
+      el.scrollTop = el.scrollHeight;
+    }
+  }
+
+  const showJumpToLatest = distanceFromBottom > 300;
 
   // Send read receipts for messages that aren't mine, once per id per session.
   useEffect(() => {
@@ -91,6 +139,22 @@ export function MessageList({ channelId }: Props) {
     }
   }
 
+  function onRetry(m: Message) {
+    // An attachment that never made it past the upload leg still points at
+    // a blob: url the server has never seen — re-running upload+send (with
+    // the File kept in MessageInput's module-level map) is the only retry
+    // that can succeed. Falls back to a plain re-send if the File is gone
+    // (e.g. after a page reload); that will fail again on the stale blob
+    // url, settling back to failed.
+    if (m.media?.url?.startsWith('blob:') && retryUpload(m.id)) {
+      return;
+    }
+    updateMessage(m.channelId, m.id, { status: 'pending' });
+    void commClient
+      .send(m.channelId, m.content, { id: m.id, media: m.media })
+      .then((r) => updateMessage(m.channelId, m.id, r.ok ? { ...r.message, status: 'sent' } : { status: 'failed' }));
+  }
+
   const typingNames = Object.entries(typingMap)
     .filter(([userId]) => userId !== selfId)
     .map(([, entry]) => entry.name || 'Someone');
@@ -102,51 +166,55 @@ export function MessageList({ channelId }: Props) {
           [OFFLINE] Couldn't refresh messages
         </div>
       )}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 bg-console-bg">
-        {messages.length === 0 ? (
-          <div className="text-console-text-muted text-sm font-commsans">No messages yet.</div>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {messages.map((m) => {
-              const mine = selfId === m.senderId;
-              const readers = readByMessage[m.id];
-              const seenCount = readers
-                ? Array.from(readers).filter((id) => id !== selfId).length
-                : 0;
-              return (
-                <li key={m.id} className={`group flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
-                  <div
-                    className={
-                      'comm-bubble max-w-[78%] px-3 py-2 text-sm font-commsans whitespace-pre-wrap break-words shadow-sm ' +
-                      (mine
-                        ? 'bg-console-accent text-white rounded-[14px_14px_4px_14px]'
-                        : 'bg-console-surface text-console-text rounded-[14px_14px_14px_4px]')
-                    }
-                  >
-                    {m.content}
-                  </div>
-                  <div className={`flex items-center gap-2 mt-0.5 ${mine ? 'flex-row-reverse' : ''}`}>
-                    <span className="text-[10px] text-console-text-dim font-commmono tabular-nums">
-                      {formatTime(m.timestamp)}
-                    </span>
-                    {mine && seenCount > 0 && (
-                      <span className="text-[10px] text-console-text-dim font-commmono">seen {seenCount}</span>
+      <div className="relative flex-1 min-h-0 flex flex-col">
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto px-4 py-3 bg-console-bg"
+        >
+          {messages.length === 0 ? (
+            <div className="text-console-text-muted text-sm font-commsans">No messages yet.</div>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {groupMessages(messages).map(({ message: m, firstOfGroup }, index) => {
+                const mine = selfId === m.senderId;
+                const readers = readByMessage[m.id];
+                const seenByOthers = readers
+                  ? Array.from(readers).filter((id) => id !== selfId).length
+                  : 0;
+                return (
+                  <Fragment key={m.id}>
+                    {index === dividerIndex && (
+                      <li className="flex items-center gap-2 my-1">
+                        <span className="flex-1 border-t border-sn-attention" />
+                        <span className="font-data text-[10px] uppercase text-sn-attention bg-sn-bg-base px-2">
+                          NEW
+                        </span>
+                        <span className="flex-1 border-t border-sn-attention" />
+                      </li>
                     )}
-                    {mine && (
-                      <button
-                        type="button"
-                        onClick={() => setConfirmingId(m.id)}
-                        className="text-[10px] text-console-text-muted opacity-40 group-hover:opacity-100 focus:opacity-100 hover:text-console-danger transition-opacity font-commmono"
-                        aria-label="Delete message"
-                      >
-                        [x]
-                      </button>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                    <MessageRow
+                      message={m}
+                      firstOfGroup={firstOfGroup}
+                      mine={mine}
+                      seenByOthers={seenByOthers}
+                      onDelete={(messageId) => setConfirmingId(messageId)}
+                      onRetry={onRetry}
+                    />
+                  </Fragment>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+        {showJumpToLatest && (
+          <button
+            type="button"
+            onClick={jumpToLatest}
+            className="absolute bottom-3 left-1/2 -translate-x-1/2 font-data text-xs bg-sn-accent text-sn-ink-on-accent rounded-full px-3 py-1 shadow-sn-sm"
+          >
+            ↓ latest
+          </button>
         )}
       </div>
       {typingNames.length > 0 && (

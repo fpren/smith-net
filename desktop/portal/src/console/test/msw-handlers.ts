@@ -601,16 +601,31 @@ export const handlers = [
   http.delete('/api/messages/:id', () => new HttpResponse(null, { status: 204 })),
 
   http.post('/api/messages/inject', async ({ request }) => {
-    const body = (await request.json()) as { channelId: string; content: string };
+    const body = (await request.json()) as {
+      channelId: string;
+      content: string;
+      id?: string;
+      media?: unknown;
+    };
+    // Mirror the real backend's guard (backend/src/channelsRoutes.ts): media
+    // satisfies the content requirement, so attachment-only messages are
+    // legal, but channelId+content+media all missing/empty is a 400.
+    if (!body.channelId || (!body.content && !body.media)) {
+      return HttpResponse.json(
+        { error: 'channelId and content or media required' },
+        { status: 400 }
+      );
+    }
     return HttpResponse.json(
       {
-        id: 'msg-new',
+        id: body.id ?? 'msg-new',
         channelId: body.channelId,
         senderId: 'user-1',
         senderName: 'Test Foreman',
         content: body.content,
         timestamp: 1716000099000,
         origin: 'online',
+        ...(body.media !== undefined ? { media: body.media } : {}),
         meshInjected: false,
         relayCount: 0,
       },
@@ -742,4 +757,12 @@ export const handlers = [
   }),
 
   http.delete('/api/expenses/:id', () => new HttpResponse(null, { status: 204 })),
+
+  // Media upload (Design System v2 Plan 3, Task 4) — echoes a deterministic url.
+  http.post('/api/media/upload', async () =>
+    HttpResponse.json(
+      { id: 'media-1', url: '/media/images/media-1.jpg', filename: 'photo.jpg', size: 100, mimeType: 'image/jpeg' },
+      { status: 201 },
+    ),
+  ),
 ];

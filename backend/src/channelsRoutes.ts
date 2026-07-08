@@ -332,13 +332,27 @@ channelsRouter.post('/messages/inject', async (req: Request, res: Response, next
   // throw in the body (e.g. createMessage's vclock path) would become an
   // unhandled rejection and hang the request instead of returning a clean 500.
   try {
-    let { channelId, content, meshOnly, id: clientId } = req.body as InjectMessageRequest & { meshOnly?: boolean; id?: string };
+    let { channelId, content, meshOnly, id: clientId, media } = req.body as InjectMessageRequest & { meshOnly?: boolean; id?: string };
     const auth = (req as AuthenticatedRequest).user!;
     const senderId = auth.id;
     const senderName = auth.displayName || auth.email || 'User';
 
-    if (!channelId || !content) {
-      return res.status(400).json({ error: 'channelId and content required' });
+    if (!channelId || (!content && !media)) {
+      return res.status(400).json({ error: 'channelId and content or media required' });
+    }
+    // Attachment-only messages (no caption) are legitimate -- media satisfies
+    // the content requirement above, but downstream code below still expects
+    // a string, so normalize the missing/empty case once here.
+    content = content ?? '';
+
+    // Media attachments (Design System v2 Plan 3): url must be a local /media/
+    // upload path or an absolute http(s) URL -- never javascript:, data:, etc.
+    if (media) {
+      const validType = ['image', 'voice', 'video', 'file'].includes(media.type);
+      const validUrl = typeof media.url === 'string' && (media.url.startsWith('/media/') || /^https?:\/\//i.test(media.url));
+      if (!validType || !validUrl) {
+        return res.status(400).json({ error: 'invalid media' });
+      }
     }
 
     // Phones send "general" by name; resolve to UUID.
@@ -370,7 +384,8 @@ channelsRouter.post('/messages/inject', async (req: Request, res: Response, next
       origin,
       undefined,
       undefined,
-      clientId
+      clientId,
+      media
     );
 
     wsHandler.broadcastToChannel(channelId, message);
@@ -394,7 +409,10 @@ channelsRouter.post('/messages/inject', async (req: Request, res: Response, next
     // channels (memberIds empty) produce none -- we never fan out to a whole org.
     const ch = channelRegistry.get(channelId);
     if (ch) {
-      const preview = content.length > 80 ? `${content.slice(0, 77)}...` : content;
+      const mediaLabel = media ? `[${media.type}]` : '';
+      const preview = content
+        ? (content.length > 80 ? `${content.slice(0, 77)}...` : content)
+        : mediaLabel;
       const recipients = ch.memberIds.filter((m) => m !== senderId);
       await Promise.all(
         recipients.map((m) =>

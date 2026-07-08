@@ -102,10 +102,18 @@ data class MessageEntity(
             isArchived = isArchived,
             archivedAt = archivedAt,
             archiveReason = archiveReason,
-            relatedJobId = relatedJobId
+            relatedJobId = relatedJobId,
+            deliveryStatus = when (deliveryStatus) {
+                DeliveryStatus.FAILED -> com.guildofsmiths.trademesh.data.DeliveryStatus.FAILED
+                DeliveryStatus.PENDING -> com.guildofsmiths.trademesh.data.DeliveryStatus.PENDING
+                DeliveryStatus.SENT -> com.guildofsmiths.trademesh.data.DeliveryStatus.SENT
+                DeliveryStatus.DELIVERED -> com.guildofsmiths.trademesh.data.DeliveryStatus.DELIVERED
+                DeliveryStatus.READ -> com.guildofsmiths.trademesh.data.DeliveryStatus.READ
+                else -> com.guildofsmiths.trademesh.data.DeliveryStatus.SENT
+            }
         )
     }
-    
+
     companion object {
         /**
          * Create entity from domain Message.
@@ -143,7 +151,14 @@ data class MessageEntity(
                 archivedAt = message.archivedAt,
                 archiveReason = message.archiveReason,
                 relatedJobId = message.relatedJobId,
-                isSynced = isSynced
+                isSynced = isSynced,
+                deliveryStatus = when (message.deliveryStatus) {
+                    com.guildofsmiths.trademesh.data.DeliveryStatus.PENDING -> DeliveryStatus.PENDING
+                    com.guildofsmiths.trademesh.data.DeliveryStatus.SENT -> DeliveryStatus.SENT
+                    com.guildofsmiths.trademesh.data.DeliveryStatus.DELIVERED -> DeliveryStatus.DELIVERED
+                    com.guildofsmiths.trademesh.data.DeliveryStatus.READ -> DeliveryStatus.READ
+                    com.guildofsmiths.trademesh.data.DeliveryStatus.FAILED -> DeliveryStatus.FAILED
+                }
             )
         }
     }

@@ -1211,6 +1211,7 @@ class MainActivity : ComponentActivity() {
                             val messages by viewModel.messages.collectAsState()
                             val channel by viewModel.currentChannel.collectAsState()
                             val beacon by viewModel.currentBeacon.collectAsState()
+                            val unreadAtOpen by viewModel.unreadAtOpen.collectAsState()
                             
                             // Create initial DM peer if passed via navigation
                             val initialDmPeer = if (dmPeerId != null && dmPeerName != null) {
@@ -1236,12 +1237,19 @@ class MainActivity : ComponentActivity() {
                                 onMessageAction = { message, action ->
                                     viewModel.handleMessageAction(message, action)
                                 },
+                                onRetryMessage = { messageId ->
+                                    viewModel.retryMessage(messageId)
+                                },
                                 localUserId = viewModel.getLocalUserId(),
                                 channel = channel,
                                 beaconName = beacon?.name,
+                                unreadAtOpen = unreadAtOpen,
                                 canDeleteForAll = canDeleteForAll,
                                 onBackClick = {
                                     navController.popBackStack()
+                                },
+                                onUnreadSnapshotConsumed = {
+                                    viewModel.consumeUnreadSnapshot()
                                 },
                                 onVoiceClick = {
                                     pendingDmPeerId = currentDmPeer?.userId ?: initialDmPeer?.userId
