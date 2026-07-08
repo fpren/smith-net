@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  presets: [require('./tailwind.tokens.cjs')],
   content: [
     './index.html',
     './src/**/*.{js,ts,jsx,tsx}',

@@ -36,3 +36,22 @@ describe('generated tokens', () => {
     expect(existsSync(resolve(__dirname, '../styles/tokens.css'))).toBe(true);
   });
 });
+
+describe('portal wiring', () => {
+  it('index.html boots light — no v1 dark body', () => {
+    const html = readFileSync(resolve(repo, 'desktop/portal/index.html'), 'utf8');
+    expect(html).not.toContain('#0a0a0a');
+    expect(html).toContain(tokens.color.light.bgBase);
+  });
+
+  it('tailwind.config consumes the generated preset', () => {
+    const cfg = readFileSync(resolve(repo, 'desktop/portal/tailwind.config.js'), 'utf8');
+    expect(cfg).toContain("require('./tailwind.tokens.cjs')");
+  });
+
+  it('PWA manifest colors come from tokens', () => {
+    const vite = readFileSync(resolve(repo, 'desktop/portal/vite.config.ts'), 'utf8');
+    expect(vite).toContain(`theme_color: '${tokens.color.light.accent}'`);
+    expect(vite).toContain(`background_color: '${tokens.color.light.bgBase}'`);
+  });
+});
