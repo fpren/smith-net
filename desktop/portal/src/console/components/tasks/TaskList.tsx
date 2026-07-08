@@ -1,7 +1,9 @@
 // desktop/portal/src/console/components/tasks/TaskList.tsx
+import { Fragment, useState } from 'react';
 import { useTasksStore } from '../../stores/tasksStore';
 import { tasksClient } from '../../api/tasksClient';
 import { useToastStore } from '../../stores/toastStore';
+import { ConfirmDialog } from '../ui/SmithDialog';
 import type { Task, TaskStatus } from '../../api/tasksClient';
 
 interface Props {
@@ -15,6 +17,7 @@ export function TaskList({ jobId }: Props) {
   const updateTask = useTasksStore((s) => s.updateTask);
   const removeTask = useTasksStore((s) => s.removeTask);
   const pushToast = useToastStore((s) => s.push);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   async function toggle(task: Task) {
     const next: TaskStatus = task.status === 'done' ? 'pending' : 'done';
@@ -51,43 +54,57 @@ export function TaskList({ jobId }: Props) {
   }
 
   return (
-    <ul className="divide-y divide-console-border border border-console-border font-mono">
-      {tasks.map((t) => {
-        const done = t.status === 'done';
-        return (
-          <li key={t.id} className="flex items-center gap-2 px-3 py-2 text-sm group">
-            <button
-              type="button"
-              onClick={() => toggle(t)}
-              aria-label={done ? 'Mark task pending' : 'Mark task done'}
-              className={
-                'w-5 h-5 flex items-center justify-center border text-xs flex-shrink-0 transition-colors ' +
-                (done
-                  ? 'border-console-accent text-console-accent'
-                  : 'border-console-border text-transparent hover:border-console-accent')
-              }
-            >
-              {done ? '✓' : ''}
-            </button>
-            <span
-              className={
-                'flex-1 break-words ' +
-                (done ? 'text-console-text-muted line-through' : 'text-console-text')
-              }
-            >
-              {t.title}
-            </span>
-            <button
-              type="button"
-              onClick={() => doDelete(t.id)}
-              aria-label="Delete task"
-              className="text-xs text-console-text-muted opacity-40 hover:opacity-100 focus:opacity-100 hover:text-console-danger focus:text-console-danger transition-opacity"
-            >
-              [x]
-            </button>
-          </li>
-        );
-      })}
-    </ul>
+    <Fragment>
+      <ul className="divide-y divide-console-border border border-console-border font-mono">
+        {tasks.map((t) => {
+          const done = t.status === 'done';
+          return (
+            <li key={t.id} className="flex items-center gap-2 px-3 py-2 text-sm group">
+              <button
+                type="button"
+                onClick={() => toggle(t)}
+                aria-label={done ? 'Mark task pending' : 'Mark task done'}
+                className={
+                  'w-5 h-5 flex items-center justify-center border text-xs flex-shrink-0 transition-colors ' +
+                  (done
+                    ? 'border-console-accent text-console-accent'
+                    : 'border-console-border text-transparent hover:border-console-accent')
+                }
+              >
+                {done ? '✓' : ''}
+              </button>
+              <span
+                className={
+                  'flex-1 break-words ' +
+                  (done ? 'text-console-text-muted line-through' : 'text-console-text')
+                }
+              >
+                {t.title}
+              </span>
+              <button
+                type="button"
+                onClick={() => setConfirmingId(t.id)}
+                aria-label="Delete task"
+                className="text-xs text-console-text-muted opacity-40 hover:opacity-100 focus:opacity-100 hover:text-console-danger focus:text-console-danger transition-opacity"
+              >
+                [x]
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <ConfirmDialog
+        open={confirmingId !== null}
+        title="Delete task?"
+        confirmLabel="Delete"
+        body="This can't be undone."
+        onConfirm={() => {
+          const id = confirmingId;
+          setConfirmingId(null);
+          if (id) void doDelete(id);
+        }}
+        onCancel={() => setConfirmingId(null)}
+      />
+    </Fragment>
   );
 }
