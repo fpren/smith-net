@@ -489,7 +489,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 **Interfaces:**
 - Consumes: `Tokens2` (generated, Plan 1) and `ConsoleTheme.inter` / `ConsoleTheme.jetBrainsMono` font families.
 - Produces:
-  - `SmithColors` data class mirroring the token names (`bgBase, bgPanel, bgSunken, line, ink, inkMuted, accent, attention, statusOnline, statusError`).
+  - `SmithColors` data class mirroring the token names (`bgBase, bgPanel, bgSunken, line, ink, inkMuted, accent, attention, statusOnline, statusError, overlay, inkOnAccent`). (`overlay` and `inkOnAccent` were added to tokens.json in Task 2's fix round — scrims and on-accent text are tokens too.)
   - `LocalSmithColors: CompositionLocal<SmithColors>` and `SmithTheme(darkEnabled: Boolean = false, content)` — resolves Dark only when `darkEnabled && isSystemInDarkTheme()`; darkEnabled stays false at every call site in this plan (v1 screens are not dark-safe until Plans 4-5).
   - `SmithButton(text, onClick, variant: SmithButtonVariant = Primary, enabled = true, modifier)` with variants `Primary` (accent fill, white text), `Ghost` (transparent, inkMuted text), `Danger` (statusError fill, white text). Pill shape (999.dp corner), Inter Medium 14sp, no Material.
 
@@ -548,6 +548,8 @@ data class SmithColors(
     val attention: Color,
     val statusOnline: Color,
     val statusError: Color,
+    val overlay: Color,
+    val inkOnAccent: Color,
 )
 
 fun smithColorsFor(dark: Boolean): SmithColors = if (dark) SmithColors(
@@ -556,12 +558,14 @@ fun smithColorsFor(dark: Boolean): SmithColors = if (dark) SmithColors(
     ink = Tokens2.Dark.Ink, inkMuted = Tokens2.Dark.InkMuted,
     accent = Tokens2.Dark.Accent, attention = Tokens2.Dark.Attention,
     statusOnline = Tokens2.Dark.StatusOnline, statusError = Tokens2.Dark.StatusError,
+    overlay = Tokens2.Dark.Overlay, inkOnAccent = Tokens2.Dark.InkOnAccent,
 ) else SmithColors(
     bgBase = Tokens2.Light.BgBase, bgPanel = Tokens2.Light.BgPanel,
     bgSunken = Tokens2.Light.BgSunken, line = Tokens2.Light.Line,
     ink = Tokens2.Light.Ink, inkMuted = Tokens2.Light.InkMuted,
     accent = Tokens2.Light.Accent, attention = Tokens2.Light.Attention,
     statusOnline = Tokens2.Light.StatusOnline, statusError = Tokens2.Light.StatusError,
+    overlay = Tokens2.Light.Overlay, inkOnAccent = Tokens2.Light.InkOnAccent,
 )
 
 val LocalSmithColors = staticCompositionLocalOf { smithColorsFor(dark = false) }
@@ -609,9 +613,9 @@ fun SmithButton(
 ) {
     val colors = LocalSmithColors.current
     val (bg, fg) = when (variant) {
-        SmithButtonVariant.Primary -> colors.accent to Color.White
+        SmithButtonVariant.Primary -> colors.accent to colors.inkOnAccent
         SmithButtonVariant.Ghost -> Color.Transparent to colors.inkMuted
-        SmithButtonVariant.Danger -> colors.statusError to Color.White
+        SmithButtonVariant.Danger -> colors.statusError to colors.inkOnAccent
     }
     Text(
         text = text,
@@ -656,7 +660,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 - Produces:
   - `SmithDialog(title, onDismiss, destructive = false, sizeFraction: Pair<Float,Float>? = null, actions: @Composable RowScope.() -> Unit = {}, content: @Composable ColumnScope.() -> Unit)` — `Dialog(properties = DialogProperties(dismissOnClickOutside = !destructive, dismissOnBackPress = true))`; panel = `bgPanel`, 20.dp corners, title in Inter SemiBold 16sp, `sizeFraction` (e.g. `0.95f to 0.9f`) for the preview/detail dialogs that currently size themselves.
   - `SmithConfirmDialog(title, body, confirmText, onConfirm, onDismiss, confirmIsDanger = true)` — built on SmithDialog with `destructive = true`; Ghost cancel ("CANCEL") + Danger/Primary confirm.
-  - `SmithSheet(onDismiss, content)` — non-Material bottom sheet: full-screen scrim (`Color.Black.copy(alpha = .4f)`, click = dismiss), content panel aligned to bottom, `bgPanel`, top corners 20.dp, slides in with `animateFloatAsState`-free simple `AnimatedVisibility(slideInVertically)` capped at 250ms tween. No drag gesture in v1.
+  - `SmithSheet(onDismiss, content)` — non-Material bottom sheet: full-screen scrim (`colors.overlay`, click = dismiss), content panel aligned to bottom, `bgPanel`, top corners 20.dp, slides in with `animateFloatAsState`-free simple `AnimatedVisibility(slideInVertically)` capped at 250ms tween. No drag gesture in v1.
 
 - [ ] **Step 1: Implement both files** (complete code below)
 
@@ -803,7 +807,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
@@ -826,7 +829,7 @@ fun SmithSheet(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.4f))
+                .background(colors.overlay)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
