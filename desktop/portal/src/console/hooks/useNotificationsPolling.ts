@@ -7,8 +7,10 @@ export function useNotificationsPolling(intervalMs: number = 15_000): void {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const fetchOnce = async () => {
       const r = await notificationsClient.list();
+      if (cancelled) return;
       if (r.ok) useNotificationsStore.getState().setNotifications(r.notifications, r.unreadCount);
       else useNotificationsStore.getState().markStale(true);
     };
@@ -36,6 +38,7 @@ export function useNotificationsPolling(intervalMs: number = 15_000): void {
     document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
+      cancelled = true;
       stop();
       document.removeEventListener('visibilitychange', onVisibility);
     };

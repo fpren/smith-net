@@ -7,10 +7,12 @@ export function useCrewPositionsPolling(intervalMs: number = 15_000): void {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const fetchOnce = async () => {
       useCrewPositionsStore.getState().markLoading(true);
       const result = await crewPositionsClient.list();
       useCrewPositionsStore.getState().markLoading(false);
+      if (cancelled) return;
       if (result.ok) {
         useCrewPositionsStore.getState().setPositions(result.positions);
       } else if (result.status !== 403) {
@@ -44,6 +46,7 @@ export function useCrewPositionsPolling(intervalMs: number = 15_000): void {
     start();
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
+      cancelled = true;
       stop();
       document.removeEventListener('visibilitychange', onVisibility);
     };

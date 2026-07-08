@@ -65,3 +65,26 @@ describe('useJobsPolling', () => {
     expect(spy).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('useJobsPolling unmount safety', () => {
+  beforeEach(() => { useJobsStore.getState().clear(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('ignores a list response that resolves after unmount', async () => {
+    let resolveFetch!: (v: Awaited<ReturnType<typeof jobsClient.jobsClient.list>>) => void;
+    vi.spyOn(jobsClient.jobsClient, 'list').mockReturnValue(
+      new Promise((res) => { resolveFetch = res; }),
+    );
+    const { unmount } = renderHook(() => useJobsPolling('list', 15000));
+    unmount();
+    await act(async () => {
+      resolveFetch({
+        ok: true,
+        jobs: [{ id: 'late', foremanId: 'f', clientId: null, client: null, engagementId: null, title: 'Late Job', description: null, status: 'planned', stage: 'lead', scheduledAt: null, location: null, latitude: null, longitude: null, geocodedAt: null, createdAt: '', updatedAt: '' }],
+      });
+      await Promise.resolve();
+    });
+    expect(useJobsStore.getState().jobs).toHaveLength(0);
+    expect(useJobsStore.getState().isLoadingList).toBe(false);
+  });
+});

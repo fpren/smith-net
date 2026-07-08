@@ -15,10 +15,12 @@ export function useTasksPolling(jobId: string): void {
   useEffect(() => {
     if (!jobId) return;
 
+    let cancelled = false;
     const fetchOnce = async () => {
       useTasksStore.getState().markLoading(jobId, true);
       const result = await tasksClient.listForJob(jobId);
       useTasksStore.getState().markLoading(jobId, false);
+      if (cancelled) return;
       if (result.ok) {
         useTasksStore.getState().setTasks(jobId, result.tasks);
       } else {
@@ -50,6 +52,7 @@ export function useTasksPolling(jobId: string): void {
     document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
+      cancelled = true;
       stop();
       document.removeEventListener('visibilitychange', onVisibility);
     };

@@ -9,11 +9,16 @@ export function useJobsPolling(scope: Scope, intervalMs: number = 15_000): void 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
+    // A response that lands after unmount must not write data into the store:
+    // by then another route (or test) owns it, and this would overwrite fresher
+    // state. Loading flags are still cleared so they can't stick on.
+    let cancelled = false;
     const fetchOnce = async () => {
       if (scope === 'list') {
         useJobsStore.getState().markListLoading(true);
         const result = await jobsClient.list();
         useJobsStore.getState().markListLoading(false);
+        if (cancelled) return;
         if (result.ok) {
           useJobsStore.getState().setJobs(result.jobs);
         } else {
@@ -24,6 +29,7 @@ export function useJobsPolling(scope: Scope, intervalMs: number = 15_000): void 
         useJobsStore.getState().markDetailLoading(true);
         const result = await jobsClient.getById(id);
         useJobsStore.getState().markDetailLoading(false);
+        if (cancelled) return;
         if (result.ok) {
           useJobsStore.getState().setDetail(result.job, result.crew);
           useJobsStore.getState().markStale(false);
@@ -60,6 +66,7 @@ export function useJobsPolling(scope: Scope, intervalMs: number = 15_000): void 
     document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
+      cancelled = true;
       stopInterval();
       document.removeEventListener('visibilitychange', onVisibility);
     };

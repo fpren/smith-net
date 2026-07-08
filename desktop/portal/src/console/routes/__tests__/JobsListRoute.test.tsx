@@ -3,6 +3,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { JobsListRoute } from '../JobsListRoute';
 import { useJobsStore } from '../../stores/jobsStore';
+import { server } from '../../test/msw-server';
+import { http, HttpResponse } from 'msw';
 import type { Job } from '../../api/jobsClient';
 
 const j = (id: string, status: Job['status']): Job => ({
@@ -36,6 +38,10 @@ describe('JobsListRoute', () => {
   });
 
   it('shows empty state when zero jobs total', () => {
+    // The route's poller fetches on mount; the default MSW handler returns one
+    // job. A "zero jobs" test must actually mock zero jobs, or it is racing
+    // the mocked response (this exact race failed on CI, run 28919295385).
+    server.use(http.get('/api/jobs', () => HttpResponse.json({ jobs: [] })));
     render(<MemoryRouter><JobsListRoute /></MemoryRouter>);
     expect(screen.getByText(/no jobs yet/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /create your first/i })).toBeInTheDocument();
