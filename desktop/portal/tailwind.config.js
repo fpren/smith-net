@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  presets: [require('./tailwind.tokens.cjs')],
   content: [
     './index.html',
     './src/**/*.{js,ts,jsx,tsx}',
@@ -19,10 +20,11 @@ module.exports = {
       },
       fontFamily: {
         // Visual lift (2026-05-16): ported from dashboard module.
-        // Body: IBM Plex Sans. Display: Syne. Mono: IBM Plex Mono.
-        sans: ['"IBM Plex Sans"', 'system-ui', 'sans-serif'],
-        display: ['Syne', '"IBM Plex Sans"', 'system-ui', 'sans-serif'],
-        mono: ['"IBM Plex Mono"', '"JetBrains Mono"', '"SF Mono"', 'Consolas', 'monospace'],
+        // Body: Inter. Display: Syne. Mono: JetBrains Mono.
+        // Self-hosted via fontsource (Task 4, 2026-07-08).
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        display: ['Syne', 'Inter', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
       },
     },
   },
