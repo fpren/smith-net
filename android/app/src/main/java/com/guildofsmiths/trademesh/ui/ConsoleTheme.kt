@@ -56,6 +56,11 @@ object ConsoleTheme {
         Font(R.font.ibm_plex_mono_regular, FontWeight.Normal),
         Font(R.font.ibm_plex_mono_medium, FontWeight.Medium),
     )
+    val inter = FontFamily(
+        Font(R.font.inter_variable, FontWeight.Normal),
+        Font(R.font.inter_variable, FontWeight.Medium),
+        Font(R.font.inter_variable, FontWeight.SemiBold),
+    )
 
     // Backward-compatibility alias
     val mono = plexMono
