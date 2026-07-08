@@ -87,6 +87,7 @@ fun SmithConfirmDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
     confirmIsDanger: Boolean = true,
+    confirmEnabled: Boolean = true,
 ) {
     val colors = LocalSmithColors.current
     SmithDialog(
@@ -100,6 +101,7 @@ fun SmithConfirmDialog(
                 text = confirmText,
                 onClick = onConfirm,
                 variant = if (confirmIsDanger) SmithButtonVariant.Danger else SmithButtonVariant.Primary,
+                enabled = confirmEnabled,
             )
         },
     ) {

@@ -1442,6 +1442,7 @@ private fun ForemanTeamSection() {
                 }
             },
             onDismiss = { confirmLeave = false },
+            confirmEnabled = !leaving,
         )
     }
 
@@ -1450,6 +1451,7 @@ private fun ForemanTeamSection() {
             title = "Remove member",
             body = "Remove ${target.displayName} from your team? They will become solo again.",
             confirmText = "REMOVE",
+            confirmEnabled = !removing,
             onConfirm = {
                 removing = true
                 scope.launch {
@@ -1597,6 +1599,7 @@ private fun JoinTeamSection() {
             title = "Leave team",
             body = "Leave this team? You will become solo and lose access to team-shared work.",
             confirmText = "LEAVE",
+            confirmEnabled = !leaving,
             onConfirm = {
                 leaving = true
                 scope.launch {
