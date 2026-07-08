@@ -97,7 +97,7 @@ export function TaskList({ jobId }: Props) {
         open={confirmingId !== null}
         title="Delete task?"
         confirmLabel="Delete"
-        body="This can't be undone."
+        body="It's removed from this job's task list."
         onConfirm={() => {
           const id = confirmingId;
           setConfirmingId(null);

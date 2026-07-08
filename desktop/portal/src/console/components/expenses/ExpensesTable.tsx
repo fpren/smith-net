@@ -5,6 +5,7 @@ import type { Expense } from '../../api/expensesClient';
 import { useExpensesStore } from '../../stores/expensesStore';
 import { useToast } from '../../hooks/useToast';
 import { Button } from '../ui/Button';
+import { ConfirmDialog } from '../ui/SmithDialog';
 import { AddExpenseModal } from './AddExpenseModal';
 
 const USD = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
@@ -15,6 +16,7 @@ export function ExpensesTable({ jobId }: { jobId: string }) {
   const toast = useToast();
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   useEffect(() => {
     expensesClient.listForJob(jobId).then((r) => {
@@ -22,10 +24,9 @@ export function ExpensesTable({ jobId }: { jobId: string }) {
     });
   }, [jobId]);
 
-  async function del(e: Expense) {
-    if (!window.confirm(`Delete "${e.description}"?`)) return;
-    const r = await expensesClient.delete(e.id);
-    if (r.ok) { useExpensesStore.getState().remove(jobId, e.id); toast.info('Expense deleted'); }
+  async function doDelete(id: string) {
+    const r = await expensesClient.delete(id);
+    if (r.ok) { useExpensesStore.getState().remove(jobId, id); toast.info('Expense deleted'); }
     else toast.error(r.error || 'Failed to delete');
   }
 
@@ -62,7 +63,7 @@ export function ExpensesTable({ jobId }: { jobId: string }) {
                   <td className="px-3 py-2 text-console-text-muted">{e.expenseDate ?? '-'}</td>
                   <td className="px-3 py-2 text-right whitespace-nowrap">
                     <button onClick={() => { setEditing(e); setShowAdd(true); }} className="text-xs text-console-text-muted hover:text-console-text mr-2">[edit]</button>
-                    <button onClick={() => del(e)} className="text-xs text-console-text-muted hover:text-console-warn">[delete]</button>
+                    <button onClick={() => setConfirmingId(e.id)} aria-label="Delete expense" className="text-xs text-console-text-muted hover:text-console-warn">[delete]</button>
                   </td>
                 </tr>
               ))}
@@ -78,6 +79,18 @@ export function ExpensesTable({ jobId }: { jobId: string }) {
         onClose={() => setShowAdd(false)}
         jobId={jobId}
         editing={editing}
+      />
+      <ConfirmDialog
+        open={confirmingId !== null}
+        title="Delete expense?"
+        confirmLabel="Delete"
+        body="It's removed from this job's expenses and the total recalculates."
+        onConfirm={() => {
+          const id = confirmingId;
+          setConfirmingId(null);
+          if (id) void doDelete(id);
+        }}
+        onCancel={() => setConfirmingId(null)}
       />
     </section>
   );
