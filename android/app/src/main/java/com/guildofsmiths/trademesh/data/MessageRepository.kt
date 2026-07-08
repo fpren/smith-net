@@ -215,11 +215,13 @@ object MessageRepository {
             database?.messageDao()?.insert(MessageEntity.fromMessage(message))
         }
         
-        // Update channel with last message preview
+        // Update channel with last message preview. Attachment-only messages
+        // have content == "" -- fall back to the `[type]` media label so the
+        // channel list never shows a blank preview.
         BeaconRepository.updateChannelLastMessage(
             beaconId = message.beaconId,
             channelId = message.channelId,
-            preview = message.content,
+            preview = message.content.ifEmpty { message.mediaPreviewLabel() },
             time = message.timestamp,
             incrementUnread = message.isMeshOrigin,
             outgoing = message.senderId == UserPreferences.getUserId()

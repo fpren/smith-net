@@ -919,14 +919,19 @@ fun ConversationScreen(
                     actionTarget = null
                 }
             )
-            ActionSheetRow(
-                label = "DELETE FOR ME",
-                color = sheetColors.statusError,
-                onClick = {
-                    onMessageAction?.invoke(target, MessageAction.DELETE_FOR_ME)
-                    actionTarget = null
-                }
-            )
+            // Gated the same way the swipe path gates its "Delete for me"
+            // button (line ~481: `val canDelete = isSentByMe`) — you can only
+            // delete your own messages from this device.
+            if (targetIsSentByMe) {
+                ActionSheetRow(
+                    label = "DELETE FOR ME",
+                    color = sheetColors.statusError,
+                    onClick = {
+                        onMessageAction?.invoke(target, MessageAction.DELETE_FOR_ME)
+                        actionTarget = null
+                    }
+                )
+            }
             if (targetCanDeleteAll) {
                 ActionSheetRow(
                     label = "DELETE FOR EVERYONE",

@@ -104,6 +104,22 @@ data class Message(
     
     /** Check if media is queued for upload (offline) */
     fun isMediaQueued(): Boolean = media?.isQueued == true
+
+    /**
+     * Preview label for attachment-only messages (content == "").
+     * Matches the backend's `[${media.type}]` preview format
+     * (see backend/src/channelsRoutes.ts `mediaLabel`) so notifications and
+     * channel-list previews never show up blank.
+     */
+    fun mediaPreviewLabel(): String {
+        return when (mediaType) {
+            MediaType.TEXT -> content
+            MediaType.IMAGE -> "[image]"
+            MediaType.VOICE -> "[voice]"
+            MediaType.VIDEO -> "[video]"
+            MediaType.FILE -> "[file]"
+        }
+    }
     
     /**
      * Get placeholder text for media when sent over mesh.

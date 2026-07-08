@@ -12,7 +12,6 @@ import androidx.core.app.NotificationManagerCompat
 import com.guildofsmiths.trademesh.MainActivity
 import com.guildofsmiths.trademesh.R
 import com.guildofsmiths.trademesh.data.Message
-import com.guildofsmiths.trademesh.data.MediaType
 
 /**
  * NotificationHelper: Shows local notifications for incoming messages
@@ -102,15 +101,11 @@ object NotificationHelper {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             
-            // Build notification content
+            // Build notification content. Attachment-only messages have
+            // content == "" -- fall back to the `[type]` label (matching the
+            // backend's own preview format) instead of showing a blank body.
             val title = message.senderName
-            val content = when (message.mediaType) {
-                MediaType.IMAGE -> "[▣] Sent a photo"
-                MediaType.VOICE -> "[▶] Sent a voice message"
-                MediaType.VIDEO -> "[▶] Sent a video"
-                MediaType.FILE -> "[■] Sent a file"
-                else -> message.content.take(100)
-            }
+            val content = message.content.ifEmpty { message.mediaPreviewLabel() }.take(100)
             
             val channelId = if (message.isMeshOrigin) CHANNEL_ID_MESH else CHANNEL_ID_MESSAGES
             

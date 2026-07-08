@@ -4,6 +4,8 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.guildofsmiths.trademesh.BuildConfig
+import com.guildofsmiths.trademesh.data.MediaAttachment
+import com.guildofsmiths.trademesh.data.MediaType
 import com.guildofsmiths.trademesh.data.Message
 import com.guildofsmiths.trademesh.data.MessageRepository
 import com.guildofsmiths.trademesh.data.UserPreferences
@@ -390,7 +392,16 @@ object ChatManager {
         // groups) by their UUID, so the old "normalize any UUID to general"
         // hack mis-routed every incoming DM/group message into #general.
         val channelId = payload.getString("channelId")
-        
+
+        // Backend stamps an optional `media` object on messages that carry an
+        // attachment (see backend/src/types.ts Message.media):
+        // { type, url, filename?, mimeType?, size?, duration?, thumbnailUrl? }.
+        // Map it into Android's MediaAttachment -- the server URL only ever
+        // lands in `remotePath` here since this message was never on this
+        // device (nothing to put in `localPath`).
+        val media = payload.optJSONObject("media")?.let { parseIncomingMedia(it) }
+        val mediaType = media?.type ?: MediaType.TEXT
+
         val message = Message(
             id = payload.getString("id"),
             channelId = channelId,
@@ -400,18 +411,47 @@ object ChatManager {
             timestamp = payload.getLong("timestamp"),
             recipientId = payload.optString("recipientId").takeIf { it.isNotEmpty() },
             recipientName = payload.optString("recipientName").takeIf { it.isNotEmpty() },
-            isMeshOrigin = false
+            isMeshOrigin = false,
+            mediaType = mediaType,
+            media = media
         )
         
         Log.d(TAG, "📨 Received online message: ${message.content.take(30)} from ${message.senderName}")
-        
+
         // Add to repository
         handler.post {
             MessageRepository.addMessage(message)
             messageListener?.onMessageReceived(message)
         }
     }
-    
+
+    /**
+     * Parse a WS `media` JSON object (backend/src/types.ts Message.media)
+     * into Android's MediaAttachment. `url` -> `remotePath`; there's no
+     * `localPath` because this attachment arrived from another device.
+     */
+    private fun parseIncomingMedia(json: JSONObject): MediaAttachment {
+        return MediaAttachment(
+            type = mediaTypeFromWireString(json.optString("type")),
+            remotePath = json.optString("url").ifBlank { null },
+            mimeType = json.optString("mimeType").ifBlank { null },
+            fileName = json.optString("filename").ifBlank { null },
+            fileSize = json.optLong("size", 0L),
+            duration = json.optLong("duration", 0L)
+        )
+    }
+
+    /** Map the backend's lowercase media `type` string to our MediaType enum. */
+    private fun mediaTypeFromWireString(type: String): MediaType {
+        return when (type) {
+            "image" -> MediaType.IMAGE
+            "voice" -> MediaType.VOICE
+            "video" -> MediaType.VIDEO
+            "file" -> MediaType.FILE
+            else -> MediaType.FILE
+        }
+    }
+
     /**
      * Schedule reconnection
      */
