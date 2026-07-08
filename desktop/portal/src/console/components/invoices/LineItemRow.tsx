@@ -1,7 +1,9 @@
 // desktop/portal/src/console/components/invoices/LineItemRow.tsx
+import { useState } from 'react';
 import { invoicesClient } from '../../api/invoicesClient';
 import { useInvoicesStore } from '../../stores/invoicesStore';
 import { useToastStore } from '../../stores/toastStore';
+import { ConfirmDialog } from '../ui/SmithDialog';
 import type { InvoiceLineItem } from '../../api/invoicesClient';
 
 const fmtMoney = (n: number) =>
@@ -12,6 +14,7 @@ export function LineItemRow({ item, readOnly }: { item: InvoiceLineItem; readOnl
   const upsertInvoice = useInvoicesStore((s) => s.upsertInvoice);
   const detailInvoice = useInvoicesStore((s) => s.detailInvoice);
   const pushToast = useToastStore((s) => s.push);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   async function doDelete() {
     const r = await invoicesClient.deleteLineItem(item.id);
@@ -36,7 +39,7 @@ export function LineItemRow({ item, readOnly }: { item: InvoiceLineItem; readOnl
         {!readOnly && (
           <button
             type="button"
-            onClick={doDelete}
+            onClick={() => setConfirmingDelete(true)}
             aria-label="Delete line item"
             className="md:order-last text-xs text-console-text-muted opacity-40 hover:opacity-100 focus:opacity-100 hover:text-console-danger focus:text-console-danger transition-opacity flex-shrink-0"
           >
@@ -53,6 +56,14 @@ export function LineItemRow({ item, readOnly }: { item: InvoiceLineItem; readOnl
           {fmtMoney(item.total)}
         </span>
       </div>
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="Remove line item?"
+        body="The invoice total recalculates immediately."
+        confirmLabel="Remove"
+        onConfirm={() => { setConfirmingDelete(false); void doDelete(); }}
+        onCancel={() => setConfirmingDelete(false)}
+      />
     </div>
   );
 }

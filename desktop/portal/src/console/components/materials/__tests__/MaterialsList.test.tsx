@@ -1,7 +1,8 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { MaterialsList } from '../MaterialsList';
 import { useMaterialsStore } from '../../../stores/materialsStore';
+import { materialsClient } from '../../../api/materialsClient';
 import type { Material } from '../../../api/materialsClient';
 
 function mat(id: string, name: string, qty = 1, unitCost = 0, checked = false): Material {
@@ -42,5 +43,39 @@ describe('MaterialsList', () => {
       const m = useMaterialsStore.getState().byJob['j1']?.[0];
       expect(m?.checked).toBe(true);
     });
+  });
+});
+
+describe('MaterialsList delete confirmation', () => {
+  beforeEach(() => useMaterialsStore.getState().clear());
+
+  it('material delete asks for confirmation first', async () => {
+    useMaterialsStore.getState().setForJob('j1', [mat('a', '10/2 Romex', 50, 0.85)]);
+    const deleteSpy = vi.spyOn(materialsClient, 'delete');
+
+    render(<MaterialsList jobId="j1" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete material' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(deleteSpy).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await waitFor(() => expect(deleteSpy).toHaveBeenCalledTimes(1));
+    expect(deleteSpy).toHaveBeenCalledWith('a');
+  });
+
+  it('cancel does not delete the material', () => {
+    useMaterialsStore.getState().setForJob('j1', [mat('a', '10/2 Romex', 50, 0.85)]);
+    const deleteSpy = vi.spyOn(materialsClient, 'delete');
+
+    render(<MaterialsList jobId="j1" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete material' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(deleteSpy).not.toHaveBeenCalled();
+    expect(screen.getByText('10/2 Romex')).toBeInTheDocument();
   });
 });

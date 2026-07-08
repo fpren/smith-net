@@ -29,10 +29,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.ui.input.pointer.pointerInput
@@ -65,6 +63,7 @@ import com.guildofsmiths.trademesh.data.MessageRepository
 import com.guildofsmiths.trademesh.data.Peer
 import com.guildofsmiths.trademesh.data.PeerRepository
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
+import com.guildofsmiths.trademesh.ui.theme2.SmithConfirmDialog
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -784,42 +783,15 @@ fun ConversationScreen(
 
     if (showClearDialog && channel != null) {
         val channelLabel = if (channel.type == ChannelType.DM) "this DM" else "#${channel.name}"
-        AlertDialog(
-            onDismissRequest = { showClearDialog = false },
-            title = {
-                Text(
-                    text = "Clear messages on this device?",
-                    style = ConsoleTheme.bodyBold
-                )
+        SmithConfirmDialog(
+            title = "Clear messages on this device?",
+            body = "Removes every message in $channelLabel from this device. Cloud history stays. New messages will still arrive.",
+            confirmText = "CLEAR",
+            onConfirm = {
+                MessageRepository.clearChannel(channel.beaconId, channel.id)
+                showClearDialog = false
             },
-            text = {
-                Text(
-                    text = "Removes every message in $channelLabel from this device. Cloud history stays. New messages will still arrive.",
-                    style = ConsoleTheme.bodySmall
-                )
-            },
-            confirmButton = {
-                Text(
-                    text = "[CLEAR]",
-                    style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
-                    modifier = Modifier
-                        .clickable {
-                            MessageRepository.clearChannel(channel.beaconId, channel.id)
-                            showClearDialog = false
-                        }
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                )
-            },
-            dismissButton = {
-                Text(
-                    text = "[CANCEL]",
-                    style = ConsoleTheme.action,
-                    modifier = Modifier
-                        .clickable { showClearDialog = false }
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                )
-            },
-            containerColor = ConsoleTheme.surface
+            onDismiss = { showClearDialog = false },
         )
     }
 }
@@ -1329,22 +1301,20 @@ private fun ConversationScreenPreview() {
         )
     )
     
-    MaterialTheme {
-        Surface {
-            ConversationScreen(
-                messages = sampleMessages,
-                onSendMessage = { _, _ -> },
-                localUserId = "me",
-                channel = Channel(
-                    id = "general",
-                    beaconId = "default",
-                    name = "general",
-                    type = ChannelType.GROUP
-                ),
-                beaconName = ConsoleTheme.APP_NAME,
-                onBackClick = {}
-            )
-        }
+    Surface {
+        ConversationScreen(
+            messages = sampleMessages,
+            onSendMessage = { _, _ -> },
+            localUserId = "me",
+            channel = Channel(
+                id = "general",
+                beaconId = "default",
+                name = "general",
+                type = ChannelType.GROUP
+            ),
+            beaconName = ConsoleTheme.APP_NAME,
+            onBackClick = {}
+        )
     }
 }
 

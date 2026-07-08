@@ -24,6 +24,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
 import com.guildofsmiths.trademesh.ui.ConsoleSeparator
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.theme2.SmithButton
+import com.guildofsmiths.trademesh.ui.theme2.SmithButtonVariant
+import com.guildofsmiths.trademesh.ui.theme2.SmithDialog
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
@@ -355,14 +358,33 @@ fun TimeTrackingScreen(
         var selectedJob by remember { mutableStateOf<String?>(null) }
         var customJobName by remember { mutableStateOf("") }
 
-        AlertDialog(
-            onDismissRequest = { showClockInDialog = false },
-            containerColor = ConsoleTheme.background,
-            modifier = Modifier.fillMaxHeight(0.8f),
-            title = {
-                Text(text = "CLOCK IN", style = ConsoleTheme.header)
+        SmithDialog(
+            title = "Clock in",
+            onDismiss = { showClockInDialog = false },
+            sizeFraction = 0.9f to 0.8f,
+            actions = {
+                SmithButton(text = "CANCEL", onClick = { showClockInDialog = false }, variant = SmithButtonVariant.Ghost)
+                Spacer(modifier = Modifier.width(8.dp))
+                SmithButton(
+                    text = "CLOCK IN",
+                    onClick = {
+                        selectedType?.let { type ->
+                            val jobName = when {
+                                customJobName.isNotBlank() -> customJobName
+                                selectedJob != null -> selectedJob
+                                else -> null
+                            }
+                            viewModel.clockIn(
+                                entryType = type,
+                                jobTitle = jobName
+                            )
+                            showClockInDialog = false
+                        }
+                    },
+                    enabled = selectedType != null,
+                )
             },
-            text = {
+        ) {
                 Column(
                     modifier = Modifier
                         .verticalScroll(rememberScrollState())
@@ -495,37 +517,7 @@ fun TimeTrackingScreen(
                         }
                     )
                 }
-            },
-            confirmButton = {
-                Text(
-                    text = "CLOCK IN",
-                    style = ConsoleTheme.action.copy(
-                        color = if (selectedType != null) ConsoleTheme.success else ConsoleTheme.textDim
-                    ),
-                    modifier = Modifier.clickable {
-                        selectedType?.let { type ->
-                            val jobName = when {
-                                customJobName.isNotBlank() -> customJobName
-                                selectedJob != null -> selectedJob
-                                else -> null
-                            }
-                            viewModel.clockIn(
-                                entryType = type,
-                                jobTitle = jobName
-                            )
-                            showClockInDialog = false
-                        }
-                    }
-                )
-            },
-            dismissButton = {
-                Text(
-                    text = "CANCEL",
-                    style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
-                    modifier = Modifier.clickable { showClockInDialog = false }
-                )
-            }
-        )
+        }
     }
 
     // Clock OUT Dialog - Select reason
@@ -536,31 +528,42 @@ fun TimeTrackingScreen(
         val hours = displaySeconds / 3600
         val minutes = (displaySeconds % 3600) / 60
 
-        AlertDialog(
-            onDismissRequest = { showClockOutDialog = false },
-            containerColor = ConsoleTheme.background,
-            modifier = Modifier.fillMaxHeight(0.75f),
-            title = {
-                Column {
-                    Text(text = "CLOCK OUT", style = ConsoleTheme.header)
-                    Text(
-                        text = "Duration: ${hours}h ${minutes}m",
-                        style = ConsoleTheme.caption
-                    )
-                    activeEntry?.let { e ->
-                        com.guildofsmiths.trademesh.data.TimeEntryRepository
-                            .resolveJobTitle(e)
-                            ?.takeIf { it.isNotBlank() }
-                            ?.let { job ->
-                                Text(
-                                    text = "Job: $job",
-                                    style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
-                                )
-                            }
-                    }
-                }
+        SmithDialog(
+            title = "Clock out",
+            onDismiss = { showClockOutDialog = false },
+            sizeFraction = 0.9f to 0.75f,
+            actions = {
+                SmithButton(text = "CANCEL", onClick = { showClockOutDialog = false }, variant = SmithButtonVariant.Ghost)
+                Spacer(modifier = Modifier.width(8.dp))
+                SmithButton(
+                    text = "CLOCK OUT",
+                    onClick = {
+                        selectedReason?.let { reason ->
+                            val note = if (reason == ClockOutReason.OTHER) otherNote else reason.displayName
+                            viewModel.clockOut(note)
+                            showClockOutDialog = false
+                        }
+                    },
+                    enabled = selectedReason != null,
+                )
             },
-            text = {
+        ) {
+            Text(
+                text = "Duration: ${hours}h ${minutes}m",
+                style = ConsoleTheme.caption
+            )
+            activeEntry?.let { e ->
+                com.guildofsmiths.trademesh.data.TimeEntryRepository
+                    .resolveJobTitle(e)
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { job ->
+                        Text(
+                            text = "Job: $job",
+                            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
+                        )
+                    }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
                 Column(
                     modifier = Modifier
                         .verticalScroll(rememberScrollState())
@@ -622,30 +625,7 @@ fun TimeTrackingScreen(
                         )
                     }
                 }
-            },
-            confirmButton = {
-                Text(
-                    text = "CLOCK OUT",
-                    style = ConsoleTheme.action.copy(
-                        color = if (selectedReason != null) ConsoleTheme.error else ConsoleTheme.textDim
-                    ),
-                    modifier = Modifier.clickable {
-                        selectedReason?.let { reason ->
-                            val note = if (reason == ClockOutReason.OTHER) otherNote else reason.displayName
-                            viewModel.clockOut(note)
-                            showClockOutDialog = false
-                        }
-                    }
-                )
-            },
-            dismissButton = {
-                Text(
-                    text = "CANCEL",
-                    style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
-                    modifier = Modifier.clickable { showClockOutDialog = false }
-                )
-            }
-        )
+        }
     }
 }
 

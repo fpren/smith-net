@@ -5,6 +5,7 @@ import type { Material } from '../../api/materialsClient';
 import { useMaterialsStore } from '../../stores/materialsStore';
 import { useToast } from '../../hooks/useToast';
 import { Button } from '../ui/Button';
+import { ConfirmDialog } from '../ui/SmithDialog';
 import { AddMaterialModal } from './AddMaterialModal';
 
 const USD = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
@@ -15,6 +16,7 @@ export function MaterialsList({ jobId }: { jobId: string }) {
   const toast = useToast();
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<Material | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   useEffect(() => {
     materialsClient.listForJob(jobId).then((r) => {
@@ -37,10 +39,9 @@ export function MaterialsList({ jobId }: { jobId: string }) {
     }
   }
 
-  async function del(m: Material) {
-    if (!window.confirm(`Delete "${m.name}"?`)) return;
-    const r = await materialsClient.delete(m.id);
-    if (r.ok) { remove(m.id); toast.info('Material deleted'); }
+  async function doDelete(id: string) {
+    const r = await materialsClient.delete(id);
+    if (r.ok) { remove(id); toast.info('Material deleted'); }
     else toast.error(r.error || 'Failed to delete');
   }
 
@@ -74,7 +75,7 @@ export function MaterialsList({ jobId }: { jobId: string }) {
               </div>
               <div className="text-console-text tabular-nums">{USD.format(m.quantity * m.unitCost)}</div>
               <button onClick={() => { setEditing(m); setShowAdd(true); }} className="text-xs text-console-text-muted hover:text-console-text">[edit]</button>
-              <button onClick={() => del(m)} className="text-xs text-console-text-muted hover:text-console-warn">[delete]</button>
+              <button onClick={() => setConfirmingId(m.id)} aria-label="Delete material" className="text-xs text-console-text-muted hover:text-console-warn">[delete]</button>
             </div>
           ))}
           <div className="px-3 py-2 text-right text-console-text font-bold border-t-2 border-console-border">
@@ -87,6 +88,18 @@ export function MaterialsList({ jobId }: { jobId: string }) {
         onClose={() => setShowAdd(false)}
         jobId={jobId}
         editing={editing}
+      />
+      <ConfirmDialog
+        open={confirmingId !== null}
+        title="Delete material?"
+        confirmLabel="Delete"
+        body="It's removed from this job's materials list."
+        onConfirm={() => {
+          const id = confirmingId;
+          setConfirmingId(null);
+          if (id) void doDelete(id);
+        }}
+        onCancel={() => setConfirmingId(null)}
       />
     </section>
   );

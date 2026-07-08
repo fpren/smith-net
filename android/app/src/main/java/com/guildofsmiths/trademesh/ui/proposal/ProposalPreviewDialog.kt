@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -24,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.ui.ConsoleSeparator
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.theme2.SmithDialog
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -39,37 +39,51 @@ fun ProposalPreviewDialog(
     val context = LocalContext.current
     val dateFmt = remember { SimpleDateFormat("MMM d, yyyy", Locale.US) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = ConsoleTheme.background,
-        modifier = Modifier.fillMaxWidth(0.98f).fillMaxHeight(0.95f),
-        title = {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text("PROPOSAL PREVIEW", style = ConsoleTheme.header)
-                    Text(
-                        proposal.proposalNumber,
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent)
-                    )
-                }
-                Text(
-                    "X",
-                    style = ConsoleTheme.action,
-                    modifier = Modifier.clickable { onDismiss() }
-                )
+    SmithDialog(
+        title = "PROPOSAL PREVIEW",
+        onDismiss = onDismiss,
+        sizeFraction = 0.98f to 0.95f,
+        actions = {
+            ActionBtn("COPY", ConsoleTheme.accent) {
+                val txt = ProposalFormatter.formatAsText(proposal)
+                copyToClipboard(context, txt)
+                Toast.makeText(context, "Proposal copied", Toast.LENGTH_SHORT).show()
             }
+            Spacer(modifier = Modifier.width(8.dp))
+            ActionBtn("SHARE", ConsoleTheme.accent) {
+                if (onShare != null) {
+                    onShare()
+                } else {
+                    val txt = ProposalFormatter.formatAsText(proposal)
+                    sharePlain(context, txt, "${proposal.proposalNumber} — ${proposal.jobTitle}")
+                }
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            ActionBtn("CLOSE", ConsoleTheme.textMuted, onClick = onDismiss)
         },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                proposal.proposalNumber,
+                style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent)
+            )
+            Text(
+                "X",
+                style = ConsoleTheme.action,
+                modifier = Modifier.clickable { onDismiss() }
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
                 HeaderBlock(proposal, dateFmt)
                 ConsoleSeparator()
                 PartyBlock("FROM", proposal.providerName,
@@ -125,27 +139,7 @@ fun ProposalPreviewDialog(
                     textAlign = TextAlign.Center
                 )
             }
-        },
-        confirmButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ActionBtn("COPY", ConsoleTheme.accent) {
-                    val txt = ProposalFormatter.formatAsText(proposal)
-                    copyToClipboard(context, txt)
-                    Toast.makeText(context, "Proposal copied", Toast.LENGTH_SHORT).show()
-                }
-                ActionBtn("SHARE", ConsoleTheme.accent) {
-                    if (onShare != null) {
-                        onShare()
-                    } else {
-                        val txt = ProposalFormatter.formatAsText(proposal)
-                        sharePlain(context, txt, "${proposal.proposalNumber} — ${proposal.jobTitle}")
-                    }
-                }
-                ActionBtn("CLOSE", ConsoleTheme.textMuted, onClick = onDismiss)
-            }
-        },
-        dismissButton = {}
-    )
+    }
 }
 
 @Composable

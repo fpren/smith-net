@@ -66,7 +66,18 @@ ${colorKeys.map((k) => `        'sn-${kebab(k)}': 'var(--sn-${kebab(k)})',`).joi
 };
 `;
 
-const ktColor = (hex) => `Color(0xFF${hex.slice(1).toUpperCase()})`;
+// Compose colors are ARGB. 6-digit CSS hex (#RRGGBB) is treated as fully
+// opaque. 8-digit CSS hex (#RRGGBBAA) carries its own alpha, which must be
+// moved to the front for Compose's 0xAARRGGBB order.
+const ktColor = (hex) => {
+  const body = hex.slice(1).toUpperCase();
+  if (body.length === 8) {
+    const rgb = body.slice(0, 6);
+    const alpha = body.slice(6, 8);
+    return `Color(0x${alpha}${rgb})`;
+  }
+  return `Color(0xFF${body})`;
+};
 const ktObj = (theme) =>
   Object.entries(t.color[theme]).map(([k, v]) => `        val ${upper(k)} = ${ktColor(v)}`).join('\n');
 const kt = `package com.guildofsmiths.trademesh.ui

@@ -13,6 +13,8 @@ module.exports = {
         'sn-attention': 'var(--sn-attention)',
         'sn-status-online': 'var(--sn-status-online)',
         'sn-status-error': 'var(--sn-status-error)',
+        'sn-overlay': 'var(--sn-overlay)',
+        'sn-ink-on-accent': 'var(--sn-ink-on-accent)',
       },
       boxShadow: {
         'sn-sm': 'var(--sn-shadow-sm)',

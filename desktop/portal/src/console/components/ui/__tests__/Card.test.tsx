@@ -15,7 +15,7 @@ describe('Card', () => {
 
   it('applies surface + border classes', () => {
     const { container } = render(<Card>x</Card>);
-    expect(container.firstChild).toHaveClass('bg-console-surface');
+    expect(container.firstChild).toHaveClass('bg-sn-bg-panel');
     expect(container.firstChild).toHaveClass('border');
   });
 });

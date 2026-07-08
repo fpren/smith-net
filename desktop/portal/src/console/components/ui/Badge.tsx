@@ -9,10 +9,10 @@ interface Props extends HTMLAttributes<HTMLSpanElement> {
 }
 
 const TONE_CLASSES: Record<Tone, string> = {
-  default: 'bg-console-surface text-console-text border-console-border',
-  ok: 'bg-console-surface text-console-ok border-console-ok',
-  warn: 'bg-console-surface text-console-warn border-console-warn',
-  danger: 'bg-console-surface text-console-danger border-console-danger',
+  default: 'bg-sn-bg-panel text-sn-ink border-sn-line',
+  ok: 'bg-sn-bg-panel text-sn-status-online border-sn-status-online',
+  warn: 'bg-sn-bg-panel text-sn-attention border-sn-attention',
+  danger: 'bg-sn-bg-panel text-sn-status-error border-sn-status-error',
 };
 
 export function Badge({ tone = 'default', className, children, ...rest }: Props) {

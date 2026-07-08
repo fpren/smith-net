@@ -23,11 +23,11 @@ describe('Button', () => {
 
   it('applies primary variant styles by default', () => {
     render(<Button>X</Button>);
-    expect(screen.getByRole('button').className).toMatch(/bg-console-accent/);
+    expect(screen.getByRole('button').className).toMatch(/bg-sn-accent/);
   });
 
   it('applies secondary variant when variant=secondary', () => {
     render(<Button variant="secondary">X</Button>);
-    expect(screen.getByRole('button').className).toMatch(/bg-console-surface/);
+    expect(screen.getByRole('button').className).toMatch(/bg-sn-bg-panel/);
   });
 });

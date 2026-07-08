@@ -20,9 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -56,6 +54,7 @@ import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.data.TradesList
 import com.guildofsmiths.trademesh.data.UserRole
 import com.guildofsmiths.trademesh.service.AuthService
+import com.guildofsmiths.trademesh.ui.theme2.SmithConfirmDialog
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -1420,88 +1419,54 @@ private fun ForemanTeamSection() {
     }
 
     if (confirmLeave) {
-        AlertDialog(
-            onDismissRequest = { confirmLeave = false },
-            title = { Text(text = "Leave team") },
-            text = { Text(text = "Leave this team? You will become solo and lose access to team-shared work.") },
-            confirmButton = {
-                Text(
-                    text = "[Leave]",
-                    style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
-                    modifier = Modifier
-                        .clickable(enabled = !leaving) {
-                            leaving = true
-                            scope.launch {
-                                when (val r = AuthService.leaveOrg()) {
-                                    is AuthService.LeaveResult.Ok -> {
-                                        leaving = false
-                                        confirmLeave = false
-                                        Toast.makeText(context, "Left team.", Toast.LENGTH_SHORT).show()
-                                        members = AuthService.listOrgMembers() ?: emptyList()
-                                    }
-                                    is AuthService.LeaveResult.Error -> {
-                                        leaving = false
-                                        confirmLeave = false
-                                        Toast.makeText(context, r.message, Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            }
+        SmithConfirmDialog(
+            title = "Leave team",
+            body = "Leave this team? You will become solo and lose access to team-shared work.",
+            confirmText = "LEAVE",
+            onConfirm = {
+                leaving = true
+                scope.launch {
+                    when (val r = AuthService.leaveOrg()) {
+                        is AuthService.LeaveResult.Ok -> {
+                            leaving = false
+                            confirmLeave = false
+                            Toast.makeText(context, "Left team.", Toast.LENGTH_SHORT).show()
+                            members = AuthService.listOrgMembers() ?: emptyList()
                         }
-                        .padding(8.dp),
-                )
+                        is AuthService.LeaveResult.Error -> {
+                            leaving = false
+                            confirmLeave = false
+                            Toast.makeText(context, r.message, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
             },
-            dismissButton = {
-                Text(
-                    text = "[Cancel]",
-                    style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
-                    modifier = Modifier
-                        .clickable { confirmLeave = false }
-                        .padding(8.dp),
-                )
-            },
+            onDismiss = { confirmLeave = false },
+            confirmEnabled = !leaving,
         )
     }
 
     confirmTarget?.let { target ->
-        AlertDialog(
-            onDismissRequest = { confirmTarget = null },
-            title = { Text(text = "Remove member") },
-            text = {
-                Text(
-                    text = "Remove ${target.displayName} from your team? They will become solo again.",
-                )
+        SmithConfirmDialog(
+            title = "Remove member",
+            body = "Remove ${target.displayName} from your team? They will become solo again.",
+            confirmText = "REMOVE",
+            confirmEnabled = !removing,
+            onConfirm = {
+                removing = true
+                scope.launch {
+                    val ok = AuthService.removeOrgMember(target.id)
+                    removing = false
+                    confirmTarget = null
+                    if (ok) {
+                        members = AuthService.listOrgMembers() ?: members
+                        Toast.makeText(context, "${target.displayName} removed", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "Could not remove member", Toast.LENGTH_SHORT).show()
+                    }
+                }
             },
-            confirmButton = {
-                Text(
-                    text = "[Remove]",
-                    style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
-                    modifier = Modifier
-                        .clickable(enabled = !removing) {
-                            removing = true
-                            scope.launch {
-                                val ok = AuthService.removeOrgMember(target.id)
-                                removing = false
-                                confirmTarget = null
-                                if (ok) {
-                                    members = AuthService.listOrgMembers() ?: members
-                                    Toast.makeText(context, "${target.displayName} removed", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Toast.makeText(context, "Could not remove member", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        }
-                        .padding(8.dp),
-                )
-            },
-            dismissButton = {
-                Text(
-                    text = "[Cancel]",
-                    style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
-                    modifier = Modifier
-                        .clickable { confirmTarget = null }
-                        .padding(8.dp),
-                )
-            },
+            onDismiss = { confirmTarget = null },
         )
     }
 }
@@ -1630,45 +1595,30 @@ private fun JoinTeamSection() {
     }
 
     if (confirmLeave) {
-        AlertDialog(
-            onDismissRequest = { confirmLeave = false },
-            title = { Text(text = "Leave team") },
-            text = { Text(text = "Leave this team? You will become solo and lose access to team-shared work.") },
-            confirmButton = {
-                Text(
-                    text = "[Leave]",
-                    style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
-                    modifier = Modifier
-                        .clickable(enabled = !leaving) {
-                            leaving = true
-                            scope.launch {
-                                when (val r = AuthService.leaveOrg()) {
-                                    is AuthService.LeaveResult.Ok -> {
-                                        leaving = false
-                                        confirmLeave = false
-                                        Toast.makeText(context, "Left team.", Toast.LENGTH_SHORT).show()
-                                        members = AuthService.listOrgMembers() ?: emptyList()
-                                    }
-                                    is AuthService.LeaveResult.Error -> {
-                                        leaving = false
-                                        confirmLeave = false
-                                        Toast.makeText(context, r.message, Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            }
+        SmithConfirmDialog(
+            title = "Leave team",
+            body = "Leave this team? You will become solo and lose access to team-shared work.",
+            confirmText = "LEAVE",
+            confirmEnabled = !leaving,
+            onConfirm = {
+                leaving = true
+                scope.launch {
+                    when (val r = AuthService.leaveOrg()) {
+                        is AuthService.LeaveResult.Ok -> {
+                            leaving = false
+                            confirmLeave = false
+                            Toast.makeText(context, "Left team.", Toast.LENGTH_SHORT).show()
+                            members = AuthService.listOrgMembers() ?: emptyList()
                         }
-                        .padding(8.dp),
-                )
+                        is AuthService.LeaveResult.Error -> {
+                            leaving = false
+                            confirmLeave = false
+                            Toast.makeText(context, r.message, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
             },
-            dismissButton = {
-                Text(
-                    text = "[Cancel]",
-                    style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
-                    modifier = Modifier
-                        .clickable { confirmLeave = false }
-                        .padding(8.dp),
-                )
-            },
+            onDismiss = { confirmLeave = false },
         )
     }
 }
@@ -2091,10 +2041,8 @@ private fun ModelPickerDialog(
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
 private fun SettingsScreenPreview() {
-    MaterialTheme {
-        SettingsScreen(
-            onBackClick = { },
-            onNameChanged = { }
-        )
-    }
+    SettingsScreen(
+        onBackClick = { },
+        onNameChanged = { }
+    )
 }

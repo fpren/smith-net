@@ -16,10 +16,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.ripple.rememberRipple
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,11 +37,12 @@ import com.guildofsmiths.trademesh.ui.jobboard.FreightTerm
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel
 import com.guildofsmiths.trademesh.ui.jobboard.JobExpense
+import com.guildofsmiths.trademesh.ui.theme2.SmithSheet
 import com.guildofsmiths.trademesh.ui.timetracking.EntryType
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun JobExpenseDetailScreen(
     jobId: String,
@@ -324,11 +322,8 @@ fun JobExpenseDetailScreen(
     }
 
     if (showAddSheet) {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(
-            onDismissRequest = { showAddSheet = false },
-            sheetState = sheetState,
-            containerColor = ConsoleTheme.surface
+        SmithSheet(
+            onDismiss = { showAddSheet = false },
         ) {
             AddExpenseSheet(
                 job = job,
@@ -552,7 +547,6 @@ private fun NumericCell(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddExpenseSheet(
     job: Job,

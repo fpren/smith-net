@@ -26,6 +26,9 @@ import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.JobStage
 import com.guildofsmiths.trademesh.ui.jobboard.Material
+import com.guildofsmiths.trademesh.ui.theme2.SmithButton
+import com.guildofsmiths.trademesh.ui.theme2.SmithButtonVariant
+import com.guildofsmiths.trademesh.ui.theme2.SmithDialog
 
 data class SupplyItem(
     val material: Material,
@@ -327,60 +330,54 @@ private fun MaterialRow(item: SupplyItem, onToggle: () -> Unit, onEdit: () -> Un
 
     // Vendor picker modal
     if (showVendorPicker) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showVendorPicker = false },
-            containerColor = ConsoleTheme.surface,
-            title = {
-                Column {
-                    Text("Order", style = ConsoleTheme.bodyBold)
-                    Text(mat.name, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
-                }
+        SmithDialog(
+            title = "Order",
+            onDismiss = { showVendorPicker = false },
+            actions = {
+                SmithButton(
+                    text = "CANCEL",
+                    onClick = { showVendorPicker = false },
+                    variant = SmithButtonVariant.Ghost,
+                )
             },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    VENDORS.forEach { vendor ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(ConsoleTheme.background, RoundedCornerShape(6.dp))
-                                .clickable {
-                                    showVendorPicker = false
-                                    if (vendor.url != null) {
-                                        val url = vendor.url + Uri.encode(mat.name)
-                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                                    }
-                                }
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = vendor.tag,
-                                style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent),
-                                modifier = Modifier.width(50.dp)
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(vendor.label, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
+        ) {
+            Text(mat.name, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+            Spacer(modifier = Modifier.height(8.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                VENDORS.forEach { vendor ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(ConsoleTheme.background, RoundedCornerShape(6.dp))
+                            .clickable {
+                                showVendorPicker = false
                                 if (vendor.url != null) {
-                                    Text("Search & order", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
-                                } else {
-                                    Text("Manual purchase", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                                    val url = vendor.url + Uri.encode(mat.name)
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                                 }
+                            }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = vendor.tag,
+                            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent),
+                            modifier = Modifier.width(50.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(vendor.label, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
+                            if (vendor.url != null) {
+                                Text("Search & order", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                            } else {
+                                Text("Manual purchase", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
                             }
                         }
                     }
                 }
-            },
-            confirmButton = {},
-            dismissButton = {
-                Text(
-                    text = "[Cancel]",
-                    style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
-                    modifier = Modifier.clickable { showVendorPicker = false }.padding(8.dp)
-                )
             }
-        )
+        }
     }
 }
 
@@ -404,11 +401,33 @@ private fun MaterialDialog(
 
     val selectedJobName = jobs.find { it.id == selectedJobId }?.let { it.clientName ?: it.title } ?: "Select job"
 
-    androidx.compose.material3.AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = ConsoleTheme.surface,
-        title = { Text(title, style = ConsoleTheme.bodyBold) },
-        text = {
+    SmithDialog(
+        title = title,
+        onDismiss = onDismiss,
+        actions = {
+            SmithButton(text = "CANCEL", onClick = onDismiss, variant = SmithButtonVariant.Ghost)
+            Spacer(modifier = Modifier.width(8.dp))
+            SmithButton(
+                text = "SAVE",
+                onClick = {
+                    if (name.isNotBlank() && selectedJobId.isNotBlank()) {
+                        val qty = quantity.toDoubleOrNull() ?: 0.0
+                        val cost = unitCost.toDoubleOrNull() ?: 0.0
+                        val material = (initialMaterial ?: Material(name = "")).copy(
+                            name = name.trim(),
+                            quantity = qty,
+                            unit = unit.trim().ifBlank { "ea" },
+                            unitCost = cost,
+                            totalCost = qty * cost,
+                            vendor = vendor.trim()
+                        )
+                        onSave(selectedJobId, material)
+                    }
+                },
+                enabled = name.isNotBlank() && selectedJobId.isNotBlank(),
+            )
+        },
+    ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 // Job selector
                 if (!lockJob) {
@@ -472,38 +491,7 @@ private fun MaterialDialog(
                     }
                 }
             }
-        },
-        confirmButton = {
-            Text(
-                text = "[Save]",
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
-                modifier = Modifier
-                    .clickable {
-                        if (name.isNotBlank() && selectedJobId.isNotBlank()) {
-                            val qty = quantity.toDoubleOrNull() ?: 0.0
-                            val cost = unitCost.toDoubleOrNull() ?: 0.0
-                            val material = (initialMaterial ?: Material(name = "")).copy(
-                                name = name.trim(),
-                                quantity = qty,
-                                unit = unit.trim().ifBlank { "ea" },
-                                unitCost = cost,
-                                totalCost = qty * cost,
-                                vendor = vendor.trim()
-                            )
-                            onSave(selectedJobId, material)
-                        }
-                    }
-                    .padding(8.dp)
-            )
-        },
-        dismissButton = {
-            Text(
-                text = "[Cancel]",
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
-                modifier = Modifier.clickable { onDismiss() }.padding(8.dp)
-            )
-        }
-    )
+    }
 }
 
 @Composable

@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
 import com.guildofsmiths.trademesh.ui.ConsoleSeparator
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.theme2.SmithDialog
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -36,41 +37,88 @@ fun InvoicePreviewDialog(
     // Default to OFF — user must opt in to bundle the BOL with the invoice
     var attachBol by remember { mutableStateOf(false) }
     
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = ConsoleTheme.background,
-        modifier = Modifier.fillMaxWidth(0.98f).fillMaxHeight(0.95f),
-        title = {
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(text = "INVOICE PREVIEW", style = ConsoleTheme.header)
+    SmithDialog(
+        title = "Invoice preview",
+        onDismiss = onDismiss,
+        sizeFraction = 0.98f to 0.95f,
+        actions = {
+            Column(horizontalAlignment = Alignment.End) {
+                if (bolText != null) {
+                    Row(
+                        modifier = Modifier.padding(bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(18.dp)
+                                .background(
+                                    if (attachBol) ConsoleTheme.accent else ConsoleTheme.surface
+                                )
+                                .clickable { attachBol = !attachBol },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (attachBol) {
+                                Text("✓", style = ConsoleTheme.caption.copy(color = androidx.compose.ui.graphics.Color.White))
+                            }
+                        }
+                        Spacer(Modifier.width(8.dp))
                         Text(
-                            text = if (invoice.mode == InvoiceMode.ENTERPRISE) "[ENTERPRISE/CREW]" else "[SOLO]",
-                            style = ConsoleTheme.caption.copy(
-                                color = if (invoice.mode == InvoiceMode.ENTERPRISE) ConsoleTheme.accent else ConsoleTheme.success
-                            )
+                            text = "Attach BOL to invoice",
+                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.text),
+                            modifier = Modifier.clickable { attachBol = !attachBol }
+                        )
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (onPreviewRendered != null) {
+                        Text(
+                            text = "[>] PREVIEW & SHARE",
+                            style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                            modifier = Modifier.clickable { onPreviewRendered() }
                         )
                     }
                     Text(
-                        text = "X",
-                        style = ConsoleTheme.action,
+                        text = "[>] TEXT",
+                        style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                        modifier = Modifier.clickable {
+                            val invoiceText = InvoiceFormatter.formatAsText(invoice)
+                            val payload = if (attachBol && bolText != null) invoiceText + "\n\n" + bolText else invoiceText
+                            onShare(payload)
+                        }
+                    )
+                    Text(
+                        text = "[OK] DONE",
+                        style = ConsoleTheme.action.copy(color = ConsoleTheme.success),
                         modifier = Modifier.clickable { onDismiss() }
                     )
                 }
             }
         },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (invoice.mode == InvoiceMode.ENTERPRISE) "[ENTERPRISE/CREW]" else "[SOLO]",
+                style = ConsoleTheme.caption.copy(
+                    color = if (invoice.mode == InvoiceMode.ENTERPRISE) ConsoleTheme.accent else ConsoleTheme.success
+                )
+            )
+            Text(
+                text = "X",
+                style = ConsoleTheme.action,
+                modifier = Modifier.clickable { onDismiss() }
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
                 // ═══════════════════════════════════════════════════
                 // HEADER
                 // ═══════════════════════════════════════════════════
@@ -470,62 +518,7 @@ fun InvoicePreviewDialog(
                     textAlign = TextAlign.Center
                 )
             }
-        },
-        confirmButton = {
-            Column(horizontalAlignment = Alignment.End) {
-                if (bolText != null) {
-                    Row(
-                        modifier = Modifier.padding(bottom = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(18.dp)
-                                .background(
-                                    if (attachBol) ConsoleTheme.accent else ConsoleTheme.surface
-                                )
-                                .clickable { attachBol = !attachBol },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (attachBol) {
-                                Text("✓", style = ConsoleTheme.caption.copy(color = androidx.compose.ui.graphics.Color.White))
-                            }
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = "Attach BOL to invoice",
-                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.text),
-                            modifier = Modifier.clickable { attachBol = !attachBol }
-                        )
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (onPreviewRendered != null) {
-                        Text(
-                            text = "[>] PREVIEW & SHARE",
-                            style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
-                            modifier = Modifier.clickable { onPreviewRendered() }
-                        )
-                    }
-                    Text(
-                        text = "[>] TEXT",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
-                        modifier = Modifier.clickable {
-                            val invoiceText = InvoiceFormatter.formatAsText(invoice)
-                            val payload = if (attachBol && bolText != null) invoiceText + "\n\n" + bolText else invoiceText
-                            onShare(payload)
-                        }
-                    )
-                    Text(
-                        text = "[OK] DONE",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.success),
-                        modifier = Modifier.clickable { onDismiss() }
-                    )
-                }
-            }
-        },
-        dismissButton = {}
-    )
+    }
 }
 
 @Composable

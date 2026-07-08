@@ -20,7 +20,7 @@ export function ProgressBar({ pct, color, height = 3 }: Props) {
       style={{
         width: '100%',
         height,
-        background: 'var(--color-border)',
+        background: 'var(--sn-line)',
         borderRadius: 2,
         overflow: 'hidden',
         position: 'relative',

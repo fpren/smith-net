@@ -16,12 +16,12 @@ export function Pill({ active = false, tone = 'default', className, children, ..
       type="button"
       className={twMerge(
         clsx(
-          'rounded-full border px-3 py-1 font-mono text-[11px] whitespace-nowrap transition-colors disabled:opacity-50',
+          'rounded-full border px-3 py-1 font-mono text-[11px] whitespace-nowrap transition-colors disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sn-accent',
           active
-            ? 'bg-console-accent text-white border-console-accent'
+            ? 'bg-sn-accent text-sn-ink-on-accent border-sn-accent'
             : tone === 'ok'
-              ? 'border-console-ok text-console-ok hover:bg-console-ok hover:text-console-bg'
-              : 'border-console-border text-console-text-muted hover:text-console-accent hover:border-console-accent',
+              ? 'border-sn-status-online text-sn-status-online hover:bg-sn-status-online hover:text-sn-bg-base'
+              : 'border-sn-line text-sn-ink-muted hover:text-sn-accent hover:border-sn-accent',
           className,
         ),
       )}

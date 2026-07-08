@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
+import { ConfirmDialog } from '../components/ui/SmithDialog';
 import { ClientContactLines } from '../components/clients/ClientContactLines';
 import { CreateClientModal } from '../components/clients/CreateClientModal';
 import { useClientsPolling } from '../hooks/useClientsPolling';
@@ -36,6 +37,7 @@ export function ClientDetailRoute() {
   const [showEdit, setShowEdit] = useState(false);
   const [showAllActivity, setShowAllActivity] = useState(false);
   const [taskRows, setTaskRows] = useState<TaskRow[]>([]);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   // Fan out the client's jobs to gather every task (reuses the OpenTasksCard pattern).
   // Re-runs only when the set of job ids changes, not on every 15s client poll.
@@ -75,7 +77,6 @@ export function ClientDetailRoute() {
 
   async function onDelete() {
     if (!client) return;
-    if (!window.confirm('Delete this client?')) return;
     const r = await clientsClient.remove(client.id);
     if (!r.ok) {
       toast.error((r as { error?: string }).error || 'Failed to delete client');
@@ -95,10 +96,19 @@ export function ClientDetailRoute() {
       <div className="flex items-center justify-between mt-2 mb-4">
         <h1 className="text-console-text text-lg">{client.name}</h1>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={onDelete}>Delete</Button>
+          <Button variant="danger" onClick={() => setConfirmingDelete(true)}>Delete</Button>
           <Button onClick={() => setShowEdit(true)}>Edit</Button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="Delete this client?"
+        body="Their jobs and invoices keep the record, but the client entry is removed."
+        confirmLabel="Delete"
+        onConfirm={() => { setConfirmingDelete(false); void onDelete(); }}
+        onCancel={() => setConfirmingDelete(false)}
+      />
 
       <ClientContactLines client={client} />
 

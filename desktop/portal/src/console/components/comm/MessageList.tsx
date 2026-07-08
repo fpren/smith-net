@@ -1,10 +1,11 @@
 // desktop/portal/src/console/components/comm/MessageList.tsx
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCommStore } from '../../stores/commStore';
 import { useAuthStore } from '../../auth/authStore';
 import { commClient } from '../../api/commClient';
 import { useToastStore } from '../../stores/toastStore';
 import { wsClient } from '../../../websocket';
+import { ConfirmDialog } from '../ui/SmithDialog';
 import type { Message } from '../../../types';
 
 interface Props {
@@ -40,6 +41,7 @@ export function MessageList({ channelId }: Props) {
   const selfId = useAuthStore((s) => s.user?.id);
   const pushToast = useToastStore((s) => s.push);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   // Track which message ids we've already sent a read receipt for in this
   // session — keeps the WS quiet on re-renders.
@@ -133,7 +135,7 @@ export function MessageList({ channelId }: Props) {
                     {mine && (
                       <button
                         type="button"
-                        onClick={() => doDelete(m.id)}
+                        onClick={() => setConfirmingId(m.id)}
                         className="text-[10px] text-console-text-muted opacity-40 group-hover:opacity-100 focus:opacity-100 hover:text-console-danger transition-opacity font-commmono"
                         aria-label="Delete message"
                       >
@@ -152,6 +154,18 @@ export function MessageList({ channelId }: Props) {
           {typingLabel(typingNames)}
         </div>
       )}
+      <ConfirmDialog
+        open={confirmingId !== null}
+        title="Delete message?"
+        body="It disappears for everyone in the channel."
+        confirmLabel="Delete"
+        onConfirm={() => {
+          const id = confirmingId;
+          setConfirmingId(null);
+          if (id) void doDelete(id);
+        }}
+        onCancel={() => setConfirmingId(null)}
+      />
     </div>
   );
 }

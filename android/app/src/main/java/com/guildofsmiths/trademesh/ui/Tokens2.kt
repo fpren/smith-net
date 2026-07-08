@@ -16,6 +16,8 @@ object Tokens2 {
         val Attention = Color(0xFFE8590C)
         val StatusOnline = Color(0xFF3E9B4F)
         val StatusError = Color(0xFFD64545)
+        val Overlay = Color(0x66000000)
+        val InkOnAccent = Color(0xFFFFFFFF)
     }
     object Dark {
         val BgBase = Color(0xFF14171C)
@@ -28,6 +30,8 @@ object Tokens2 {
         val Attention = Color(0xFFFF8A3D)
         val StatusOnline = Color(0xFF63C76F)
         val StatusError = Color(0xFFFF6B6B)
+        val Overlay = Color(0x66000000)
+        val InkOnAccent = Color(0xFFFFFFFF)
     }
     val RadiusCard = 20.dp
     val RadiusBubble = 14.dp

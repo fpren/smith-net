@@ -34,7 +34,7 @@ export function Avatar({ name, color, size = 22, fallback = '?', photoUrl, statu
           flexShrink: 0,
           position: 'relative',
           boxShadow: statusColor
-            ? `0 0 0 2px var(--console-surface, #FAFAF8), 0 0 0 3.5px ${statusColor}`
+            ? `0 0 0 2px var(--sn-bg-panel), 0 0 0 3.5px ${statusColor}`
             : '0 1px 3px rgba(0,0,0,.18)',
         }}
       >

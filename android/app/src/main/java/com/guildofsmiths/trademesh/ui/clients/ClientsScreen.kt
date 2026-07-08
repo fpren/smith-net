@@ -25,6 +25,9 @@ import com.guildofsmiths.trademesh.data.ClientRepository
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.jobboard.Job
+import com.guildofsmiths.trademesh.ui.theme2.SmithButton
+import com.guildofsmiths.trademesh.ui.theme2.SmithButtonVariant
+import com.guildofsmiths.trademesh.ui.theme2.SmithDialog
 
 @Composable
 fun ClientsScreen(
@@ -178,44 +181,37 @@ private fun AddClientDialog(
     var address by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
 
-    androidx.compose.material3.AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = ConsoleTheme.surface,
-        title = { Text("Add Client", style = ConsoleTheme.bodyBold) },
-        text = {
-            Column(
-                modifier = Modifier.semantics { testTagsAsResourceId = true },
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Box(Modifier.fillMaxWidth().testTag("solo_e2e_client_name")) {
-                    DialogField("NAME", name) { name = it }
-                }
-                DialogField("PHONE", phone) { phone = it }
-                Box(Modifier.fillMaxWidth().testTag("solo_e2e_client_address")) {
-                    DialogField("ADDRESS", address) { address = it }
-                }
-                Box(Modifier.fillMaxWidth().testTag("solo_e2e_client_note")) {
-                    DialogField("NOTE", note) { note = it }
-                }
-            }
-        },
-        confirmButton = {
-            Text(
-                text = "[Save]",
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
-                modifier = Modifier.clickable {
+    SmithDialog(
+        title = "Add Client",
+        onDismiss = onDismiss,
+        actions = {
+            SmithButton(text = "CANCEL", onClick = onDismiss, variant = SmithButtonVariant.Ghost)
+            Spacer(modifier = Modifier.width(8.dp))
+            SmithButton(
+                text = "SAVE",
+                onClick = {
                     if (name.isNotBlank()) onAdd(name.trim(), phone.trim(), address.trim(), note.trim())
-                }.padding(8.dp)
+                },
+                enabled = name.isNotBlank(),
             )
         },
-        dismissButton = {
-            Text(
-                text = "[Cancel]",
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
-                modifier = Modifier.clickable { onDismiss() }.padding(8.dp)
-            )
+    ) {
+        Column(
+            modifier = Modifier.semantics { testTagsAsResourceId = true },
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(Modifier.fillMaxWidth().testTag("solo_e2e_client_name")) {
+                DialogField("NAME", name) { name = it }
+            }
+            DialogField("PHONE", phone) { phone = it }
+            Box(Modifier.fillMaxWidth().testTag("solo_e2e_client_address")) {
+                DialogField("ADDRESS", address) { address = it }
+            }
+            Box(Modifier.fillMaxWidth().testTag("solo_e2e_client_note")) {
+                DialogField("NOTE", note) { note = it }
+            }
         }
-    )
+    }
 }
 
 @Composable

@@ -1,10 +1,11 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
 import { ClientDetailRoute } from '../ClientDetailRoute';
 import { server } from '../../test/msw-server';
 import { useClientsStore } from '../../stores/clientsStore';
+import { clientsClient } from '../../api/clientsClient';
 
 function renderAt(id: string) {
   return render(
@@ -58,5 +59,39 @@ describe('ClientDetailRoute depth', () => {
     // activity timeline: job-created + completed-task events derived from timestamps
     expect(screen.getByText(/Job "Lobby reno" created/)).toBeInTheDocument();
     expect(screen.getByText(/Task "Haul debris" completed/)).toBeInTheDocument();
+  });
+
+  it('client delete asks for confirmation first', async () => {
+    server.use(
+      http.get('/api/clients/c1', () =>
+        HttpResponse.json({
+          client: {
+            id: 'c1', ownerId: 'f-1', name: 'Acme', email: null, phone: null, address: null,
+            company: 'Acme LLC', notes: null, createdAt: '2026-05-10T10:00:00Z', updatedAt: '2026-05-10T10:00:00Z',
+          },
+          jobs: [],
+        }),
+      ),
+    );
+    const removeSpy = vi.spyOn(clientsClient, 'remove');
+
+    renderAt('c1');
+    await waitFor(() => expect(screen.getByText('Acme')).toBeInTheDocument());
+
+    const deleteTrigger = screen.getByRole('button', { name: 'Delete' });
+    fireEvent.click(deleteTrigger);
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(removeSpy).not.toHaveBeenCalled();
+
+    // Cancel: no delete, dialog closes.
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(removeSpy).not.toHaveBeenCalled();
+
+    // Confirm: delete happens.
+    fireEvent.click(deleteTrigger);
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }));
+    await waitFor(() => expect(removeSpy).toHaveBeenCalledWith('c1'));
   });
 });

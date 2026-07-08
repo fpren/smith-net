@@ -9,9 +9,9 @@ interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const VARIANT_CLASSES: Record<Variant, string> = {
-  primary: 'bg-console-accent text-white hover:opacity-90',
-  secondary: 'bg-console-surface text-console-text border border-console-border hover:bg-console-bg',
-  danger: 'bg-console-danger text-white hover:opacity-90',
+  primary: 'bg-sn-accent text-sn-ink-on-accent hover:opacity-90',
+  secondary: 'bg-sn-bg-panel text-sn-ink border border-sn-line hover:bg-sn-bg-base',
+  danger: 'bg-sn-status-error text-sn-ink-on-accent hover:opacity-90',
 };
 
 export const Button = forwardRef<HTMLButtonElement, Props>(function Button(
@@ -23,7 +23,7 @@ export const Button = forwardRef<HTMLButtonElement, Props>(function Button(
       ref={ref}
       className={twMerge(
         clsx(
-          'rounded-full px-4 py-2 font-mono text-sm transition-opacity disabled:opacity-50 disabled:cursor-not-allowed',
+          'rounded-full px-4 py-2 font-mono text-sm transition-opacity disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-sn-accent',
           VARIANT_CLASSES[variant],
           className
         )

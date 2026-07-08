@@ -7,7 +7,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -32,6 +31,9 @@ import com.guildofsmiths.trademesh.data.SupabaseAuth
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
 import com.guildofsmiths.trademesh.ui.jobboard.Job
+import com.guildofsmiths.trademesh.ui.theme2.SmithButton
+import com.guildofsmiths.trademesh.ui.theme2.SmithButtonVariant
+import com.guildofsmiths.trademesh.ui.theme2.SmithDialog
 import kotlinx.coroutines.delay
 
 /**
@@ -428,36 +430,25 @@ private fun AddClientDialog(
     var phone by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = ConsoleTheme.surface,
-        title = { Text("ADD CLIENT", style = ConsoleTheme.captionBold) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                DialogField("Name *", name) { name = it }
-                DialogField("Phone", phone) { phone = it }
-                DialogField("Address", address) { address = it }
-            }
-        },
-        confirmButton = {
-            Text(
-                text = "[OK] ADD",
-                style = ConsoleTheme.action,
-                modifier = Modifier
-                    .clickable(enabled = name.trim().length >= 2) { onAdd(name, phone, address) }
-                    .padding(8.dp)
+    SmithDialog(
+        title = "Add client",
+        onDismiss = onDismiss,
+        actions = {
+            SmithButton(text = "CANCEL", onClick = onDismiss, variant = SmithButtonVariant.Ghost)
+            Spacer(modifier = Modifier.width(8.dp))
+            SmithButton(
+                text = "ADD",
+                onClick = { onAdd(name, phone, address) },
+                enabled = name.trim().length >= 2,
             )
         },
-        dismissButton = {
-            Text(
-                text = "[x] CANCEL",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
-                modifier = Modifier
-                    .clickable(onClick = onDismiss)
-                    .padding(8.dp)
-            )
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            DialogField("Name *", name) { name = it }
+            DialogField("Phone", phone) { phone = it }
+            DialogField("Address", address) { address = it }
         }
-    )
+    }
 }
 
 @Composable
@@ -503,11 +494,19 @@ private fun AddColleagueDialog(
         searching = false
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = ConsoleTheme.surface,
-        title = { Text("ADD COLLEAGUE", style = ConsoleTheme.captionBold) },
-        text = {
+    SmithDialog(
+        title = "Add colleague",
+        onDismiss = onDismiss,
+        actions = {
+            SmithButton(text = "CANCEL", onClick = onDismiss, variant = SmithButtonVariant.Ghost)
+            Spacer(modifier = Modifier.width(8.dp))
+            SmithButton(
+                text = "ADD",
+                onClick = { onAdd(name, phone, trade, note) },
+                enabled = manualExpanded && name.trim().length >= 2,
+            )
+        },
+    ) {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -565,28 +564,7 @@ private fun AddColleagueDialog(
                     DialogField("Note", note) { note = it }
                 }
             }
-        },
-        confirmButton = {
-            Text(
-                text = "[OK] ADD",
-                style = ConsoleTheme.action,
-                modifier = Modifier
-                    .clickable(enabled = manualExpanded && name.trim().length >= 2) {
-                        onAdd(name, phone, trade, note)
-                    }
-                    .padding(8.dp)
-            )
-        },
-        dismissButton = {
-            Text(
-                text = "[x] CANCEL",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
-                modifier = Modifier
-                    .clickable(onClick = onDismiss)
-                    .padding(8.dp)
-            )
-        }
-    )
+    }
 }
 
 @Composable
@@ -619,36 +597,23 @@ private fun ManualEntryDialog(
 ) {
     var name by remember { mutableStateOf("") }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = ConsoleTheme.surface,
-        title = { Text("START CONVERSATION", style = ConsoleTheme.captionBold) },
-        text = {
-            Column {
-                Text("Enter a name to start a conversation:", style = ConsoleTheme.caption)
-                Spacer(modifier = Modifier.height(8.dp))
-                DialogField("Name or ID", name) { name = it }
-            }
-        },
-        confirmButton = {
-            Text(
-                text = "[OK] START",
-                style = ConsoleTheme.action,
-                modifier = Modifier
-                    .clickable(enabled = name.trim().length >= 2) { onStart(name.trim()) }
-                    .padding(8.dp)
+    SmithDialog(
+        title = "Start conversation",
+        onDismiss = onDismiss,
+        actions = {
+            SmithButton(text = "CANCEL", onClick = onDismiss, variant = SmithButtonVariant.Ghost)
+            Spacer(modifier = Modifier.width(8.dp))
+            SmithButton(
+                text = "START",
+                onClick = { onStart(name.trim()) },
+                enabled = name.trim().length >= 2,
             )
         },
-        dismissButton = {
-            Text(
-                text = "[x] CANCEL",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
-                modifier = Modifier
-                    .clickable(onClick = onDismiss)
-                    .padding(8.dp)
-            )
-        }
-    )
+    ) {
+        Text("Enter a name to start a conversation:", style = ConsoleTheme.caption)
+        Spacer(modifier = Modifier.height(8.dp))
+        DialogField("Name or ID", name) { name = it }
+    }
 }
 
 @Composable

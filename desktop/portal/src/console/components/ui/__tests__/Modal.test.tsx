@@ -18,7 +18,7 @@ describe('Modal', () => {
   it('calls onClose when backdrop clicked', async () => {
     const onClose = vi.fn();
     render(<Modal open onClose={onClose} title="X">b</Modal>);
-    await userEvent.click(screen.getByTestId('modal-backdrop'));
+    await userEvent.click(screen.getByTestId('sn-dialog-backdrop'));
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -27,5 +27,13 @@ describe('Modal', () => {
     render(<Modal open onClose={onClose} title="X">b</Modal>);
     await userEvent.click(screen.getByText('b'));
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('regains the v1 600px width and stays height-contained', () => {
+    render(<Modal open onClose={() => {}} title="X">b</Modal>);
+    const panel = screen.getByRole('dialog');
+    expect(panel.className).toContain('max-w-[600px]');
+    expect(panel.className).toContain('max-h-[90vh]');
+    expect(panel.className).toContain('overflow-y-auto');
   });
 });
