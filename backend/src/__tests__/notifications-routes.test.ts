@@ -161,4 +161,44 @@ describeDb('notification producers', () => {
       .send({ channelId: chan.id, content: 'x', media: { type: 'file', url: 'javascript:alert(1)' } });
     expect(res.status).toBe(400);
   });
+
+  it('allows an attachment-only message with no content (media satisfies the requirement)', async () => {
+    const sender = await makeUserWithToken(UserRole.FOREMAN, 'mc');
+    const chan = await channelRegistry.create('media-caption-less', 'group', sender.id, sender.id, [sender.id]);
+
+    const injectApp = express();
+    injectApp.use(express.json());
+    injectApp.use(cookieParser());
+    injectApp.use('/api', authenticateToken, channelsRouter);
+
+    const res = await request(injectApp)
+      .post('/api/messages/inject')
+      .set('Authorization', `Bearer ${sender.token}`)
+      .send({
+        channelId: chan.id,
+        content: '',
+        media: { type: 'image', url: '/media/images/no-caption.jpg', mimeType: 'image/jpeg', size: 4321 },
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.content).toBe('');
+    expect(res.body.media).toEqual(
+      expect.objectContaining({ type: 'image', url: '/media/images/no-caption.jpg' }),
+    );
+  });
+
+  it('rejects a message with neither content nor media', async () => {
+    const sender = await makeUserWithToken(UserRole.FOREMAN, 'mn');
+    const chan = await channelRegistry.create('media-neither', 'group', sender.id, sender.id, [sender.id]);
+
+    const injectApp = express();
+    injectApp.use(express.json());
+    injectApp.use(cookieParser());
+    injectApp.use('/api', authenticateToken, channelsRouter);
+
+    const res = await request(injectApp)
+      .post('/api/messages/inject')
+      .set('Authorization', `Bearer ${sender.token}`)
+      .send({ channelId: chan.id, content: '' });
+    expect(res.status).toBe(400);
+  });
 });

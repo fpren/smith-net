@@ -337,9 +337,13 @@ channelsRouter.post('/messages/inject', async (req: Request, res: Response, next
     const senderId = auth.id;
     const senderName = auth.displayName || auth.email || 'User';
 
-    if (!channelId || !content) {
-      return res.status(400).json({ error: 'channelId and content required' });
+    if (!channelId || (!content && !media)) {
+      return res.status(400).json({ error: 'channelId and content or media required' });
     }
+    // Attachment-only messages (no caption) are legitimate -- media satisfies
+    // the content requirement above, but downstream code below still expects
+    // a string, so normalize the missing/empty case once here.
+    content = content ?? '';
 
     // Media attachments (Design System v2 Plan 3): url must be a local /media/
     // upload path or an absolute http(s) URL -- never javascript:, data:, etc.
@@ -405,7 +409,10 @@ channelsRouter.post('/messages/inject', async (req: Request, res: Response, next
     // channels (memberIds empty) produce none -- we never fan out to a whole org.
     const ch = channelRegistry.get(channelId);
     if (ch) {
-      const preview = content.length > 80 ? `${content.slice(0, 77)}...` : content;
+      const mediaLabel = media ? `[${media.type}]` : '';
+      const preview = content
+        ? (content.length > 80 ? `${content.slice(0, 77)}...` : content)
+        : mediaLabel;
       const recipients = ch.memberIds.filter((m) => m !== senderId);
       await Promise.all(
         recipients.map((m) =>

@@ -607,6 +607,15 @@ export const handlers = [
       id?: string;
       media?: unknown;
     };
+    // Mirror the real backend's guard (backend/src/channelsRoutes.ts): media
+    // satisfies the content requirement, so attachment-only messages are
+    // legal, but channelId+content+media all missing/empty is a 400.
+    if (!body.channelId || (!body.content && !body.media)) {
+      return HttpResponse.json(
+        { error: 'channelId and content or media required' },
+        { status: 400 }
+      );
+    }
     return HttpResponse.json(
       {
         id: body.id ?? 'msg-new',
