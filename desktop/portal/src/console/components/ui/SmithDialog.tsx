@@ -13,31 +13,34 @@ interface SmithDialogProps {
 export function SmithDialog({ open, onClose, title, children, footer, destructive = false }: SmithDialogProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const restoreRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
     restoreRef.current = document.activeElement as HTMLElement | null;
-    // Focus the first focusable control, else the panel itself.
+    // Focus the element explicitly marked for autofocus, else the first
+    // focusable control, else the panel itself.
     const panel = panelRef.current;
-    const first = panel?.querySelector<HTMLElement>(
-      '[data-autofocus], button, [href], input, select, textarea',
-    );
+    const first =
+      panel?.querySelector<HTMLElement>('[data-autofocus]') ??
+      panel?.querySelector<HTMLElement>('button, [href], input, select, textarea');
     (first ?? panel)?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onCloseRef.current();
     };
     document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('keydown', onKey);
       restoreRef.current?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
   return (
     <div
       data-testid="sn-dialog-backdrop"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-sn-overlay p-4"
       onClick={destructive ? undefined : onClose}
     >
       <div
@@ -86,7 +89,7 @@ export function ConfirmDialog({ open, title, body, confirmLabel, cancelLabel = '
           <button
             type="button"
             onClick={onConfirm}
-            className="rounded-sn-input px-4 py-2 font-data text-sm bg-sn-status-error text-white hover:opacity-90 transition-opacity duration-sn-fast"
+            className="rounded-sn-input px-4 py-2 font-data text-sm bg-sn-status-error text-sn-ink-on-accent hover:opacity-90 transition-opacity duration-sn-fast"
           >
             {confirmLabel}
           </button>

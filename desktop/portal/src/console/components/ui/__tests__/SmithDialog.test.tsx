@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
+import { useState } from 'react';
 import { SmithDialog, ConfirmDialog } from '../SmithDialog';
 
 describe('SmithDialog', () => {
@@ -36,6 +37,53 @@ describe('SmithDialog', () => {
     render(<SmithDialog open onClose={onClose} title="t" destructive>x</SmithDialog>);
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('focus returns to the previously-focused element when the dialog closes', () => {
+    function Harness() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>trigger</button>
+          <SmithDialog open={open} onClose={() => setOpen(false)} title="t">
+            <button>inside</button>
+          </SmithDialog>
+        </>
+      );
+    }
+    render(<Harness />);
+    const trigger = screen.getByRole('button', { name: 'trigger' });
+    trigger.focus();
+    expect(trigger).toHaveFocus();
+
+    fireEvent.click(trigger);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    // Close by rerendering closed (simulates parent setting open=false).
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(trigger).toHaveFocus();
+  });
+
+  it('does NOT reset focus when the parent re-renders with a new onClose identity while open', () => {
+    function Harness({ tick }: { tick: number }) {
+      return (
+        <SmithDialog open onClose={() => {}} title="t">
+          <button>first</button>
+          <button>second</button>
+          <span data-testid="tick">{tick}</span>
+        </SmithDialog>
+      );
+    }
+    const { rerender } = render(<Harness tick={0} />);
+    const second = screen.getByRole('button', { name: 'second' });
+    second.focus();
+    expect(second).toHaveFocus();
+
+    // New onClose closure identity + new tick, simulating a polling re-render.
+    rerender(<Harness tick={1} />);
+    expect(screen.getByTestId('tick')).toHaveTextContent('1');
+    expect(second).toHaveFocus();
   });
 });
 
