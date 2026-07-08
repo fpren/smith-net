@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.ArrayDeque
+import com.guildofsmiths.trademesh.service.ChatManager
 import com.guildofsmiths.trademesh.service.NotificationHelper
 import com.guildofsmiths.trademesh.db.DeliveryStatus as DbDeliveryStatus
 
@@ -37,9 +38,16 @@ object MessageRepository {
     
     /** Database instance */
     private var database: AppDatabase? = null
-    
+
     /** Application context for notifications */
     private var appContext: Context? = null
+
+    /** messageId -> set of userIds who have read it (self excluded at write time). */
+    private val _readByMessage = MutableStateFlow<Map<String, Set<String>>>(emptyMap())
+    val readByMessage: StateFlow<Map<String, Set<String>>> = _readByMessage.asStateFlow()
+
+    /** Guards against wiring the ChatManager read-receipt listener more than once. */
+    private var receiptsWired = false
 
     /**
      * Initialize with context (call from Application.onCreate).
@@ -47,6 +55,7 @@ object MessageRepository {
     fun init(context: Context) {
         appContext = context.applicationContext
         database = AppDatabase.getInstance(context)
+        wireReadReceipts()
 
         // Load existing messages from database
         scope.launch {
@@ -66,6 +75,40 @@ object MessageRepository {
             if (messages.isEmpty() && BuildFlags.SEED_DEMO_DATA) {
                 seedMockRoofingConversation()
             }
+        }
+    }
+
+    /**
+     * Register this repository as the single ChatManager.OnReadReceiptListener,
+     * so incoming "message_read" WS frames accumulate into [readByMessage].
+     * Called once from [init], which TradeMeshApplication.onCreate calls exactly
+     * once at process start — that's the seam that guarantees single registration
+     * in production without needing ChatManager to expose its own init lifecycle
+     * (it's a lazily-touched object with no single "start" call site of its own).
+     */
+    private fun wireReadReceipts() {
+        if (receiptsWired) return
+        receiptsWired = true
+        ChatManager.setReadReceiptListener(object : ChatManager.OnReadReceiptListener {
+            override fun onMessageRead(messageId: String, readBy: String, readAt: Long) {
+                markReadLocal(messageId, readBy)
+            }
+        })
+    }
+
+    /**
+     * Record that [userId] has read [messageId]. Self-reads are excluded here
+     * (at write time) so consumers of [readByMessage] never need to filter
+     * their own id back out. Duplicate (messageId, userId) pairs are no-ops —
+     * the underlying map is structurally unchanged, so the StateFlow does not
+     * re-emit.
+     */
+    @Synchronized
+    fun markReadLocal(messageId: String, userId: String) {
+        if (userId.isBlank() || userId == UserPreferences.getUserId()) return
+        _readByMessage.update { current ->
+            val existing = current[messageId] ?: emptySet()
+            if (userId in existing) current else current + (messageId to (existing + userId))
         }
     }
 
@@ -268,7 +311,8 @@ object MessageRepository {
         _allMessages.value = emptyList()
         seenMessageIds.clear()
         pendingSyncQueue.clear()
-        
+        _readByMessage.value = emptyMap()
+
         scope.launch {
             database?.messageDao()?.deleteAll()
         }

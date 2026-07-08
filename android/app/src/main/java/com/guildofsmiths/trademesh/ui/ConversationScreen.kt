@@ -118,6 +118,18 @@ fun ConversationScreen(
         })
     }
 
+    // Emit a read receipt for each incoming message (not our own) exactly once
+    // per message id, mirroring the web's once-per-id pattern. The remembered
+    // set survives recomposition but not navigation away from this screen.
+    val sentReadReceiptIds = remember { mutableSetOf<String>() }
+    LaunchedEffect(messages) {
+        messages.forEach { message ->
+            if (message.senderId != localUserId && sentReadReceiptIds.add(message.id)) {
+                ChatManager.sendReadReceipt(message.id, channel?.id ?: message.channelId)
+            }
+        }
+    }
+
     // Peer selection for DM (initialize with passed-in peer if any)
     var showPeerSelector by remember { mutableStateOf(false) }
     var selectedPeer by remember { mutableStateOf(initialDmPeer) }
