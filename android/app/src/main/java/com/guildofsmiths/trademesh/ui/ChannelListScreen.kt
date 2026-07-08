@@ -20,8 +20,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -50,6 +48,7 @@ import com.guildofsmiths.trademesh.data.Channel
 import com.guildofsmiths.trademesh.data.ChannelType
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
+import com.guildofsmiths.trademesh.ui.theme2.SmithConfirmDialog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -394,39 +393,12 @@ private fun DeleteChannelDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = ConsoleTheme.background,
-        title = {
-            Text(
-                text = "DELETE CHANNEL",
-                style = ConsoleTheme.title
-            )
-        },
-        text = {
-            Text(
-                text = "Delete #$channelName? This cannot be undone.",
-                style = ConsoleTheme.body
-            )
-        },
-        confirmButton = {
-            Text(
-                text = "DELETE",
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.error),
-                modifier = Modifier
-                    .clickable(onClick = onConfirm)
-                    .padding(8.dp)
-            )
-        },
-        dismissButton = {
-            Text(
-                text = "CANCEL",
-                style = ConsoleTheme.action,
-                modifier = Modifier
-                    .clickable(onClick = onDismiss)
-                    .padding(8.dp)
-            )
-        }
+    SmithConfirmDialog(
+        title = "Delete channel",
+        body = "Delete #$channelName? This cannot be undone.",
+        confirmText = "DELETE",
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
     )
 }
 
@@ -611,11 +583,9 @@ private fun formatTime(timestamp: Long): String {
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
 private fun ChannelListScreenPreview() {
-    MaterialTheme {
-        ChannelListScreen(
-            beaconId = "default",
-            onChannelClick = { },
-            onBackClick = { }
-        )
-    }
+    ChannelListScreen(
+        beaconId = "default",
+        onChannelClick = { },
+        onBackClick = { }
+    )
 }

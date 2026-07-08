@@ -28,8 +28,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -59,6 +57,7 @@ import com.guildofsmiths.trademesh.data.ColleagueRepository
 import com.guildofsmiths.trademesh.data.PeerRepository
 import com.guildofsmiths.trademesh.data.SupabaseAuth
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
+import com.guildofsmiths.trademesh.ui.theme2.SmithConfirmDialog
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -279,29 +278,12 @@ private fun DeleteChatDialog(
     } else {
         "Deletes the channel and all its messages. This cannot be undone."
     }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title, style = ConsoleTheme.bodyBold) },
-        text = { Text(body, style = ConsoleTheme.bodySmall) },
-        confirmButton = {
-            Text(
-                text = if (isDm) "[HIDE]" else "[DELETE]",
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
-                modifier = Modifier
-                    .clickable(onClick = onConfirm)
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            )
-        },
-        dismissButton = {
-            Text(
-                text = "[CANCEL]",
-                style = ConsoleTheme.action,
-                modifier = Modifier
-                    .clickable(onClick = onDismiss)
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            )
-        },
-        containerColor = ConsoleTheme.surface
+    SmithConfirmDialog(
+        title = title,
+        body = body,
+        confirmText = if (isDm) "HIDE" else "DELETE",
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
     )
 }
 
@@ -931,11 +913,9 @@ private fun chatFormatTime(timestamp: Long): String {
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
 private fun ChatListScreenPreview() {
-    MaterialTheme {
-        ChatListScreen(
-            onChannelClick = { _, _ -> },
-            onNewClick = {},
-            onBackClick = {}
-        )
-    }
+    ChatListScreen(
+        onChannelClick = { _, _ -> },
+        onNewClick = {},
+        onBackClick = {}
+    )
 }
