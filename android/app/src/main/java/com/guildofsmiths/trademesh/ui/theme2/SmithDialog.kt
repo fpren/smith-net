@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -62,7 +64,7 @@ fun SmithDialog(
                     color = colors.ink,
                 ),
             )
-            Spacer(modifier = Modifier.padding(top = 10.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             Column(
                 modifier = Modifier
                     .weight(1f, fill = false)
@@ -93,7 +95,7 @@ fun SmithConfirmDialog(
         destructive = true,
         actions = {
             SmithButton(text = "CANCEL", onClick = onDismiss, variant = SmithButtonVariant.Ghost)
-            Spacer(modifier = Modifier.padding(horizontal = 4.dp))
+            Spacer(modifier = Modifier.width(8.dp))
             SmithButton(
                 text = confirmText,
                 onClick = onConfirm,

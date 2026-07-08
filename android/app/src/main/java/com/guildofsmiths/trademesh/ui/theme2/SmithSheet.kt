@@ -1,6 +1,7 @@
 package com.guildofsmiths.trademesh.ui.theme2
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -49,8 +50,9 @@ fun SmithSheet(
                 ),
             contentAlignment = Alignment.BottomCenter,
         ) {
+            val sheetState = remember { MutableTransitionState(false) }.apply { targetState = true }
             AnimatedVisibility(
-                visible = true,
+                visibleState = sheetState,
                 enter = slideInVertically(animationSpec = tween(250)) { it },
                 exit = slideOutVertically(animationSpec = tween(200)) { it },
             ) {
