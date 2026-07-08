@@ -47,6 +47,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,6 +75,7 @@ import com.guildofsmiths.trademesh.ui.components.SmithAvatar
 import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithConfirmDialog
 import com.guildofsmiths.trademesh.ui.theme2.SmithSheet
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -100,6 +102,9 @@ fun ConversationScreen(
     localUserId: String = "",
     channel: Channel? = null,
     beaconName: String? = null,
+    // Snapshot of unread count taken the moment this channel was opened
+    // (before it was cleared) — drives the frozen "NEW" divider position.
+    unreadAtOpen: Int = 0,
     canDeleteForAll: Boolean = false,  // True if user created channel or has permission
     onBackClick: (() -> Unit)? = null,
     onVoiceClick: (() -> Unit)? = null,
@@ -114,6 +119,14 @@ fun ConversationScreen(
 ) {
     val isSmithAI = initialDmPeer?.userId == "smith-ai"
     val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+
+    // NEW divider position — frozen the first time it's computed for this
+    // channel so late-arriving messages don't shift it. -1 means "no divider".
+    val newDividerIndex = remember(channel?.id) {
+        if (unreadAtOpen > 0) (messages.size - unreadAtOpen).coerceAtLeast(0) else -1
+    }
+
     var inputText by remember { mutableStateOf("") }
     var typingUsers by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var lastTypingSent by remember { mutableStateOf(0L) }
@@ -377,12 +390,16 @@ fun ConversationScreen(
         }
 
         // Messages
-        LazyColumn(
-            state = listState,
+        Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
                 .background(chatBgColor)
+        ) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
                 .padding(horizontal = 16.dp)
         ) {
             item { Spacer(modifier = Modifier.height(12.dp)) }
@@ -404,6 +421,10 @@ fun ConversationScreen(
             }
             
             itemsIndexed(items = messages, key = { _, msg -> msg.id }) { index, message ->
+                if (index == newDividerIndex) {
+                    NewMessagesDivider(chatBgColor = chatBgColor)
+                }
+
                 val previous = if (index > 0) messages[index - 1] else null
                 val showHeader = shouldShowHeader(message, previous)
 
@@ -592,6 +613,36 @@ fun ConversationScreen(
             }
 
             item { Spacer(modifier = Modifier.height(12.dp)) }
+        }
+
+        // Jump-to-latest pill — shown once the reader has scrolled well above
+        // the tail of the conversation.
+        val smithColors = LocalSmithColors.current
+        val showJumpToLatest = messages.size > 8 &&
+            listState.firstVisibleItemIndex < messages.size - 8
+        if (showJumpToLatest) {
+            Text(
+                text = "↓ LATEST",
+                style = TextStyle(
+                    fontFamily = ConsoleTheme.jetBrainsMono,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = smithColors.inkOnAccent,
+                    letterSpacing = 0.5.sp
+                ),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 12.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(smithColors.accent)
+                    .clickable {
+                        scope.launch {
+                            listState.animateScrollToItem(messages.size - 1)
+                        }
+                    }
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+            )
+        }
         }
 
         ConsoleSeparator()
@@ -881,6 +932,42 @@ fun ConversationScreen(
                 )
             }
         }
+    }
+}
+
+/**
+ * "NEW" boundary divider — hairline in the attention color with a centered,
+ * uppercase label. Rendered once, at the frozen index computed when the
+ * channel was opened (see [ConversationScreen]'s `newDividerIndex`).
+ */
+@Composable
+private fun NewMessagesDivider(chatBgColor: Color) {
+    val colors = LocalSmithColors.current
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(colors.attention)
+        )
+        Text(
+            text = "NEW",
+            style = TextStyle(
+                fontFamily = ConsoleTheme.jetBrainsMono,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium,
+                color = colors.attention,
+                letterSpacing = 1.sp
+            ),
+            modifier = Modifier
+                .background(chatBgColor)
+                .padding(horizontal = 8.dp)
+        )
     }
 }
 

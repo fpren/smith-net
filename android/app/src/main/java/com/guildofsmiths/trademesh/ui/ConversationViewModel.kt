@@ -94,21 +94,44 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
     
     /** Local user ID (from UserPreferences) */
     private val localUserId: String = UserPreferences.getUserId()
-    
+
     /** Local user display name (from UserPreferences) */
     private var localUserName: String = UserPreferences.getDisplayName()
-    
+
+    /**
+     * Snapshot of the channel's unread count taken the moment it was opened,
+     * BEFORE clearUnread ran. Survives until the next real setChannel call so
+     * the conversation screen can render a "NEW" divider at the unread
+     * boundary even after BeaconRepository's live unreadCount drops to 0.
+     */
+    private val _unreadAtOpen = MutableStateFlow(0)
+    val unreadAtOpen: StateFlow<Int> = _unreadAtOpen.asStateFlow()
+
     /**
      * Set the current beacon and channel.
      */
     fun setChannel(beaconId: String, channelId: String) {
+        val channelChanged = beaconId != _beaconId.value || channelId != _channelId.value
+
         _beaconId.value = beaconId
         _channelId.value = channelId
-        
+
         // Set as active in repository
         BeaconRepository.setActiveBeacon(beaconId)
         BeaconRepository.setActiveChannel(channelId)
-        
+
+        // Snapshot unread count BEFORE clearing — only on an actual channel
+        // switch, so repeat calls for the same channel (this is invoked from
+        // composable bodies, which recompose) don't stomp the snapshot with
+        // the already-cleared value.
+        if (channelChanged) {
+            _unreadAtOpen.value = BeaconRepository.beacons.value
+                .find { it.id == beaconId }
+                ?.channels
+                ?.find { it.id == channelId }
+                ?.unreadCount ?: 0
+        }
+
         // Clear unread for this channel
         BeaconRepository.clearUnread(beaconId, channelId)
     }

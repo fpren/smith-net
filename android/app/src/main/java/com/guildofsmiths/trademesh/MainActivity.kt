@@ -1211,6 +1211,7 @@ class MainActivity : ComponentActivity() {
                             val messages by viewModel.messages.collectAsState()
                             val channel by viewModel.currentChannel.collectAsState()
                             val beacon by viewModel.currentBeacon.collectAsState()
+                            val unreadAtOpen by viewModel.unreadAtOpen.collectAsState()
                             
                             // Create initial DM peer if passed via navigation
                             val initialDmPeer = if (dmPeerId != null && dmPeerName != null) {
@@ -1242,6 +1243,7 @@ class MainActivity : ComponentActivity() {
                                 localUserId = viewModel.getLocalUserId(),
                                 channel = channel,
                                 beaconName = beacon?.name,
+                                unreadAtOpen = unreadAtOpen,
                                 canDeleteForAll = canDeleteForAll,
                                 onBackClick = {
                                     navController.popBackStack()

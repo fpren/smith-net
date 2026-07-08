@@ -57,6 +57,7 @@ import com.guildofsmiths.trademesh.data.ColleagueRepository
 import com.guildofsmiths.trademesh.data.PeerRepository
 import com.guildofsmiths.trademesh.data.SupabaseAuth
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithConfirmDialog
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -667,7 +668,7 @@ private fun ChatRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = chatDisplayName(channel),
-                style = ConsoleTheme.bodyBold,
+                style = if (channel.unreadCount > 0) ConsoleTheme.bodyBold else ConsoleTheme.body,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -788,17 +789,18 @@ private fun ChatAvatar(
 
 @Composable
 private fun UnreadBadge(count: Int) {
+    val colors = LocalSmithColors.current
     Box(
         modifier = Modifier
             .size(18.dp)
             .clip(CircleShape)
-            .background(ConsoleTheme.accent),
+            .background(colors.attention),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = if (count > 99) "99+" else count.toString(),
             style = ConsoleTheme.caption.copy(
-                color = Color.White,
+                color = colors.inkOnAccent,
                 fontSize = 9.sp
             )
         )
