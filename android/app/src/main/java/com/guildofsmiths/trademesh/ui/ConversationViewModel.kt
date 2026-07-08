@@ -135,9 +135,15 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
         BeaconRepository.clearUnread(beaconId, channelId)
     }
 
-    /** The conversation left composition: retire the snapshot so a later
-     *  re-entry with zero new unread shows no divider. */
-    fun onConversationClosed() {
+    /**
+     * The conversation screen consumed the snapshot into its frozen divider —
+     * retire it so a later re-entry with zero new unread shows no divider.
+     * _unreadAtOpen is Activity-scoped shared state (one ViewModel for every
+     * conversation visit); only the live screen itself may retire it, never a
+     * navigation-lifecycle callback, which can fire after the next screen's
+     * setChannel already captured a fresh value.
+     */
+    fun consumeUnreadSnapshot() {
         _unreadAtOpen.value = 0
     }
     

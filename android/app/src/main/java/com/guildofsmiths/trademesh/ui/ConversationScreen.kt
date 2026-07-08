@@ -42,7 +42,6 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.IntOffset
 import kotlin.math.roundToInt
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -108,7 +107,7 @@ fun ConversationScreen(
     unreadAtOpen: Int = 0,
     canDeleteForAll: Boolean = false,  // True if user created channel or has permission
     onBackClick: (() -> Unit)? = null,
-    onConversationClosed: (() -> Unit)? = null,
+    onUnreadSnapshotConsumed: (() -> Unit)? = null,
     onVoiceClick: (() -> Unit)? = null,
     onCameraClick: (() -> Unit)? = null,
     onVideoClick: (() -> Unit)? = null,
@@ -134,8 +133,14 @@ fun ConversationScreen(
         else (messages.size - unreadAtOpen).coerceAtLeast(0)
     }
 
-    DisposableEffect(Unit) {
-        onDispose { onConversationClosed?.invoke() }
+    // Retire the snapshot once the divider has frozen against real messages.
+    // Runs post-composition (LaunchedEffect), so the remember above has already
+    // read the value this frame. Re-fires on mid-open re-snapshots (unreadAtOpen
+    // change) so they can't go stale either; the frozen divider is unaffected.
+    LaunchedEffect(unreadAtOpen, messages.isEmpty()) {
+        if (messages.isNotEmpty() && unreadAtOpen > 0) {
+            onUnreadSnapshotConsumed?.invoke()
+        }
     }
 
     var inputText by remember { mutableStateOf("") }
