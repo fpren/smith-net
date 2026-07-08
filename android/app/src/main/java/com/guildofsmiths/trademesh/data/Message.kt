@@ -22,7 +22,8 @@ enum class DeliveryStatus {
     PENDING,
     SENT,
     DELIVERED,
-    READ
+    READ,
+    FAILED
 }
 
 /**

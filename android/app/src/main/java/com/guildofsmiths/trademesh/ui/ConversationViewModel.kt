@@ -10,6 +10,7 @@ import com.guildofsmiths.trademesh.data.Channel
 import com.guildofsmiths.trademesh.data.ChannelType
 import com.guildofsmiths.trademesh.data.MediaAttachment
 import com.guildofsmiths.trademesh.data.MediaType
+import com.guildofsmiths.trademesh.data.DeliveryStatus
 import com.guildofsmiths.trademesh.data.Message
 import com.guildofsmiths.trademesh.data.MessageRepository
 import com.guildofsmiths.trademesh.data.UserPreferences
@@ -156,13 +157,20 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
             content = content,
             isMeshOrigin = BoundaryEngine.shouldUseMesh(getApplication()),
             recipientId = recipientId,
-            recipientName = recipientName
+            recipientName = recipientName,
+            deliveryStatus = DeliveryStatus.PENDING
         )
-        
+
         android.util.Log.i("ConversationVM", "   Routing message via BoundaryEngine...")
-        BoundaryEngine.routeMessage(getApplication(), message)
-        android.util.Log.i("ConversationVM", "   ✅ Message routed")
-        
+        try {
+            BoundaryEngine.routeMessage(getApplication(), message)
+            android.util.Log.i("ConversationVM", "   ✅ Message routed")
+            MessageRepository.updateDeliveryStatus(message.id, DeliveryStatus.SENT)
+        } catch (e: Exception) {
+            android.util.Log.e("ConversationVM", "   ❌ Message routing failed: ${e.message}")
+            MessageRepository.updateDeliveryStatus(message.id, DeliveryStatus.FAILED)
+        }
+
         // NOTE: BoundaryEngine.routeMessage() already sends via ChatManager when online
         // Do NOT call ChatManager.sendMessage() again here - it causes duplicates!
 
@@ -171,6 +179,26 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
             handleSmithAIChat(message)
         } else {
             observeMessageForAI(message)
+        }
+    }
+
+    /**
+     * Retry sending a message that previously ended up FAILED (or is otherwise
+     * still PENDING). Looks up the existing message, sets it back to PENDING,
+     * re-runs the same route call, and settles SENT/FAILED identically to
+     * [sendMessage].
+     */
+    fun retryMessage(messageId: String) {
+        val message = MessageRepository.getAllMessages().find { it.id == messageId } ?: return
+
+        MessageRepository.updateDeliveryStatus(messageId, DeliveryStatus.PENDING)
+
+        try {
+            BoundaryEngine.routeMessage(getApplication(), message)
+            MessageRepository.updateDeliveryStatus(messageId, DeliveryStatus.SENT)
+        } catch (e: Exception) {
+            android.util.Log.e("ConversationVM", "   ❌ Message retry failed: ${e.message}")
+            MessageRepository.updateDeliveryStatus(messageId, DeliveryStatus.FAILED)
         }
     }
 

@@ -890,9 +890,12 @@ private fun MessageBlock(
                             DeliveryStatus.SENT -> "[✓]"
                             DeliveryStatus.DELIVERED -> "[✓✓]"
                             DeliveryStatus.READ -> "[✓✓]"
+                            DeliveryStatus.FAILED -> "[!]"
                         }
                         val statusColor = if (message.deliveryStatus == DeliveryStatus.READ)
                             Color(0xFF5A8C76)  // sage green
+                        else if (message.deliveryStatus == DeliveryStatus.FAILED)
+                            ConsoleTheme.error
                         else
                             ConsoleTheme.textMuted
                         Text(

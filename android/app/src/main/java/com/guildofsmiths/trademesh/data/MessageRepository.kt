@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.ArrayDeque
 import com.guildofsmiths.trademesh.service.NotificationHelper
+import com.guildofsmiths.trademesh.db.DeliveryStatus as DbDeliveryStatus
 
 /**
  * Repository for managing messages.
@@ -195,6 +196,33 @@ object MessageRepository {
         }
     }
     
+    /**
+     * Update the delivery status of a message (PENDING/SENT/FAILED/etc).
+     * Updates the in-memory _allMessages entry immediately, and persists
+     * to the DAO (currently a caller-less no-op) with the int mapping.
+     * Unknown ids are a no-op.
+     */
+    @Synchronized
+    fun updateDeliveryStatus(messageId: String, status: DeliveryStatus) {
+        _allMessages.update { messages ->
+            messages.map { message ->
+                if (message.id == messageId) message.copy(deliveryStatus = status) else message
+            }
+        }
+
+        scope.launch {
+            database?.messageDao()?.updateDeliveryStatus(messageId, status.toDbInt())
+        }
+    }
+
+    private fun DeliveryStatus.toDbInt(): Int = when (this) {
+        DeliveryStatus.PENDING -> DbDeliveryStatus.PENDING
+        DeliveryStatus.SENT -> DbDeliveryStatus.SENT
+        DeliveryStatus.DELIVERED -> DbDeliveryStatus.DELIVERED
+        DeliveryStatus.READ -> DbDeliveryStatus.READ
+        DeliveryStatus.FAILED -> DbDeliveryStatus.FAILED
+    }
+
     /**
      * Get all messages (for debugging).
      */
