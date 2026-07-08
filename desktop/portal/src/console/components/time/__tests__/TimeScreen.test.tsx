@@ -29,7 +29,7 @@ describe('TimeScreen container', () => {
     expect(screen.getByLabelText('shift elapsed')).toHaveTextContent('--:--:--');
     fireEvent.click(screen.getByRole('button', { name: /clock in/i }));
     expect(h.toggle.clockIn).not.toHaveBeenCalled();
-    expect(screen.getByTestId('modal-backdrop')).toBeInTheDocument(); // dialog opened
+    expect(screen.getByTestId('sn-dialog-backdrop')).toBeInTheDocument(); // dialog opened
   });
 
   it('on-clock: shows entry type + job, and the switch clocks out instantly (no dialog)', () => {
@@ -42,6 +42,6 @@ describe('TimeScreen container', () => {
     expect(screen.getByText(/Kitchen/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /clock out/i }));
     expect(h.toggle.clockOut).toHaveBeenCalled();
-    expect(screen.queryByTestId('modal-backdrop')).not.toBeInTheDocument(); // no dialog
+    expect(screen.queryByTestId('sn-dialog-backdrop')).not.toBeInTheDocument(); // no dialog
   });
 });

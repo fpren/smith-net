@@ -18,7 +18,7 @@ describe('Modal', () => {
   it('calls onClose when backdrop clicked', async () => {
     const onClose = vi.fn();
     render(<Modal open onClose={onClose} title="X">b</Modal>);
-    await userEvent.click(screen.getByTestId('modal-backdrop'));
+    await userEvent.click(screen.getByTestId('sn-dialog-backdrop'));
     expect(onClose).toHaveBeenCalled();
   });
 
