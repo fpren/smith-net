@@ -50,12 +50,16 @@ describeDb('auth /org routes (invite, join, members)', () => {
     expect(res.status).toBe(401);
   });
 
-  it('POST /api/auth/org/invites rejects non-foreman role (403)', async () => {
+  // SOLO may issue org invites (network-of-solos): a solo user invites others
+  // into their org-of-one, forming a team of peers. See commit 09307d6
+  // ("authRoutes: SOLO may issue org invites (network-of-solos)").
+  it('POST /api/auth/org/invites allows a solo user (200)', async () => {
     const solo = await createUserAndLogin('s1', UserRole.SOLO);
     const res = await request(app)
       .post('/api/auth/org/invites')
       .set('Authorization', `Bearer ${solo.token}`);
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(200);
+    expect(res.body.code).toMatch(/^[A-Z2-9]{8}$/);
   });
 
   it('POST /api/auth/org/invites returns code + expiresAt for a foreman', async () => {
