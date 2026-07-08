@@ -122,4 +122,43 @@ describeDb('notification producers', () => {
     const senderList = await notificationService.listForUser(sender.id);
     expect(senderList.some((n) => n.type === 'message')).toBe(false);
   });
+
+  it('carries a media attachment through inject', async () => {
+    const sender = await makeUserWithToken(UserRole.FOREMAN, 'md');
+    const chan = await channelRegistry.create('media-team', 'group', sender.id, sender.id, [sender.id]);
+
+    const injectApp = express();
+    injectApp.use(express.json());
+    injectApp.use(cookieParser());
+    injectApp.use('/api', authenticateToken, channelsRouter);
+
+    const res = await request(injectApp)
+      .post('/api/messages/inject')
+      .set('Authorization', `Bearer ${sender.token}`)
+      .send({
+        channelId: chan.id,
+        content: '[▣] photo',
+        media: { type: 'image', url: '/media/images/abc.jpg', mimeType: 'image/jpeg', size: 1234 },
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.media).toEqual(
+      expect.objectContaining({ type: 'image', url: '/media/images/abc.jpg' }),
+    );
+  });
+
+  it('rejects media with a non-local, non-http url', async () => {
+    const sender = await makeUserWithToken(UserRole.FOREMAN, 'mb');
+    const chan = await channelRegistry.create('media-bad', 'group', sender.id, sender.id, [sender.id]);
+
+    const injectApp = express();
+    injectApp.use(express.json());
+    injectApp.use(cookieParser());
+    injectApp.use('/api', authenticateToken, channelsRouter);
+
+    const res = await request(injectApp)
+      .post('/api/messages/inject')
+      .set('Authorization', `Bearer ${sender.token}`)
+      .send({ channelId: chan.id, content: 'x', media: { type: 'file', url: 'javascript:alert(1)' } });
+    expect(res.status).toBe(400);
+  });
 });

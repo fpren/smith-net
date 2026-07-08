@@ -44,6 +44,15 @@ export interface Message {
   origin: MessageOrigin;
   recipientId?: string;          // For DMs
   recipientName?: string;
+  media?: {
+    type: 'image' | 'voice' | 'video' | 'file';
+    url: string;
+    filename?: string;
+    mimeType?: string;
+    size?: number;
+    duration?: number;
+    thumbnailUrl?: string;
+  };
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -162,6 +171,7 @@ export interface InjectMessageRequest {
   channelId: string;
   content: string;
   origin: MessageOrigin;
+  media?: Message['media'];
 }
 
 export interface RegisterGatewayRequest {
