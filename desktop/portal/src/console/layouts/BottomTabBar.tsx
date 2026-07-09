@@ -45,6 +45,9 @@ export function BottomTabBar() {
       {hasForemanRole() && <TabLink to="/console/jobs" label="Jobs" />}
       {hasForemanRole() && <TabLink to="/console/clients" label="Clients" />}
       <TabLink to="/console/comm" label="Comm" />
+      {/* Below lg the rail (gear/avatar/logout) is hidden -- Settings is the
+          only path to account actions, incl. Sign out, so it must be a tab. */}
+      <TabLink to="/console/settings" label="Set" />
     </nav>
   );
 }

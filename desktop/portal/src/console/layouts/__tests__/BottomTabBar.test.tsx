@@ -39,6 +39,14 @@ describe('BottomTabBar', () => {
     expect(screen.queryByRole('link', { name: /Map/ })).not.toBeInTheDocument();
   });
 
+  it('always carries a Settings tab -- the rail (and its gear/logout) is hidden below lg', () => {
+    useAuthStore.getState().setUser({
+      id: 'u-solo2', email: 's2@x.com', displayName: 'S2', role: 'solo', emailVerified: true,
+    });
+    render(<MemoryRouter><BottomTabBar /></MemoryRouter>);
+    expect(screen.getByRole('link', { name: /Set/ })).toHaveAttribute('href', '/console/settings');
+  });
+
   it('shows no Admin tab even for an admin (admin lives behind the gear)', () => {
     useAuthStore.getState().setUser({
       id: 'a1', email: 'a@x.com', displayName: 'A', role: 'admin', emailVerified: true,
