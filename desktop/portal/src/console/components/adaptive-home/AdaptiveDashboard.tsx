@@ -11,11 +11,13 @@ import {
   MapPreview,
   JobsCard,
   InvoicesCard,
+  CrewPresenceCard,
 } from './cards';
 import { useJobsPolling } from '../../hooks/useJobsPolling';
 import { useJobsStore } from '../../stores/jobsStore';
 import { useCrewPositionsPolling } from '../../hooks/useCrewPositionsPolling';
 import { useCrewPositionsStore } from '../../stores/crewPositionsStore';
+import { useAuthStore } from '../../auth/authStore';
 
 // "Use the app's real screens", adaptively. The home is the app's dashboard --
 // a scrolling grid of rounded cards (the Android DashboardModules idiom), each
@@ -64,6 +66,7 @@ function GlanceLine() {
 export function AdaptiveDashboard() {
   const [ref, size] = useContainerSize();
   const plan = size.width > 0 ? adaptLayout(surfaceFromPx(size.width, size.height)) : null;
+  const hasForemanRole = useAuthStore((s) => s.hasForemanRole);
 
   let content: ReactNode = null;
   if (plan) {
@@ -129,6 +132,15 @@ export function AdaptiveDashboard() {
               <Card className="h-[172px]">
                 <SystemCard />
               </Card>
+              {/* Crew entry point (Plan 5 Task 5): a compact, foreman-gated
+                  presence summary linking to /console/crew. The full crew
+                  screen is also embedded inline below (CrewRoute); this is
+                  the small link-row entry point the brief asked for. */}
+              {hasForemanRole() && (
+                <Card className="h-[172px]">
+                  <CrewPresenceCard />
+                </Card>
+              )}
             </div>
             <div
               className="grid gap-3 sm:gap-4 items-start"

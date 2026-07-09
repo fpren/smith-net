@@ -133,5 +133,19 @@ describe('JobsListRoute', () => {
       expect(listContainer?.className).toMatch(/hidden/);
       expect(listContainer?.className).toMatch(/xl:block/);
     });
+
+    it('applies the panel-in slide animation class to the outlet wrapper, keyed on the active id', () => {
+      useJobsStore.getState().setJobs([j('a', 'planned')]);
+      renderNestedAt('/console/jobs/a');
+      const panel = screen.getByText('Detail placeholder').closest('.panel-in');
+      expect(panel).not.toBeNull();
+    });
+
+    it('does not render "Select a job" when the job list itself is empty and no id is active (double-EmptyState fix)', async () => {
+      server.use(http.get('/api/jobs', () => HttpResponse.json({ jobs: [] })));
+      renderNestedAt('/console/jobs');
+      await screen.findByText(/no jobs yet/i);
+      expect(screen.queryByText('Select a job')).not.toBeInTheDocument();
+    });
   });
 });

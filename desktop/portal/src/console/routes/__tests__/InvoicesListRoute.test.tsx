@@ -135,5 +135,19 @@ describe('InvoicesListRoute', () => {
       expect(listContainer?.className).toMatch(/hidden/);
       expect(listContainer?.className).toMatch(/xl:block/);
     });
+
+    it('applies the panel-in slide animation class to the outlet wrapper, keyed on the active id', () => {
+      useInvoicesStore.getState().setInvoices([invoice]);
+      renderNestedAt('/console/invoices/inv-1');
+      const panel = screen.getByText('Detail placeholder').closest('.panel-in');
+      expect(panel).not.toBeNull();
+    });
+
+    it('does not render "Select an invoice" when the invoice list itself is empty and no id is active (double-EmptyState fix)', async () => {
+      server.use(http.get('/api/invoices', () => HttpResponse.json({ invoices: [] })));
+      renderNestedAt('/console/invoices');
+      await waitFor(() => expect(screen.getByText(/No invoices yet/i)).toBeInTheDocument());
+      expect(screen.queryByText('Select an invoice')).not.toBeInTheDocument();
+    });
   });
 });

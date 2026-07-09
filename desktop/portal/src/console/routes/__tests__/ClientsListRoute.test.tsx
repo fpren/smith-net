@@ -93,5 +93,19 @@ describe('ClientsListRoute', () => {
       expect(listContainer?.className).toMatch(/hidden/);
       expect(listContainer?.className).toMatch(/xl:block/);
     });
+
+    it('applies the panel-in slide animation class to the outlet wrapper, keyed on the active id', () => {
+      useClientsStore.getState().setClients([c('a', 'Acme')]);
+      renderNestedAt('/console/clients/a');
+      const panel = screen.getByText('Detail placeholder').closest('.panel-in');
+      expect(panel).not.toBeNull();
+    });
+
+    it('does not render "Select a client" when the client list itself is empty and no id is active (double-EmptyState fix)', async () => {
+      server.use(http.get('/api/clients', () => HttpResponse.json({ clients: [] })));
+      renderNestedAt('/console/clients');
+      await waitFor(() => expect(screen.getByText('No clients.')).toBeInTheDocument());
+      expect(screen.queryByText('Select a client')).not.toBeInTheDocument();
+    });
   });
 });

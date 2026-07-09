@@ -185,4 +185,34 @@ describe('CommRoute', () => {
     expect(await screen.findByText('recovered')).toBeInTheDocument();
     expect(useCommStore.getState().isStaleChannels).toBe(false);
   });
+
+  describe('comm width relief (Plan 5 Task 5 -- "DialRail xl gate")', () => {
+    // Decision: the DialRail aside stays visible at lg (not gated to `hidden
+    // xl:block`) because the mobile inline DialField is itself `lg:hidden` --
+    // gating the rail to xl-only would leave no reachable "dial an id" control
+    // between 1024 and 1279px. Both comm side zones are narrowed to lg:w-72
+    // instead, to relieve the squeeze without dropping that capability.
+    it('renders "DIAL A SMITHNET ID" (DialField, via DialRail) at lg, not gated behind xl', () => {
+      useCommStore.getState().setChannels([makeChannel('ch-x', 'general')]);
+      render(<MemoryRouter><CommRoute /></MemoryRouter>);
+      // Two DialFields exist in the tree (mobile-inline + DialRail); at least
+      // one of them must not require an xl-only class to be reachable.
+      const labels = screen.getAllByText('DIAL A SMITHNET ID');
+      expect(labels.length).toBeGreaterThan(0);
+      const dialRailAside = labels
+        .map((l) => l.closest('aside'))
+        .find((aside) => aside?.className.includes('lg:flex'));
+      expect(dialRailAside).toBeTruthy();
+      expect(dialRailAside?.className).not.toMatch(/xl:block/);
+      expect(dialRailAside?.className).toMatch(/lg:w-72/);
+    });
+
+    it('narrows the left comm zone to lg:w-72 as well', () => {
+      useCommStore.getState().setChannels([makeChannel('ch-x', 'general')]);
+      render(<MemoryRouter><CommRoute /></MemoryRouter>);
+      const leftAside = screen.getByText('general').closest('aside');
+      expect(leftAside?.className).toMatch(/lg:w-72/);
+      expect(leftAside?.className).not.toMatch(/lg:w-80/);
+    });
+  });
 });

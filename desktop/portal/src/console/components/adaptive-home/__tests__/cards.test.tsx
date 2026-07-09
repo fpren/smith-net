@@ -2,12 +2,13 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
-import { JobsCard, InvoicesCard, DispatchCard, SystemCard, NotificationsCard, OpenTasksCard } from '../cards';
+import { JobsCard, InvoicesCard, DispatchCard, SystemCard, NotificationsCard, OpenTasksCard, CrewPresenceCard } from '../cards';
 import { useJobsStore } from '../../../stores/jobsStore';
 import { useInvoicesStore } from '../../../stores/invoicesStore';
 import { useNotificationsStore } from '../../../stores/notificationsStore';
 import { useAdminHealthStore } from '../../../stores/adminHealthStore';
 import { useAuthStore } from '../../../auth/authStore';
+import { useCrewStore } from '../../../stores/crewStore';
 import { server } from '../../../test/msw-server';
 
 function withRouter(el: JSX.Element) {
@@ -148,6 +149,37 @@ describe('NotificationsCard', () => {
     })));
     fireEvent.click(screen.getByRole('button', { name: /retry/i }));
     await waitFor(() => expect(screen.getByText('New message')).toBeInTheDocument());
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+});
+
+describe('CrewPresenceCard', () => {
+  beforeEach(() => useCrewStore.getState().clear());
+
+  it('links to /console/crew (Crew entry point, Plan 5 Task 5)', async () => {
+    render(withRouter(<CrewPresenceCard />));
+    await waitFor(() => expect(screen.getByText('Crew')).toBeInTheDocument());
+    expect(screen.getByRole('link', { name: /open/i })).toHaveAttribute('href', '/console/crew');
+  });
+
+  it('renders LoadingState while the roster is loading', () => {
+    render(withRouter(<CrewPresenceCard />));
+    expect(screen.getByRole('status')).toBeInTheDocument();
+  });
+
+  it('renders the default MSW roster once loaded', async () => {
+    render(withRouter(<CrewPresenceCard />));
+    await waitFor(() => expect(screen.getByText(/member/)).toBeInTheDocument());
+  });
+
+  it('initial fetch failure shows ErrorState with retry, not the empty list', async () => {
+    server.use(http.get('/api/profiles/crew', () => HttpResponse.json({ error: 'boom' }, { status: 500 })));
+    render(withRouter(<CrewPresenceCard />));
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+
+    server.use(http.get('/api/profiles/crew', () => HttpResponse.json({ crew: [] })));
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+    await waitFor(() => expect(screen.getByText('No crew.')).toBeInTheDocument());
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

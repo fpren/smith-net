@@ -59,7 +59,7 @@ export function CommRoute() {
       {/* LEFT ZONE */}
       <aside
         className={
-          'w-full lg:w-80 lg:flex-shrink-0 flex flex-col border-b lg:border-b-0 lg:border-r border-sn-line min-h-0 ' +
+          'w-full lg:w-72 lg:flex-shrink-0 flex flex-col border-b lg:border-b-0 lg:border-r border-sn-line min-h-0 ' +
           (selectedId ? 'hidden lg:flex' : 'flex')
         }
       >

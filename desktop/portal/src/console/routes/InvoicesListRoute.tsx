@@ -50,7 +50,13 @@ export function InvoicesListRoute() {
   const [showCreate, setShowCreate] = useState(false);
   // Independent path match (not useParams — the :id param belongs to the
   // nested child route, which isn't in this component's own route context).
-  const idActive = Boolean(useMatch('/console/invoices/:id'));
+  const detailMatch = useMatch('/console/invoices/:id');
+  const idActive = Boolean(detailMatch);
+  // Double-EmptyState fix (Plan 5 Task 5): when the list itself has nothing
+  // in it (the "no invoices yet" CTA branch below), the beside-list panel
+  // must render nothing rather than its own "Select an invoice" EmptyState --
+  // otherwise the screen shows two empty states at once.
+  const noInvoicesYet = invoices.length === 0 && !isLoadingList && !listStale;
 
   const byStatus = (st: InvoiceStatus) => invoices.filter((i) => i.status === st);
 
@@ -109,7 +115,13 @@ export function InvoicesListRoute() {
             : 'hidden xl:block xl:overflow-y-auto xl:min-h-0 xl:border-l xl:border-sn-line xl:pl-6'
         }
       >
-        {idActive ? <Outlet /> : <EmptyState title="Select an invoice" />}
+        {idActive ? (
+          <div key={detailMatch?.params.id} className="panel-in">
+            <Outlet />
+          </div>
+        ) : noInvoicesYet ? null : (
+          <EmptyState title="Select an invoice" />
+        )}
       </div>
     </div>
   );

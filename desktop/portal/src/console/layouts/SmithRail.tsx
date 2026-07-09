@@ -16,7 +16,7 @@ import { authClient } from '../auth/authClient';
 import { useAuthStore } from '../auth/authStore';
 
 const TAB_BASE =
-  'flex items-center justify-center h-9 w-9 mx-auto rounded-md text-[10px] font-mono ' +
+  'flex items-center justify-center h-9 w-9 mx-auto rounded-md text-[10px] font-data ' +
   'font-semibold uppercase tracking-wide transition-colors cursor-pointer shrink-0 ' +
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sn-accent focus-visible:ring-offset-1';
 
@@ -132,7 +132,7 @@ export function SmithRail() {
         aria-label="Log out"
         title="Log out"
         className={cn(
-          'flex items-center justify-center h-8 w-8 mx-auto rounded-md text-sn-ink-muted font-mono ' +
+          'flex items-center justify-center h-8 w-8 mx-auto rounded-md text-sn-ink-muted font-data ' +
             'hover:text-sn-accent transition-colors',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sn-accent focus-visible:ring-offset-1'
         )}
