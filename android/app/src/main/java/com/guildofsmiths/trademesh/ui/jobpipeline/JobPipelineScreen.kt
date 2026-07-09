@@ -40,7 +40,8 @@ import com.guildofsmiths.trademesh.data.UserPreferences
 import kotlinx.coroutines.launch
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
 import com.guildofsmiths.trademesh.ui.ConsoleSeparator
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import com.guildofsmiths.trademesh.ui.invoice.InvoiceGenerator
 import com.guildofsmiths.trademesh.ui.invoice.InvoiceFormatter
 import com.guildofsmiths.trademesh.ui.invoice.InvoicePreviewDialog
@@ -63,6 +64,7 @@ fun JobPipelineScreen(
     onAddMaterial: ((Material, orderIt: Boolean, vendor: String?) -> Unit)? = null,
     onSummarizeToday: (() -> Unit)? = null
 ) {
+    val colors = LocalSmithColors.current
     val context = LocalContext.current
     val shareScope = androidx.compose.runtime.rememberCoroutineScope()
     var showInvoice by remember { mutableStateOf(false) }
@@ -228,7 +230,7 @@ fun JobPipelineScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(ConsoleTheme.background)
+            .background(colors.bgBase)
     ) {
         ConsoleHeader(
             title = job.clientName ?: job.title,
@@ -248,12 +250,12 @@ fun JobPipelineScreen(
             if (job.clientName?.isNotBlank() == true || job.clientPhone.isNotBlank()) {
                 SectionHeader("CLIENT")
                 if (job.clientName?.isNotBlank() == true) {
-                    Text(text = job.clientName, style = ConsoleTheme.body)
+                    Text(text = job.clientName, style = SmithType.body.copy(color = colors.ink))
                 }
                 if (job.clientPhone.isNotBlank()) {
                     Text(
                         text = job.clientPhone,
-                        style = ConsoleTheme.body.copy(color = ConsoleTheme.accent),
+                        style = SmithType.body.copy(color = colors.accent),
                         modifier = Modifier.clickable {
                             val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${job.clientPhone}"))
                             context.startActivity(intent)
@@ -263,7 +265,7 @@ fun JobPipelineScreen(
                 if (job.clientAddress.isNotBlank()) {
                     Text(
                         text = job.clientAddress,
-                        style = ConsoleTheme.body.copy(color = ConsoleTheme.accent),
+                        style = SmithType.body.copy(color = colors.accent),
                         modifier = Modifier.clickable {
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${Uri.encode(job.clientAddress)}"))
                             context.startActivity(intent)
@@ -275,7 +277,7 @@ fun JobPipelineScreen(
             // Scope
             if (job.description.isNotBlank()) {
                 SectionHeader("SCOPE")
-                Text(text = job.description, style = ConsoleTheme.bodySmall)
+                Text(text = job.description, style = SmithType.bodySmall.copy(color = colors.inkMuted))
             }
 
             // Tasks
@@ -291,26 +293,26 @@ fun JobPipelineScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .shadow(1.dp, RoundedCornerShape(4.dp))
-                            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+                            .background(colors.bgPanel, RoundedCornerShape(4.dp))
                             .clickable { onToggleMaterial(index) }
                             .padding(8.dp)
                     ) {
                         Text(
                             text = if (material.checked) "[x]" else "[ ]",
-                            style = ConsoleTheme.body,
+                            style = SmithType.body.copy(color = colors.ink),
                             modifier = Modifier.width(32.dp)
                         )
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(text = material.name, style = ConsoleTheme.bodySmall)
+                            Text(text = material.name, style = SmithType.bodySmall.copy(color = colors.inkMuted))
                             if (material.quantity > 0 && material.unitCost > 0) {
                                 Text(
                                     text = "${material.quantity} ${material.unit} × $${material.unitCost}",
-                                    style = ConsoleTheme.caption
+                                    style = SmithType.caption.copy(color = colors.inkMuted)
                                 )
                             }
                         }
                         if (material.totalCost > 0) {
-                            Text(text = "$${String.format("%.2f", material.totalCost)}", style = ConsoleTheme.bodySmall)
+                            Text(text = "$${String.format("%.2f", material.totalCost)}", style = SmithType.bodySmall.copy(color = colors.inkMuted))
                         }
                     }
                     Spacer(modifier = Modifier.height(2.dp))
@@ -321,7 +323,7 @@ fun JobPipelineScreen(
             if (job.equipmentList.isNotEmpty()) {
                 SectionHeader("EQUIPMENT")
                 job.equipmentList.forEach { item ->
-                    Text(text = "  - $item", style = ConsoleTheme.bodySmall)
+                    Text(text = "  - $item", style = SmithType.bodySmall.copy(color = colors.inkMuted))
                 }
             }
 
@@ -335,7 +337,7 @@ fun JobPipelineScreen(
                         val time = SimpleDateFormat("h:mm a", Locale.US).format(Date(note.timestamp))
                         Text(
                             "$time — ${note.text}",
-                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                            style = SmithType.caption.copy(color = colors.inkMuted)
                         )
                     }
                 }
@@ -357,8 +359,8 @@ fun JobPipelineScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                            .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
                             .clickable { expanded = !expanded }
                             .padding(10.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -367,21 +369,21 @@ fun JobPipelineScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(dateStr, style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.text))
-                            Text("${String.format("%.1f", log.hoursWorked)}h", style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent))
+                            Text(dateStr, style = SmithType.captionBold.copy(color = colors.ink))
+                            Text("${String.format("%.1f", log.hoursWorked)}h", style = SmithType.caption.copy(color = colors.accent))
                         }
-                        Text(log.summaryDetailed, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                        Text(log.summaryDetailed, style = SmithType.caption.copy(color = colors.inkMuted))
 
                         if (expanded && log.summaryNarrative != null) {
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text("AI REPORT", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent))
-                            Text(log.summaryNarrative, style = ConsoleTheme.caption.copy(color = ConsoleTheme.text))
+                            Text("AI REPORT", style = SmithType.captionBold.copy(color = colors.accent))
+                            Text(log.summaryNarrative, style = SmithType.caption.copy(color = colors.ink))
                         }
                         if (expanded && log.workerNotes.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text("NOTES", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+                            Text("NOTES", style = SmithType.captionBold.copy(color = colors.inkMuted))
                             log.workerNotes.forEach { note ->
-                                Text("- ${note.text}", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                                Text("- ${note.text}", style = SmithType.caption.copy(color = colors.inkMuted))
                             }
                         }
                     }
@@ -391,7 +393,7 @@ fun JobPipelineScreen(
                 if (job.dailyLogs.size > 2 && !showAllLogs) {
                     Text(
                         "[Show all ${job.dailyLogs.size} logs]",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                        style = SmithType.action.copy(color = colors.accent),
                         modifier = Modifier.clickable { showAllLogs = true }
                     )
                 }
@@ -415,31 +417,31 @@ fun JobPipelineScreen(
             if (hoursLogged > 0) {
                 Text(
                     text = "Hours:     ${String.format("%.2fh", hoursLogged)} × $${String.format("%.2f", effectiveRate)}",
-                    style = ConsoleTheme.bodySmall
+                    style = SmithType.bodySmall.copy(color = colors.inkMuted)
                 )
             } else {
                 Text(
                     text = "Hours:     — (clock in to log)",
-                    style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted)
+                    style = SmithType.bodySmall.copy(color = colors.inkMuted)
                 )
             }
-            Text(text = "Labor:     $${String.format("%.2f", laborCost)}", style = ConsoleTheme.bodySmall)
-            Text(text = "Materials: $${String.format("%.2f", materialsCost)}", style = ConsoleTheme.bodySmall)
+            Text(text = "Labor:     $${String.format("%.2f", laborCost)}", style = SmithType.bodySmall.copy(color = colors.inkMuted))
+            Text(text = "Materials: $${String.format("%.2f", materialsCost)}", style = SmithType.bodySmall.copy(color = colors.inkMuted))
             Text(
                 text = "Total:     $${String.format("%.2f", total)}",
-                style = ConsoleTheme.bodyBold
+                style = SmithType.bodyBold.copy(color = colors.ink)
             )
             if (deposit > 0) {
                 Text(
                     text = "Deposit:  -$${String.format("%.2f", deposit)}" +
                             (job.depositNote?.let { "    ($it)" } ?: ""),
-                    style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted)
+                    style = SmithType.bodySmall.copy(color = colors.inkMuted)
                 )
                 val balanceLabel = if (balanceDue < 0) "Credit:" else "Balance:"
                 val balanceAmt = "$${String.format("%.2f", kotlin.math.abs(balanceDue))}"
                 Text(
                     text = "$balanceLabel   $balanceAmt",
-                    style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.accent)
+                    style = SmithType.bodyBold.copy(color = colors.accent)
                 )
             }
 
@@ -469,7 +471,7 @@ fun JobPipelineScreen(
                     if (isClockedInThisJob) {
                         OutlinedActionButton(
                             text = "CLOCK OUT",
-                            color = ConsoleTheme.warning,
+                            color = colors.attention,
                             modifier = Modifier.testTag("solo_e2e_job_clock_out")
                         ) { onClockOut() }
                     } else {
@@ -491,7 +493,7 @@ fun JobPipelineScreen(
                     if (unchecked > 0) {
                         Text(
                             text = "! $unchecked materials not checked off",
-                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.warning)
+                            style = SmithType.caption.copy(color = colors.attention)
                         )
                     }
                     // Detail level picker
@@ -515,7 +517,7 @@ fun JobPipelineScreen(
                     if (nothingBillable) {
                         Text(
                             text = "! Nothing to bill - clock in to log hours or add materials",
-                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.warning)
+                            style = SmithType.caption.copy(color = colors.attention)
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                     }
@@ -524,7 +526,7 @@ fun JobPipelineScreen(
                     }
                 }
                 JobStage.CLOSED -> {
-                    Text(text = "Job closed.", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                    Text(text = "Job closed.", style = SmithType.caption.copy(color = colors.inkMuted))
                 }
             }
         }
@@ -533,18 +535,20 @@ fun JobPipelineScreen(
 
 @Composable
 private fun SectionHeader(text: String) {
-    Text(text = text, style = ConsoleTheme.captionBold)
+    val colors = LocalSmithColors.current
+    Text(text = text, style = SmithType.captionBold.copy(color = colors.inkMuted))
     Spacer(modifier = Modifier.height(4.dp))
 }
 
 @Composable
 private fun ActionButton(text: String, onClick: () -> Unit) {
+    val colors = LocalSmithColors.current
     Text(
         text = text,
-        style = ConsoleTheme.action,
+        style = SmithType.action.copy(color = colors.accent),
         modifier = Modifier
             .clickable(onClick = onClick)
-            .background(ConsoleTheme.surface)
+            .background(colors.bgPanel)
             .padding(12.dp)
     )
 }
@@ -552,12 +556,13 @@ private fun ActionButton(text: String, onClick: () -> Unit) {
 @Composable
 private fun OutlinedActionButton(
     text: String,
-    color: Color = ConsoleTheme.accent,
+    color: Color = LocalSmithColors.current.accent,
     enabled: Boolean = true,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val drawColor = if (enabled) color else ConsoleTheme.textMuted
+    val colors = LocalSmithColors.current
+    val drawColor = if (enabled) color else colors.inkMuted
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(
@@ -572,7 +577,7 @@ private fun OutlinedActionButton(
     )
     Text(
         text = text,
-        style = ConsoleTheme.action.copy(color = drawColor),
+        style = SmithType.action.copy(color = drawColor),
         modifier = modifier
             .scale(scale)
             .shadow(elevation, RoundedCornerShape(4.dp))
@@ -582,7 +587,7 @@ private fun OutlinedActionButton(
                 enabled = enabled,
                 onClick = onClick
             )
-            .background(ConsoleTheme.background, RoundedCornerShape(4.dp))
+            .background(colors.bgBase, RoundedCornerShape(4.dp))
             .border(1.dp, drawColor, RoundedCornerShape(4.dp))
             .padding(horizontal = 14.dp, vertical = 8.dp)
     )
@@ -642,10 +647,11 @@ private fun AddMenuRow(
     onClick: () -> Unit,
     accent: Boolean = false
 ) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface)
+            .background(colors.bgPanel)
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -654,11 +660,11 @@ private fun AddMenuRow(
         icon()
         Text(
             text = label,
-            style = ConsoleTheme.action.copy(
+            style = SmithType.action.copy(
                 color = when {
-                    !enabled -> ConsoleTheme.textMuted
-                    accent -> ConsoleTheme.accent
-                    else -> ConsoleTheme.text
+                    !enabled -> colors.inkMuted
+                    accent -> colors.accent
+                    else -> colors.ink
                 }
             )
         )
@@ -672,6 +678,7 @@ private fun AddNoteDialog(
     onSave: () -> Unit,
     onCancel: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     SmithDialog(
         title = "Add note",
         onDismiss = onCancel,
@@ -684,17 +691,17 @@ private fun AddNoteDialog(
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
-            textStyle = ConsoleTheme.body,
-            cursorBrush = SolidColor(ConsoleTheme.cursor),
+            textStyle = SmithType.body.copy(color = colors.ink),
+            cursorBrush = SolidColor(colors.ink),
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.surface)
+                .background(colors.bgPanel)
                 .padding(10.dp)
                 .height(100.dp),
             decorationBox = { inner ->
                 Box {
                     if (value.isEmpty()) {
-                        Text("Work notes, extras, issues...", style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder))
+                        Text("Work notes, extras, issues...", style = SmithType.body.copy(color = colors.inkMuted))
                     }
                     inner()
                 }
@@ -720,6 +727,7 @@ private fun AddMaterialDialog(
     onSave: (Material, orderIt: Boolean, vendor: String?) -> Unit,
     onCancel: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     val context = LocalContext.current
     var query by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
@@ -787,41 +795,41 @@ private fun AddMaterialDialog(
             BasicTextField(
                 value = query,
                 onValueChange = { query = it },
-                textStyle = ConsoleTheme.body,
-                cursorBrush = SolidColor(ConsoleTheme.cursor),
+                textStyle = SmithType.body.copy(color = colors.ink),
+                cursorBrush = SolidColor(colors.ink),
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("solo_e2e_job_material_search")
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .padding(10.dp),
                 decorationBox = { inner ->
                     Box {
                         if (query.isEmpty()) {
-                            Text("Type a material name...", style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder))
+                            Text("Type a material name...", style = SmithType.body.copy(color = colors.inkMuted))
                         }
                         inner()
                     }
                 }
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("$", style = ConsoleTheme.body)
+                Text("$", style = SmithType.body.copy(color = colors.ink))
                 Spacer(modifier = Modifier.width(6.dp))
                 BasicTextField(
                     value = price,
                     onValueChange = { new -> price = new.filter { it.isDigit() || it == '.' } },
-                    textStyle = ConsoleTheme.body,
-                    cursorBrush = SolidColor(ConsoleTheme.cursor),
+                    textStyle = SmithType.body.copy(color = colors.ink),
+                    cursorBrush = SolidColor(colors.ink),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier
                         .weight(1f)
                         .testTag("solo_e2e_job_material_cost")
-                        .background(ConsoleTheme.surface)
+                        .background(colors.bgPanel)
                         .padding(10.dp),
                     decorationBox = { inner ->
                         Box {
                             if (price.isEmpty()) {
-                                Text("Price (e.g. 189.99)", style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder))
+                                Text("Price (e.g. 189.99)", style = SmithType.body.copy(color = colors.inkMuted))
                             }
                             inner()
                         }
@@ -838,7 +846,7 @@ private fun AddMaterialDialog(
                 if (query.isNotBlank() && !hasExactMatch) {
                     Text(
                         text = "[+]  Add \"${query.trim()}\" as new",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                        style = SmithType.action.copy(color = colors.accent),
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onSave(materialFrom(query), false, null) }
@@ -851,8 +859,8 @@ private fun AddMaterialDialog(
                     val suffix = if (already) "  — added" else ""
                     Text(
                         text = "$marker  ${mat.name}  (${mat.unit})$suffix",
-                        style = ConsoleTheme.caption.copy(
-                            color = if (already) ConsoleTheme.textMuted else ConsoleTheme.text
+                        style = SmithType.caption.copy(
+                            color = if (already) colors.inkMuted else colors.ink
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -876,14 +884,14 @@ private fun AddMaterialDialog(
                 )
             },
         ) {
-            Text(query, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+            Text(query, style = SmithType.caption.copy(color = colors.inkMuted))
             Spacer(modifier = Modifier.height(8.dp))
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 MATERIAL_VENDORS.forEach { vendor ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+                            .background(colors.bgPanel, RoundedCornerShape(4.dp))
                             .clickable {
                                 showVendorPicker = false
                                 if (vendor.url != null) {
@@ -900,14 +908,14 @@ private fun AddMaterialDialog(
                     ) {
                         Text(
                             vendor.tag,
-                            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent),
+                            style = SmithType.captionBold.copy(color = colors.accent),
                             modifier = Modifier.width(60.dp)
                         )
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(vendor.label, style = ConsoleTheme.bodySmall)
+                            Text(vendor.label, style = SmithType.bodySmall.copy(color = colors.inkMuted))
                             Text(
                                 if (vendor.url != null) "Search & order" else "Pickup / in-store",
-                                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                                style = SmithType.caption.copy(color = colors.inkMuted)
                             )
                         }
                     }
@@ -922,11 +930,12 @@ private fun InvoiceDetailPicker(
     selected: com.guildofsmiths.trademesh.ui.invoice.InvoiceDetailLevel,
     onSelect: (com.guildofsmiths.trademesh.ui.invoice.InvoiceDetailLevel) -> Unit
 ) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Text("Invoice detail:", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        Text("Invoice detail:", style = SmithType.caption.copy(color = colors.inkMuted))
         com.guildofsmiths.trademesh.ui.invoice.InvoiceDetailLevel.entries.forEach { level ->
             val label = when (level) {
                 com.guildofsmiths.trademesh.ui.invoice.InvoiceDetailLevel.STANDARD -> "Standard"
@@ -936,13 +945,13 @@ private fun InvoiceDetailPicker(
             val isSelected = selected == level
             Text(
                 "[$label]",
-                style = ConsoleTheme.action.copy(
-                    color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.textMuted
+                style = SmithType.action.copy(
+                    color = if (isSelected) colors.accent else colors.inkMuted
                 ),
                 modifier = Modifier
                     .clickable { onSelect(level) }
                     .then(
-                        if (isSelected) Modifier.background(ConsoleTheme.accent.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
+                        if (isSelected) Modifier.background(colors.accent.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
                         else Modifier
                     )
                     .padding(horizontal = 6.dp, vertical = 2.dp)

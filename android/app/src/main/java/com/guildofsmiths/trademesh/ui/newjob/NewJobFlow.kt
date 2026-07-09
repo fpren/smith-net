@@ -23,7 +23,8 @@ import com.guildofsmiths.trademesh.data.TradeDefaults
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
 import com.guildofsmiths.trademesh.ui.ConsoleSeparator
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.Material
 
@@ -80,6 +81,7 @@ fun NewJobFlow(
     onJobCreated: (NewJobData) -> Unit,
     allJobs: List<Job> = emptyList()
 ) {
+    val colors = LocalSmithColors.current
     // Navigation state
     var currentStep by remember { mutableStateOf(1) }
 
@@ -116,7 +118,7 @@ fun NewJobFlow(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(ConsoleTheme.background)
+            .background(colors.bgBase)
     ) {
         // Header with back navigation
         ConsoleHeader(
@@ -202,16 +204,16 @@ fun NewJobFlow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.surface)
+                .background(colors.bgPanel)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.End
         ) {
             val buttonLabel = if (currentStep == 4) "CREATE JOB" else "NEXT →"
-            val buttonColor = if (canAdvance) ConsoleTheme.accent else ConsoleTheme.textDim
+            val buttonColor = if (canAdvance) colors.accent else colors.inkMuted
 
             Text(
                 text = buttonLabel,
-                style = ConsoleTheme.action.copy(color = buttonColor, fontSize = 15.sp),
+                style = SmithType.action.copy(color = buttonColor, fontSize = 15.sp),
                 modifier = Modifier
                     .then(
                         if (canAdvance) Modifier.clickable {
@@ -254,6 +256,7 @@ fun NewJobFlow(
 
 @Composable
 private fun StepProgressBar(currentStep: Int, totalSteps: Int) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -266,7 +269,7 @@ private fun StepProgressBar(currentStep: Int, totalSteps: Int) {
                 modifier = Modifier
                     .weight(1f)
                     .height(3.dp)
-                    .background(if (active) ConsoleTheme.accent else ConsoleTheme.separator)
+                    .background(if (active) colors.accent else colors.line)
             )
         }
     }
@@ -287,6 +290,7 @@ private fun StepClient(
     existingClients: List<ClientInfo> = emptyList(),
     onClientSelected: (ClientInfo) -> Unit = {}
 ) {
+    val colors = LocalSmithColors.current
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -301,8 +305,8 @@ private fun StepClient(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(ConsoleTheme.surface)
-                        .border(1.dp, ConsoleTheme.separator)
+                        .background(colors.bgPanel)
+                        .border(1.dp, colors.line)
                         .padding(4.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
@@ -312,7 +316,7 @@ private fun StepClient(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .then(
-                                    if (isSelected) Modifier.background(ConsoleTheme.accent.copy(alpha = 0.10f))
+                                    if (isSelected) Modifier.background(colors.accent.copy(alpha = 0.10f))
                                     else Modifier
                                 )
                                 .clickable { onClientSelected(client) }
@@ -323,19 +327,19 @@ private fun StepClient(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = client.name,
-                                    style = ConsoleTheme.bodySmall.copy(
-                                        color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.text
+                                    style = SmithType.bodySmall.copy(
+                                        color = if (isSelected) colors.accent else colors.ink
                                     )
                                 )
                                 if (client.address.isNotBlank()) {
                                     Text(
                                         text = "${client.jobCount} jobs · ${client.address.take(30)}",
-                                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                                        style = SmithType.caption.copy(color = colors.inkMuted)
                                     )
                                 }
                             }
                             if (isSelected) {
-                                Text("✓", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.accent))
+                                Text("✓", style = SmithType.bodySmall.copy(color = colors.accent))
                             }
                         }
                     }
@@ -344,7 +348,7 @@ private fun StepClient(
             item {
                 Text(
                     text = "— or enter new client below —",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                    style = SmithType.caption.copy(color = colors.inkMuted),
                     modifier = Modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally)
                 )
             }
@@ -384,7 +388,7 @@ private fun StepClient(
             if (clientName.isBlank()) {
                 Text(
                     text = "* Client name required to continue.",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.warning)
+                    style = SmithType.caption.copy(color = colors.attention)
                 )
             }
         }
@@ -402,6 +406,7 @@ private fun StepScope(
     selectedTrade: String,
     onTradeSelected: (String) -> Unit
 ) {
+    val colors = LocalSmithColors.current
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -434,21 +439,21 @@ private fun StepScope(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
-                    .background(ConsoleTheme.surface)
-                    .border(1.dp, ConsoleTheme.separator)
+                    .background(colors.bgPanel)
+                    .border(1.dp, colors.line)
                     .clickable { /* camera integration — future task */ },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = "[  ADD PHOTOS  ]",
-                    style = ConsoleTheme.action
+                    style = SmithType.action.copy(color = colors.accent)
                 )
             }
         }
         item {
             Text(
                 text = "Photo attachment available in a future update.",
-                style = ConsoleTheme.caption
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
         }
     }
@@ -472,6 +477,7 @@ private fun StepResources(
     onCrewSizeChange: (Int) -> Unit,
     onToggleSuggestions: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     val tradeDefaults = TradeDefaults.getForTrade(
         trade.ifBlank { UserPreferences.getOccupation() }
     )
@@ -492,7 +498,7 @@ private fun StepResources(
                     SectionLabel("TRADE SUGGESTIONS")
                     Text(
                         text = if (showSuggestions) "[ HIDE ]" else "[ SUGGESTIONS ]",
-                        style = ConsoleTheme.action,
+                        style = SmithType.action.copy(color = colors.accent),
                         modifier = Modifier.clickable { onToggleSuggestions() }
                     )
                 }
@@ -588,21 +594,21 @@ private fun StepResources(
             ) {
                 Text(
                     text = "−",
-                    style = ConsoleTheme.header.copy(color = ConsoleTheme.accent),
+                    style = SmithType.header.copy(color = colors.accent),
                     modifier = Modifier.clickable { if (crewSize > 1) onCrewSizeChange(crewSize - 1) }
                 )
                 Text(
                     text = "$crewSize",
-                    style = ConsoleTheme.header
+                    style = SmithType.header.copy(color = colors.ink)
                 )
                 Text(
                     text = "+",
-                    style = ConsoleTheme.header.copy(color = ConsoleTheme.accent),
+                    style = SmithType.header.copy(color = colors.accent),
                     modifier = Modifier.clickable { onCrewSizeChange(crewSize + 1) }
                 )
                 Text(
                     text = if (crewSize == 1) "person" else "people",
-                    style = ConsoleTheme.bodySmall
+                    style = SmithType.bodySmall.copy(color = colors.inkMuted)
                 )
             }
         }
@@ -625,6 +631,7 @@ private fun StepTimeline(
     onLaborCostChange: (Double) -> Unit,
     onMaterialsCostChange: (Double) -> Unit
 ) {
+    val colors = LocalSmithColors.current
     var laborCostText by remember(laborCost) { mutableStateOf("%.2f".format(laborCost)) }
     var materialsCostText by remember(materialsCost) { mutableStateOf("%.2f".format(materialsCost)) }
 
@@ -664,11 +671,11 @@ private fun StepTimeline(
         item {
             Text(
                 text = "LABOR COST",
-                style = ConsoleTheme.caption
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
             Spacer(modifier = Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = "$", style = ConsoleTheme.bodySmall)
+                Text(text = "$", style = SmithType.bodySmall.copy(color = colors.inkMuted))
                 Spacer(modifier = Modifier.width(4.dp))
                 BasicTextField(
                     value = laborCostText,
@@ -676,25 +683,25 @@ private fun StepTimeline(
                         laborCostText = v
                         v.toDoubleOrNull()?.let { onLaborCostChange(it) }
                     },
-                    textStyle = ConsoleTheme.body,
+                    textStyle = SmithType.body.copy(color = colors.ink),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    cursorBrush = SolidColor(ConsoleTheme.cursor),
+                    cursorBrush = SolidColor(colors.ink),
                     modifier = Modifier.width(160.dp)
                 )
             }
             Text(
                 text = "auto-calc: ${estimatedDays.toIntOrNull() ?: 1} days × 8 hrs × ${"%.2f".format(UserPreferences.getHourlyRate())}/hr",
-                style = ConsoleTheme.caption
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
         }
         item {
             Text(
                 text = "MATERIALS COST",
-                style = ConsoleTheme.caption
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
             Spacer(modifier = Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = "$", style = ConsoleTheme.bodySmall)
+                Text(text = "$", style = SmithType.bodySmall.copy(color = colors.inkMuted))
                 Spacer(modifier = Modifier.width(4.dp))
                 BasicTextField(
                     value = materialsCostText,
@@ -702,15 +709,15 @@ private fun StepTimeline(
                         materialsCostText = v
                         v.toDoubleOrNull()?.let { onMaterialsCostChange(it) }
                     },
-                    textStyle = ConsoleTheme.body,
+                    textStyle = SmithType.body.copy(color = colors.ink),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    cursorBrush = SolidColor(ConsoleTheme.cursor),
+                    cursorBrush = SolidColor(colors.ink),
                     modifier = Modifier.width(160.dp)
                 )
             }
             Text(
                 text = "summed from materials list",
-                style = ConsoleTheme.caption
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
         }
 
@@ -722,10 +729,10 @@ private fun StepTimeline(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "TOTAL ESTIMATE", style = ConsoleTheme.bodyBold)
+                Text(text = "TOTAL ESTIMATE", style = SmithType.bodyBold.copy(color = colors.ink))
                 Text(
                     text = "$${"%.2f".format(totalCost)}",
-                    style = ConsoleTheme.header.copy(color = ConsoleTheme.accent)
+                    style = SmithType.header.copy(color = colors.accent)
                 )
             }
         }
@@ -746,15 +753,16 @@ private fun SuggestionPanel(
     onAddEquipment: (String) -> Unit,
     onAddMaterial: (Material) -> Unit
 ) {
+    val colors = LocalSmithColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface)
-            .border(1.dp, ConsoleTheme.separator)
+            .background(colors.bgPanel)
+            .border(1.dp, colors.line)
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(text = "COMMON TASKS", style = ConsoleTheme.captionBold)
+        Text(text = "COMMON TASKS", style = SmithType.captionBold.copy(color = colors.inkMuted))
         FlowRow(tradeDefault.commonTasks) { task ->
             val alreadyAdded = currentTasks.any { it.equals(task, ignoreCase = true) }
             SuggestionChip(label = task, added = alreadyAdded) {
@@ -764,7 +772,7 @@ private fun SuggestionPanel(
 
         ConsoleSeparator()
 
-        Text(text = "COMMON EQUIPMENT", style = ConsoleTheme.captionBold)
+        Text(text = "COMMON EQUIPMENT", style = SmithType.captionBold.copy(color = colors.inkMuted))
         FlowRow(tradeDefault.commonEquipment) { equip ->
             val alreadyAdded = currentEquipment.any { it.equals(equip, ignoreCase = true) }
             SuggestionChip(label = equip, added = alreadyAdded) {
@@ -774,7 +782,7 @@ private fun SuggestionPanel(
 
         ConsoleSeparator()
 
-        Text(text = "COMMON MATERIALS", style = ConsoleTheme.captionBold)
+        Text(text = "COMMON MATERIALS", style = SmithType.captionBold.copy(color = colors.inkMuted))
         FlowRow(tradeDefault.commonMaterials) { mat ->
             val alreadyAdded = currentMaterials.any { it.name.equals(mat.name, ignoreCase = true) }
             SuggestionChip(label = "${mat.name} (${mat.unit})", added = alreadyAdded) {
@@ -803,18 +811,19 @@ private fun <T> FlowRow(items: List<T>, itemContent: @Composable (T) -> Unit) {
 
 @Composable
 private fun SuggestionChip(label: String, added: Boolean, onClick: () -> Unit) {
-    val bg = if (added) ConsoleTheme.accentDim else ConsoleTheme.background
-    val textColor = if (added) ConsoleTheme.accent else ConsoleTheme.textSecondary
+    val colors = LocalSmithColors.current
+    val bg = if (added) colors.accent else colors.bgBase
+    val textColor = if (added) colors.accent else colors.inkMuted
     Box(
         modifier = Modifier
             .background(bg)
-            .border(1.dp, ConsoleTheme.separator)
+            .border(1.dp, colors.line)
             .clickable(onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
         Text(
             text = if (added) "+ $label" else label,
-            style = ConsoleTheme.caption.copy(color = textColor)
+            style = SmithType.caption.copy(color = textColor)
         )
     }
 }
@@ -825,10 +834,11 @@ private fun SuggestionChip(label: String, added: Boolean, onClick: () -> Unit) {
 
 @Composable
 private fun SectionLabel(text: String) {
+    val colors = LocalSmithColors.current
     Text(
         text = text,
-        style = ConsoleTheme.captionBold.copy(
-            color = ConsoleTheme.textMuted,
+        style = SmithType.captionBold.copy(
+            color = colors.inkMuted,
             letterSpacing = 1.sp
         )
     )
@@ -843,24 +853,25 @@ private fun ConsoleField(
     keyboardType: KeyboardType = KeyboardType.Text,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(text = label, style = ConsoleTheme.caption)
+        Text(text = label, style = SmithType.caption.copy(color = colors.inkMuted))
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.surface)
-                .border(1.dp, ConsoleTheme.separator)
+                .background(colors.bgPanel)
+                .border(1.dp, colors.line)
                 .padding(horizontal = 12.dp, vertical = 10.dp)
         ) {
             if (value.isEmpty()) {
-                Text(text = hint, style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder))
+                Text(text = hint, style = SmithType.body.copy(color = colors.inkMuted))
             }
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
-                textStyle = ConsoleTheme.body,
+                textStyle = SmithType.body.copy(color = colors.ink),
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-                cursorBrush = SolidColor(ConsoleTheme.cursor),
+                cursorBrush = SolidColor(colors.ink),
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -875,23 +886,24 @@ private fun ConsoleMultilineField(
     onValueChange: (String) -> Unit,
     minLines: Int = 3
 ) {
+    val colors = LocalSmithColors.current
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(text = label, style = ConsoleTheme.caption)
+        Text(text = label, style = SmithType.caption.copy(color = colors.inkMuted))
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.surface)
-                .border(1.dp, ConsoleTheme.separator)
+                .background(colors.bgPanel)
+                .border(1.dp, colors.line)
                 .padding(horizontal = 12.dp, vertical = 10.dp)
         ) {
             if (value.isEmpty()) {
-                Text(text = hint, style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder))
+                Text(text = hint, style = SmithType.body.copy(color = colors.inkMuted))
             }
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
-                textStyle = ConsoleTheme.body,
-                cursorBrush = SolidColor(ConsoleTheme.cursor),
+                textStyle = SmithType.body.copy(color = colors.ink),
+                cursorBrush = SolidColor(colors.ink),
                 minLines = minLines,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -906,34 +918,35 @@ private fun DynamicListRow(
     onValueChange: (String) -> Unit,
     onRemove: (() -> Unit)?
 ) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text(text = "▸", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        Text(text = "▸", style = SmithType.caption.copy(color = colors.inkMuted))
         Box(
             modifier = Modifier
                 .weight(1f)
-                .background(ConsoleTheme.surface)
-                .border(1.dp, ConsoleTheme.separator)
+                .background(colors.bgPanel)
+                .border(1.dp, colors.line)
                 .padding(horizontal = 10.dp, vertical = 8.dp)
         ) {
             if (value.isEmpty()) {
-                Text(text = hint, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder))
+                Text(text = hint, style = SmithType.bodySmall.copy(color = colors.inkMuted))
             }
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
-                textStyle = ConsoleTheme.bodySmall,
-                cursorBrush = SolidColor(ConsoleTheme.cursor),
+                textStyle = SmithType.bodySmall.copy(color = colors.inkMuted),
+                cursorBrush = SolidColor(colors.ink),
                 modifier = Modifier.fillMaxWidth()
             )
         }
         if (onRemove != null) {
             Text(
                 text = "✕",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.error),
+                style = SmithType.caption.copy(color = colors.statusError),
                 modifier = Modifier.clickable { onRemove() }
             )
         } else {
@@ -948,11 +961,12 @@ private fun MaterialRow(
     onUpdate: (Material) -> Unit,
     onRemove: (() -> Unit)?
 ) {
+    val colors = LocalSmithColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface)
-            .border(1.dp, ConsoleTheme.separator)
+            .background(colors.bgPanel)
+            .border(1.dp, colors.line)
             .padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
@@ -961,11 +975,11 @@ private fun MaterialRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "MATERIAL", style = ConsoleTheme.caption)
+            Text(text = "MATERIAL", style = SmithType.caption.copy(color = colors.inkMuted))
             if (onRemove != null) {
                 Text(
                     text = "✕ REMOVE",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.error),
+                    style = SmithType.caption.copy(color = colors.statusError),
                     modifier = Modifier.clickable { onRemove() }
                 )
             }
@@ -974,12 +988,12 @@ private fun MaterialRow(
         BasicTextField(
             value = material.name,
             onValueChange = { onUpdate(material.copy(name = it)) },
-            textStyle = ConsoleTheme.bodySmall,
-            cursorBrush = SolidColor(ConsoleTheme.cursor),
+            textStyle = SmithType.bodySmall.copy(color = colors.inkMuted),
+            cursorBrush = SolidColor(colors.ink),
             decorationBox = { inner ->
                 Box(modifier = Modifier.fillMaxWidth()) {
                     if (material.name.isEmpty()) {
-                        Text(text = "Name (e.g. 12/2 Romex)", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder))
+                        Text(text = "Name (e.g. 12/2 Romex)", style = SmithType.bodySmall.copy(color = colors.inkMuted))
                     }
                     inner()
                 }
@@ -992,36 +1006,36 @@ private fun MaterialRow(
         ) {
             // Quantity
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = "QTY", style = ConsoleTheme.caption)
+                Text(text = "QTY", style = SmithType.caption.copy(color = colors.inkMuted))
                 BasicTextField(
                     value = if (material.quantity == 0.0) "" else material.quantity.toString().trimEnd('0').trimEnd('.'),
                     onValueChange = { v -> onUpdate(material.copy(quantity = v.toDoubleOrNull() ?: 1.0)) },
-                    textStyle = ConsoleTheme.bodySmall,
+                    textStyle = SmithType.bodySmall.copy(color = colors.inkMuted),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    cursorBrush = SolidColor(ConsoleTheme.cursor),
+                    cursorBrush = SolidColor(colors.ink),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
             // Unit
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = "UNIT", style = ConsoleTheme.caption)
+                Text(text = "UNIT", style = SmithType.caption.copy(color = colors.inkMuted))
                 BasicTextField(
                     value = material.unit,
                     onValueChange = { v -> onUpdate(material.copy(unit = v)) },
-                    textStyle = ConsoleTheme.bodySmall,
-                    cursorBrush = SolidColor(ConsoleTheme.cursor),
+                    textStyle = SmithType.bodySmall.copy(color = colors.inkMuted),
+                    cursorBrush = SolidColor(colors.ink),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
             // Unit Price
             Column(modifier = Modifier.weight(2f)) {
-                Text(text = "UNIT PRICE ($)", style = ConsoleTheme.caption)
+                Text(text = "UNIT PRICE ($)", style = SmithType.caption.copy(color = colors.inkMuted))
                 BasicTextField(
                     value = if (material.unitCost == 0.0) "" else "%.2f".format(material.unitCost),
                     onValueChange = { v -> onUpdate(material.copy(unitCost = v.toDoubleOrNull() ?: 0.0)) },
-                    textStyle = ConsoleTheme.bodySmall,
+                    textStyle = SmithType.bodySmall.copy(color = colors.inkMuted),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    cursorBrush = SolidColor(ConsoleTheme.cursor),
+                    cursorBrush = SolidColor(colors.ink),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -1031,7 +1045,7 @@ private fun MaterialRow(
         if (lineTotal > 0.0) {
             Text(
                 text = "= $${"%.2f".format(lineTotal)}",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textSecondary)
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
         }
     }
@@ -1039,9 +1053,10 @@ private fun MaterialRow(
 
 @Composable
 private fun AddRowButton(label: String, onClick: () -> Unit) {
+    val colors = LocalSmithColors.current
     Text(
         text = label,
-        style = ConsoleTheme.action,
+        style = SmithType.action.copy(color = colors.accent),
         modifier = Modifier
             .clickable { onClick() }
             .padding(vertical = 4.dp)

@@ -14,14 +14,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.ExpenseCategoryRepository
 import com.guildofsmiths.trademesh.data.TimeEntryRepository
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.JobStage
 import java.text.SimpleDateFormat
@@ -39,6 +39,7 @@ fun ReportScreen(
     onOpenExpenses: () -> Unit,
     onBack: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     val context = LocalContext.current
     val periodPrefs = remember { context.getSharedPreferences("report_prefs", 0) }
     var selectedPeriod by remember {
@@ -142,7 +143,7 @@ fun ReportScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(ConsoleTheme.background)
+            .background(colors.bgBase)
     ) {
         ConsoleHeader(title = "REPORT", onBackClick = onBack)
 
@@ -158,12 +159,12 @@ fun ReportScreen(
                     modifier = Modifier
                         .weight(1f)
                         .background(
-                            if (isSelected) ConsoleTheme.accent else ConsoleTheme.surface,
+                            if (isSelected) colors.accent else colors.bgPanel,
                             RoundedCornerShape(4.dp)
                         )
                         .border(
                             0.5.dp,
-                            if (isSelected) ConsoleTheme.accent else ConsoleTheme.text.copy(alpha = 0.06f),
+                            if (isSelected) colors.accent else colors.ink.copy(alpha = 0.06f),
                             RoundedCornerShape(4.dp)
                         )
                         .clip(RoundedCornerShape(4.dp))
@@ -176,8 +177,8 @@ fun ReportScreen(
                 ) {
                     Text(
                         text = period.label,
-                        style = ConsoleTheme.captionBold.copy(
-                            color = if (isSelected) Color.White else ConsoleTheme.textMuted
+                        style = SmithType.captionBold.copy(
+                            color = if (isSelected) colors.inkOnAccent else colors.inkMuted
                         )
                     )
                 }
@@ -195,7 +196,7 @@ fun ReportScreen(
             ReportCard("REVENUE") {
                 Text(
                     text = "$${String.format("%.0f", earned)} earned · $${String.format("%.0f", outstanding)} outstanding",
-                    style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.accent)
+                    style = SmithType.bodySmall.copy(color = colors.accent)
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 val totalJobs = periodJobs.size.coerceAtLeast(1)
@@ -208,18 +209,18 @@ fun ReportScreen(
                         Modifier
                             .weight(1f)
                             .height(6.dp)
-                            .background(ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(3.dp))
+                            .background(colors.ink.copy(alpha = 0.06f), RoundedCornerShape(3.dp))
                     ) {
                         Box(
                             Modifier
                                 .fillMaxHeight()
                                 .fillMaxWidth(progress)
-                                .background(ConsoleTheme.accent, RoundedCornerShape(3.dp))
+                                .background(colors.accent, RoundedCornerShape(3.dp))
                         )
                     }
                     Text(
                         "${closedJobs.size}/${periodJobs.size} closed",
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                        style = SmithType.caption.copy(color = colors.inkMuted)
                     )
                 }
             }
@@ -230,11 +231,11 @@ fun ReportScreen(
                 val avg = if (jobsWithTime > 0) hours / jobsWithTime else 0.0
                 Text(
                     text = "${String.format("%.1f", hours)}h logged · $jobsWithTime jobs",
-                    style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text)
+                    style = SmithType.bodySmall.copy(color = colors.ink)
                 )
                 Text(
                     text = "Avg: ${String.format("%.1f", avg)}h/job",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                    style = SmithType.caption.copy(color = colors.inkMuted)
                 )
             }
 
@@ -248,13 +249,13 @@ fun ReportScreen(
                         ) {
                             Text(
                                 text = "$title · $count jobs",
-                                style = ConsoleTheme.caption.copy(color = ConsoleTheme.text),
+                                style = SmithType.caption.copy(color = colors.ink),
                                 modifier = Modifier.weight(1f)
                             )
                             if (rev > 0) {
                                 Text(
                                     text = "$${String.format("%.0f", rev)}",
-                                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent)
+                                    style = SmithType.caption.copy(color = colors.accent)
                                 )
                             }
                         }
@@ -267,7 +268,7 @@ fun ReportScreen(
                 if (categoryRollups.isEmpty()) {
                     Text(
                         text = "No expenses logged this period.",
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                        style = SmithType.caption.copy(color = colors.inkMuted),
                         modifier = Modifier.padding(vertical = 4.dp)
                     )
                 } else {
@@ -278,12 +279,12 @@ fun ReportScreen(
                         ) {
                             Text(
                                 "${r.short} ${r.display}",
-                                style = ConsoleTheme.caption.copy(color = ConsoleTheme.text),
+                                style = SmithType.caption.copy(color = colors.ink),
                                 modifier = Modifier.weight(1f)
                             )
                             Text(
                                 "$${String.format("%.2f", r.amount)}",
-                                style = ConsoleTheme.caption.copy(color = ConsoleTheme.text)
+                                style = SmithType.caption.copy(color = colors.ink)
                             )
                             Spacer(Modifier.width(12.dp))
                             val suffix = when (r.id) {
@@ -291,7 +292,7 @@ fun ReportScreen(
                                 "mileage" -> "${r.count} item${if (r.count != 1) "s" else ""}"
                                 else -> "${r.count} item${if (r.count != 1) "s" else ""}"
                             }
-                            Text(suffix, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                            Text(suffix, style = SmithType.caption.copy(color = colors.inkMuted))
                         }
                     }
                     Box(
@@ -299,16 +300,16 @@ fun ReportScreen(
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
                             .height(0.5.dp)
-                            .background(ConsoleTheme.text.copy(alpha = 0.08f))
+                            .background(colors.ink.copy(alpha = 0.08f))
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("TOTAL", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.text))
+                        Text("TOTAL", style = SmithType.captionBold.copy(color = colors.ink))
                         Text(
                             "$${String.format("%.2f", expenseGrandTotal)}",
-                            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
+                            style = SmithType.captionBold.copy(color = colors.accent)
                         )
                     }
 
@@ -316,7 +317,7 @@ fun ReportScreen(
                         Spacer(Modifier.height(8.dp))
                         Text(
                             "Per-job breakdown",
-                            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted)
+                            style = SmithType.captionBold.copy(color = colors.inkMuted)
                         )
                         perJobExpenses.take(8).forEach { (job, total) ->
                             Row(
@@ -333,17 +334,17 @@ fun ReportScreen(
                             ) {
                                 Text(
                                     "• ${job.clientName ?: job.title}",
-                                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.text),
+                                    style = SmithType.caption.copy(color = colors.ink),
                                     modifier = Modifier.weight(1f),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
                                     "$${String.format("%.0f", total)}",
-                                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent)
+                                    style = SmithType.caption.copy(color = colors.accent)
                                 )
                                 Spacer(Modifier.width(8.dp))
-                                Text(">", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                                Text(">", style = SmithType.caption.copy(color = colors.inkMuted))
                             }
                         }
                     }
@@ -351,7 +352,7 @@ fun ReportScreen(
                     Spacer(Modifier.height(6.dp))
                     Text(
                         "[Open Expenses page →]",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                        style = SmithType.action.copy(color = colors.accent),
                         modifier = Modifier
                             .clip(RoundedCornerShape(4.dp))
                             .clickable { onOpenExpenses() }
@@ -365,7 +366,7 @@ fun ReportScreen(
                 if (dailyGroups.isEmpty()) {
                     Text(
                         text = "No time entries for this period.",
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                        style = SmithType.caption.copy(color = colors.inkMuted),
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
                 } else {
@@ -382,10 +383,10 @@ fun ReportScreen(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(dayLabel, style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.text))
+                            Text(dayLabel, style = SmithType.captionBold.copy(color = colors.ink))
                             Text(
                                 "${String.format("%.1f", dayHours)}h",
-                                style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
+                                style = SmithType.captionBold.copy(color = colors.accent)
                             )
                         }
 
@@ -418,18 +419,18 @@ fun ReportScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = jobName,
-                                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.text),
+                                        style = SmithType.caption.copy(color = colors.ink),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
                                     Text(
                                         text = "$clockIn–$clockOut",
-                                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                                        style = SmithType.caption.copy(color = colors.inkMuted)
                                     )
                                 }
                                 Text(
                                     text = durStr,
-                                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                                    style = SmithType.caption.copy(color = colors.inkMuted)
                                 )
                             }
                         }
@@ -438,7 +439,7 @@ fun ReportScreen(
                             Modifier
                                 .fillMaxWidth()
                                 .height(0.5.dp)
-                                .background(ConsoleTheme.text.copy(alpha = 0.06f))
+                                .background(colors.ink.copy(alpha = 0.06f))
                         )
                     }
                 }
@@ -451,15 +452,16 @@ fun ReportScreen(
 
 @Composable
 private fun ReportCard(title: String, content: @Composable ColumnScope.() -> Unit) {
+    val colors = LocalSmithColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(4.dp))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Text(title, style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+        Text(title, style = SmithType.captionBold.copy(color = colors.inkMuted))
         Spacer(modifier = Modifier.height(4.dp))
         content()
     }

@@ -22,7 +22,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.JobStage
 import com.guildofsmiths.trademesh.ui.jobboard.Material
@@ -59,6 +60,7 @@ fun SupplyScreen(
     onUpdateMaterial: (jobId: String, materialIndex: Int, material: Material) -> Unit,
     onBack: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     var selectedJobId by remember { mutableStateOf<String?>(null) }
     var showJobPicker by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(false) }
@@ -100,7 +102,7 @@ fun SupplyScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(ConsoleTheme.background)
+            .background(colors.bgBase)
     ) {
         ConsoleHeader(
             title = "SUPPLY",
@@ -114,8 +116,8 @@ fun SupplyScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
-                .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
                 .clip(RoundedCornerShape(4.dp))
                 .clickable { showJobPicker = !showJobPicker }
                 .padding(horizontal = 12.dp, vertical = 10.dp)
@@ -125,8 +127,8 @@ fun SupplyScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(selectedJobName, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
-                Text("▼", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                Text(selectedJobName, style = SmithType.bodySmall.copy(color = colors.ink))
+                Text("▼", style = SmithType.caption.copy(color = colors.inkMuted))
             }
         }
 
@@ -136,13 +138,13 @@ fun SupplyScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
-                    .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                    .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                    .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                    .border(0.5.dp, colors.ink.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
             ) {
                 Text(
                     text = "All Jobs",
-                    style = ConsoleTheme.bodySmall.copy(
-                        color = if (selectedJobId == null) ConsoleTheme.accent else ConsoleTheme.text
+                    style = SmithType.bodySmall.copy(
+                        color = if (selectedJobId == null) colors.accent else colors.ink
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -150,11 +152,11 @@ fun SupplyScreen(
                         .padding(horizontal = 12.dp, vertical = 10.dp)
                 )
                 jobsWithMaterials.forEach { job ->
-                    Box(Modifier.fillMaxWidth().height(0.5.dp).padding(horizontal = 12.dp).background(ConsoleTheme.text.copy(alpha = 0.06f)))
+                    Box(Modifier.fillMaxWidth().height(0.5.dp).padding(horizontal = 12.dp).background(colors.ink.copy(alpha = 0.06f)))
                     Text(
                         text = job.clientName ?: job.title,
-                        style = ConsoleTheme.bodySmall.copy(
-                            color = if (selectedJobId == job.id) ConsoleTheme.accent else ConsoleTheme.text
+                        style = SmithType.bodySmall.copy(
+                            color = if (selectedJobId == job.id) colors.accent else colors.ink
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -177,7 +179,7 @@ fun SupplyScreen(
                 if (unchecked.isEmpty()) {
                     Text(
                         text = "All items checked off!",
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                        style = SmithType.caption.copy(color = colors.inkMuted),
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
                 } else {
@@ -208,15 +210,15 @@ fun SupplyScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                    .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                    .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                    .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
                     .padding(14.dp)
             ) {
-                Text("TOTAL", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+                Text("TOTAL", style = SmithType.captionBold.copy(color = colors.inkMuted))
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "$${String.format("%.0f", totalCost)} total · ${allItems.size} items · ${checked.size} purchased",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent)
+                    style = SmithType.caption.copy(color = colors.accent)
                 )
             }
 
@@ -258,6 +260,7 @@ fun SupplyScreen(
 
 @Composable
 private fun MaterialRow(item: SupplyItem, onToggle: () -> Unit, onEdit: () -> Unit) {
+    val colors = LocalSmithColors.current
     val mat = item.material
     val context = LocalContext.current
     var showVendorPicker by remember { mutableStateOf(false) }
@@ -272,7 +275,7 @@ private fun MaterialRow(item: SupplyItem, onToggle: () -> Unit, onEdit: () -> Un
         // Checkbox area — tap to toggle
         Text(
             text = if (mat.checked) "[x]" else "[ ]",
-            style = ConsoleTheme.body.copy(color = if (mat.checked) ConsoleTheme.textMuted else ConsoleTheme.text),
+            style = SmithType.body.copy(color = if (mat.checked) colors.inkMuted else colors.ink),
             modifier = Modifier
                 .width(32.dp)
                 .clickable(onClick = onToggle)
@@ -280,8 +283,8 @@ private fun MaterialRow(item: SupplyItem, onToggle: () -> Unit, onEdit: () -> Un
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = mat.name,
-                style = ConsoleTheme.bodySmall.copy(
-                    color = if (mat.checked) ConsoleTheme.textMuted else ConsoleTheme.text
+                style = SmithType.bodySmall.copy(
+                    color = if (mat.checked) colors.inkMuted else colors.ink
                 )
             )
             val detailParts = buildString {
@@ -296,14 +299,14 @@ private fun MaterialRow(item: SupplyItem, onToggle: () -> Unit, onEdit: () -> Un
                 }
             }
             if (detailParts.isNotBlank()) {
-                Text(detailParts, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                Text(detailParts, style = SmithType.caption.copy(color = colors.inkMuted))
             }
         }
         if (mat.totalCost > 0) {
             Text(
                 text = "$${String.format("%.0f", mat.totalCost)}",
-                style = ConsoleTheme.caption.copy(
-                    color = if (mat.checked) ConsoleTheme.textMuted else ConsoleTheme.accent
+                style = SmithType.caption.copy(
+                    color = if (mat.checked) colors.inkMuted else colors.accent
                 ),
                 modifier = Modifier.padding(end = 8.dp)
             )
@@ -312,7 +315,7 @@ private fun MaterialRow(item: SupplyItem, onToggle: () -> Unit, onEdit: () -> Un
         if (!mat.checked) {
             Text(
                 text = "[Order]",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent),
+                style = SmithType.caption.copy(color = colors.accent),
                 modifier = Modifier
                     .clickable { showVendorPicker = true }
                     .padding(4.dp)
@@ -321,7 +324,7 @@ private fun MaterialRow(item: SupplyItem, onToggle: () -> Unit, onEdit: () -> Un
         // Edit button
         Text(
             text = "[Edit]",
-            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+            style = SmithType.caption.copy(color = colors.inkMuted),
             modifier = Modifier
                 .clickable(onClick = onEdit)
                 .padding(4.dp)
@@ -341,7 +344,7 @@ private fun MaterialRow(item: SupplyItem, onToggle: () -> Unit, onEdit: () -> Un
                 )
             },
         ) {
-            Text(mat.name, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+            Text(mat.name, style = SmithType.caption.copy(color = colors.inkMuted))
             Spacer(modifier = Modifier.height(8.dp))
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 VENDORS.forEach { vendor ->
@@ -349,7 +352,7 @@ private fun MaterialRow(item: SupplyItem, onToggle: () -> Unit, onEdit: () -> Un
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(6.dp))
-                            .background(ConsoleTheme.background, RoundedCornerShape(6.dp))
+                            .background(colors.bgBase, RoundedCornerShape(6.dp))
                             .clickable {
                                 showVendorPicker = false
                                 if (vendor.url != null) {
@@ -363,15 +366,15 @@ private fun MaterialRow(item: SupplyItem, onToggle: () -> Unit, onEdit: () -> Un
                     ) {
                         Text(
                             text = vendor.tag,
-                            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent),
+                            style = SmithType.captionBold.copy(color = colors.accent),
                             modifier = Modifier.width(50.dp)
                         )
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(vendor.label, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
+                            Text(vendor.label, style = SmithType.bodySmall.copy(color = colors.ink))
                             if (vendor.url != null) {
-                                Text("Search & order", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                                Text("Search & order", style = SmithType.caption.copy(color = colors.inkMuted))
                             } else {
-                                Text("Manual purchase", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                                Text("Manual purchase", style = SmithType.caption.copy(color = colors.inkMuted))
                             }
                         }
                     }
@@ -391,6 +394,7 @@ private fun MaterialDialog(
     onDismiss: () -> Unit,
     onSave: (jobId: String, material: Material) -> Unit
 ) {
+    val colors = LocalSmithColors.current
     var selectedJobId by remember { mutableStateOf(preselectedJobId ?: jobs.firstOrNull()?.id ?: "") }
     var name by remember { mutableStateOf(initialMaterial?.name ?: "") }
     var quantity by remember { mutableStateOf(if (initialMaterial != null && initialMaterial.quantity > 0) initialMaterial.quantity.toInt().toString() else "") }
@@ -431,28 +435,28 @@ private fun MaterialDialog(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 // Job selector
                 if (!lockJob) {
-                    Text("JOB", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                    Text("JOB", style = SmithType.caption.copy(color = colors.inkMuted))
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(ConsoleTheme.background, RoundedCornerShape(4.dp))
+                            .background(colors.bgBase, RoundedCornerShape(4.dp))
                             .clickable { showJobSelect = !showJobSelect }
                             .padding(8.dp)
                     ) {
-                        Text(selectedJobName, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
+                        Text(selectedJobName, style = SmithType.bodySmall.copy(color = colors.ink))
                     }
                     if (showJobSelect) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(ConsoleTheme.background, RoundedCornerShape(4.dp))
-                                .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                                .background(colors.bgBase, RoundedCornerShape(4.dp))
+                                .border(0.5.dp, colors.ink.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
                         ) {
                             jobs.forEach { job ->
                                 Text(
                                     text = job.clientName ?: job.title,
-                                    style = ConsoleTheme.bodySmall.copy(
-                                        color = if (job.id == selectedJobId) ConsoleTheme.accent else ConsoleTheme.text
+                                    style = SmithType.bodySmall.copy(
+                                        color = if (job.id == selectedJobId) colors.accent else colors.ink
                                     ),
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -478,13 +482,13 @@ private fun MaterialDialog(
                 DialogField("UNIT COST ($)", unitCost, KeyboardType.Decimal) { unitCost = it }
 
                 // Vendor chip selector (matches job board)
-                Text("VENDOR", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                Text("VENDOR", style = SmithType.caption.copy(color = colors.inkMuted))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("HD", "Lowes", "Supply", "Other").forEach { v ->
                         Text(
                             text = if (vendor == v) "[$v]" else v,
-                            style = ConsoleTheme.action.copy(
-                                color = if (vendor == v) ConsoleTheme.accent else ConsoleTheme.textMuted
+                            style = SmithType.action.copy(
+                                color = if (vendor == v) colors.accent else colors.inkMuted
                             ),
                             modifier = Modifier.clickable { vendor = v }
                         )
@@ -501,16 +505,17 @@ private fun DialogField(
     keyboardType: KeyboardType = KeyboardType.Text,
     onValueChange: (String) -> Unit
 ) {
+    val colors = LocalSmithColors.current
     Column {
-        Text(label, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        Text(label, style = SmithType.caption.copy(color = colors.inkMuted))
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
-            textStyle = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text),
+            textStyle = SmithType.bodySmall.copy(color = colors.ink),
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.background, RoundedCornerShape(4.dp))
+                .background(colors.bgBase, RoundedCornerShape(4.dp))
                 .padding(8.dp),
             singleLine = true
         )
@@ -519,15 +524,16 @@ private fun DialogField(
 
 @Composable
 private fun SupplyCard(title: String, content: @Composable ColumnScope.() -> Unit) {
+    val colors = LocalSmithColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(4.dp))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        Text(title, style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+        Text(title, style = SmithType.captionBold.copy(color = colors.inkMuted))
         Spacer(modifier = Modifier.height(4.dp))
         content()
     }
