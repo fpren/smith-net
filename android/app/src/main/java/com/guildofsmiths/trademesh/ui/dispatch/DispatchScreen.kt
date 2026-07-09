@@ -223,7 +223,7 @@ private fun DispatchJobCard(
             Text(
                 if (isUnassigned) "! ${job.clientName ?: job.title}" else "${job.clientName ?: job.title}",
                 style = SmithType.bodySmall.copy(
-                    color = if (isUnassigned) colors.ink else colors.ink
+                    color = colors.ink
                 ),
                 maxLines = 1, overflow = TextOverflow.Ellipsis
             )

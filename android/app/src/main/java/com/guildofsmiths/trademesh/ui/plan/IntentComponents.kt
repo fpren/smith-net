@@ -16,7 +16,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.IntentRepository
 import com.guildofsmiths.trademesh.data.UserPreferences
@@ -141,8 +140,8 @@ fun CreateIntentDialog(
                             },
                         textStyle = SmithType.body.copy(color = colors.ink),
                         colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
+                            focusedContainerColor = colors.bgPanel,
+                            unfocusedContainerColor = colors.bgPanel,
                             focusedIndicatorColor = colors.accent,
                             unfocusedIndicatorColor = colors.ink.copy(alpha = 0.2f)
                         )
@@ -258,8 +257,8 @@ private fun ProposalTextField(
         modifier = modifier.fillMaxWidth(),
         textStyle = SmithType.body.copy(color = colors.ink),
         colors = TextFieldDefaults.colors(
-            focusedContainerColor = Color.White,
-            unfocusedContainerColor = Color.White,
+            focusedContainerColor = colors.bgPanel,
+            unfocusedContainerColor = colors.bgPanel,
             focusedIndicatorColor = colors.accent,
             unfocusedIndicatorColor = colors.ink.copy(alpha = 0.2f)
         )
@@ -297,8 +296,8 @@ private fun DynamicListField(
                     textStyle = SmithType.bodySmall.copy(color = colors.ink),
                     singleLine = true,
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
+                        focusedContainerColor = colors.bgPanel,
+                        unfocusedContainerColor = colors.bgPanel,
                         focusedIndicatorColor = colors.accent,
                         unfocusedIndicatorColor = colors.ink.copy(alpha = 0.1f)
                     )

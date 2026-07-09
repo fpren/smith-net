@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.style.TextAlign
@@ -40,6 +41,7 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
+import com.guildofsmiths.trademesh.ui.Tokens2
 import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import java.util.concurrent.Executors
@@ -55,12 +57,19 @@ fun parseScannedId(raw: String): String? {
     return if (cleaned.length == 8) cleaned else null
 }
 
-/** Generate a QR bitmap for [content] using zxing core (no UI dependency). */
+/**
+ * Generate a QR bitmap for [content] using zxing core (no UI dependency).
+ *
+ * QR modules are intentionally LIGHT-theme-fixed regardless of the app's active
+ * theme (light/dark) -- a QR scanner needs dark-on-light contrast to read
+ * reliably, so this does NOT follow dark mode. Values are Tokens2.Light's
+ * Ink (dark modules) and BgBase (light modules), giving ~15:1 contrast.
+ */
 fun qrBitmap(content: String, size: Int = 480): Bitmap {
     val matrix = QRCodeWriter().encode(content, BarcodeFormat.QR_CODE, size, size)
     val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-    val dark = 0xFF2A2520.toInt()
-    val light = 0xFFFAFAF8.toInt()
+    val dark = Tokens2.Light.Ink.toArgb()
+    val light = Tokens2.Light.BgBase.toArgb()
     for (x in 0 until size) {
         for (y in 0 until size) {
             bmp.setPixel(x, y, if (matrix[x, y]) dark else light)
