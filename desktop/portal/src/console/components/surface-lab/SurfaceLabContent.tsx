@@ -31,7 +31,7 @@ const GALLERY_TILE = 190;
 
 const BTN_BASE = 'font-mono text-xs px-3 py-1.5 border transition-all';
 const BTN_INACTIVE =
-  'bg-console-surface text-console-text border-console-border hover:border-console-accent hover:text-console-accent hover:shadow-md';
+  'bg-sn-bg-panel text-sn-ink border-sn-line hover:border-sn-accent hover:text-sn-accent hover:shadow-md';
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -39,8 +39,8 @@ function round2(n: number): number {
 
 function Panel({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="border border-console-border bg-console-surface shadow-sm">
-      <div className="bg-console-text text-console-bg text-[10px] font-semibold uppercase tracking-[0.2em] px-3 py-1.5">
+    <section className="border border-sn-line bg-sn-bg-panel shadow-sm">
+      <div className="bg-sn-ink text-sn-bg-base text-[10px] font-semibold uppercase tracking-[0.2em] px-3 py-1.5">
         {title}
       </div>
       <div className="p-4">{children}</div>
@@ -60,9 +60,9 @@ function GalleryTile({ preset }: { preset: Preset }) {
           <AdaptiveSurface surface={preset.surface} job={SAMPLE_JOB} />
         </div>
       </div>
-      <div className="text-[10px] text-console-text-muted text-center">
+      <div className="text-[10px] text-sn-ink-muted text-center">
         {preset.label}
-        <span className="ml-1 bg-console-accent text-white px-1 rounded-sm">
+        <span className="ml-1 bg-sn-accent text-sn-ink-on-accent px-1 rounded-sm">
           {adaptLayout(preset.surface).profile}
         </span>
       </div>
@@ -93,10 +93,10 @@ export function SurfaceLabContent() {
   }
 
   return (
-    <div className="font-mono text-console-text max-w-5xl">
-      <header className="border-b-2 border-console-text pb-3">
+    <div className="font-mono text-sn-ink max-w-5xl">
+      <header className="border-b-2 border-sn-ink pb-3">
         <h1 className="text-2xl font-bold tracking-tight">SURFACE LAB</h1>
-        <p className="text-xs text-console-text-muted mt-1 max-w-2xl">
+        <p className="text-xs text-sn-ink-muted mt-1 max-w-2xl">
           One job, many containers. A pure adaptLayout(surface) decides what fits (the cartridge);
           the renderer scales + draws it to fill the surface (the host). Reshape it -- watch, label,
           receipt, phone, page, desktop -- and the same content re-fits.
@@ -106,7 +106,7 @@ export function SurfaceLabContent() {
       <div className="mt-5 grid gap-5 lg:grid-cols-2">
         {/* Controls */}
         <Panel title="Surface">
-          <div className="text-[10px] uppercase tracking-widest text-console-text-muted mb-2">Shape</div>
+          <div className="text-[10px] uppercase tracking-widest text-sn-ink-muted mb-2">Shape</div>
           <div className="flex flex-wrap gap-2 mb-4">
             {SHAPES.map((s) => (
               <button
@@ -115,7 +115,7 @@ export function SurfaceLabContent() {
                 onClick={() => setShape(s)}
                 className={clsx(
                   BTN_BASE,
-                  surface.shape === s ? 'bg-console-accent text-white border-console-accent shadow-sm' : BTN_INACTIVE,
+                  surface.shape === s ? 'bg-sn-accent text-sn-ink-on-accent border-sn-accent shadow-sm' : BTN_INACTIVE,
                 )}
               >
                 {s}
@@ -125,7 +125,7 @@ export function SurfaceLabContent() {
 
           <div className="flex flex-col gap-3 text-xs">
             <label className="flex items-center gap-3">
-              <span className="w-14 text-console-text-muted">{square ? 'size' : 'width'}</span>
+              <span className="w-14 text-sn-ink-muted">{square ? 'size' : 'width'}</span>
               <input
                 type="range"
                 min={0.5}
@@ -133,13 +133,13 @@ export function SurfaceLabContent() {
                 step={0.25}
                 value={surface.wIn}
                 onChange={(e) => setSize('w', Number(e.target.value))}
-                className="flex-1 accent-console-accent"
+                className="flex-1 accent-sn-accent"
               />
               <span className="tabular-nums w-14 text-right">{round2(surface.wIn)} in</span>
             </label>
             {!square && (
               <label className="flex items-center gap-3">
-                <span className="w-14 text-console-text-muted">height</span>
+                <span className="w-14 text-sn-ink-muted">height</span>
                 <input
                   type="range"
                   min={0.5}
@@ -147,14 +147,14 @@ export function SurfaceLabContent() {
                   step={0.25}
                   value={surface.hIn}
                   onChange={(e) => setSize('h', Number(e.target.value))}
-                  className="flex-1 accent-console-accent"
+                  className="flex-1 accent-sn-accent"
                 />
                 <span className="tabular-nums w-14 text-right">{round2(surface.hIn)} in</span>
               </label>
             )}
           </div>
 
-          <div className="text-[10px] uppercase tracking-widest text-console-text-muted mt-4 mb-2">Containers</div>
+          <div className="text-[10px] uppercase tracking-widest text-sn-ink-muted mt-4 mb-2">Containers</div>
           <div className="flex flex-wrap gap-2">
             {PRESETS.map((p) => (
               <button
@@ -163,7 +163,7 @@ export function SurfaceLabContent() {
                 onClick={() => setSurface(p.surface)}
                 className={clsx(
                   BTN_BASE,
-                  isPreset(p) ? 'bg-console-text text-console-bg border-console-text shadow-sm' : BTN_INACTIVE,
+                  isPreset(p) ? 'bg-sn-ink text-sn-bg-base border-sn-ink shadow-sm' : BTN_INACTIVE,
                 )}
               >
                 {p.label}
@@ -175,22 +175,22 @@ export function SurfaceLabContent() {
         {/* Live + plan */}
         <Panel title="Live">
           <div className="flex flex-wrap items-start gap-5">
-            <div className="bg-console-bg p-4 flex items-center justify-center min-h-[180px] min-w-[180px] overflow-auto max-h-[520px]">
+            <div className="bg-sn-bg-base p-4 flex items-center justify-center min-h-[180px] min-w-[180px] overflow-auto max-h-[520px]">
               <AdaptiveSurface surface={surface} job={SAMPLE_JOB} />
             </div>
             <div className="text-xs leading-relaxed">
-              <div className="text-[10px] uppercase tracking-widest text-console-text-muted mb-1">
+              <div className="text-[10px] uppercase tracking-widest text-sn-ink-muted mb-1">
                 Decided by adaptLayout
               </div>
               <div>
                 profile{' '}
-                <span className="bg-console-accent text-white px-1.5 py-0.5 rounded-sm font-semibold">
+                <span className="bg-sn-accent text-sn-ink-on-accent px-1.5 py-0.5 rounded-sm font-semibold">
                   {plan.profile}
                 </span>
               </div>
-              <div className="mt-1 text-console-text-muted">slots: {plan.slots.join(', ')}</div>
-              <div className="text-console-text-muted">orient: {plan.orientation}</div>
-              <div className="text-console-text-muted">abbrev: {String(plan.abbreviate)}</div>
+              <div className="mt-1 text-sn-ink-muted">slots: {plan.slots.join(', ')}</div>
+              <div className="text-sn-ink-muted">orient: {plan.orientation}</div>
+              <div className="text-sn-ink-muted">abbrev: {String(plan.abbreviate)}</div>
             </div>
           </div>
         </Panel>
@@ -199,7 +199,7 @@ export function SurfaceLabContent() {
       {/* Gallery */}
       <div className="mt-5">
         <Panel title="Same job across containers">
-          <div className="bg-console-bg p-5 flex flex-wrap items-end gap-8">
+          <div className="bg-sn-bg-base p-5 flex flex-wrap items-end gap-8">
             {PRESETS.map((p) => (
               <GalleryTile key={p.label} preset={p} />
             ))}

@@ -33,32 +33,36 @@ export function darkenHex(hex: string, amount = 28): string {
 }
 
 /** Pseudo-random but deterministic accent color from a string id. Used by
- *  Avatar so each user gets a stable color without a backend field. */
-const ACCENT_PALETTE = [
-  '#9A6F2E', // gold (accent)
-  '#5A8C76', // sage (ok)
-  '#8C5A2E', // sienna (warn)
-  '#8C3A3A', // brick (danger)
-  '#6B4F8C', // muted purple
-  '#3A6E8C', // dusty blue
-  '#8C7E3A', // olive
-];
+ *  Avatar so each user gets a stable color without a backend field. Returns
+ *  a `var(--sn-avatar-aN)` reference into the Task 1 avatar palette (design
+ *  System v2) instead of a literal hex, so the palette can be retuned in one
+ *  place (`design/tokens.json`) without touching consumers. */
+const AVATAR_TOKEN_COUNT = 6; // --sn-avatar-a1 .. a6
 
 export function accentForId(id: string): string {
   let hash = 0;
   for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
-  return ACCENT_PALETTE[Math.abs(hash) % ACCENT_PALETTE.length];
+  const n = (Math.abs(hash) % AVATAR_TOKEN_COUNT) + 1;
+  return `var(--sn-avatar-a${n})`;
 }
 
-/** Stable accent color for a user role. Used by Chip in CrewCard etc. */
+/** Stable accent color for a user role. Used by Chip in CrewCard etc.
+ *  Maps each v1 literal hex to the sn-* token whose JOB it most closely
+ *  matched (see task-8-report.md for the full per-role reasoning):
+ *    - foreman was literally the old v1 accent hex (#9A6F2E) -> sn-accent
+ *    - team was literally the old v1 "ok" hex (#5A8C76) -> sn-status-online
+ *    - admin's gray was explicitly "calm, not alarming" -> sn-ink-muted
+ *    - solo's olive shared warn's warm-brown family -> sn-attention
+ *    - enterprise (dusty blue) and lead (muted purple) were both cool hues
+ *      with no direct token match -> sn-accent (nearest cool-toned token) */
 export function colorForRole(role: string): string {
   switch (role) {
-    case 'admin':      return '#6E6A63'; // muted warm gray (system) -- calm, not alarming
-    case 'enterprise': return '#3A6E8C'; // dusty blue
-    case 'foreman':    return '#9A6F2E'; // accent gold
-    case 'lead':       return '#6B4F8C'; // muted purple
-    case 'team':       return '#5A8C76'; // sage
+    case 'admin':      return 'var(--sn-ink-muted)';
+    case 'enterprise': return 'var(--sn-accent)';
+    case 'foreman':    return 'var(--sn-accent)';
+    case 'lead':       return 'var(--sn-accent)';
+    case 'team':       return 'var(--sn-status-online)';
     case 'solo':
-    default:           return '#8C7E3A'; // olive
+    default:           return 'var(--sn-attention)';
   }
 }

@@ -47,7 +47,7 @@ export function LoginForm() {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
-        {error && <div className="text-console-danger text-xs">{error}</div>}
+        {error && <div className="text-sn-status-error text-xs">{error}</div>}
         <Button type="submit" disabled={busy}>
           {busy ? 'Logging in...' : 'Log in'}
         </Button>

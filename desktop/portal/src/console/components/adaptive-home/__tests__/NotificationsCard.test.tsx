@@ -6,8 +6,9 @@ import { useNotificationsStore } from '../../../stores/notificationsStore';
 import type { NotificationItem } from '../../../api/notificationsClient';
 
 // The card mounts useNotificationsPolling on render; stub it so the test drives
-// the store directly (no network, no timers).
-vi.mock('../../../hooks/useNotificationsPolling', () => ({ useNotificationsPolling: () => {} }));
+// the store directly (no network, no timers). Returns { reload } (Task 8) to
+// match the real hook's shape now that the card destructures it for retry.
+vi.mock('../../../hooks/useNotificationsPolling', () => ({ useNotificationsPolling: () => ({ reload: () => {} }) }));
 
 function n(id: string, o: Partial<NotificationItem> = {}): NotificationItem {
   return {

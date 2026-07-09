@@ -28,9 +28,9 @@ const STATUS_TEXT: Record<JobStatus, string> = {
 };
 
 const STATUS_CHIP: Record<JobStatus, string> = {
-  planned: 'bg-console-border text-console-text-muted',
-  in_progress: 'bg-console-warn text-white',
-  complete: 'bg-console-ok text-white',
+  planned: 'bg-sn-line text-sn-ink-muted',
+  in_progress: 'bg-sn-attention text-sn-ink-on-accent',
+  complete: 'bg-sn-status-online text-sn-ink-on-accent',
 };
 
 const PAD_PX: Record<1 | 2 | 3, number> = { 1: 5, 2: 9, 3: 13 };
@@ -74,7 +74,7 @@ function slotWidthChars(slot: SlotId, job: DemoJob, abbreviate: boolean): number
 }
 
 function Bullet() {
-  return <span className="inline-block w-[0.4em] h-[0.4em] bg-console-accent shrink-0" />;
+  return <span className="inline-block w-[0.4em] h-[0.4em] bg-sn-accent shrink-0" />;
 }
 
 export function AdaptiveCard({ surface, job }: Props) {
@@ -129,7 +129,7 @@ export function AdaptiveCard({ surface, job }: Props) {
         );
       case 'metric':
         return (
-          <div key="metric" className="text-console-accent font-bold tabular-nums text-[1.45em] leading-none">
+          <div key="metric" className="text-sn-accent font-bold tabular-nums text-[1.45em] leading-none">
             {job.metric}
           </div>
         );
@@ -137,19 +137,19 @@ export function AdaptiveCard({ surface, job }: Props) {
         const pct = Math.round(job.progress * 100);
         return (
           <div key="progress" className="w-full text-[0.8em]">
-            <div className="flex justify-between text-console-text-muted leading-none mb-[0.3em]">
+            <div className="flex justify-between text-sn-ink-muted leading-none mb-[0.3em]">
               <span>progress</span>
               <span className="tabular-nums">{pct}%</span>
             </div>
-            <div className="h-[0.5em] w-full bg-console-border rounded-sm overflow-hidden">
-              <div className="h-full bg-console-accent" style={{ width: `${pct}%` }} />
+            <div className="h-[0.5em] w-full bg-sn-line rounded-sm overflow-hidden">
+              <div className="h-full bg-sn-accent" style={{ width: `${pct}%` }} />
             </div>
           </div>
         );
       }
       case 'details':
         return (
-          <div key="details" className="text-console-text-muted text-[0.82em] leading-snug w-full">
+          <div key="details" className="text-sn-ink-muted text-[0.82em] leading-snug w-full">
             {[job.client, job.location, job.due].map((line) => (
               <div key={line} className="flex items-center gap-[0.5em] truncate">
                 <Bullet />
@@ -163,10 +163,10 @@ export function AdaptiveCard({ surface, job }: Props) {
           <div key="tasks" className="text-[0.82em] leading-snug w-full">
             {job.tasks.map((t) => (
               <div key={t.label} className="flex items-center gap-[0.45em] truncate">
-                <span className={clsx('font-semibold', t.done ? 'text-console-ok' : 'text-console-text-muted')}>
+                <span className={clsx('font-semibold', t.done ? 'text-sn-status-online' : 'text-sn-ink-muted')}>
                   {t.done ? '[x]' : '[ ]'}
                 </span>
-                <span className={clsx('truncate', t.done && 'text-console-text-muted')}>{t.label}</span>
+                <span className={clsx('truncate', t.done && 'text-sn-ink-muted')}>{t.label}</span>
               </div>
             ))}
           </div>
@@ -174,10 +174,10 @@ export function AdaptiveCard({ surface, job }: Props) {
       case 'actions':
         return (
           <div key="actions" className="flex items-center gap-[0.4em] flex-wrap">
-            <span className="bg-console-text text-console-bg px-[0.7em] py-[0.18em] font-semibold rounded-sm whitespace-nowrap">
+            <span className="bg-sn-ink text-sn-bg-base px-[0.7em] py-[0.18em] font-semibold rounded-sm whitespace-nowrap">
               open -&gt;
             </span>
-            <span className="border border-console-border text-console-text-muted px-[0.55em] py-[0.18em] rounded-sm whitespace-nowrap">
+            <span className="border border-sn-line text-sn-ink-muted px-[0.55em] py-[0.18em] rounded-sm whitespace-nowrap">
               msg
             </span>
           </div>
@@ -192,7 +192,7 @@ export function AdaptiveCard({ surface, job }: Props) {
       style={{ width: wPx, height: hPx, padding: pad, fontSize: fontPx, lineHeight: 1.2 }}
       className={twMerge(
         clsx(
-          'bg-console-surface text-console-text font-mono overflow-hidden flex shadow-sm border border-console-border',
+          'bg-sn-bg-panel text-sn-ink font-mono overflow-hidden flex shadow-sm border border-sn-line',
           isCircle ? 'rounded-full items-center justify-center text-center' : 'rounded-md',
         ),
       )}

@@ -39,4 +39,18 @@ describe('notificationsStore', () => {
     expect(s.notifications).toEqual([]);
     expect(s.unreadCount).toBe(0);
   });
+
+  it('markLoading toggles isLoading independently of isStale', () => {
+    useNotificationsStore.getState().markLoading(true);
+    expect(useNotificationsStore.getState().isLoading).toBe(true);
+    expect(useNotificationsStore.getState().isStale).toBe(false);
+    useNotificationsStore.getState().markLoading(false);
+    expect(useNotificationsStore.getState().isLoading).toBe(false);
+  });
+
+  it('clear resets isLoading too', () => {
+    useNotificationsStore.getState().markLoading(true);
+    useNotificationsStore.getState().clear();
+    expect(useNotificationsStore.getState().isLoading).toBe(false);
+  });
 });
