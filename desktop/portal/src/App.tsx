@@ -46,14 +46,17 @@ export default function App() {
         <Route path="home" element={<AdaptiveHomeRoute />} />
         <Route path="settings" element={<SettingsRoute />} />
         <Route path="time" element={<TimeRoute />} />
-        <Route path="jobs" element={<RequireForemanRole><JobsListRoute /></RequireForemanRole>} />
-        <Route path="jobs/:id" element={<RequireForemanRole><JobDetailRoute /></RequireForemanRole>} />
-        <Route path="clients" element={<RequireForemanRole><ClientsListRoute /></RequireForemanRole>} />
-        <Route path="clients/:id" element={<RequireForemanRole><ClientDetailRoute /></RequireForemanRole>} />
+        <Route path="jobs" element={<RequireForemanRole><JobsListRoute /></RequireForemanRole>}>
+          <Route path=":id" element={<JobDetailRoute />} />
+        </Route>
+        <Route path="clients" element={<RequireForemanRole><ClientsListRoute /></RequireForemanRole>}>
+          <Route path=":id" element={<ClientDetailRoute />} />
+        </Route>
         <Route path="crew" element={<RequireForemanRole><CrewRoute /></RequireForemanRole>} />
         <Route path="comm" element={<CommRoute />} />
-        <Route path="invoices" element={<RequireForemanRole><InvoicesListRoute /></RequireForemanRole>} />
-        <Route path="invoices/:id" element={<RequireForemanRole><InvoiceDetailRoute /></RequireForemanRole>} />
+        <Route path="invoices" element={<RequireForemanRole><InvoicesListRoute /></RequireForemanRole>}>
+          <Route path=":id" element={<InvoiceDetailRoute />} />
+        </Route>
         <Route path="admin" element={<RequireAdmin><AdminRoute /></RequireAdmin>} />
       </Route>
     </Routes>

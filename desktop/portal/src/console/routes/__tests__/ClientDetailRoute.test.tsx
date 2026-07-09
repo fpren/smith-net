@@ -140,4 +140,11 @@ describe('ClientDetailRoute depth', () => {
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }));
     await waitFor(() => expect(removeSpy).toHaveBeenCalledWith('c1'));
   });
+
+  it('back-link is hidden at xl (beside-list panel view supersedes it)', async () => {
+    renderAt('c1');
+    await waitFor(() => expect(screen.getByText('Test Client')).toBeInTheDocument());
+    const backLink = screen.getByText('back to clients');
+    expect(backLink.className).toMatch(/xl:hidden/);
+  });
 });

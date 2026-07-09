@@ -1,10 +1,22 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { InvoicesListRoute } from '../InvoicesListRoute';
 import { useInvoicesStore } from '../../stores/invoicesStore';
 import { server } from '../../test/msw-server';
+
+function renderNestedAt(path: string) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route path="/console/invoices" element={<InvoicesListRoute />}>
+          <Route path=":id" element={<div>Detail placeholder</div>} />
+        </Route>
+      </Routes>
+    </MemoryRouter>,
+  );
+}
 
 describe('InvoicesListRoute', () => {
   beforeEach(() => useInvoicesStore.getState().clear());
@@ -94,5 +106,34 @@ describe('InvoicesListRoute', () => {
 
     await waitFor(() => expect(screen.getByText('INV-2026-0001')).toBeInTheDocument());
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  describe('beside-list detail panel (Plan 4C Task 2)', () => {
+    const invoice = {
+      id: 'inv-1', organizationId: 'o', createdBy: 'u', invoiceNumber: 'INV-2026-0001',
+      clientName: 'Acme Roofing', clientEmail: null,
+      issueDate: '2026-05-11T10:00:00Z', dueDate: null, status: 'draft' as const,
+      subtotal: 0, taxRate: 0, taxAmount: 0, totalDue: 0, notes: null,
+      createdAt: '2026-05-11T10:00:00Z', updatedAt: '2026-05-11T10:00:00Z',
+    };
+
+    it('shows the "Select an invoice" empty panel when no id is active', () => {
+      useInvoicesStore.getState().setInvoices([invoice]);
+      renderNestedAt('/console/invoices');
+      expect(screen.getByText('Select an invoice')).toBeInTheDocument();
+      expect(screen.queryByText('Detail placeholder')).not.toBeInTheDocument();
+    });
+
+    it('hides the list (below xl) and renders the outlet when an id is active', () => {
+      useInvoicesStore.getState().setInvoices([invoice]);
+      renderNestedAt('/console/invoices/inv-1');
+      expect(screen.getByText('Detail placeholder')).toBeInTheDocument();
+      expect(screen.queryByText('Select an invoice')).not.toBeInTheDocument();
+      const listItem = screen.getByText('INV-2026-0001');
+      const listContainer = listItem.closest('div.hidden');
+      expect(listContainer).not.toBeNull();
+      expect(listContainer?.className).toMatch(/hidden/);
+      expect(listContainer?.className).toMatch(/xl:block/);
+    });
   });
 });

@@ -1,11 +1,23 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
 import { ClientsListRoute } from '../ClientsListRoute';
 import { useClientsStore } from '../../stores/clientsStore';
 import { server } from '../../test/msw-server';
 import type { Client } from '../../api/clientsClient';
+
+function renderNestedAt(path: string) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route path="/console/clients" element={<ClientsListRoute />}>
+          <Route path=":id" element={<div>Detail placeholder</div>} />
+        </Route>
+      </Routes>
+    </MemoryRouter>,
+  );
+}
 
 const c = (id: string, name: string, company: string | null = null): Client => ({
   id, ownerId: 'f-1', name, email: null, phone: null, address: null,
@@ -60,5 +72,26 @@ describe('ClientsListRoute', () => {
     fireEvent.click(screen.getByRole('button', { name: /retry/i }));
     await waitFor(() => expect(screen.getByText('Globex')).toBeInTheDocument());
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  describe('beside-list detail panel (Plan 4C Task 2)', () => {
+    it('shows the "Select a client" empty panel when no id is active', () => {
+      useClientsStore.getState().setClients([c('a', 'Acme')]);
+      renderNestedAt('/console/clients');
+      expect(screen.getByText('Select a client')).toBeInTheDocument();
+      expect(screen.queryByText('Detail placeholder')).not.toBeInTheDocument();
+    });
+
+    it('hides the list (below xl) and renders the outlet when an id is active', () => {
+      useClientsStore.getState().setClients([c('a', 'Acme')]);
+      renderNestedAt('/console/clients/a');
+      expect(screen.getByText('Detail placeholder')).toBeInTheDocument();
+      expect(screen.queryByText('Select a client')).not.toBeInTheDocument();
+      const listItem = screen.getByText('Acme');
+      const listContainer = listItem.closest('div.hidden');
+      expect(listContainer).not.toBeNull();
+      expect(listContainer?.className).toMatch(/hidden/);
+      expect(listContainer?.className).toMatch(/xl:block/);
+    });
   });
 });

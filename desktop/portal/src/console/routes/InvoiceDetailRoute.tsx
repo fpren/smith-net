@@ -86,7 +86,7 @@ export function InvoiceDetailRoute() {
 
   return (
     <div className="font-mono">
-      <Link to="/console/invoices" className="text-sn-accent text-sm">back to invoices</Link>
+      <Link to="/console/invoices" className="text-sn-accent text-sm xl:hidden">back to invoices</Link>
 
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mt-2">
         <div className="flex items-center gap-3">
