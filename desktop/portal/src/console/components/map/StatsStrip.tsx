@@ -22,13 +22,13 @@ export function StatsStrip({ jobs }: { jobs: Job[] }) {
     // original inline strip with `·` separators (whitespace-nowrap ensures
     // "IN PROGRESS 0" doesn't break in two when the row is tight).
     <div className="font-mono text-xs text-sn-ink-muted grid grid-cols-2 gap-x-3 gap-y-1 md:flex md:gap-3">
-      <span className="whitespace-nowrap">PLANNED {stats.planned}</span>
+      <span className="whitespace-nowrap">PLANNED <span className="tabular-nums">{stats.planned}</span></span>
       <span className="hidden md:inline">·</span>
-      <span className="whitespace-nowrap">IN PROGRESS {stats.inProg}</span>
+      <span className="whitespace-nowrap">IN PROGRESS <span className="tabular-nums">{stats.inProg}</span></span>
       <span className="hidden md:inline">·</span>
-      <span className="whitespace-nowrap">COMPLETE {stats.complete} (week)</span>
+      <span className="whitespace-nowrap">COMPLETE <span className="tabular-nums">{stats.complete}</span> (week)</span>
       <span className="hidden md:inline">·</span>
-      <span className="whitespace-nowrap">CANCELLED {stats.cancelled} (week)</span>
+      <span className="whitespace-nowrap">CANCELLED <span className="tabular-nums">{stats.cancelled}</span> (week)</span>
     </div>
   );
 }

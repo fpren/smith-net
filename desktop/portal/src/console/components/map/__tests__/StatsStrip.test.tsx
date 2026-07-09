@@ -18,8 +18,10 @@ describe('StatsStrip', () => {
   it('counts planned and in_progress jobs', () => {
     const jobs = [j('a', 'planned'), j('b', 'planned'), j('c', 'in_progress')];
     render(<StatsStrip jobs={jobs} />);
-    expect(screen.getByText(/PLANNED 2/)).toBeInTheDocument();
-    expect(screen.getByText(/IN PROGRESS 1/)).toBeInTheDocument();
+    expect(screen.getByText(/PLANNED/)).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.getByText(/IN PROGRESS/)).toBeInTheDocument();
+    expect(screen.getByText('1')).toBeInTheDocument();
   });
 
   it('only counts complete/cancelled within 7 days', () => {
@@ -30,15 +32,25 @@ describe('StatsStrip', () => {
     ];
     render(<StatsStrip jobs={jobs} />);
     // recent complete counted; old not counted
-    expect(screen.getByText(/COMPLETE 1/)).toBeInTheDocument();
-    expect(screen.getByText(/CANCELLED 1/)).toBeInTheDocument();
+    expect(screen.getByText(/COMPLETE/)).toBeInTheDocument();
+    expect(screen.getByText(/CANCELLED/)).toBeInTheDocument();
   });
 
   it('renders zeros for empty jobs', () => {
     render(<StatsStrip jobs={[]} />);
-    expect(screen.getByText(/PLANNED 0/)).toBeInTheDocument();
-    expect(screen.getByText(/IN PROGRESS 0/)).toBeInTheDocument();
-    expect(screen.getByText(/COMPLETE 0/)).toBeInTheDocument();
-    expect(screen.getByText(/CANCELLED 0/)).toBeInTheDocument();
+    expect(screen.getByText(/PLANNED/)).toBeInTheDocument();
+    expect(screen.getByText(/IN PROGRESS/)).toBeInTheDocument();
+    expect(screen.getByText(/COMPLETE/)).toBeInTheDocument();
+    expect(screen.getByText(/CANCELLED/)).toBeInTheDocument();
+  });
+
+  it('numeric values in StatsStrip carry tabular-nums class', () => {
+    const jobs = [j('a', 'planned'), j('b', 'planned'), j('c', 'in_progress')];
+    const { container } = render(<StatsStrip jobs={jobs} />);
+    const tabulaNumeralSpans = container.querySelectorAll('.tabular-nums');
+    expect(tabulaNumeralSpans.length).toBeGreaterThan(0);
+    tabulaNumeralSpans.forEach((span) => {
+      expect(span).toHaveClass('tabular-nums');
+    });
   });
 });

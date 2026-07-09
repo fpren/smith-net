@@ -89,4 +89,29 @@ describe('AdminRoute', () => {
     // Cached table is still visible under the banner (not full-page replaced).
     expect(screen.getByText(/12345@host/)).toBeInTheDocument();
   });
+
+  it('header cells carry Terminal Grade mono-uppercase styling', async () => {
+    loginAsAdmin();
+    render(<MemoryRouter><AdminRoute /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByText(/12345@host/)).toBeInTheDocument());
+
+    const headerCells = screen.getAllByRole('columnheader');
+    expect(headerCells.length).toBeGreaterThan(0);
+    headerCells.forEach((th) => {
+      expect(th).toHaveClass('font-data', 'uppercase', 'text-[10px]', 'tracking-wide');
+    });
+  });
+
+  it('numeric cells in tables carry tabular-nums class', async () => {
+    loginAsAdmin();
+    render(<MemoryRouter><AdminRoute /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByText(/12345@host/)).toBeInTheDocument());
+
+    // Queue table count column
+    const countCells = screen.getAllByText(/^\d+$/);
+    expect(countCells.length).toBeGreaterThan(0);
+    countCells.forEach((cell) => {
+      expect(cell.closest('td')).toHaveClass('font-data', 'tabular-nums');
+    });
+  });
 });
