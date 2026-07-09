@@ -12,6 +12,7 @@ import { Pill } from '../components/ui/Pill';
 import { ShareLocationToggle } from '../components/header/ShareLocationToggle';
 import { accentForId, colorForRole } from '../lib/utils';
 import { useToastStore } from '../stores/toastStore';
+import { useThemeStore, type ThemeChoice } from '../stores/themeStore';
 
 // Mirrors the Android SettingsScreen's sectioned layout (PROFILE / WORK MODE /
 // LOCATION SHARING / ABOUT / ACCOUNT) rather than inventing one. Device-only
@@ -45,6 +46,12 @@ const WORK_MODES = [
   { mode: 'foreman' as const, title: 'Foreman', desc: 'Crew tracking, dispatch, team invoicing.' },
 ];
 
+const THEME_OPTIONS: { choice: ThemeChoice; label: string }[] = [
+  { choice: 'light', label: 'Light' },
+  { choice: 'dark', label: 'Dark' },
+  { choice: 'system', label: 'System' },
+];
+
 export function SettingsRoute() {
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
@@ -55,6 +62,8 @@ export function SettingsRoute() {
   const [name, setName] = useState(user?.displayName ?? '');
   const [saving, setSaving] = useState(false);
   const me = useMyProfile();
+  const theme = useThemeStore((s) => s.theme);
+  const setTheme = useThemeStore((s) => s.setTheme);
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [switching, setSwitching] = useState(false);
@@ -277,6 +286,31 @@ export function SettingsRoute() {
           <span className="text-sn-ink-muted text-xs">
             Powers clock-in geofence validation and crew presence on the map.
           </span>
+        </div>
+      </Row>
+
+      {/* APPEARANCE */}
+      <SectionHeader>Appearance</SectionHeader>
+      <Row>
+        <div className="flex gap-2">
+          {THEME_OPTIONS.map((o) => {
+            const selected = o.choice === theme;
+            return (
+              <button
+                key={o.choice}
+                type="button"
+                onClick={() => setTheme(o.choice)}
+                className={
+                  'flex-1 rounded px-3 py-2 font-data text-xs uppercase transition-colors ' +
+                  (selected
+                    ? 'bg-sn-accent text-sn-ink-on-accent'
+                    : 'text-sn-ink-muted hover:text-sn-ink border border-sn-line')
+                }
+              >
+                {o.label}
+              </button>
+            );
+          })}
         </div>
       </Row>
 

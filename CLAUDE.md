@@ -49,6 +49,6 @@ Phase 1 ("audit + decision freeze") closes when this file lands and the repo is 
 ## Project conventions
 
 - **No emoji.** Anywhere — UI, code, commit messages, generated docs. Use ASCII tokens like `[>]`, `[x]`, `[+]`, `[-]`, `->`.
-- **Light mode only** for the desktop portal. Monospace UI, console aesthetic.
+- **Design System v2 (Crew Soft / North Cobalt)** governs the portal: light-first with a user dark toggle, sn-* tokens only. The v1 light-only/monospace lock is repealed (spec: docs/superpowers/specs/2026-07-08-design-system-v2-design.md).
 - **Per-profile data isolation.** Anything synced from Hetzner must be scoped per-profile; cross-profile leakage means smithnet is broken.
 - **Two architecture vocabularies coexist.** Code uses `Intent` / `SummaryArtifact` / `Ledger`. Marketing/product uses `PLAN Compiler` / `Smith Mesh` / `SmithAI`. Don't conflate them in code.

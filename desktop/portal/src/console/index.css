@@ -19,28 +19,18 @@
 
 @layer base {
   html, body {
-    background-color: theme('colors.console-bg');
-    color: theme('colors.console-text');
+    background: var(--sn-bg-base);
+    color: var(--sn-ink);
     font-family: theme('fontFamily.mono');
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
 
-  /* CSS vars used by the dashboard-derived primitives (Avatar / Chip /
-     ProgressBar / SectionHeader). Same palette as tailwind.config.js +
-     consoleTheme.ts. */
+  /* Font-family CSS vars used by the dashboard-derived primitives (Avatar /
+     Chip / ProgressBar / SectionHeader). Colors now live in the sn tokens
+     (styles/tokens.css, generated) -- the v1 palette vars are deleted
+     (Design System v2 Plan 4A, Task 9). */
   :root {
-    --color-bg:         #F4F2EE;
-    --color-surface:    #FAFAF8;
-    --color-border:     #E8E4DE;
-    --color-border2:    #D6CFC3;
-    --color-text:       #2A2520;
-    --color-text-muted: #5C5347;
-    --color-text-dim:   #8C8478;
-    --color-accent:     #9A6F2E;
-    --color-ok:         #5A8C76;
-    --color-warn:       #8C5A2E;
-    --color-danger:     #8C3A3A;
     --font-display: 'Syne', 'Inter', system-ui, sans-serif;
     --font-body:    'Inter', system-ui, sans-serif;
     --font-mono:    'JetBrains Mono', ui-monospace, monospace;
