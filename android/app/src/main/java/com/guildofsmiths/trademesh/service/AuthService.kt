@@ -455,8 +455,14 @@ object AuthService {
         return try {
             deferred.await()
         } finally {
-            refreshMutex.withLock {
-                if (refreshInFlight === deferred) refreshInFlight = null
+            // NonCancellable: a caller cancelled mid-await must still clear the
+            // slot -- if the mutex is contended, a plain withLock would throw
+            // CancellationException and pin refreshInFlight to a completed
+            // Deferred forever, silently replaying its stale result.
+            withContext(NonCancellable) {
+                refreshMutex.withLock {
+                    if (refreshInFlight === deferred) refreshInFlight = null
+                }
             }
         }
     }

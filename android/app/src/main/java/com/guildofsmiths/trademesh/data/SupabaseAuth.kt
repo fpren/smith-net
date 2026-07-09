@@ -11,6 +11,7 @@ import io.ktor.client.engine.okhttp.OkHttp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -270,8 +271,12 @@ object SupabaseAuth {
         return try {
             deferred.await()
         } finally {
-            refreshMutex.withLock {
-                if (refreshInFlight === deferred) refreshInFlight = null
+            // NonCancellable: see AuthService.refreshToken -- a cancelled caller
+            // must still clear the slot or future refreshes replay a stale result.
+            withContext(NonCancellable) {
+                refreshMutex.withLock {
+                    if (refreshInFlight === deferred) refreshInFlight = null
+                }
             }
         }
     }
