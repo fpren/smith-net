@@ -1,7 +1,6 @@
 import { ReactNode } from 'react';
 import { useContainerSize } from '../../hooks/useContainerSize';
 import { adaptLayout, surfaceFromPx } from '../surface-lab/surface';
-import { CrewRoute } from '../../routes/CrewRoute';
 import { CommRoute } from '../../routes/CommRoute';
 import {
   NotificationsCard,
@@ -85,7 +84,9 @@ export function AdaptiveDashboard() {
         { key: 'dispatch', el: <DispatchCard /> },
         { key: 'system', el: <SystemCard /> },
         { key: 'jobs', el: <JobsCard /> },
-        { key: 'crew', el: <CrewRoute /> },
+        // Crew is a compact foreman-gated card everywhere on the dashboard
+        // (grid and swipe) -- the full roster lives at /console/crew.
+        ...(hasForemanRole() ? [{ key: 'crew', el: <CrewPresenceCard /> }] : []),
         { key: 'invoices', el: <InvoicesCard /> },
         { key: 'comm', el: <CommRoute />, pad: false },
       ];

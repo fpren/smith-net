@@ -408,9 +408,9 @@ export function InvoicesCard() {
 // CREW -- foreman-tier entry point to the crew roster (Design System v2 Plan
 // 5 Task 5, "Crew entry point"). Small presence summary + a [open] link to
 // the full /console/crew screen, matching the JobsCard/InvoicesCard idiom
-// (PanelHeader + status precedence loading -> error -> empty -> data). The
-// dashboard also embeds the full <CrewRoute/> inline elsewhere; this card is
-// the compact entry point the brief asked for, not a replacement for that.
+// (PanelHeader + status precedence loading -> error -> empty -> data). This
+// card is crew's ONLY dashboard presence (grid and swipe); the full roster
+// lives at /console/crew.
 export function CrewPresenceCard() {
   const { reload } = useCrewRoster();
   useCrewPositionsPolling();
