@@ -133,9 +133,10 @@ export function AdaptiveDashboard() {
                 <SystemCard />
               </Card>
               {/* Crew entry point (Plan 5 Task 5): a compact, foreman-gated
-                  presence summary linking to /console/crew. The full crew
-                  screen is also embedded inline below (CrewRoute); this is
-                  the small link-row entry point the brief asked for. */}
+                  presence summary linking to /console/crew. This is crew's
+                  single dashboard presence -- matches the Jobs/Invoices
+                  idiom of a compact card + [open] link, not a full inline
+                  screen embed. */}
               {hasForemanRole() && (
                 <Card className="h-[172px]">
                   <CrewPresenceCard />
@@ -148,9 +149,6 @@ export function AdaptiveDashboard() {
             >
               <Card className="h-[280px]">
                 <JobsCard />
-              </Card>
-              <Card className="h-[280px]">
-                <CrewRoute />
               </Card>
               <Card className="h-[280px]">
                 <InvoicesCard />

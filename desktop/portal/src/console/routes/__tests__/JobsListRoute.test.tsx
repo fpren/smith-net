@@ -147,5 +147,25 @@ describe('JobsListRoute', () => {
       await screen.findByText(/no jobs yet/i);
       expect(screen.queryByText('Select a job')).not.toBeInTheDocument();
     });
+
+    it('remounts the panel-in wrapper (re-triggering the slide-in animation) when the active job id changes', () => {
+      // The panel wrapper is keyed on detailMatch?.params.id (see JobsListRoute),
+      // so switching the selected job must unmount + remount that node -- that
+      // remount is what re-runs the CSS animation. Prove it via node identity:
+      // same className, different element instance.
+      useJobsStore.getState().setJobs([j('a', 'planned'), j('b', 'in_progress')]);
+      const { container } = renderNestedAt('/console/jobs/a');
+
+      const first = container.querySelector('.panel-in');
+      expect(first).not.toBeNull();
+
+      const linkToB = container.querySelector('a[href="/console/jobs/b"]');
+      expect(linkToB).not.toBeNull();
+      fireEvent.click(linkToB!);
+
+      const second = container.querySelector('.panel-in');
+      expect(second).not.toBeNull();
+      expect(second).not.toBe(first);
+    });
   });
 });
