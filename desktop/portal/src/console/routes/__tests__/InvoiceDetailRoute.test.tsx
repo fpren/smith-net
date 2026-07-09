@@ -104,4 +104,11 @@ describe('InvoiceDetailRoute', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(useInvoicesStore.getState().listStale).toBe(true); // untouched by the detail fetch
   });
+
+  it('back-link is hidden at xl (beside-list panel view supersedes it)', async () => {
+    renderAt('/console/invoices/inv-1');
+    await waitFor(() => expect(screen.getByText('INV-2026-0001')).toBeInTheDocument());
+    const backLink = screen.getByText('back to invoices');
+    expect(backLink.className).toMatch(/xl:hidden/);
+  });
 });

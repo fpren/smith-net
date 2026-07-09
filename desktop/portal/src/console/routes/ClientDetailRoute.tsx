@@ -101,7 +101,7 @@ export function ClientDetailRoute() {
 
   return (
     <div className="font-mono">
-      <Link to="/console/clients" className="text-sn-accent text-sm">back to clients</Link>
+      <Link to="/console/clients" className="text-sn-accent text-sm xl:hidden">back to clients</Link>
       <div className="flex items-center justify-between mt-2 mb-4">
         <h1 className="text-sn-ink text-lg">{client.name}</h1>
         <div className="flex gap-2">

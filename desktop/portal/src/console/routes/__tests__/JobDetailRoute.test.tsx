@@ -174,4 +174,11 @@ describe('JobDetailRoute', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(useJobsStore.getState().listStale).toBe(true); // untouched by the detail fetch
   });
+
+  it('back-link is hidden at xl (beside-list panel view supersedes it)', async () => {
+    renderAt('/console/jobs/abc');
+    await waitFor(() => expect(screen.getByText('Detail Job')).toBeInTheDocument());
+    const backLink = screen.getByText('back to jobs');
+    expect(backLink.className).toMatch(/xl:hidden/);
+  });
 });

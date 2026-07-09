@@ -1,11 +1,23 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { JobsListRoute } from '../JobsListRoute';
 import { useJobsStore } from '../../stores/jobsStore';
 import { server } from '../../test/msw-server';
 import { http, HttpResponse } from 'msw';
 import type { Job } from '../../api/jobsClient';
+
+function renderNestedAt(path: string) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route path="/console/jobs" element={<JobsListRoute />}>
+          <Route path=":id" element={<div>Detail placeholder</div>} />
+        </Route>
+      </Routes>
+    </MemoryRouter>,
+  );
+}
 
 const j = (id: string, status: Job['status']): Job => ({
   id, foremanId: 'f-1', clientId: null, client: null, engagementId: null,
@@ -98,5 +110,28 @@ describe('JobsListRoute', () => {
 
     await waitFor(() => expect(screen.getByText('PLANNED (1)')).toBeInTheDocument());
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  describe('beside-list detail panel (Plan 4C Task 2)', () => {
+    it('shows the "Select a job" empty panel when no id is active', () => {
+      useJobsStore.getState().setJobs([j('a', 'planned')]);
+      renderNestedAt('/console/jobs');
+      expect(screen.getByText('Select a job')).toBeInTheDocument();
+      expect(screen.queryByText('Detail placeholder')).not.toBeInTheDocument();
+    });
+
+    it('hides the list (below xl) and renders the outlet when an id is active', () => {
+      useJobsStore.getState().setJobs([j('a', 'planned')]);
+      renderNestedAt('/console/jobs/a');
+      // The outlet content (child route) renders in the panel slot.
+      expect(screen.getByText('Detail placeholder')).toBeInTheDocument();
+      expect(screen.queryByText('Select a job')).not.toBeInTheDocument();
+      // The list container is CSS-hidden below xl, but stays in the DOM.
+      const listHeading = screen.getByText('PLANNED (1)');
+      const listContainer = listHeading.closest('div.hidden');
+      expect(listContainer).not.toBeNull();
+      expect(listContainer?.className).toMatch(/hidden/);
+      expect(listContainer?.className).toMatch(/xl:block/);
+    });
   });
 });

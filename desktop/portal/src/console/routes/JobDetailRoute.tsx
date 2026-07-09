@@ -56,7 +56,7 @@ export function JobDetailRoute() {
 
   return (
     <div className="font-mono">
-      <Link to="/console/jobs" className="text-sn-accent text-sm">back to jobs</Link>
+      <Link to="/console/jobs" className="text-sn-accent text-sm xl:hidden">back to jobs</Link>
       <div className="flex items-center gap-3 mt-2">
         <JobStatusBadge status={job.status} />
         <h1 className="text-sn-ink text-lg">{job.title}</h1>

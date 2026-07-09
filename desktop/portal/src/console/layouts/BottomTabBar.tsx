@@ -1,7 +1,9 @@
 // desktop/portal/src/console/layouts/BottomTabBar.tsx
 //
-// Mobile-only (`md:hidden`) fixed bottom-tab nav. Carries the same
-// destinations as AppHeader's inline nav (which hides under md). Mirrors
+// Mobile-only (`lg:hidden`) fixed bottom-tab nav -- "mobile navigation",
+// distinct from SmithRail's "primary navigation" so the two landmarks
+// never collide in the accessibility tree (RTL renders both regardless of
+// viewport). Carries the same destinations as SmithRail's tabs. Mirrors
 // the Android dashboard pattern (`[Home] [Jobs] [Comm]`) so the
 // portal navigates like the app on a phone.
 import { NavLink } from 'react-router-dom';
@@ -35,14 +37,20 @@ export function BottomTabBar() {
 
   return (
     <nav
-      className="md:hidden fixed inset-x-0 bottom-0 z-10 flex items-stretch bg-sn-bg-panel border-t border-sn-line h-14"
-      aria-label="Primary navigation"
+      className="lg:hidden fixed inset-x-0 bottom-0 z-10 flex items-stretch bg-sn-bg-panel border-t border-sn-line h-14"
+      aria-label="mobile navigation"
     >
       <TabLink to="/console/home" label="Home" />
       <TabLink to="/console/time" label="Clock" />
+      {/* Map is in Android's FOREMAN bottom-tab set — parity keeps it here.
+          Crew has no Android tab; it gets a home-grid entry point (Plan 5). */}
+      {hasForemanRole() && <TabLink to="/console" label="Map" />}
       {hasForemanRole() && <TabLink to="/console/jobs" label="Jobs" />}
       {hasForemanRole() && <TabLink to="/console/clients" label="Clients" />}
       <TabLink to="/console/comm" label="Comm" />
+      {/* Below lg the rail (gear/avatar/logout) is hidden -- Settings is the
+          only path to account actions, incl. Sign out, so it must be a tab. */}
+      <TabLink to="/console/settings" label="Set" />
     </nav>
   );
 }
