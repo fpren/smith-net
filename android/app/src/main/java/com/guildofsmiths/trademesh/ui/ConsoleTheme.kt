@@ -322,7 +322,8 @@ fun ConsoleHeader(
 }
 
 /**
- * Faint separator.
+ * Faint separator. Renders from the Smith token so the hairline matches the
+ * swept crew screens (Design System v2 Plan 4B) -- the last parchment leak.
  */
 @Composable
 fun ConsoleSeparator(modifier: Modifier = Modifier) {
@@ -330,7 +331,7 @@ fun ConsoleSeparator(modifier: Modifier = Modifier) {
         modifier = modifier
             .fillMaxWidth()
             .height(1.dp)
-            .background(ConsoleTheme.separatorFaint)
+            .background(LocalSmithColors.current.line)
     )
 }
 
