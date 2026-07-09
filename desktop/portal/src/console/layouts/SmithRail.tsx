@@ -36,6 +36,9 @@ function RailTab({
       to={to}
       end={end}
       title={title}
+      // The visible label is a mono abbreviation; the accessible name must be
+      // the full word (title alone does not set the accessible name).
+      aria-label={title}
       className={({ isActive }) =>
         cn(
           TAB_BASE,

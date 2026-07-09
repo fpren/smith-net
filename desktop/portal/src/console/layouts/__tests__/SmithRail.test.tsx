@@ -35,45 +35,45 @@ describe('SmithRail', () => {
   it('a worker (non-foreman) sees only HO/CLK/COM', () => {
     setUser('solo');
     render(<MemoryRouter><SmithRail /></MemoryRouter>);
-    expect(screen.getByRole('link', { name: /^HO$/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /^CLK$/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /^COM$/ })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /^MAP$/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /^JOB$/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /^CLI$/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /^INV$/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /^CRW$/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /^ADM$/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Home$/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Clock$/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Comm$/ })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Map$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Jobs$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Clients$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Invoices$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Crew$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Admin$/ })).not.toBeInTheDocument();
   });
 
   it('a foreman additionally sees MAP/JOB/CLI/INV/CRW', () => {
     setUser('foreman');
     render(<MemoryRouter><SmithRail /></MemoryRouter>);
-    expect(screen.getByRole('link', { name: /^HO$/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /^CLK$/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /^MAP$/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /^JOB$/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /^CLI$/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /^INV$/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /^CRW$/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /^COM$/ })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /^ADM$/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Home$/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Clock$/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Map$/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Jobs$/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Clients$/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Invoices$/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Crew$/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Comm$/ })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Admin$/ })).not.toBeInTheDocument();
   });
 
   it('an admin additionally sees ADM', () => {
     setUser('admin');
     render(<MemoryRouter><SmithRail /></MemoryRouter>);
-    expect(screen.getByRole('link', { name: /^ADM$/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Admin$/ })).toBeInTheDocument();
     // admin still has the foreman tier tabs
-    expect(screen.getByRole('link', { name: /^JOB$/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Jobs$/ })).toBeInTheDocument();
   });
 
   it('gives each tab a full-name title attribute', () => {
     setUser('foreman');
     render(<MemoryRouter><SmithRail /></MemoryRouter>);
-    expect(screen.getByRole('link', { name: /^HO$/ })).toHaveAttribute('title', 'Home');
-    expect(screen.getByRole('link', { name: /^MAP$/ })).toHaveAttribute('title', 'Map');
-    expect(screen.getByRole('link', { name: /^CRW$/ })).toHaveAttribute('title', 'Crew');
+    expect(screen.getByRole('link', { name: /^Home$/ })).toHaveAttribute('title', 'Home');
+    expect(screen.getByRole('link', { name: /^Map$/ })).toHaveAttribute('title', 'Map');
+    expect(screen.getByRole('link', { name: /^Crew$/ })).toHaveAttribute('title', 'Crew');
   });
 
   it('styles the active tab as an accent pill', () => {
@@ -83,19 +83,19 @@ describe('SmithRail', () => {
         <SmithRail />
       </MemoryRouter>
     );
-    const active = screen.getByRole('link', { name: /^HO$/ });
+    const active = screen.getByRole('link', { name: /^Home$/ });
     expect(active.className).toMatch(/bg-sn-accent/);
     expect(active.className).toMatch(/text-sn-ink-on-accent/);
 
-    const inactive = screen.getByRole('link', { name: /^CLK$/ });
+    const inactive = screen.getByRole('link', { name: /^Clock$/ });
     expect(inactive.className).not.toMatch(/bg-sn-accent/);
   });
 
   it('every nav tab carries a focus-visible ring class', () => {
     setUser('foreman');
     render(<MemoryRouter><SmithRail /></MemoryRouter>);
-    expect(screen.getByRole('link', { name: /^HO$/ }).className).toMatch(/focus-visible:ring/);
-    expect(screen.getByRole('link', { name: /^COM$/ }).className).toMatch(/focus-visible:ring/);
+    expect(screen.getByRole('link', { name: /^Home$/ }).className).toMatch(/focus-visible:ring/);
+    expect(screen.getByRole('link', { name: /^Comm$/ }).className).toMatch(/focus-visible:ring/);
   });
 
   it('renders the avatar with the display name as title', () => {

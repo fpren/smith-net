@@ -42,6 +42,9 @@ export function BottomTabBar() {
     >
       <TabLink to="/console/home" label="Home" />
       <TabLink to="/console/time" label="Clock" />
+      {/* Map is in Android's FOREMAN bottom-tab set — parity keeps it here.
+          Crew has no Android tab; it gets a home-grid entry point (Plan 5). */}
+      {hasForemanRole() && <TabLink to="/console" label="Map" />}
       {hasForemanRole() && <TabLink to="/console/jobs" label="Jobs" />}
       {hasForemanRole() && <TabLink to="/console/clients" label="Clients" />}
       <TabLink to="/console/comm" label="Comm" />

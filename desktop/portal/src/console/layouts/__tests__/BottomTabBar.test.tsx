@@ -14,7 +14,7 @@ describe('BottomTabBar', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('renders Home/Jobs/Comm for a foreman -- no Map/Invoices/Crew/Admin', () => {
+  it('renders Home/Map/Jobs/Comm for a foreman -- no Invoices/Crew/Admin (Map is in Android foreman tabs)', () => {
     useAuthStore.getState().setUser({
       id: 'u1', email: 'f@x.com', displayName: 'F', role: 'foreman', emailVerified: true,
     });
@@ -22,7 +22,7 @@ describe('BottomTabBar', () => {
     expect(screen.getByRole('link', { name: /Home/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Jobs/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Comm/ })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /Map/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Map/ })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Invoices/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Crew/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Admin/ })).not.toBeInTheDocument();

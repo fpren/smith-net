@@ -94,7 +94,12 @@ export function InvoicesListRoute() {
 
   return (
     <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_420px] xl:gap-6 xl:h-full">
-      <div className={idActive ? 'hidden xl:block xl:overflow-y-auto xl:min-h-0' : ''}>
+      <div className={
+        // The list column is an independent scroll region in BOTH states --
+        // flipping scroll modes on selection would reset the list's scroll
+        // position the moment you open the item you scrolled to find.
+        idActive ? 'hidden xl:block xl:overflow-y-auto xl:min-h-0' : 'xl:overflow-y-auto xl:min-h-0'
+      }>
         {listContent}
       </div>
       <div
