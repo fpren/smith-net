@@ -18,7 +18,7 @@ export function SectionHeader({ label, right }: Props) {
         justifyContent: 'space-between',
         padding: '10px 14px 8px',
         background: 'var(--sn-bg-panel)',
-        borderBottom: '0.5px solid rgba(42,37,32,.06)',
+        borderBottom: '0.5px solid color-mix(in srgb, var(--sn-ink) 6%, transparent)',
         flexShrink: 0,
       }}
     >

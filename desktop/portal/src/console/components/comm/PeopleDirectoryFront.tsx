@@ -68,7 +68,7 @@ export function PeopleDirectoryFront({ channels }: Props) {
             onClick={() => setSegment(s)}
             className={
               'rounded-full font-commmono text-[10px] px-3 py-1 transition-colors ' +
-              (segment === s ? 'bg-console-accent text-white' : 'border border-console-border text-console-text-muted hover:text-console-accent')
+              (segment === s ? 'bg-sn-accent text-sn-ink-on-accent' : 'border border-sn-line text-sn-ink-muted hover:text-sn-accent')
             }
           >
             {s}
@@ -76,9 +76,9 @@ export function PeopleDirectoryFront({ channels }: Props) {
         ))}
       </div>
       {segment === 'nearby' ? (
-        <div className="px-3 py-6 text-center text-console-text-muted text-sm">Nearby peers — coming soon.</div>
+        <div className="px-3 py-6 text-center text-sn-ink-muted text-sm">Nearby peers — coming soon.</div>
       ) : rows.length === 0 ? (
-        <div className="px-3 py-6 text-center text-console-text-muted text-sm">
+        <div className="px-3 py-6 text-center text-sn-ink-muted text-sm">
           {segment === 'team' ? 'No teammates yet.' : 'No recent conversations.'}
         </div>
       ) : (

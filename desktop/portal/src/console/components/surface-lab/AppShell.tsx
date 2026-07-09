@@ -1,4 +1,3 @@
-import { consoleTheme } from '../../theme/consoleTheme';
 import { adaptLayout, PX_PER_IN, Surface } from './surface';
 import { ModulePanel } from './modules';
 import { SAMPLE_ON_SITE } from './sampleApp';
@@ -6,6 +5,10 @@ import { SAMPLE_ON_SITE } from './sampleApp';
 // The "app" render mode: a real application screen -- top bar + nav + a grid of
 // feature modules -- scaled to app density (not one huge card). What the surface
 // is big enough to show (the letter / tablet / desktop) is the whole app.
+
+// Presence/GPS glyph -- was consoleTheme.glyphs.online (theme/consoleTheme.ts,
+// deleted this task); same literal, now local since it has no other consumer.
+const ONLINE = '((+))';
 
 interface Props {
   surface: Surface;
@@ -27,21 +30,21 @@ export function AppShell({ surface }: Props) {
   return (
     <div
       style={{ width: wPx, height: hPx, fontSize: fontPx }}
-      className="bg-console-bg text-console-text font-mono rounded-md border border-console-border shadow-sm overflow-hidden flex flex-col"
+      className="bg-sn-bg-base text-sn-ink font-mono rounded-md border border-sn-line shadow-sm overflow-hidden flex flex-col"
     >
       {/* top bar */}
-      <div className="flex items-center justify-between bg-console-text text-console-bg px-[0.8em] py-[0.4em]">
+      <div className="flex items-center justify-between bg-sn-ink text-sn-bg-base px-[0.8em] py-[0.4em]">
         <span className="font-bold tracking-[0.2em] text-[0.85em]">SMITH NET</span>
-        <span className="text-[0.72em] text-console-ok font-semibold">
-          {consoleTheme.glyphs.online} {SAMPLE_ON_SITE} on site
+        <span className="text-[0.72em] text-sn-status-online font-semibold">
+          {ONLINE} {SAMPLE_ON_SITE} on site
         </span>
       </div>
 
       {/* body: nav rail + module grid */}
       <div className="flex flex-1 min-h-0">
-        <nav className="border-r border-console-border px-[0.6em] py-[0.6em] flex flex-col gap-[0.35em] text-[0.8em] shrink-0">
+        <nav className="border-r border-sn-line px-[0.6em] py-[0.6em] flex flex-col gap-[0.35em] text-[0.8em] shrink-0">
           {NAV.map((n, i) => (
-            <span key={n} className={i === 0 ? 'text-console-accent font-semibold' : 'text-console-text-muted'}>
+            <span key={n} className={i === 0 ? 'text-sn-accent font-semibold' : 'text-sn-ink-muted'}>
               {n}
             </span>
           ))}

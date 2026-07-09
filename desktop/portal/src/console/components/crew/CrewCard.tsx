@@ -27,17 +27,17 @@ export function CrewCard({ entry, position }: Props) {
   const availability = entry.activeJob !== null ? 'busy' : 'free';
   const onShift = !!position;
   return (
-    <div className="grid grid-cols-[1.5ch_22px_1fr_20ch_8ch_1fr_16ch] gap-3 items-center px-3 py-2 border-b border-console-border text-sm font-mono">
+    <div className="grid grid-cols-[1.5ch_22px_1fr_20ch_8ch_1fr_16ch] gap-3 items-center px-3 py-2 border-b border-sn-line text-sm font-mono">
       <AvailabilityDot availability={availability} />
       <Avatar name={entry.displayName} color={accentForId(entry.id)} size={22} />
-      <span className="text-console-text">{entry.displayName}</span>
-      <span className="text-console-text-muted truncate">{entry.email}</span>
+      <span className="text-sn-ink">{entry.displayName}</span>
+      <span className="text-sn-ink-muted truncate">{entry.email}</span>
       <Chip label={entry.role.toUpperCase()} color={colorForRole(entry.role)} xs />
-      <span className="text-console-text-muted truncate">
+      <span className="text-sn-ink-muted truncate">
         {entry.activeJob ? `on ${entry.activeJob.title}` : 'idle'}
       </span>
       <span
-        className={onShift ? 'text-console-ok' : 'text-console-text-muted'}
+        className={onShift ? 'text-sn-status-online' : 'text-sn-ink-muted'}
         title={onShift ? `${position!.latitude.toFixed(4)}, ${position!.longitude.toFixed(4)}` : 'off shift'}
       >
         {onShift ? `[ON] ${formatAgo(position!.recordedAt)}` : '—'}

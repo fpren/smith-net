@@ -14,8 +14,8 @@ export function ShareLocationToggle() {
 
   const label = isSharing ? 'Share Location: ON' : 'Share Location: OFF';
   const colorClass = isSharing
-    ? 'border-console-accent text-console-accent'
-    : 'border-console-border text-console-text-muted hover:text-console-accent hover:border-console-accent';
+    ? 'border-sn-accent text-sn-accent'
+    : 'border-sn-line text-sn-ink-muted hover:text-sn-accent hover:border-sn-accent';
 
   return (
     <div className="flex items-center gap-2">
@@ -27,7 +27,7 @@ export function ShareLocationToggle() {
       >
         {label}
       </button>
-      {error && <span className="text-xs text-console-warn">{error}</span>}
+      {error && <span className="text-xs text-sn-attention">{error}</span>}
     </div>
   );
 }

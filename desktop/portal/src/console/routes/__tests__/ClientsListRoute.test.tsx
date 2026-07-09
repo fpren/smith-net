@@ -1,8 +1,10 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
+import { http, HttpResponse } from 'msw';
 import { ClientsListRoute } from '../ClientsListRoute';
 import { useClientsStore } from '../../stores/clientsStore';
+import { server } from '../../test/msw-server';
 import type { Client } from '../../api/clientsClient';
 
 const c = (id: string, name: string, company: string | null = null): Client => ({
@@ -29,5 +31,34 @@ describe('ClientsListRoute', () => {
     fireEvent.change(screen.getByPlaceholderText(/search by name/i), { target: { value: 'northgate' } });
     expect(screen.getByText('Acme')).toBeInTheDocument();        // matched via company
     expect(screen.queryByText('Beta')).not.toBeInTheDocument();
+  });
+
+  it('renders LoadingState while clients are loading', () => {
+    render(<MemoryRouter><ClientsListRoute /></MemoryRouter>);
+    expect(screen.getByRole('status')).toBeInTheDocument();
+  });
+
+  it('initial fetch failure shows ErrorState with retry, not "No clients."', async () => {
+    server.use(http.get('/api/clients', () => HttpResponse.json({ error: 'boom' }, { status: 500 })));
+    render(<MemoryRouter><ClientsListRoute /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    expect(screen.queryByText('No clients.')).not.toBeInTheDocument();
+
+    server.use(http.get('/api/clients', () => HttpResponse.json({ clients: [c('a', 'Acme')] })));
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+    await waitFor(() => expect(screen.getByText('Acme')).toBeInTheDocument());
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('retry on the stale banner re-fires the fetch and clears the banner', async () => {
+    useClientsStore.getState().setClients([c('a', 'Acme')]);
+    useClientsStore.getState().markListStale(true);
+    render(<MemoryRouter><ClientsListRoute /></MemoryRouter>);
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+
+    server.use(http.get('/api/clients', () => HttpResponse.json({ clients: [c('a', 'Acme'), c('b', 'Globex')] })));
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+    await waitFor(() => expect(screen.getByText('Globex')).toBeInTheDocument());
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

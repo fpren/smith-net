@@ -18,12 +18,11 @@ describe('JobStatusBadge', () => {
     expect(screen.getByText('COMPLETE')).toBeInTheDocument();
   });
 
-  it('renders CANCELLED label and brick color for cancelled status', () => {
+  it('renders CANCELLED label using the sn-status-error token for cancelled status', () => {
     const { container } = render(<JobStatusBadge status="cancelled" />);
     expect(screen.getByText('CANCELLED')).toBeInTheDocument();
-    // Chip uses inline style for color (visual lift). Brick = #8C3A3A.
-    // jsdom normalizes hex to rgb() in the style object.
+    // Chip uses inline style for color (visual lift), sourced from an sn-* var().
     const el = container.firstChild as HTMLElement;
-    expect(el.style.color).toBe('rgb(140, 58, 58)');
+    expect(el.style.color).toBe('var(--sn-status-error)');
   });
 });

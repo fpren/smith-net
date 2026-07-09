@@ -17,7 +17,7 @@ const TABS: { key: CommFront; label: string }[] = [
 
 export function FrontTabs({ front, onChange, incomingCount }: Props) {
   return (
-    <div className="comm-surface flex gap-1 px-2 py-2 border-b border-console-border">
+    <div className="comm-surface flex gap-1 px-2 py-2 border-b border-sn-line">
       {TABS.map((t) => (
         <button
           key={t.key}
@@ -26,13 +26,13 @@ export function FrontTabs({ front, onChange, incomingCount }: Props) {
           className={
             'flex-1 rounded-full font-commmono text-[11px] py-1.5 transition-colors ' +
             (front === t.key
-              ? 'bg-console-accent text-white'
-              : 'text-console-text-muted hover:text-console-accent border border-console-border')
+              ? 'bg-sn-accent text-sn-ink-on-accent'
+              : 'text-sn-ink-muted hover:text-sn-accent border border-sn-line')
           }
         >
           {t.label}
           {t.key === 'incoming' && incomingCount > 0 && (
-            <span className={'ml-1 rounded-full px-1 ' + (front === t.key ? 'bg-white/25' : 'bg-console-accent text-white')}>
+            <span className={'ml-1 rounded-full px-1 ' + (front === t.key ? 'bg-sn-ink-on-accent/25' : 'bg-sn-accent text-sn-ink-on-accent')}>
               {incomingCount}
             </span>
           )}

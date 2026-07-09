@@ -44,13 +44,13 @@ export function AddTaskInput({ jobId }: Props) {
         onKeyDown={onKeyDown}
         placeholder="Add a task…"
         disabled={creating}
-        className="flex-1 bg-transparent border border-console-border px-2 py-1 text-sm text-console-text placeholder-console-text-muted focus:outline-none focus:border-console-accent"
+        className="flex-1 bg-transparent border border-sn-line px-2 py-1 text-sm text-sn-ink placeholder-sn-ink-muted focus:outline-none focus:border-sn-accent"
       />
       <button
         type="button"
         onClick={submit}
         disabled={creating || text.trim().length === 0}
-        className="px-3 py-1 text-xs uppercase tracking-wide text-console-accent border border-console-accent disabled:opacity-40 disabled:cursor-not-allowed hover:bg-console-accent hover:text-console-bg transition-colors"
+        className="px-3 py-1 text-xs uppercase tracking-wide text-sn-accent border border-sn-accent disabled:opacity-40 disabled:cursor-not-allowed hover:bg-sn-accent hover:text-sn-bg-base transition-colors"
       >
         {creating ? '[Adding…]' : '[+ Add]'}
       </button>

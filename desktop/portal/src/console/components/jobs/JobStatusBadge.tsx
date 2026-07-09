@@ -7,10 +7,10 @@ import { Chip } from '../ui/Chip';
 import type { JobStatus } from '../../api/jobsClient';
 
 const STATUS_COLOR: Record<JobStatus, string> = {
-  planned:     '#9A6F2E', // accent gold
-  in_progress: '#5A8C76', // sage
-  complete:    '#3A6E8C', // dusty blue (distinct from in_progress)
-  cancelled:   '#8C3A3A', // brick
+  planned:     'var(--sn-ink-muted)',
+  in_progress: 'var(--sn-status-online)',
+  complete:    'var(--sn-accent)',
+  cancelled:   'var(--sn-status-error)',
 };
 
 const STATUS_LABEL: Record<JobStatus, string> = {

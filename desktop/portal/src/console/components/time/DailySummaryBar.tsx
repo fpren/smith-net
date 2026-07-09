@@ -11,24 +11,24 @@ export function DailySummaryBar({ secondsWorked }: { secondsWorked: number }) {
 
   const toneClass = (tone: string) =>
     tone === 'overtime'
-      ? 'text-console-warn'
+      ? 'text-sn-attention'
       : tone === 'shift'
         ? atTarget
-          ? 'text-console-ok'
-          : 'text-console-accent'
-        : 'text-console-text-muted';
+          ? 'text-sn-status-online'
+          : 'text-sn-accent'
+        : 'text-sn-ink-muted';
 
   return (
     <div className="font-mono text-sm flex items-center justify-center gap-6" data-testid="daily-bar">
-      <span className="text-[11px] uppercase tracking-wide text-console-text-muted">Today</span>
+      <span className="text-[11px] uppercase tracking-wide text-sn-ink-muted">Today</span>
       <span className="tabular-nums">
-        <span className="text-console-text-muted">[</span>
+        <span className="text-sn-ink-muted">[</span>
         {glyphs.map((g, i) => (
           <span key={i} className={toneClass(g.tone)}>{g.glyph}</span>
         ))}
-        <span className="text-console-text-muted">]</span>
+        <span className="text-sn-ink-muted">]</span>
       </span>
-      <span className={`tabular-nums ${atTarget ? 'text-console-warn' : 'text-console-text'}`}>
+      <span className={`tabular-nums ${atTarget ? 'text-sn-attention' : 'text-sn-ink'}`}>
         {worked} / 8:00
       </span>
     </div>

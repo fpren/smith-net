@@ -7,8 +7,8 @@ import { AdaptiveDashboard } from '../components/adaptive-home/AdaptiveDashboard
 // empty. Resize the window to watch it re-fit (multi-pane -> single screen).
 export function SurfaceHomePreviewRoute() {
   return (
-    <div className="h-screen w-screen flex flex-col bg-console-bg font-mono text-console-text">
-      <div className="border-b border-console-border bg-console-surface px-3 py-1 text-[10px] text-console-text-muted shrink-0">
+    <div className="h-screen w-screen flex flex-col bg-sn-bg-base font-mono text-sn-ink">
+      <div className="border-b border-sn-line bg-sn-bg-panel px-3 py-1 text-[10px] text-sn-ink-muted shrink-0">
         adaptive home preview - resize to re-fit (real app screens; no backend in dev)
       </div>
       <div className="flex-1 min-h-0">

@@ -2,6 +2,14 @@
 // Ported from dashboard module. Like Badge but caller supplies an arbitrary
 // accent color (Badge has tone presets). Use Chip for crew/role/status
 // signals; use Badge for the existing tone-bound use cases.
+//
+// `color` is typically a `var(--sn-accent|...)` reference (colorForRole(),
+// Task 8), not a literal hex, so the old `color + '16'` hex-alpha-suffix
+// trick can't be used (you can't append an alpha suffix to an unresolved
+// var() string). color-mix() against `transparent` reproduces the same
+// alpha-blend at CSS-resolution time and works for both var() and literal
+// colors. 9%/16% approximate the old suffixes' alpha (0x16/0xFF ~= 8.6%,
+// 0x28/0xFF ~= 15.7%).
 
 import { cn } from '../../lib/utils';
 
@@ -21,9 +29,9 @@ export function Chip({ label, color, xs, className }: Props) {
         padding: xs ? '1px 7px' : '2px 9px',
         borderRadius: 4,
         fontSize: xs ? 8 : 10,
-        background: color + '16',
+        background: `color-mix(in srgb, ${color} 9%, transparent)`,
         color,
-        border: `1px solid ${color}28`,
+        border: `1px solid color-mix(in srgb, ${color} 16%, transparent)`,
         letterSpacing: '0.02em',
       }}
     >

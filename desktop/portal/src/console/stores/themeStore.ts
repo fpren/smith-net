@@ -1,6 +1,7 @@
 // Theme machinery for Design System v2. Stamps data-theme on <html> so the
 // generated --sn-* vars in styles/tokens.css switch palettes. 'system' defers
-// to the CSS prefers-color-scheme fallback. No UI exposes this yet (Plan 4).
+// to the CSS prefers-color-scheme fallback. Settings' Appearance section
+// (SettingsRoute.tsx) is the UI that exposes this.
 import { create } from 'zustand';
 
 export type ThemeChoice = 'light' | 'dark' | 'system';

@@ -51,13 +51,13 @@ export function JobStageControls({ job }: { job: Job }) {
   }
 
   if (transitions.length === 0) {
-    return <div className="text-console-text-muted text-xs mb-3">Job closed.</div>;
+    return <div className="text-sn-ink-muted text-xs mb-3">Job closed.</div>;
   }
 
   return (
     <div className="flex flex-wrap gap-2 mb-4">
       {showReviewWarning && (
-        <div className="text-console-warn text-xs mb-2 w-full" role="alert">
+        <div className="text-sn-attention text-xs mb-2 w-full" role="alert">
           ! {uncheckedCount} materials not checked off
         </div>
       )}

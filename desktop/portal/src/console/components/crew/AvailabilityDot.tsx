@@ -2,8 +2,8 @@
 import type { Availability } from '../../stores/crewStore';
 
 const COLOR: Record<Availability, string> = {
-  free: 'bg-console-ok',
-  busy: 'bg-console-accent',
+  free: 'bg-sn-status-online',
+  busy: 'bg-sn-accent',
 };
 
 export function AvailabilityDot({ availability }: { availability: Availability }) {

@@ -1,9 +1,11 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { http, HttpResponse } from 'msw';
 import { MessageList } from '../MessageList';
 import { useCommStore } from '../../../stores/commStore';
 import { useAuthStore } from '../../../auth/authStore';
 import { commClient } from '../../../api/commClient';
+import { server } from '../../../test/msw-server';
 import type { Message } from '../../../../types';
 
 function msg(id: string, senderId: string, content: string): Message {
@@ -118,5 +120,41 @@ describe('MessageList NEW divider', () => {
     expect(screen.queryByText('NEW')).toBeNull();
     const items = container.querySelectorAll('ul > li');
     expect(items).toHaveLength(5);
+  });
+});
+
+describe('MessageList stale banner', () => {
+  beforeEach(() => {
+    useCommStore.getState().clear();
+    useAuthStore.getState().setUser({
+      id: 'me',
+      email: 'me@example.com',
+      displayName: 'Me',
+      role: 'solo',
+      emailVerified: true,
+    });
+  });
+
+  it('renders an ErrorState banner (with retry) above the still-visible messages when stale, and retry clears it', async () => {
+    useCommStore.getState().setMessages('ch1', [msg('m1', 'me', 'hello there')]);
+    useCommStore.setState({ isStaleMessages: true });
+
+    render(<MessageList channelId="ch1" />);
+
+    // Banner renders as an alert, and the message list stays visible below it.
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.getByText(/couldn't refresh messages/i)).toBeInTheDocument();
+    expect(screen.getByText('hello there')).toBeInTheDocument();
+
+    server.use(
+      http.get('/api/channels/:id/messages', () =>
+        HttpResponse.json([msg('m1', 'me', 'hello there'), msg('m2', 'other', 'fresh reply')]),
+      ),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+    expect(screen.getByText('fresh reply')).toBeInTheDocument();
+    expect(useCommStore.getState().isStaleMessages).toBe(false);
   });
 });

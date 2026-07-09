@@ -8,7 +8,12 @@ interface InvoicesState {
   detailLineItems: InvoiceLineItem[];
   isLoadingList: boolean;
   isLoadingDetail: boolean;
-  isStale: boolean;
+  // Split per Plan 4A Task 5 review finding #2 (see jobsStore): list and
+  // detail scopes poll independently (useInvoicesPolling), so a single
+  // shared flag let a stale list poll false-flash an ErrorState on a detail
+  // view that hadn't even fetched yet. Each scope now owns its own flag.
+  listStale: boolean;
+  detailStale: boolean;
 
   setInvoices: (invoices: Invoice[]) => void;
   setDetail: (invoice: Invoice, lineItems: InvoiceLineItem[]) => void;
@@ -19,7 +24,8 @@ interface InvoicesState {
   removeLineItem: (itemId: string) => void;
   markListLoading: (b: boolean) => void;
   markDetailLoading: (b: boolean) => void;
-  markStale: (b: boolean) => void;
+  markListStale: (b: boolean) => void;
+  markDetailStale: (b: boolean) => void;
   clear: () => void;
 }
 
@@ -29,9 +35,10 @@ export const useInvoicesStore = create<InvoicesState>((set) => ({
   detailLineItems: [],
   isLoadingList: false,
   isLoadingDetail: false,
-  isStale: false,
+  listStale: false,
+  detailStale: false,
 
-  setInvoices: (invoices) => set({ invoices, isStale: false }),
+  setInvoices: (invoices) => set({ invoices, listStale: false }),
   setDetail: (detailInvoice, detailLineItems) => set({ detailInvoice, detailLineItems }),
   upsertInvoice: (invoice) => set((s) => {
     const idx = s.invoices.findIndex((i) => i.id === invoice.id);
@@ -55,9 +62,10 @@ export const useInvoicesStore = create<InvoicesState>((set) => ({
   })),
   markListLoading: (isLoadingList) => set({ isLoadingList }),
   markDetailLoading: (isLoadingDetail) => set({ isLoadingDetail }),
-  markStale: (isStale) => set({ isStale }),
+  markListStale: (listStale) => set({ listStale }),
+  markDetailStale: (detailStale) => set({ detailStale }),
   clear: () => set({
     invoices: [], detailInvoice: null, detailLineItems: [],
-    isLoadingList: false, isLoadingDetail: false, isStale: false,
+    isLoadingList: false, isLoadingDetail: false, listStale: false, detailStale: false,
   }),
 }));

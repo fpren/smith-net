@@ -36,12 +36,12 @@ export function ShiftClock() {
     <div
       role="group"
       aria-label="shift"
-      className="flex items-center gap-3 bg-console-bg border border-console-border rounded-md px-3 py-1.5"
+      className="flex items-center gap-3 bg-sn-bg-base border border-sn-line rounded-md px-3 py-1.5"
     >
       {/* ON CLOCK: current shift on the left */}
       {elapsed !== null && startedAt && (
         <span
-          className="text-console-ok text-sm tabular-nums whitespace-nowrap"
+          className="text-sn-status-online text-sm tabular-nums whitespace-nowrap"
           style={{ fontFamily: 'var(--font-mono)' }}
           aria-label="shift elapsed"
         >
@@ -54,7 +54,7 @@ export function ShiftClock() {
       {/* OFF CLOCK: total worked today on the right (the mirror) */}
       {!onClock && (
         <span
-          className="text-console-text text-sm tabular-nums whitespace-nowrap"
+          className="text-sn-ink text-sm tabular-nums whitespace-nowrap"
           style={{ fontFamily: 'var(--font-mono)' }}
           aria-label="day total"
         >

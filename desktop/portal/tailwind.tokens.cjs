@@ -15,6 +15,12 @@ module.exports = {
         'sn-status-error': 'var(--sn-status-error)',
         'sn-overlay': 'var(--sn-overlay)',
         'sn-ink-on-accent': 'var(--sn-ink-on-accent)',
+        'sn-avatar-a1': 'var(--sn-avatar-a1)',
+        'sn-avatar-a2': 'var(--sn-avatar-a2)',
+        'sn-avatar-a3': 'var(--sn-avatar-a3)',
+        'sn-avatar-a4': 'var(--sn-avatar-a4)',
+        'sn-avatar-a5': 'var(--sn-avatar-a5)',
+        'sn-avatar-a6': 'var(--sn-avatar-a6)',
       },
       boxShadow: {
         'sn-sm': 'var(--sn-shadow-sm)',

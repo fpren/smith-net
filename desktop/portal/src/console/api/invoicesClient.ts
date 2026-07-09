@@ -3,6 +3,8 @@
 // REST wrapper for /api/invoices and /api/line-items. Mirrors the shape
 // of jobsClient.ts / tasksClient.ts (credentials:'include' cookie auth).
 
+import { httpCall } from './httpCall';
+
 export type InvoiceStatus =
   | 'draft' | 'issued' | 'sent' | 'viewed' | 'paid' | 'overdue' | 'disputed' | 'cancelled';
 export type LineCategory = 'labor' | 'materials' | 'travel' | 'change_order' | 'other';
@@ -46,19 +48,15 @@ export type InvoicesResult<T> =
 interface JsonInit { method?: string; body?: unknown }
 
 async function call<T>(path: string, init: JsonInit = {}): Promise<InvoicesResult<T>> {
-  const res = await fetch(path, {
+  const r = await httpCall<T>(path, {
     method: init.method ?? 'GET',
-    credentials: 'include',
     headers: init.body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
   });
-  if (res.status === 204) return { ok: true } as InvoicesResult<T>;
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    return { ok: false, status: res.status, error: err.error || 'Request failed' };
+  if (!r.ok) {
+    return { ok: false, status: r.status, error: r.error };
   }
-  const data = (await res.json()) as T;
-  return { ok: true, ...data } as InvoicesResult<T>;
+  return { ok: true, ...((r.data ?? {}) as T) } as InvoicesResult<T>;
 }
 
 export interface CreateInvoiceInput {

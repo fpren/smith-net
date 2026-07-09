@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -131,5 +131,47 @@ describe('JobDetailRoute', () => {
     // "Job total:" and "$0.00" are sibling spans — assert them individually.
     expect(await screen.findByText('Job total:')).toBeInTheDocument();
     expect(screen.getAllByText('$0.00').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders LoadingState before the job detail loads', () => {
+    renderAt('/console/jobs/loading-test');
+    expect(screen.getByRole('status')).toBeInTheDocument();
+  });
+
+  it('renders ErrorState and retry re-fires the detail fetch on failure', async () => {
+    server.use(http.get('/api/jobs/:id', () => HttpResponse.json({ error: 'boom' }, { status: 500 })));
+    renderAt('/console/jobs/err-1');
+    const retry = await screen.findByRole('button', { name: /retry/i });
+
+    server.use(
+      http.get('/api/jobs/:id', ({ params }) => HttpResponse.json({
+        job: {
+          id: params.id, foremanId: 'f-1', clientId: null, client: null, engagementId: null,
+          title: 'Recovered Job', description: null, status: 'planned', stage: 'lead',
+          scheduledAt: null, location: null, latitude: null, longitude: null,
+          geocodedAt: null, createdAt: '2026-05-11T10:00:00Z', updatedAt: '2026-05-11T10:00:00Z',
+        },
+        crew: [],
+      })),
+    );
+    fireEvent.click(retry);
+
+    expect(await screen.findByText('Recovered Job')).toBeInTheDocument();
+    expect(useJobsStore.getState().detailStale).toBe(false);
+  });
+
+  it('finding #2: a stale list poll does not false-flash an ErrorState on a fresh detail mount', async () => {
+    // listStale simulates a concurrent/previous list-scope poll failure (or
+    // the offline-persistence hydrate marking cached list data stale). It
+    // must not leak into the detail scope, which hasn't fetched yet.
+    useJobsStore.getState().markListStale(true);
+    renderAt('/console/jobs/fresh-job');
+
+    // No alert (ErrorState) should render while the detail fetch is in
+    // flight or once it resolves -- listStale must not gate detailStale's view.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Detail Job')).toBeInTheDocument());
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(useJobsStore.getState().listStale).toBe(true); // untouched by the detail fetch
   });
 });

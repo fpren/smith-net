@@ -80,9 +80,9 @@ export function AssignCrewModal({ open, jobId, alreadyAssigned, onClose, onAssig
           onChange={(e) => { setQuery(e.target.value); setSelected(null); }}
           placeholder="2+ chars"
         />
-        {query.trim().length < 2 && <div className="text-console-text-muted text-xs">Type to search profiles.</div>}
-        {searching && <div className="text-console-text-muted text-xs">[searching...]</div>}
-        {searchError && <div className="text-console-danger text-xs">{searchError}</div>}
+        {query.trim().length < 2 && <div className="text-sn-ink-muted text-xs">Type to search profiles.</div>}
+        {searching && <div className="text-sn-ink-muted text-xs">[searching...]</div>}
+        {searchError && <div className="text-sn-status-error text-xs">{searchError}</div>}
         <div className="flex flex-col">
           {results.map((p) => {
             const assigned = alreadyAssigned.includes(p.id);
@@ -92,16 +92,16 @@ export function AssignCrewModal({ open, jobId, alreadyAssigned, onClose, onAssig
                 key={p.id}
                 disabled={assigned}
                 onClick={() => setSelected(p)}
-                className={`flex items-center justify-between px-3 py-2 text-sm font-mono border-b border-console-border text-left ${
-                  assigned ? 'opacity-50 cursor-not-allowed' : 'hover:bg-console-bg'
-                } ${selected?.id === p.id ? 'bg-console-bg' : ''}`}
+                className={`flex items-center justify-between px-3 py-2 text-sm font-mono border-b border-sn-line text-left ${
+                  assigned ? 'opacity-50 cursor-not-allowed' : 'hover:bg-sn-bg-base'
+                } ${selected?.id === p.id ? 'bg-sn-bg-base' : ''}`}
               >
                 <span className="flex-1">
-                  <span className="text-console-text">{p.displayName}</span>{' '}
-                  <span className="text-console-text-muted">{p.email}</span>
+                  <span className="text-sn-ink">{p.displayName}</span>{' '}
+                  <span className="text-sn-ink-muted">{p.email}</span>
                 </span>
                 <Chip label={p.role.toUpperCase()} color={colorForRole(p.role)} xs />
-                {assigned && <span className="ml-2 text-console-text-muted text-xs">(already assigned)</span>}
+                {assigned && <span className="ml-2 text-sn-ink-muted text-xs">(already assigned)</span>}
               </button>
             );
           })}
@@ -109,17 +109,17 @@ export function AssignCrewModal({ open, jobId, alreadyAssigned, onClose, onAssig
         {selected && (
           <>
             <label className="flex flex-col gap-1 font-mono text-sm">
-              <span className="text-console-text-muted text-xs uppercase tracking-wide">Role</span>
+              <span className="text-sn-ink-muted text-xs uppercase tracking-wide">Role</span>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value as 'crew' | 'lead')}
-                className="bg-console-bg border border-console-border px-3 py-2 text-console-text focus:outline-none focus:border-console-accent font-mono"
+                className="bg-sn-bg-base border border-sn-line px-3 py-2 text-sn-ink focus:outline-none focus:border-sn-accent font-mono"
               >
                 <option value="crew">crew</option>
                 <option value="lead">lead</option>
               </select>
             </label>
-            {submitError && <div className="text-console-danger text-xs">{submitError}</div>}
+            {submitError && <div className="text-sn-status-error text-xs">{submitError}</div>}
             <div className="flex gap-2 justify-end">
               <Button variant="secondary" type="button" onClick={onClose} disabled={busy}>Cancel</Button>
               <Button type="submit" disabled={busy}>{busy ? 'Assigning...' : 'Assign'}</Button>

@@ -12,6 +12,7 @@ import { Pill } from '../components/ui/Pill';
 import { ShareLocationToggle } from '../components/header/ShareLocationToggle';
 import { accentForId, colorForRole } from '../lib/utils';
 import { useToastStore } from '../stores/toastStore';
+import { useThemeStore, type ThemeChoice } from '../stores/themeStore';
 
 // Mirrors the Android SettingsScreen's sectioned layout (PROFILE / WORK MODE /
 // LOCATION SHARING / ABOUT / ACCOUNT) rather than inventing one. Device-only
@@ -20,7 +21,7 @@ import { useToastStore } from '../stores/toastStore';
 
 function SectionHeader({ children }: { children: ReactNode }) {
   return (
-    <div className="font-mono text-[11px] uppercase tracking-wide text-console-text-muted mb-2 mt-6 first:mt-0">
+    <div className="font-mono text-[11px] uppercase tracking-wide text-sn-ink-muted mb-2 mt-6 first:mt-0">
       {children}
     </div>
   );
@@ -31,8 +32,8 @@ function Row({ children, onClick }: { children: ReactNode; onClick?: () => void 
     <div
       onClick={onClick}
       className={
-        'bg-console-surface border border-console-border rounded p-3 ' +
-        (onClick ? 'cursor-pointer hover:border-console-accent transition-colors' : '')
+        'bg-sn-bg-panel border border-sn-line rounded p-3 ' +
+        (onClick ? 'cursor-pointer hover:border-sn-accent transition-colors' : '')
       }
     >
       {children}
@@ -45,6 +46,12 @@ const WORK_MODES = [
   { mode: 'foreman' as const, title: 'Foreman', desc: 'Crew tracking, dispatch, team invoicing.' },
 ];
 
+const THEME_OPTIONS: { choice: ThemeChoice; label: string }[] = [
+  { choice: 'light', label: 'Light' },
+  { choice: 'dark', label: 'Dark' },
+  { choice: 'system', label: 'System' },
+];
+
 export function SettingsRoute() {
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
@@ -55,6 +62,8 @@ export function SettingsRoute() {
   const [name, setName] = useState(user?.displayName ?? '');
   const [saving, setSaving] = useState(false);
   const me = useMyProfile();
+  const theme = useThemeStore((s) => s.theme);
+  const setTheme = useThemeStore((s) => s.setTheme);
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [switching, setSwitching] = useState(false);
@@ -147,7 +156,7 @@ export function SettingsRoute() {
 
   return (
     <div className="font-mono max-w-xl mx-auto pb-8">
-      <h1 className="text-console-text text-lg mb-2">Settings</h1>
+      <h1 className="text-sn-ink text-lg mb-2">Settings</h1>
 
       {/* PROFILE */}
       <SectionHeader>Profile</SectionHeader>
@@ -156,12 +165,12 @@ export function SettingsRoute() {
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="relative rounded-full focus:outline-none focus:ring-2 focus:ring-console-accent"
+            className="relative rounded-full focus:outline-none focus:ring-2 focus:ring-sn-accent"
             aria-label="Change photo"
             title="Change photo"
           >
             <Avatar name={user.displayName} color={accentForId(user.id)} size={56} photoUrl={me?.avatarUrl} />
-            <span className="absolute -bottom-1 -right-1 bg-console-accent text-white rounded-full w-5 h-5 grid place-items-center text-[10px] font-mono">
+            <span className="absolute -bottom-1 -right-1 bg-sn-accent text-sn-ink-on-accent rounded-full w-5 h-5 grid place-items-center text-[10px] font-mono">
               {uploadingAvatar ? '…' : '+'}
             </span>
           </button>
@@ -173,20 +182,20 @@ export function SettingsRoute() {
             onChange={(e) => onPickAvatar(e.target.files?.[0])}
           />
           <div className="flex flex-col gap-1.5">
-            <span className="text-console-text text-base">{user.displayName}</span>
+            <span className="text-sn-ink text-base">{user.displayName}</span>
             <span>
               <Chip label={user.role.toUpperCase()} color={colorForRole(user.role)} xs />
             </span>
           </div>
         </div>
-        <p className="text-console-text-muted text-xs mb-3">
+        <p className="text-sn-ink-muted text-xs mb-3">
           Tap your photo to upload one. Falls back to your initials.
         </p>
         {/* SmithNet id + copy / share / QR (shared with the comm dial rail). */}
         <div className="comm-surface mb-1">
           <MyIdCard />
         </div>
-        <label className="block text-xs text-console-text-muted mb-1">Display name</label>
+        <label className="block text-xs text-sn-ink-muted mb-1">Display name</label>
         <div className="flex items-center gap-2">
           <input
             value={name}
@@ -194,7 +203,7 @@ export function SettingsRoute() {
             onKeyDown={(e) => {
               if (e.key === 'Enter') saveName();
             }}
-            className="flex-1 bg-console-bg border border-console-border rounded px-3 py-2 text-sm text-console-text focus:border-console-accent outline-none"
+            className="flex-1 bg-sn-bg-base border border-sn-line rounded px-3 py-2 text-sm text-sn-ink focus:border-sn-accent outline-none"
           />
           <Button onClick={saveName} disabled={!dirty || saving}>
             {saving ? 'Saving…' : 'Save'}
@@ -210,21 +219,21 @@ export function SettingsRoute() {
           return (
             <Row key={o.mode} onClick={() => setWorkMode(o.mode)}>
               <div className="flex items-start gap-2">
-                <span className={selected ? 'text-console-accent' : 'text-console-text-muted'}>
+                <span className={selected ? 'text-sn-accent' : 'text-sn-ink-muted'}>
                   {selected ? '(●)' : '(○)'}
                 </span>
                 <div className="flex flex-col">
-                  <span className={selected ? 'text-console-accent text-sm' : 'text-console-text text-sm'}>
+                  <span className={selected ? 'text-sn-accent text-sm' : 'text-sn-ink text-sm'}>
                     {o.title}
                   </span>
-                  <span className="text-console-text-muted text-xs">{o.desc}</span>
+                  <span className="text-sn-ink-muted text-xs">{o.desc}</span>
                 </div>
               </div>
             </Row>
           );
         })}
       </div>
-      <p className="text-console-text-muted text-xs mt-2">
+      <p className="text-sn-ink-muted text-xs mt-2">
         Changes your dashboard layout, permissions, and available features.
       </p>
 
@@ -237,20 +246,20 @@ export function SettingsRoute() {
           </Button>
           {invite && (
             <div className="mt-3">
-              <div className="flex items-center justify-between bg-console-bg border border-console-border rounded px-3 py-2">
-                <span className="text-console-text text-sm tracking-widest">{invite.code}</span>
+              <div className="flex items-center justify-between bg-sn-bg-base border border-sn-line rounded px-3 py-2">
+                <span className="text-sn-ink text-sm tracking-widest">{invite.code}</span>
                 <Pill onClick={copyCode}>copy</Pill>
               </div>
-              <p className="text-console-text-muted text-xs mt-1">
+              <p className="text-sn-ink-muted text-xs mt-1">
                 Expires {invite.expiresAt.slice(0, 10)}. One-time use.
               </p>
             </div>
           )}
-          <p className="text-console-text-muted text-xs mt-2">Share the code with a crew member to add them.</p>
+          <p className="text-sn-ink-muted text-xs mt-2">Share the code with a crew member to add them.</p>
         </Row>
       ) : (
         <Row>
-          <label className="block text-xs text-console-text-muted mb-1">Join a team</label>
+          <label className="block text-xs text-sn-ink-muted mb-1">Join a team</label>
           <div className="flex items-center gap-2">
             <input
               value={joinCode}
@@ -259,13 +268,13 @@ export function SettingsRoute() {
                 if (e.key === 'Enter') joinTeam();
               }}
               placeholder="invite code"
-              className="flex-1 bg-console-bg border border-console-border rounded px-3 py-2 text-sm text-console-text focus:border-console-accent outline-none"
+              className="flex-1 bg-sn-bg-base border border-sn-line rounded px-3 py-2 text-sm text-sn-ink focus:border-sn-accent outline-none"
             />
             <Button onClick={joinTeam} disabled={joinBusy || !joinCode.trim()}>
               {joinBusy ? 'Joining…' : 'Join'}
             </Button>
           </div>
-          <p className="text-console-text-muted text-xs mt-2">Enter a foreman's invite code to join their team.</p>
+          <p className="text-sn-ink-muted text-xs mt-2">Enter a foreman's invite code to join their team.</p>
         </Row>
       )}
 
@@ -274,17 +283,45 @@ export function SettingsRoute() {
       <Row>
         <div className="flex flex-col gap-2">
           <ShareLocationToggle />
-          <span className="text-console-text-muted text-xs">
+          <span className="text-sn-ink-muted text-xs">
             Powers clock-in geofence validation and crew presence on the map.
           </span>
+        </div>
+      </Row>
+
+      {/* APPEARANCE */}
+      <SectionHeader>Appearance</SectionHeader>
+      <Row>
+        <div className="flex gap-2" role="radiogroup" aria-label="Theme">
+          {THEME_OPTIONS.map((o) => {
+            const selected = o.choice === theme;
+            return (
+              <button
+                key={o.choice}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => setTheme(o.choice)}
+                className={
+                  'flex-1 rounded px-3 py-2 font-data text-xs uppercase transition-colors ' +
+                  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-sn-accent ' +
+                  (selected
+                    ? 'bg-sn-accent text-sn-ink-on-accent'
+                    : 'text-sn-ink-muted hover:text-sn-ink border border-sn-line')
+                }
+              >
+                {o.label}
+              </button>
+            );
+          })}
         </div>
       </Row>
 
       {/* ABOUT */}
       <SectionHeader>About</SectionHeader>
       <Row>
-        <div className="text-console-text text-sm">Smith Net — Console</div>
-        <div className="text-console-text-muted text-xs">Guild of Smiths</div>
+        <div className="text-sn-ink text-sm">Smith Net — Console</div>
+        <div className="text-sn-ink-muted text-xs">Guild of Smiths</div>
       </Row>
 
       {/* ADMIN (admin only -- the advanced console lives behind the gear) */}
@@ -293,8 +330,8 @@ export function SettingsRoute() {
           <SectionHeader>Admin</SectionHeader>
           <Row onClick={() => navigate('/console/admin')}>
             <div className="flex items-center justify-between">
-              <span className="text-console-text text-sm">Admin console</span>
-              <span className="text-console-text-muted">{'>'}</span>
+              <span className="text-sn-ink text-sm">Admin console</span>
+              <span className="text-sn-ink-muted">{'>'}</span>
             </div>
           </Row>
         </>
@@ -304,19 +341,19 @@ export function SettingsRoute() {
       <SectionHeader>Account</SectionHeader>
       <Row>
         <div className="flex items-center justify-between py-1">
-          <span className="text-console-text-muted text-sm">Email</span>
-          <span className="text-console-text text-sm">{user.email}</span>
+          <span className="text-sn-ink-muted text-sm">Email</span>
+          <span className="text-sn-ink text-sm">{user.email}</span>
         </div>
-        <div className="flex items-center justify-between py-1 mt-1 border-t border-console-border pt-2">
-          <span className="text-console-text-muted text-sm">Email verified</span>
-          <span className="text-console-text text-sm">{user.emailVerified ? 'yes' : 'no'}</span>
+        <div className="flex items-center justify-between py-1 mt-1 border-t border-sn-line pt-2">
+          <span className="text-sn-ink-muted text-sm">Email verified</span>
+          <span className="text-sn-ink text-sm">{user.emailVerified ? 'yes' : 'no'}</span>
         </div>
       </Row>
       <div className="mt-2">
         <Row onClick={logout}>
           <div className="flex items-center justify-between">
-            <span className="text-console-text text-sm">Sign out</span>
-            <span className="text-console-text-muted">{'>'}</span>
+            <span className="text-sn-ink text-sm">Sign out</span>
+            <span className="text-sn-ink-muted">{'>'}</span>
           </div>
         </Row>
       </div>

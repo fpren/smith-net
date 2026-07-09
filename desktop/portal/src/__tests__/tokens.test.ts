@@ -37,6 +37,29 @@ describe('generated tokens', () => {
   });
 });
 
+describe('avatar palette', () => {
+  it('tokens.css exposes theme-invariant avatar vars', () => {
+    const css = readFileSync(resolve(__dirname, '../styles/tokens.css'), 'utf8');
+    expect(css).toContain('--sn-avatar-a1: #2F5FE8');
+    expect(css).toContain('--sn-avatar-a6: #C2417E');
+  });
+
+  it('tailwind preset exposes avatar colors', () => {
+    const preset = readFileSync(resolve(repo, 'desktop/portal/tailwind.tokens.cjs'), 'utf8');
+    expect(preset).toContain("'sn-avatar-a1'");
+    expect(preset).toContain("'sn-avatar-a6'");
+  });
+
+  it('Tokens2.kt carries the Avatar object and AvatarPalette list', () => {
+    const kt = readFileSync(
+      resolve(repo, 'android/app/src/main/java/com/guildofsmiths/trademesh/ui/Tokens2.kt'), 'utf8');
+    expect(kt).toContain('object Avatar');
+    expect(kt).toContain('Color(0xFF2F5FE8)');
+    expect(kt).toContain('Color(0xFFC2417E)');
+    expect(kt).toContain('val AvatarPalette = listOf(');
+  });
+});
+
 describe('portal wiring', () => {
   it('index.html boots light — no v1 dark body', () => {
     const html = readFileSync(resolve(repo, 'desktop/portal/index.html'), 'utf8');

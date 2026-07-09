@@ -6,6 +6,7 @@ import { commClient } from '../../api/commClient';
 import { useToastStore } from '../../stores/toastStore';
 import { wsClient } from '../../../websocket';
 import { ConfirmDialog } from '../ui/SmithDialog';
+import { ErrorState } from '../ui/StateViews';
 import { groupMessages } from './messageGrouping';
 import { MessageRow } from './MessageRow';
 import { retryUpload } from './MessageInput';
@@ -124,6 +125,18 @@ export function MessageList({ channelId }: Props) {
     sentReceipts.current = new Set();
   }, [channelId]);
 
+  // Re-fetches this channel's messages after a stale flag (set when the
+  // WS-connect reconcile's message fetch failed). Success clears isStale via
+  // setMessages; failure re-marks it so the retry affordance stays visible.
+  async function retryMessages() {
+    const r = await commClient.listMessages(channelId);
+    if (r.ok) {
+      useCommStore.getState().setMessages(channelId, r.messages);
+    } else {
+      useCommStore.getState().markStaleMessages(true);
+    }
+  }
+
   async function doDelete(messageId: string) {
     const result = await commClient.deleteMessage(messageId);
     if (result.ok) {
@@ -162,18 +175,18 @@ export function MessageList({ channelId }: Props) {
   return (
     <div className="comm-surface flex-1 min-h-0 flex flex-col">
       {isStale && (
-        <div className="bg-console-surface border-b border-console-warn text-console-warn px-3 py-1 text-xs font-commmono">
-          [OFFLINE] Couldn't refresh messages
+        <div className="border-b border-sn-line bg-sn-bg-panel">
+          <ErrorState message="Couldn't refresh messages." onRetry={() => void retryMessages()} />
         </div>
       )}
       <div className="relative flex-1 min-h-0 flex flex-col">
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="flex-1 overflow-y-auto px-4 py-3 bg-console-bg"
+          className="flex-1 overflow-y-auto px-4 py-3 bg-sn-bg-base"
         >
           {messages.length === 0 ? (
-            <div className="text-console-text-muted text-sm font-commsans">No messages yet.</div>
+            <div className="text-sn-ink-muted text-sm font-commsans">No messages yet.</div>
           ) : (
             <ul className="flex flex-col gap-2">
               {groupMessages(messages).map(({ message: m, firstOfGroup }, index) => {
@@ -218,7 +231,7 @@ export function MessageList({ channelId }: Props) {
         )}
       </div>
       {typingNames.length > 0 && (
-        <div className="border-t border-console-border bg-console-surface px-4 py-1 text-xs text-console-text-muted">
+        <div className="border-t border-sn-line bg-sn-bg-panel px-4 py-1 text-xs text-sn-ink-muted">
           {typingLabel(typingNames)}
         </div>
       )}

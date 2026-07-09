@@ -5,9 +5,11 @@ import type { NotificationItem } from '../api/notificationsClient';
 interface NotificationsState {
   notifications: NotificationItem[];
   unreadCount: number;
+  isLoading: boolean;
   isStale: boolean;
   setNotifications: (notifications: NotificationItem[], unreadCount: number) => void;
   markRead: (id: string) => void;
+  markLoading: (b: boolean) => void;
   markStale: (b: boolean) => void;
   clear: () => void;
 }
@@ -15,6 +17,7 @@ interface NotificationsState {
 export const useNotificationsStore = create<NotificationsState>((set) => ({
   notifications: [],
   unreadCount: 0,
+  isLoading: false,
   isStale: false,
   setNotifications: (notifications, unreadCount) => set({ notifications, unreadCount, isStale: false }),
   markRead: (id) => set((s) => {
@@ -28,6 +31,7 @@ export const useNotificationsStore = create<NotificationsState>((set) => ({
     });
     return changed ? { notifications, unreadCount: Math.max(0, s.unreadCount - 1) } : {};
   }),
+  markLoading: (isLoading) => set({ isLoading }),
   markStale: (isStale) => set({ isStale }),
-  clear: () => set({ notifications: [], unreadCount: 0, isStale: false }),
+  clear: () => set({ notifications: [], unreadCount: 0, isLoading: false, isStale: false }),
 }));

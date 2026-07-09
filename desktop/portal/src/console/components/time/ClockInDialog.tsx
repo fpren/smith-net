@@ -82,14 +82,14 @@ export function ClockInDialog({ open, onClose, onConfirm }: Props) {
 
   return (
     <Modal open={open} onClose={onClose} title="Clock in">
-      <div className="flex flex-col gap-3 text-console-text text-sm">
+      <div className="flex flex-col gap-3 text-sn-ink text-sm">
         <div className="flex flex-wrap gap-2">
           {ENTRY_TYPES.map((t) => (
             <button
               key={t.value}
               type="button"
               onClick={() => setEntryType(t.value)}
-              className={`px-2 py-1 rounded border ${entryType === t.value ? 'border-console-accent text-console-accent' : 'border-console-border text-console-text-muted'}`}
+              className={`px-2 py-1 rounded border ${entryType === t.value ? 'border-sn-accent text-sn-accent' : 'border-sn-line text-sn-ink-muted'}`}
             >
               {t.label}
             </button>
@@ -98,7 +98,7 @@ export function ClockInDialog({ open, onClose, onConfirm }: Props) {
 
         {boardJobs.length > 0 && (
           <select
-            className="bg-console-bg border border-console-border rounded px-2 py-1 text-xs"
+            className="bg-sn-bg-base border border-sn-line rounded px-2 py-1 text-xs"
             value={jobId ?? ''}
             onChange={(e) => {
               const next = e.target.value || null;
@@ -115,7 +115,7 @@ export function ClockInDialog({ open, onClose, onConfirm }: Props) {
 
         {jobId && tasks.length > 0 && (
           <select
-            className="bg-console-bg border border-console-border rounded px-2 py-1 text-xs"
+            className="bg-sn-bg-base border border-sn-line rounded px-2 py-1 text-xs"
             value={taskId ?? ''}
             onChange={(e) => setTaskId(e.target.value || null)}
           >
@@ -127,7 +127,7 @@ export function ClockInDialog({ open, onClose, onConfirm }: Props) {
         )}
 
         <input
-          className="bg-console-bg border border-console-border rounded px-2 py-1 text-xs"
+          className="bg-sn-bg-base border border-sn-line rounded px-2 py-1 text-xs"
           placeholder="Or enter job name"
           value={jobText}
           onChange={(e) => {

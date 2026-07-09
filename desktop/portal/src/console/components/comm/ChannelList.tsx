@@ -10,7 +10,7 @@ interface Props {
 export function ChannelList({ channels, selectedId, onSelect }: Props) {
   if (channels.length === 0) {
     return (
-      <div className="px-3 py-4 text-console-text-muted text-sm font-mono">
+      <div className="px-3 py-4 text-sn-ink-muted text-sm font-mono">
         No channels yet.
       </div>
     );
@@ -30,12 +30,12 @@ export function ChannelList({ channels, selectedId, onSelect }: Props) {
               className={
                 'w-full text-left px-3 py-2 border-l-2 flex items-center justify-between text-sm transition-colors ' +
                 (isSelected
-                  ? 'border-l-console-accent text-console-accent bg-console-surface'
-                  : 'border-l-transparent text-console-text hover:text-console-accent hover:bg-console-surface')
+                  ? 'border-l-sn-accent text-sn-accent bg-sn-bg-panel'
+                  : 'border-l-transparent text-sn-ink hover:text-sn-accent hover:bg-sn-bg-panel')
               }
             >
               <span className="truncate">{ch.name}</span>
-              <span className="text-xs text-console-text-muted ml-2 uppercase">
+              <span className="text-xs text-sn-ink-muted ml-2 uppercase">
                 {ch.type === 'dm' ? 'dm' : ch.isArchived ? 'arch' : ''}
               </span>
             </button>

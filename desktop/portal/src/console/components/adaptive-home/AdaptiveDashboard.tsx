@@ -36,7 +36,7 @@ import { useCrewPositionsStore } from '../../stores/crewPositionsStore';
 function Card({ pad = true, className = '', children }: { pad?: boolean; className?: string; children: ReactNode }) {
   return (
     <div
-      className={`bg-console-surface border border-console-border rounded-md overflow-hidden shadow-sm hover:shadow-md transition-shadow ${className}`}
+      className={`bg-sn-bg-panel border border-sn-line rounded-md overflow-hidden shadow-sm hover:shadow-md transition-shadow ${className}`}
     >
       <div className={`h-full overflow-y-auto ${pad ? 'p-4' : ''}`}>{children}</div>
     </div>
@@ -52,11 +52,11 @@ function GlanceLine() {
   const active = jobs.filter((j) => j.status !== 'complete' && j.status !== 'cancelled').length;
   const onSite = positions.length;
   return (
-    <div className="h-full w-full flex flex-col items-center justify-center gap-1 bg-console-bg p-2 text-center font-mono">
-      <div className="text-console-text">
-        <span className="text-console-accent">{'●'}</span> {active} active
+    <div className="h-full w-full flex flex-col items-center justify-center gap-1 bg-sn-bg-base p-2 text-center font-mono">
+      <div className="text-sn-ink">
+        <span className="text-sn-accent">{'●'}</span> {active} active
       </div>
-      {onSite > 0 && <div className="text-[11px] text-console-text-muted">{`((+)) ${onSite} on site`}</div>}
+      {onSite > 0 && <div className="text-[11px] text-sn-ink-muted">{`((+)) ${onSite} on site`}</div>}
     </div>
   );
 }
@@ -89,8 +89,8 @@ export function AdaptiveDashboard() {
 
       if (swipe) {
         content = (
-          <div className="h-full w-full flex flex-col bg-console-bg">
-            <div className="shrink-0 px-3 pt-2 font-mono text-[10px] text-console-text-muted">
+          <div className="h-full w-full flex flex-col bg-sn-bg-base">
+            <div className="shrink-0 px-3 pt-2 font-mono text-[10px] text-sn-ink-muted">
               swipe · {PANELS.length} panels
             </div>
             <div className="flex-1 min-h-0 flex gap-3 overflow-x-auto snap-x snap-mandatory px-3 pb-3">
@@ -109,7 +109,7 @@ export function AdaptiveDashboard() {
         // card heights -- map (full) / status modules / features / comm. On a
         // phone the auto-fit columns collapse to 1, so it's a clean vertical stack.
         content = (
-          <div className="h-full overflow-y-auto bg-console-bg p-3 sm:p-4 space-y-3 sm:space-y-4">
+          <div className="h-full overflow-y-auto bg-sn-bg-base p-3 sm:p-4 space-y-3 sm:space-y-4">
             <Card pad={false} className="h-[360px]">
               <MapPreview />
             </Card>

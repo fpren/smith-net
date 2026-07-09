@@ -7,6 +7,7 @@
 // shapes to a stable { ok, channels|messages|message } envelope.
 
 import type { Channel, Message, MediaAttachment } from '../../types';
+import { httpCall } from './httpCall';
 
 // Directory/profile shape returned by backend/src/profilesRoutes.ts mapProfile().
 export interface Profile {
@@ -29,28 +30,17 @@ async function fetchJson(path: string, init: JsonInit = {}): Promise<
   | { ok: true; data: unknown }
   | { ok: false; status: number; error: string }
 > {
-  const res = await fetch(path, {
+  const r = await httpCall<unknown>(path, {
     method: init.method ?? 'GET',
-    credentials: 'include',
     headers: init.body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
   });
 
-  if (res.status === 204) {
-    return { ok: true, data: null };
+  if (!r.ok) {
+    return { ok: false, status: r.status, error: r.error };
   }
 
-  if (!res.ok) {
-    const errBody = await res.json().catch(() => ({ error: res.statusText }));
-    return {
-      ok: false,
-      status: res.status,
-      error: errBody.error || 'Request failed',
-    };
-  }
-
-  const data = await res.json();
-  return { ok: true, data };
+  return { ok: true, data: r.data ?? null };
 }
 
 export const commClient = {
@@ -143,17 +133,14 @@ export const commClient = {
   uploadAvatar: async (file: File): Promise<CommResult<{ avatarUrl: string }>> => {
     const form = new FormData();
     form.append('file', file);
-    const res = await fetch('/api/profile/avatar', {
+    const r = await httpCall<{ avatarUrl: string }>('/api/profile/avatar', {
       method: 'POST',
-      credentials: 'include',
       body: form,
     });
-    if (!res.ok) {
-      const errBody = await res.json().catch(() => ({ error: res.statusText }));
-      return { ok: false, status: res.status, error: errBody.error || 'Upload failed' };
+    if (!r.ok) {
+      return { ok: false, status: r.status, error: r.error };
     }
-    const data = await res.json();
-    return { ok: true, avatarUrl: data.avatarUrl };
+    return { ok: true, avatarUrl: r.data.avatarUrl };
   },
 
   // Multipart message attachment upload, used by the composer's [+] flow.
@@ -180,13 +167,11 @@ export const commClient = {
     form.append('channelId', channelId);
     form.append('senderId', senderId);
     form.append('mediaType', mediaType);
-    const res = await fetch('/api/media/upload', {
-      method: 'POST',
-      credentials: 'include',
-      body: form,
-    });
-    if (!res.ok) return { ok: false };
-    const data = await res.json();
-    return { ok: true, url: data.url, filename: data.filename, size: data.size, mimeType: data.mimeType };
+    const r = await httpCall<{ url: string; filename?: string; size?: number; mimeType?: string }>(
+      '/api/media/upload',
+      { method: 'POST', body: form },
+    );
+    if (!r.ok) return { ok: false };
+    return { ok: true, url: r.data.url, filename: r.data.filename, size: r.data.size, mimeType: r.data.mimeType };
   },
 };

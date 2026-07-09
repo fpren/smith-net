@@ -19,8 +19,8 @@ function TabLink({ to, label }: TabLinkProps) {
       className={({ isActive }) =>
         'flex-1 flex items-center justify-center py-2 text-xs font-mono uppercase tracking-wide border-t-2 ' +
         (isActive
-          ? 'text-console-accent border-console-accent'
-          : 'text-console-text-muted border-transparent hover:text-console-accent')
+          ? 'text-sn-accent border-sn-accent'
+          : 'text-sn-ink-muted border-transparent hover:text-sn-accent')
       }
     >
       [{label}]
@@ -35,7 +35,7 @@ export function BottomTabBar() {
 
   return (
     <nav
-      className="md:hidden fixed inset-x-0 bottom-0 z-10 flex items-stretch bg-console-surface border-t border-console-border h-14"
+      className="md:hidden fixed inset-x-0 bottom-0 z-10 flex items-stretch bg-sn-bg-panel border-t border-sn-line h-14"
       aria-label="Primary navigation"
     >
       <TabLink to="/console/home" label="Home" />

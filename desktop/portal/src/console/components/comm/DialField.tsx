@@ -34,7 +34,7 @@ export function DialField() {
 
   return (
     <div>
-      <div className="text-[10px] tracking-[0.15em] text-console-text-dim font-commmono">
+      <div className="text-[10px] tracking-[0.15em] text-sn-ink-muted font-commmono">
         DIAL A SMITHNET ID
       </div>
       <input
@@ -44,13 +44,13 @@ export function DialField() {
         placeholder="paste or type id"
         spellCheck={false}
         autoCapitalize="characters"
-        className="mt-1.5 w-full rounded-lg bg-console-bg border border-console-accent/70 px-3 py-2 text-center font-commmono tracking-[0.18em] text-console-text outline-none focus:border-console-accent placeholder:tracking-normal placeholder:text-console-text-dim"
+        className="mt-1.5 w-full rounded-lg bg-sn-bg-base border border-sn-accent/70 px-3 py-2 text-center font-commmono tracking-[0.18em] text-sn-ink outline-none focus:border-sn-accent placeholder:tracking-normal placeholder:text-sn-ink-muted"
       />
       <button
         type="button"
         onClick={open}
         disabled={!valid || busy}
-        className="mt-2 w-full rounded-full bg-console-accent text-white font-commsans font-semibold text-sm py-2 transition-opacity disabled:opacity-40 hover:opacity-90"
+        className="mt-2 w-full rounded-full bg-sn-accent text-sn-ink-on-accent font-commsans font-semibold text-sm py-2 transition-opacity disabled:opacity-40 hover:opacity-90"
       >
         {busy ? '…' : 'open conversation'}
       </button>

@@ -11,6 +11,8 @@
 //     }
 //   }
 
+import { httpCall } from './httpCall';
+
 export interface WorkerHeartbeat {
   workerId: string;
   kinds: string[];
@@ -46,12 +48,10 @@ export type HealthResult<T> =
 
 export const adminHealthClient = {
   get: async (): Promise<HealthResult<HealthData>> => {
-    const res = await fetch('/api/admin/health', { credentials: 'include' });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({ error: res.statusText }));
-      return { ok: false, status: res.status, error: body.error || 'Failed' };
+    const r = await httpCall<HealthData>('/api/admin/health');
+    if (!r.ok) {
+      return { ok: false, status: r.status, error: r.error };
     }
-    const data = (await res.json()) as HealthData;
-    return { ok: true, ...data };
+    return { ok: true, ...r.data };
   },
 };

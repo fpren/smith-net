@@ -8,7 +8,7 @@
 // inline dial field at the top of the left column since the rail is lg-only.
 
 import { useEffect, useMemo, useState } from 'react';
-import { useCommWebSocket } from '../hooks/useCommWebSocket';
+import { useCommWebSocket, reloadChannels } from '../hooks/useCommWebSocket';
 import { useCommStore } from '../stores/commStore';
 import { useAuthStore } from '../auth/authStore';
 import { useDirectory } from '../hooks/useDirectory';
@@ -22,12 +22,14 @@ import { DialRail } from '../components/comm/DialRail';
 import { DialField } from '../components/comm/DialField';
 import { MessageList } from '../components/comm/MessageList';
 import { MessageInput } from '../components/comm/MessageInput';
+import { LoadingState, EmptyState, ErrorState } from '../components/ui/StateViews';
 
 export function CommRoute() {
   useCommWebSocket();
   const channels = useCommStore((s) => s.channels);
   const selectedId = useCommStore((s) => s.selectedChannelId);
   const select = useCommStore((s) => s.selectChannel);
+  const isLoadingChannels = useCommStore((s) => s.isLoadingChannels);
   const isStale = useCommStore((s) => s.isStaleChannels);
   const unreadByChannel = useCommStore((s) => s.unreadByChannel);
   const self = useAuthStore((s) => s.user);
@@ -57,19 +59,25 @@ export function CommRoute() {
       {/* LEFT ZONE */}
       <aside
         className={
-          'w-full lg:w-80 lg:flex-shrink-0 flex flex-col border-b lg:border-b-0 lg:border-r border-console-border min-h-0 ' +
+          'w-full lg:w-80 lg:flex-shrink-0 flex flex-col border-b lg:border-b-0 lg:border-r border-sn-line min-h-0 ' +
           (selectedId ? 'hidden lg:flex' : 'flex')
         }
       >
         <div className="lg:hidden px-3 pt-3"><DialField /></div>
         <FrontTabs front={front} onChange={setFront} incomingCount={incomingCount} />
         {isStale && (
-          <div className="bg-console-surface border-y border-console-warn text-console-warn px-3 py-1 text-xs font-commmono">
-            [OFFLINE] Couldn't refresh
-          </div>
+          <ErrorState message="Couldn't refresh conversations." onRetry={() => void reloadChannels()} />
         )}
         <div className="flex-1 min-h-0">
-          {front === 'activity' && <ActivityFeed channels={channels} selectedId={selectedId} onSelect={select} />}
+          {front === 'activity' && (
+            isLoadingChannels && channels.length === 0 ? (
+              <LoadingState label="Loading conversations" />
+            ) : channels.length === 0 ? (
+              <EmptyState title="No conversations yet — dial a public id to start one" />
+            ) : (
+              <ActivityFeed channels={channels} selectedId={selectedId} onSelect={select} />
+            )
+          )}
           {front === 'incoming' && <IncomingRequestsFront channels={channels} selectedId={selectedId} onSelect={select} />}
           {front === 'people' && <PeopleDirectoryFront channels={channels} />}
         </div>
@@ -79,8 +87,8 @@ export function CommRoute() {
       <main className={`flex-1 flex-col min-w-0 ${selectedId ? 'flex' : 'hidden lg:flex'}`}>
         {selectedChannel ? (
           <>
-            <div className="lg:hidden border-b border-console-border bg-console-surface px-3 py-2">
-              <button type="button" onClick={() => select(null)} className="text-console-accent text-sm font-commmono" aria-label="Back to channels">
+            <div className="lg:hidden border-b border-sn-line bg-sn-bg-panel px-3 py-2">
+              <button type="button" onClick={() => select(null)} className="text-sn-accent text-sm font-commmono" aria-label="Back to channels">
                 [← back]
               </button>
             </div>
@@ -89,7 +97,7 @@ export function CommRoute() {
             <MessageInput channelId={selectedChannel.id} />
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-console-text-muted text-sm font-commsans">
+          <div className="flex-1 flex items-center justify-center text-sn-ink-muted text-sm font-commsans">
             Select a conversation, or dial an id to start one.
           </div>
         )}

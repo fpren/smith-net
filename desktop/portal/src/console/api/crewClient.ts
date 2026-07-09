@@ -1,4 +1,6 @@
 // desktop/portal/src/console/api/crewClient.ts
+import { httpCall } from './httpCall';
+
 export type CrewRole = 'solo' | 'team' | 'lead' | 'foreman' | 'enterprise' | 'admin';
 export type CrewActiveJobStatus = 'planned' | 'in_progress' | 'complete' | 'cancelled';
 
@@ -24,12 +26,10 @@ interface RosterResp { crew: CrewEntry[] }
 
 export const crewClient = {
   getRoster: async (): Promise<CrewResult<RosterResp>> => {
-    const res = await fetch('/api/profiles/crew', { credentials: 'include' });
-    if (!res.ok) {
-      const errBody = await res.json().catch(() => ({ error: res.statusText }));
-      return { ok: false, status: res.status, error: errBody.error || 'Failed', code: errBody.code };
+    const r = await httpCall<RosterResp>('/api/profiles/crew');
+    if (!r.ok) {
+      return { ok: false, status: r.status, error: r.error, code: r.body?.code };
     }
-    const data = (await res.json()) as RosterResp;
-    return { ok: true, ...data };
+    return { ok: true, ...r.data };
   },
 };

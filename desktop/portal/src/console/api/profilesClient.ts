@@ -1,4 +1,6 @@
 // desktop/portal/src/console/api/profilesClient.ts
+import { httpCall } from './httpCall';
+
 export type ProfileRole = 'solo' | 'team' | 'lead' | 'foreman' | 'enterprise' | 'admin';
 
 export interface ProfileMatch {
@@ -16,20 +18,17 @@ interface SearchResp { profiles: ProfileMatch[] }
 
 export const profilesClient = {
   search: async (q: string): Promise<ProfilesResult<SearchResp>> => {
-    const res = await fetch(`/api/profiles?q=${encodeURIComponent(q)}`, {
-      credentials: 'include',
-    });
-    if (!res.ok) {
-      const errBody = await res.json().catch(() => ({ error: res.statusText }));
+    const r = await httpCall<SearchResp>(`/api/profiles?q=${encodeURIComponent(q)}`);
+    if (!r.ok) {
+      const errBody = r.body ?? {};
       return {
         ok: false,
-        status: res.status,
-        error: errBody.error || 'Request failed',
+        status: r.status,
+        error: r.error,
         details: errBody.details,
         code: errBody.code,
       };
     }
-    const data = (await res.json()) as SearchResp;
-    return { ok: true, ...data };
+    return { ok: true, ...r.data };
   },
 };

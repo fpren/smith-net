@@ -13,6 +13,24 @@ import { useAuthStore } from '../auth/authStore';
 
 const TYPING_SWEEP_MS = 1_000;
 
+// Fetches the channel list over REST and settles the store's loading/stale
+// flags. Shared by the WS-connect reconcile below and by CommRoute's retry
+// button — both need the exact same success/failure handling, and the retry
+// path must work even when the WS itself never reconnects.
+export async function reloadChannels(): Promise<void> {
+  useCommStore.getState().markLoadingChannels(true);
+  try {
+    const list = await commClient.listChannels();
+    if (list.ok) {
+      useCommStore.getState().setChannels(list.channels);
+    } else {
+      useCommStore.getState().markStaleChannels(true);
+    }
+  } finally {
+    useCommStore.getState().markLoadingChannels(false);
+  }
+}
+
 export function useCommWebSocket(): void {
   const user = useAuthStore((s) => s.user);
 
@@ -28,13 +46,8 @@ export function useCommWebSocket(): void {
       .connect(user.id, user.displayName)
       .then(async () => {
         if (!alive) return;
-        const list = await commClient.listChannels();
+        await reloadChannels();
         if (!alive) return;
-        if (list.ok) {
-          useCommStore.getState().setChannels(list.channels);
-        } else {
-          useCommStore.getState().markStaleChannels(true);
-        }
         const sel = useCommStore.getState().selectedChannelId;
         if (sel) {
           const msgs = await commClient.listMessages(sel);

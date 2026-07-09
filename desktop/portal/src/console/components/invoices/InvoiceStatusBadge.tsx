@@ -2,14 +2,14 @@
 import type { InvoiceStatus } from '../../api/invoicesClient';
 
 const TONE: Record<InvoiceStatus, string> = {
-  draft:     'text-console-text-muted border-console-border',
-  issued:    'text-console-accent border-console-accent',
-  sent:      'text-console-accent border-console-accent',
-  viewed:    'text-console-accent border-console-accent',
-  paid:      'text-console-ok border-console-ok',
-  overdue:   'text-console-warn border-console-warn',
-  disputed:  'text-console-danger border-console-danger',
-  cancelled: 'text-console-text-muted border-console-border line-through',
+  draft:     'text-sn-ink-muted border-sn-line',
+  issued:    'text-sn-accent border-sn-accent',
+  sent:      'text-sn-accent border-sn-accent',
+  viewed:    'text-sn-accent border-sn-accent',
+  paid:      'text-sn-status-online border-sn-status-online',
+  overdue:   'text-sn-attention border-sn-attention',
+  disputed:  'text-sn-status-error border-sn-status-error',
+  cancelled: 'text-sn-ink-muted border-sn-line line-through',
 };
 
 export function InvoiceStatusBadge({ status }: { status: InvoiceStatus }) {

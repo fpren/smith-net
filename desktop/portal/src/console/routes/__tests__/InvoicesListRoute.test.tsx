@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { MemoryRouter } from 'react-router-dom';
@@ -23,7 +23,7 @@ describe('InvoicesListRoute', () => {
     expect(screen.getByRole('button', { name: /create your first invoice/i })).toBeInTheDocument();
   });
 
-  it('shows the [OFFLINE] banner when list fetch fails', async () => {
+  it('shows the stale banner when list fetch fails but cached invoices exist', async () => {
     server.use(http.get('/api/invoices', () => HttpResponse.json({ error: 'boom' }, { status: 500 })));
     useInvoicesStore.getState().setInvoices([{
       id: 'inv-1', organizationId: 'o', createdBy: 'u', invoiceNumber: 'INV-2026-0001',
@@ -34,5 +34,65 @@ describe('InvoicesListRoute', () => {
     }]);
     render(<MemoryRouter><InvoicesListRoute /></MemoryRouter>);
     await waitFor(() => expect(screen.getByText(/Couldn't refresh/i)).toBeInTheDocument());
+  });
+
+  it('renders LoadingState while invoices are loading', () => {
+    useInvoicesStore.getState().markListLoading(true);
+    render(<MemoryRouter><InvoicesListRoute /></MemoryRouter>);
+    expect(screen.getByRole('status')).toBeInTheDocument();
+  });
+
+  it('retry on the stale banner re-fires the fetch and clears the banner', async () => {
+    server.use(http.get('/api/invoices', () => HttpResponse.json({
+      invoices: [{
+        id: 'inv-1', organizationId: 'o', createdBy: 'u', invoiceNumber: 'INV-2026-0001',
+        clientName: 'Acme Roofing', clientEmail: null,
+        issueDate: '2026-05-11T10:00:00Z', dueDate: null, status: 'draft',
+        subtotal: 0, taxRate: 0, taxAmount: 0, totalDue: 0, notes: null,
+        createdAt: '2026-05-11T10:00:00Z', updatedAt: '2026-05-11T10:00:00Z',
+      }],
+    })));
+    render(<MemoryRouter><InvoicesListRoute /></MemoryRouter>);
+    await screen.findByText('INV-2026-0001');
+    useInvoicesStore.getState().markListStale(true);
+    const retry = await screen.findByRole('button', { name: /retry/i });
+
+    server.use(http.get('/api/invoices', () => HttpResponse.json({
+      invoices: [{
+        id: 'inv-1', organizationId: 'o', createdBy: 'u', invoiceNumber: 'INV-2026-0001',
+        clientName: 'Acme Roofing', clientEmail: null,
+        issueDate: '2026-05-11T10:00:00Z', dueDate: null, status: 'issued',
+        subtotal: 0, taxRate: 0, taxAmount: 0, totalDue: 0, notes: null,
+        createdAt: '2026-05-11T10:00:00Z', updatedAt: '2026-05-11T11:00:00Z',
+      }],
+    })));
+    fireEvent.click(retry);
+
+    await waitFor(() => expect(screen.getByText(/ISSUED \(1\)/)).toBeInTheDocument());
+    expect(useInvoicesStore.getState().listStale).toBe(false);
+  });
+
+  it('initial fetch failure shows ErrorState with retry, not EmptyState', async () => {
+    server.use(http.get('/api/invoices', () => HttpResponse.json({ error: 'boom' }, { status: 500 })));
+    render(<MemoryRouter><InvoicesListRoute /></MemoryRouter>);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toBeInTheDocument();
+    expect(screen.queryByText(/no invoices yet/i)).not.toBeInTheDocument();
+    const retry = screen.getByRole('button', { name: /retry/i });
+
+    server.use(http.get('/api/invoices', () => HttpResponse.json({
+      invoices: [{
+        id: 'inv-1', organizationId: 'o', createdBy: 'u', invoiceNumber: 'INV-2026-0001',
+        clientName: 'Acme Roofing', clientEmail: null,
+        issueDate: '2026-05-11T10:00:00Z', dueDate: null, status: 'draft',
+        subtotal: 0, taxRate: 0, taxAmount: 0, totalDue: 0, notes: null,
+        createdAt: '2026-05-11T10:00:00Z', updatedAt: '2026-05-11T10:00:00Z',
+      }],
+    })));
+    fireEvent.click(retry);
+
+    await waitFor(() => expect(screen.getByText('INV-2026-0001')).toBeInTheDocument());
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

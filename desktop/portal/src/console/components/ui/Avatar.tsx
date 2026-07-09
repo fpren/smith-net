@@ -1,8 +1,14 @@
 // desktop/portal/src/console/components/ui/Avatar.tsx
 // Ported + adapted from dashboard module. Caller provides name + a stable
 // color (use accentForId() in lib/utils.ts for color generation).
+//
+// `color` is a `var(--sn-avatar-aN)` CSS custom-property reference (Task 8),
+// not a literal hex, so the gradient's darker endpoint can't be computed in
+// JS (darkenHex() can't parse an unresolved var() string). `color-mix()` does
+// the mixing at CSS-resolution time instead, so it works for both var()
+// references and literal hex/rgb strings.
 
-import { darkenHex, initials } from '../../lib/utils';
+import { initials } from '../../lib/utils';
 
 interface Props {
   name: string;
@@ -19,7 +25,6 @@ interface Props {
 
 export function Avatar({ name, color, size = 22, fallback = '?', photoUrl, statusColor }: Props) {
   const text = name ? initials(name) : fallback;
-  const dark = darkenHex(color);
   // Circular for photos (Aircall-style); rounded-square for initials (console).
   const radius = photoUrl ? Math.round(size / 2) : Math.round(size * 0.28);
 
@@ -55,7 +60,7 @@ export function Avatar({ name, color, size = 22, fallback = '?', photoUrl, statu
         width: size,
         height: size,
         borderRadius: radius,
-        background: `linear-gradient(145deg, ${color} 0%, ${dark} 100%)`,
+        background: `linear-gradient(145deg, ${color} 0%, color-mix(in srgb, ${color} 78%, black) 100%)`,
         boxShadow: 'inset 0 1px 0 rgba(255,255,255,.18), inset 0 -1px 0 rgba(0,0,0,.18), 0 1px 3px rgba(0,0,0,.18)',
         fontSize: Math.round(size * 0.34),
         fontFamily: 'var(--font-mono)',

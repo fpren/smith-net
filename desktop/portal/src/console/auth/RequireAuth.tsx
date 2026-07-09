@@ -2,6 +2,7 @@ import { ReactNode, useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { authClient } from './authClient';
 import { useAuthStore } from './authStore';
+import { LoadingState } from '../components/ui/StateViews';
 
 interface Props {
   children: ReactNode;
@@ -31,7 +32,11 @@ export function RequireAuth({ children }: Props) {
   }, [user, setUser]);
 
   if (hydration === 'pending') {
-    return <div className="font-mono text-console-text-muted p-8">Loading...</div>;
+    return (
+      <div className="font-mono p-8">
+        <LoadingState label="Loading" />
+      </div>
+    );
   }
 
   if (!user) {

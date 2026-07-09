@@ -10,11 +10,11 @@ const c = (id: string, name: string): Client => ({
 describe('clientsStore', () => {
   beforeEach(() => useClientsStore.getState().clear());
 
-  it('setClients clears stale + stamps fetch', () => {
-    useClientsStore.getState().markStale(true);
+  it('setClients clears listStale + stamps fetch', () => {
+    useClientsStore.getState().markListStale(true);
     useClientsStore.getState().setClients([c('a', 'A')]);
     expect(useClientsStore.getState().clients).toHaveLength(1);
-    expect(useClientsStore.getState().isStale).toBe(false);
+    expect(useClientsStore.getState().listStale).toBe(false);
   });
 
   it('upsertClient replaces by id or prepends', () => {
@@ -29,5 +29,37 @@ describe('clientsStore', () => {
     useClientsStore.getState().setClients([c('a', 'A'), c('b', 'B')]);
     useClientsStore.getState().removeClient('a');
     expect(useClientsStore.getState().clients.map((x) => x.id)).toEqual(['b']);
+  });
+
+  it('markListStale and markDetailStale toggle independently', () => {
+    useClientsStore.getState().markListStale(true);
+    expect(useClientsStore.getState().listStale).toBe(true);
+    expect(useClientsStore.getState().detailStale).toBe(false);
+    useClientsStore.getState().markDetailStale(true);
+    expect(useClientsStore.getState().detailStale).toBe(true);
+    useClientsStore.getState().markListStale(false);
+    expect(useClientsStore.getState().listStale).toBe(false);
+    expect(useClientsStore.getState().detailStale).toBe(true);
+  });
+
+  it('markListLoading and markDetailLoading toggle independently', () => {
+    useClientsStore.getState().markListLoading(true);
+    expect(useClientsStore.getState().isLoadingList).toBe(true);
+    expect(useClientsStore.getState().isLoadingDetail).toBe(false);
+    useClientsStore.getState().markDetailLoading(true);
+    expect(useClientsStore.getState().isLoadingDetail).toBe(true);
+  });
+
+  it('clear resets loading + stale flags for both scopes', () => {
+    useClientsStore.getState().markListLoading(true);
+    useClientsStore.getState().markDetailLoading(true);
+    useClientsStore.getState().markListStale(true);
+    useClientsStore.getState().markDetailStale(true);
+    useClientsStore.getState().clear();
+    const s = useClientsStore.getState();
+    expect(s.isLoadingList).toBe(false);
+    expect(s.isLoadingDetail).toBe(false);
+    expect(s.listStale).toBe(false);
+    expect(s.detailStale).toBe(false);
   });
 });

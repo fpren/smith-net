@@ -25,8 +25,8 @@ function NavButton({ to, label, end }: { to: string; label: string; end?: boolea
       className={({ isActive }) =>
         `px-2 py-1 text-xs font-mono uppercase tracking-wide cursor-pointer transition-colors shrink-0 whitespace-nowrap ` +
         (isActive
-          ? 'text-console-accent'
-          : 'text-console-text-muted hover:text-console-accent')
+          ? 'text-sn-accent'
+          : 'text-sn-ink-muted hover:text-sn-accent')
       }
     >
       [{label}]
@@ -47,23 +47,23 @@ export function AppHeader() {
 
   if (!user) {
     return (
-      <header className="border-b border-console-border bg-console-surface px-6 py-3 font-mono">
-        <span className="text-console-accent text-sm">SMITH NET / CONSOLE</span>
+      <header className="border-b border-sn-line bg-sn-bg-panel px-6 py-3 font-mono">
+        <span className="text-sn-accent text-sm">SMITH NET / CONSOLE</span>
       </header>
     );
   }
 
   return (
-    <header className="border-b border-console-border bg-console-surface px-4 py-2 flex items-center gap-2 sm:gap-4 font-mono">
+    <header className="border-b border-sn-line bg-sn-bg-panel px-4 py-2 flex items-center gap-2 sm:gap-4 font-mono">
       {/* Brand — tagline hides on mobile so the row fits at 390px. */}
       <div className="flex flex-col leading-tight pr-2 flex-shrink-0">
         <span
-          className="text-console-text text-base font-semibold whitespace-nowrap"
+          className="text-sn-ink text-base font-semibold whitespace-nowrap"
           style={{ fontFamily: 'var(--font-display)', letterSpacing: '0.03em' }}
         >
           smith net
         </span>
-        <span className="hidden md:inline text-console-text-muted text-[10px] uppercase tracking-widest whitespace-nowrap">
+        <span className="hidden md:inline text-sn-ink-muted text-[10px] uppercase tracking-widest whitespace-nowrap">
           guild of smiths · console
         </span>
       </div>
@@ -71,7 +71,7 @@ export function AppHeader() {
       {/* Inline nav — hidden on mobile (replaced by BottomTabBar). Fills the
           middle and scrolls internally when the row is too narrow for all the
           foreman tabs, so the header never overflows the page. */}
-      <nav className="hidden md:flex min-w-0 overflow-x-auto items-center gap-1 border-l border-console-border pl-3">
+      <nav className="hidden md:flex min-w-0 overflow-x-auto items-center gap-1 border-l border-sn-line pl-3">
         <NavButton to="/console/home" label="Home" />
         <NavButton to="/console/time" label="Clock" />
         {hasForemanRole() && <NavButton to="/console" label="Map" end />}
@@ -86,10 +86,10 @@ export function AppHeader() {
 
       {/* User card (identity) + a gear that opens Settings. Role chip hidden on
           mobile to keep the header on one tidy row. */}
-      <div className="flex items-center gap-2 min-w-0 md:border-l md:border-console-border md:pl-3">
+      <div className="flex items-center gap-2 min-w-0 md:border-l md:border-sn-line md:pl-3">
         <Avatar name={user.displayName} color={accentForId(user.id)} size={28} />
         <div className="flex flex-col leading-tight min-w-0">
-          <span className="text-console-text text-xs font-medium truncate">{user.displayName}</span>
+          <span className="text-sn-ink text-xs font-medium truncate">{user.displayName}</span>
           <span className="hidden md:inline">
             <Chip label={user.role.toUpperCase()} color={colorForRole(user.role)} xs />
           </span>
@@ -100,7 +100,7 @@ export function AppHeader() {
           aria-label="Settings"
           className={({ isActive }) =>
             'ml-1 p-1 rounded transition-colors ' +
-            (isActive ? 'text-console-accent' : 'text-console-text-muted hover:text-console-accent')
+            (isActive ? 'text-sn-accent' : 'text-sn-ink-muted hover:text-sn-accent')
           }
         >
           <svg
@@ -123,7 +123,7 @@ export function AppHeader() {
       <button
         type="button"
         onClick={onLogout}
-        className="text-xs px-2 py-1 border border-console-border text-console-text-muted hover:text-console-accent hover:border-console-accent font-mono"
+        className="text-xs px-2 py-1 border border-sn-line text-sn-ink-muted hover:text-sn-accent hover:border-sn-accent font-mono"
       >
         Log out
       </button>
