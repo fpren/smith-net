@@ -1,7 +1,9 @@
 // desktop/portal/src/console/layouts/BottomTabBar.tsx
 //
-// Mobile-only (`md:hidden`) fixed bottom-tab nav. Carries the same
-// destinations as AppHeader's inline nav (which hides under md). Mirrors
+// Mobile-only (`lg:hidden`) fixed bottom-tab nav -- "mobile navigation",
+// distinct from SmithRail's "primary navigation" so the two landmarks
+// never collide in the accessibility tree (RTL renders both regardless of
+// viewport). Carries the same destinations as SmithRail's tabs. Mirrors
 // the Android dashboard pattern (`[Home] [Jobs] [Comm]`) so the
 // portal navigates like the app on a phone.
 import { NavLink } from 'react-router-dom';
@@ -35,8 +37,8 @@ export function BottomTabBar() {
 
   return (
     <nav
-      className="md:hidden fixed inset-x-0 bottom-0 z-10 flex items-stretch bg-sn-bg-panel border-t border-sn-line h-14"
-      aria-label="Primary navigation"
+      className="lg:hidden fixed inset-x-0 bottom-0 z-10 flex items-stretch bg-sn-bg-panel border-t border-sn-line h-14"
+      aria-label="mobile navigation"
     >
       <TabLink to="/console/home" label="Home" />
       <TabLink to="/console/time" label="Clock" />

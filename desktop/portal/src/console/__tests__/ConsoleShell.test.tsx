@@ -29,9 +29,10 @@ describe('ConsoleShell', () => {
     await waitFor(() => expect(useAuthStore.getState().user).toBeNull());
   });
 
-  it('renders the BottomTabBar (mobile nav) when authenticated', () => {
+  it('renders SmithRail ("primary navigation") and BottomTabBar ("mobile navigation") as distinct landmarks', () => {
     render(<MemoryRouter><ConsoleShell><div>x</div></ConsoleShell></MemoryRouter>);
     expect(screen.getByRole('navigation', { name: /primary navigation/i })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: /mobile navigation/i })).toBeInTheDocument();
   });
 
   it('renders the shift clock in its own container', () => {

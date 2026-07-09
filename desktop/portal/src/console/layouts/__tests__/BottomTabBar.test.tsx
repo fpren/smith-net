@@ -49,12 +49,12 @@ describe('BottomTabBar', () => {
     expect(screen.getByRole('link', { name: /Comm/ })).toBeInTheDocument();
   });
 
-  it('uses md:hidden so the bar is hidden on desktop', () => {
+  it('uses lg:hidden so the bar is hidden once SmithRail takes over at lg+', () => {
     useAuthStore.getState().setUser({
       id: 'u1', email: 'f@x.com', displayName: 'F', role: 'foreman', emailVerified: true,
     });
     render(<MemoryRouter><BottomTabBar /></MemoryRouter>);
-    const nav = screen.getByRole('navigation', { name: /primary navigation/i });
-    expect(nav.className).toMatch(/md:hidden/);
+    const nav = screen.getByRole('navigation', { name: /mobile navigation/i });
+    expect(nav.className).toMatch(/lg:hidden/);
   });
 });

@@ -1,8 +1,7 @@
 import { ReactNode, useEffect } from 'react';
-import { AppHeader } from './layouts/AppHeader';
+import { SmithRail } from './layouts/SmithRail';
+import { TopStrip } from './layouts/TopStrip';
 import { BottomTabBar } from './layouts/BottomTabBar';
-import { ShiftClock } from './components/header/ShiftClock';
-import { useAuthStore } from './auth/authStore';
 import { initSmithCore, isSmithCoreReady } from './core/smithCore';
 import { useOfflinePersistence } from './offline/useOfflinePersistence';
 import { registerOutboxDrain } from './offline/outbox';
@@ -12,7 +11,6 @@ interface Props {
 }
 
 export function ConsoleShell({ children }: Props) {
-  const user = useAuthStore((s) => s.user);
   useOfflinePersistence();
 
   // Load the deterministic ROM once when the console mounts. Soft-fail: no UI
@@ -27,17 +25,16 @@ export function ConsoleShell({ children }: Props) {
   useEffect(() => registerOutboxDrain(), []);
 
   return (
-    <div className="h-screen flex flex-col font-mono">
-      <AppHeader />
-      {user && (
-        <div className="border-b border-sn-line bg-sn-bg-panel px-4 py-2 flex items-center gap-3">
-          <ShiftClock />
-        </div>
-      )}
-      {/* pb-20 keeps content above the 56px BottomTabBar on mobile; resets
-          to the original p-6 padding at md+ where the bar is hidden. */}
-      <main className="flex-1 min-h-0 overflow-y-auto p-6 pb-20 md:pb-6">{children}</main>
-      <BottomTabBar />
+    <div className="h-screen flex font-mono">
+      <SmithRail />
+      <div className="flex-1 flex flex-col min-w-0">
+        <TopStrip />
+        {/* pb-20 keeps content above the 56px BottomTabBar below lg; resets
+            to the original p-6 padding at lg+ where SmithRail replaces it
+            and the bar is hidden. */}
+        <main className="flex-1 min-h-0 overflow-y-auto p-6 pb-20 lg:pb-6">{children}</main>
+        <BottomTabBar />
+      </div>
     </div>
   );
 }
