@@ -86,7 +86,7 @@ private fun InitialsLabel(initials: String, size: Int) {
     val colors = LocalSmithColors.current
     Text(
         text = initials,
-        style = SmithType.captionBold.copy(color = colors.bgPanel, fontSize = (size * 0.32f).sp)
+        style = SmithType.captionBold.copy(color = colors.inkOnAccent, fontSize = (size * 0.32f).sp)
     )
 }
 

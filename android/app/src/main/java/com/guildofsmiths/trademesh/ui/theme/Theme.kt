@@ -1,7 +1,6 @@
 package com.guildofsmiths.trademesh.ui.theme
 
 import android.app.Activity
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.lightColorScheme
@@ -56,14 +55,13 @@ private val MonospaceTypography = Typography(
 )
 
 /**
- * Root Material shell. The status bar is now plumbed from the resolved Smith palette
- * rather than hardcoded hex: [statusBarColor] + [lightIcons] default to the light
- * SmithColors tokens today; Task 9 (theme toggle) will feed these from the app's
- * actual resolved dark/light state instead of a fixed default.
+ * Root Material shell. The status bar is plumbed from the resolved Smith palette
+ * rather than hardcoded hex: [statusBarColor] + [lightIcons] are fed by the caller
+ * (MainActivity) from the app's actual resolved dark/light state (Task 9). The
+ * defaults below only apply to callers that don't pass these explicitly.
  */
 @Composable
 fun TradeMeshTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
     statusBarColor: Color = smithColorsFor(dark = false).bgBase,
     lightIcons: Boolean = true,
     content: @Composable () -> Unit

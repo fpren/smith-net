@@ -293,7 +293,7 @@ private fun ClientRow(client: ClientInfo, onClick: () -> Unit) {
                 .background(avatarColorOf(client.name)),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = initials, style = SmithType.captionBold.copy(color = colors.bgPanel, fontSize = 11.sp))
+            Text(text = initials, style = SmithType.captionBold.copy(color = colors.inkOnAccent, fontSize = 11.sp))
         }
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -338,7 +338,7 @@ private fun ColleagueRow(colleague: Colleague, onClick: () -> Unit) {
                 .background(avatarColorOf(colleague.name)),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = initials, style = SmithType.captionBold.copy(color = colors.bgPanel, fontSize = 11.sp))
+            Text(text = initials, style = SmithType.captionBold.copy(color = colors.inkOnAccent, fontSize = 11.sp))
         }
 
         Spacer(modifier = Modifier.width(12.dp))

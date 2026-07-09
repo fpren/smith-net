@@ -2,9 +2,11 @@ package com.guildofsmiths.trademesh.ui
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -321,7 +323,10 @@ private fun ProfileDropdown(
             )
             DropdownMenu(
                 expanded = expanded,
-                onDismissRequest = { expanded = false }
+                onDismissRequest = { expanded = false },
+                modifier = Modifier
+                    .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                    .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
             ) {
                 options.forEachIndexed { index, option ->
                     DropdownMenuItem(

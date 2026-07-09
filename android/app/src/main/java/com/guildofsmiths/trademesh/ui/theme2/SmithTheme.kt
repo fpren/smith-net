@@ -46,8 +46,9 @@ enum class ThemePreference { LIGHT, DARK, SYSTEM }
 
 /**
  * Pure resolution rule for whether dark palette should be active. darkEnabled is the
- * master kill switch: while false (Plans 4-5, until Task 9 flips it) every preference
- * resolves to light, regardless of system theme. Kept side-effect free and JVM-testable.
+ * master kill switch: Task 9 flipped it true at the app root (MainActivity), so the
+ * user's theme preference now resolves normally. The switch remains for tests/previews
+ * that need to force light regardless of preference. Kept side-effect free and JVM-testable.
  */
 fun resolveDark(pref: ThemePreference, systemDark: Boolean, darkEnabled: Boolean): Boolean {
     if (!darkEnabled) return false
@@ -59,8 +60,9 @@ fun resolveDark(pref: ThemePreference, systemDark: Boolean, darkEnabled: Boolean
 }
 
 /**
- * v2 theme provider. darkEnabled stays false until screens are token-clean
- * (Plans 4-5): components must be dark-READY without flipping the app dark.
+ * v2 theme provider. darkEnabled is flipped true at the app root (MainActivity), so
+ * the resolved theme preference now drives light/dark for real. The parameter's
+ * `false` default only applies to callers that don't pass it explicitly (tests/previews).
  */
 @Composable
 fun SmithTheme(

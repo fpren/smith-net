@@ -156,7 +156,7 @@ fun ChatListScreen(
                     .clickable(onClick = onNewClick)
                     .background(colors.accent)
                     .padding(horizontal = 16.dp, vertical = 10.dp),
-                color = colors.bgPanel
+                color = colors.inkOnAccent
             )
         }
     ) { padding ->
@@ -384,7 +384,7 @@ private fun QuickContact(
                 Text(
                     text = initials,
                     style = SmithType.captionBold.copy(
-                        color = colors.bgPanel,
+                        color = colors.inkOnAccent,
                         fontSize = 10.sp
                     )
                 )
@@ -767,7 +767,7 @@ private fun ChatAvatar(
             Text(
                 text = initials,
                 style = SmithType.captionBold.copy(
-                    color = colors.bgPanel,
+                    color = colors.inkOnAccent,
                     fontSize = 14.sp
                 )
             )
