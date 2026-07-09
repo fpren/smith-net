@@ -139,10 +139,17 @@ LockedFeatureOverlay (tier gates: renders on structured 403).
 
 ## 8. Layout
 
-Web shell:
-- >=1280px: 3 zones — 288px rail / fluid conversation / 320px context panel (toggleable).
-- >=1024px: 2 zones (context panel becomes overlay).
-- <1024px: single pane + slide-overs; bottom tab bar.
+Web shell (AMENDED 2026-07-08, decision by Fegens — supersedes the original 3-zone plan):
+the web app is a DESKTOP VERSION OF THE ANDROID APP. Same screens, same role-adaptive
+tab set, same IA:
+- Android's bottom-nav tabs become a slim 64px glyph rail on the left (logo top,
+  avatar+presence bottom). Tab set stays role-adaptive, identical to Android.
+- Screens are the Android screens widened (dashboard modules grid, jobboard rows,
+  comm) — no web-only surfaces.
+- >=1280px only: opening a job/invoice/client detail slides a panel in BESIDE the
+  list (does not cover it). Narrower windows behave exactly like Android
+  (full-screen detail). This slide-in panel is the one desktop-only behavior.
+- <1024px: single pane; the rail collapses to Android's bottom tab bar.
 Android: role-adaptive bottom nav (4-5 tabs) stays; SmithSheets replace hover paradigms;
 predictive back; no drawers; no desktop sidebars.
 Conversation line length target: 65-75ch on wide screens.
