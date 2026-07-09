@@ -48,7 +48,9 @@ import com.guildofsmiths.trademesh.data.Channel
 import com.guildofsmiths.trademesh.data.ChannelType
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithConfirmDialog
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -68,6 +70,7 @@ fun ChannelListScreen(
     onCreateChannel: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     val beacons by BeaconRepository.beacons.collectAsState()
     val beacon = remember(beacons, beaconId) {
         beacons.find { it.id == beaconId }
@@ -127,15 +130,15 @@ fun ChannelListScreen(
     
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = ConsoleTheme.background,
+        containerColor = colors.bgBase,
         floatingActionButton = {
             if (onCreateChannel != null) {
                 Text(
                     text = "+ NEW",
-                    style = ConsoleTheme.action,
+                    style = SmithType.action.copy(color = colors.accent),
                     modifier = Modifier
                         .clickable(onClick = onCreateChannel)
-                        .background(ConsoleTheme.surface)
+                        .background(colors.bgPanel)
                         .padding(horizontal = 16.dp, vertical = 10.dp)
                 )
             }
@@ -150,33 +153,33 @@ fun ChannelListScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .clickable(onClick = onBackClick)
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "←",
-                    style = ConsoleTheme.title
+                    style = SmithType.title.copy(color = colors.ink)
                 )
                 Spacer(modifier = Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = beacon?.name?.uppercase() ?: "UNKNOWN",
-                        style = ConsoleTheme.title
+                        style = SmithType.title.copy(color = colors.ink)
                     )
                     Text(
-                        text = "${visibleChannels.size} channels" + 
+                        text = "${visibleChannels.size} channels" +
                                if (archivedChannels.isNotEmpty()) " · ${archivedChannels.size} archived" else "",
-                        style = ConsoleTheme.caption
+                        style = SmithType.caption.copy(color = colors.inkMuted)
                     )
                 }
-                
+
                 // Toggle archived view
                 if (archivedChannels.isNotEmpty()) {
                     Text(
                         text = if (showArchived) "ACTIVE" else "ARCHIVED",
-                        style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted),
+                        style = SmithType.captionBold.copy(color = colors.inkMuted),
                         modifier = Modifier
                             .clickable { showArchived = !showArchived }
                             .padding(4.dp)
@@ -247,14 +250,14 @@ fun ChannelListScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = if (isRefreshing) "discovering..." 
+                                text = if (isRefreshing) "discovering..."
                                        else if (pullOffset > pullThreshold) "↑ release to refresh"
                                        else "↓ pull to discover",
-                                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                                style = SmithType.caption.copy(color = colors.inkMuted)
                             )
                         }
                     }
-                    
+
                     if (channelsToShow.isEmpty()) {
                         Box(
                             modifier = Modifier.fillMaxSize(),
@@ -263,13 +266,13 @@ fun ChannelListScreen(
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
                                     text = if (showArchived) "no archived channels" else "no channels yet",
-                                    style = ConsoleTheme.caption
+                                    style = SmithType.caption.copy(color = colors.inkMuted)
                                 )
                                 if (!showArchived) {
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
                                         text = "REFRESH",
-                                        style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent),
+                                        style = SmithType.captionBold.copy(color = colors.accent),
                                         modifier = Modifier
                                             .clickable { onRefresh() }
                                             .padding(8.dp)
@@ -295,7 +298,7 @@ fun ChannelListScreen(
                                     ) {
                                         Text(
                                             text = "discovering...",
-                                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                                            style = SmithType.caption.copy(color = colors.inkMuted)
                                         )
                                     }
                                 }
@@ -310,7 +313,7 @@ fun ChannelListScreen(
                                 item {
                                     Text(
                                         text = "CHANNELS",
-                                        style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted),
+                                        style = SmithType.captionBold.copy(color = colors.inkMuted),
                                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
                                     )
                                 }
@@ -344,7 +347,7 @@ fun ChannelListScreen(
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
                                         text = "DIRECT MESSAGES",
-                                        style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted),
+                                        style = SmithType.captionBold.copy(color = colors.inkMuted),
                                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
                                     )
                                 }
@@ -377,7 +380,7 @@ fun ChannelListScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = "Beacon not found", style = ConsoleTheme.bodySmall)
+                    Text(text = "Beacon not found", style = SmithType.bodySmall.copy(color = colors.inkMuted))
                 }
             }
         }
@@ -418,10 +421,11 @@ private fun SwipeableChannelRow(
     onInvite: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     // Allow swipe for all channels except #general (system channel)
     // Users can archive/delete any channel from their local view
     val canSwipe = channel.id != "general"
-    
+
     var offsetX by remember { mutableFloatStateOf(0f) }
     val swipeThreshold = with(LocalDensity.current) { 80.dp.toPx() }
     
@@ -438,7 +442,7 @@ private fun SwipeableChannelRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
-                    .background(ConsoleTheme.surface),
+                    .background(colors.bgPanel),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Left side - DELETE (revealed on swipe right)
@@ -451,10 +455,10 @@ private fun SwipeableChannelRow(
                 ) {
                     Text(
                         text = "DELETE",
-                        style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textDim)
+                        style = SmithType.captionBold.copy(color = colors.inkMuted)
                     )
                 }
-                
+
                 // Right side - ARCHIVE/UNARCHIVE (revealed on swipe left)
                 Box(
                     modifier = Modifier
@@ -465,18 +469,18 @@ private fun SwipeableChannelRow(
                 ) {
                     Text(
                         text = if (isArchived) "RESTORE" else "ARCHIVE",
-                        style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textDim)
+                        style = SmithType.captionBold.copy(color = colors.inkMuted)
                     )
                 }
             }
         }
-        
+
         // Foreground row (draggable)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .offset { IntOffset(animatedOffset.roundToInt(), 0) }
-                .background(ConsoleTheme.background)
+                .background(colors.bgBase)
                 .then(
                     if (canSwipe) {
                         Modifier.draggable(
@@ -509,56 +513,56 @@ private fun SwipeableChannelRow(
                     // Show @ for DMs, # for channels
                     Text(
                         text = if (channel.type == ChannelType.DM) "@" else "#",
-                        style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.textMuted)
+                        style = SmithType.bodyBold.copy(color = colors.inkMuted)
                     )
                     Text(
                         text = channel.name,
-                        style = ConsoleTheme.bodyBold
+                        style = SmithType.bodyBold.copy(color = colors.ink)
                     )
                     if (isOwner && channel.id != "general" && channel.type != ChannelType.DM) {
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "·",
-                            style = ConsoleTheme.caption
+                            style = SmithType.caption.copy(color = colors.inkMuted)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "owner",
-                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                            style = SmithType.caption.copy(color = colors.inkMuted)
                         )
                     }
                 }
-                
+
                 if (channel.lastMessagePreview != null) {
                     Text(
                         text = channel.lastMessagePreview,
-                        style = ConsoleTheme.caption,
+                        style = SmithType.caption.copy(color = colors.inkMuted),
                         maxLines = 1
                     )
                 }
             }
-            
+
             Column(horizontalAlignment = Alignment.End) {
                 if (channel.lastMessageTime != null) {
                     Text(
                         text = formatTime(channel.lastMessageTime),
-                        style = ConsoleTheme.caption
+                        style = SmithType.caption.copy(color = colors.inkMuted)
                     )
                 }
-                
+
                 if (channel.unreadCount > 0) {
                     Text(
                         text = "${channel.unreadCount}",
-                        style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
+                        style = SmithType.captionBold.copy(color = colors.accent)
                     )
                 }
             }
-            
+
             if (onInvite != null) {
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = "INVITE",
-                    style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted),
+                    style = SmithType.captionBold.copy(color = colors.inkMuted),
                     modifier = Modifier
                         .clickable(onClick = onInvite)
                         .padding(4.dp)

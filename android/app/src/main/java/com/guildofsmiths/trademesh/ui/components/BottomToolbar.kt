@@ -13,7 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import com.guildofsmiths.trademesh.data.RoleContext
 import com.guildofsmiths.trademesh.data.Permission
 
@@ -86,6 +87,7 @@ private fun ExpandedToolbar(
     onNavigateToTime: () -> Unit,
     onCollapse: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     Column(
         modifier = Modifier
             .width(160.dp)
@@ -94,7 +96,7 @@ private fun ExpandedToolbar(
                 shape = RoundedCornerShape(8.dp)
             )
             .background(
-                color = ConsoleTheme.surface,
+                color = colors.bgPanel,
                 shape = RoundedCornerShape(8.dp)
             )
             .padding(vertical = 4.dp)
@@ -111,7 +113,7 @@ private fun ExpandedToolbar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(1.dp)
-                .background(ConsoleTheme.text.copy(alpha = 0.1f))
+                .background(colors.line)
                 .padding(horizontal = 8.dp)
         )
 
@@ -128,7 +130,7 @@ private fun ExpandedToolbar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(1.dp)
-                    .background(ConsoleTheme.text.copy(alpha = 0.1f))
+                    .background(colors.line)
                     .padding(horizontal = 8.dp)
             )
         }
@@ -145,7 +147,7 @@ private fun ExpandedToolbar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(1.dp)
-                .background(ConsoleTheme.text.copy(alpha = 0.1f))
+                .background(colors.line)
                 .padding(horizontal = 8.dp)
         )
 
@@ -159,8 +161,8 @@ private fun ExpandedToolbar(
         ) {
             Text(
                 text = "[▼]",
-                style = ConsoleTheme.action.copy(
-                    color = ConsoleTheme.text.copy(alpha = 0.6f)
+                style = SmithType.action.copy(
+                    color = colors.ink.copy(alpha = 0.6f)
                 )
             )
         }
@@ -177,6 +179,7 @@ private fun ToolbarItem(
     label: String,
     onClick: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -187,12 +190,12 @@ private fun ToolbarItem(
     ) {
         Text(
             text = icon,
-            style = ConsoleTheme.body,
-            color = ConsoleTheme.accent
+            style = SmithType.body,
+            color = colors.accent
         )
         Text(
             text = label,
-            style = ConsoleTheme.bodyBold
+            style = SmithType.bodyBold.copy(color = colors.ink)
         )
     }
 }
@@ -203,6 +206,7 @@ private fun ToolbarItem(
 
 @Composable
 private fun TriggerButton(onClick: () -> Unit) {
+    val colors = LocalSmithColors.current
     Box(
         modifier = Modifier
             .shadow(
@@ -210,7 +214,7 @@ private fun TriggerButton(onClick: () -> Unit) {
                 shape = RoundedCornerShape(8.dp)
             )
             .background(
-                color = ConsoleTheme.accent,
+                color = colors.accent,
                 shape = RoundedCornerShape(8.dp)
             )
             .clickable(onClick = onClick)
@@ -218,8 +222,8 @@ private fun TriggerButton(onClick: () -> Unit) {
     ) {
         Text(
             text = "[▲ ⊞]",
-            style = ConsoleTheme.bodyBold,
-            color = Color.White
+            style = SmithType.bodyBold,
+            color = colors.inkOnAccent
         )
     }
 }

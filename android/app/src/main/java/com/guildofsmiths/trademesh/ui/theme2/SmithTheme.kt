@@ -41,12 +41,40 @@ fun smithColorsFor(dark: Boolean): SmithColors = if (dark) SmithColors(
 
 val LocalSmithColors = staticCompositionLocalOf { smithColorsFor(dark = false) }
 
+/** User-facing theme preference. Resolution happens in [resolveDark]. */
+enum class ThemePreference { LIGHT, DARK, SYSTEM }
+
 /**
- * v2 theme provider. darkEnabled stays false until screens are token-clean
- * (Plans 4-5): components must be dark-READY without flipping the app dark.
+ * Pure resolution rule for whether dark palette should be active. darkEnabled is the
+ * master kill switch: Task 9 flipped it true at the app root (MainActivity), so the
+ * user's theme preference now resolves normally. The switch remains for tests/previews
+ * that need to force light regardless of preference. Kept side-effect free and JVM-testable.
+ */
+fun resolveDark(pref: ThemePreference, systemDark: Boolean, darkEnabled: Boolean): Boolean {
+    if (!darkEnabled) return false
+    return when (pref) {
+        ThemePreference.LIGHT -> false
+        ThemePreference.DARK -> true
+        ThemePreference.SYSTEM -> systemDark
+    }
+}
+
+/**
+ * v2 theme provider. darkEnabled is flipped true at the app root (MainActivity), so
+ * the resolved theme preference now drives light/dark for real. The parameter's
+ * `false` default only applies to callers that don't pass it explicitly (tests/previews).
  */
 @Composable
-fun SmithTheme(darkEnabled: Boolean = false, content: @Composable () -> Unit) {
-    val colors = smithColorsFor(dark = darkEnabled && isSystemInDarkTheme())
+fun SmithTheme(
+    darkEnabled: Boolean = false,
+    themePreference: ThemePreference = ThemePreference.SYSTEM,
+    resolvedDark: Boolean? = null,
+    content: @Composable () -> Unit,
+) {
+    // When the caller already resolved the theme (MainActivity resolves once and
+    // also feeds the status bar), reuse that value -- one resolution, no drift
+    // between window chrome and palette.
+    val dark = resolvedDark ?: resolveDark(themePreference, isSystemInDarkTheme(), darkEnabled)
+    val colors = smithColorsFor(dark = dark)
     CompositionLocalProvider(LocalSmithColors provides colors, content = content)
 }

@@ -18,18 +18,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import com.guildofsmiths.trademesh.ui.jobboard.JobStage
 
 @Composable
 fun JobStageBar(currentStage: JobStage, modifier: Modifier = Modifier) {
+    val colors = LocalSmithColors.current
     val stages = JobStage.entries.toList()
     val currentIndex = stages.indexOf(currentStage)
 
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface)
+            .background(colors.bgPanel)
             .padding(horizontal = 24.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -40,7 +42,7 @@ fun JobStageBar(currentStage: JobStage, modifier: Modifier = Modifier) {
         ) {
             stages.forEachIndexed { index, _ ->
                 val isFilled = index <= currentIndex
-                val emptyRingColor = ConsoleTheme.textDim.copy(alpha = 0.4f)
+                val emptyRingColor = colors.inkMuted.copy(alpha = 0.4f)
 
                 val targetDotSize = if (index == currentIndex) 10.dp else 8.dp
                 val dotSize by animateDpAsState(
@@ -49,13 +51,13 @@ fun JobStageBar(currentStage: JobStage, modifier: Modifier = Modifier) {
                     label = "dotSize"
                 )
                 val dotColor by animateColorAsState(
-                    targetValue = if (isFilled) ConsoleTheme.accent else emptyRingColor,
+                    targetValue = if (isFilled) colors.accent else emptyRingColor,
                     animationSpec = tween(durationMillis = 300),
                     label = "dotColor"
                 )
                 val bracketColor by animateColorAsState(
-                    targetValue = if (isFilled) ConsoleTheme.accent
-                                  else ConsoleTheme.textDim.copy(alpha = 0.4f),
+                    targetValue = if (isFilled) colors.accent
+                                  else colors.inkMuted.copy(alpha = 0.4f),
                     animationSpec = tween(durationMillis = 300),
                     label = "bracketColor"
                 )
@@ -63,7 +65,7 @@ fun JobStageBar(currentStage: JobStage, modifier: Modifier = Modifier) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "(",
-                        style = ConsoleTheme.captionBold.copy(color = bracketColor)
+                        style = SmithType.captionBold.copy(color = bracketColor)
                     )
                     Spacer(modifier = Modifier.width(2.dp))
                     Box(
@@ -78,14 +80,14 @@ fun JobStageBar(currentStage: JobStage, modifier: Modifier = Modifier) {
                     Spacer(modifier = Modifier.width(2.dp))
                     Text(
                         text = ")",
-                        style = ConsoleTheme.captionBold.copy(color = bracketColor)
+                        style = SmithType.captionBold.copy(color = bracketColor)
                     )
                 }
 
                 if (index < stages.lastIndex) {
                     val lineColor by animateColorAsState(
-                        targetValue = if (index < currentIndex) ConsoleTheme.accent
-                                      else ConsoleTheme.textDim.copy(alpha = 0.15f),
+                        targetValue = if (index < currentIndex) colors.accent
+                                      else colors.inkMuted.copy(alpha = 0.15f),
                         animationSpec = tween(durationMillis = 400),
                         label = "lineColor"
                     )
@@ -111,7 +113,7 @@ fun JobStageBar(currentStage: JobStage, modifier: Modifier = Modifier) {
         ) { stage ->
             Text(
                 text = stage.displayName.uppercase(),
-                style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
+                style = SmithType.captionBold.copy(color = colors.accent)
             )
         }
     }

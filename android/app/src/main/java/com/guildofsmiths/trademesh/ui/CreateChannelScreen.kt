@@ -35,6 +35,8 @@ import com.guildofsmiths.trademesh.data.ChannelVisibility
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
 import com.guildofsmiths.trademesh.service.GatewayClient
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 
 // Main thread handler for UI callbacks
 private val mainHandler = Handler(Looper.getMainLooper())
@@ -57,54 +59,55 @@ fun CreateChannelScreen(
     // Default OFF (ephemeral) — messages only reach members connected at send time.
     var keepHistory by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    
+    val colors = LocalSmithColors.current
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(ConsoleTheme.background)
+            .background(colors.bgBase)
     ) {
         // Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.surface)
+                .background(colors.bgPanel)
                 .clickable(onClick = onBackClick)
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "←", style = ConsoleTheme.title)
+            Text(text = "←", style = SmithType.title.copy(color = colors.ink))
             Spacer(modifier = Modifier.width(14.dp))
-            Text(text = "NEW CHANNEL", style = ConsoleTheme.title)
+            Text(text = "NEW CHANNEL", style = SmithType.title.copy(color = colors.ink))
         }
-        
+
         ConsoleSeparator()
-        
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(20.dp)
         ) {
-            Text(text = "CHANNEL NAME", style = ConsoleTheme.captionBold)
+            Text(text = "CHANNEL NAME", style = SmithType.captionBold.copy(color = colors.inkMuted))
             Spacer(modifier = Modifier.height(6.dp))
-            
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "#", style = ConsoleTheme.body.copy(color = ConsoleTheme.textMuted))
+                Text(text = "#", style = SmithType.body.copy(color = colors.inkMuted))
                 Spacer(modifier = Modifier.width(8.dp))
-                
+
                 BasicTextField(
                     value = channelName,
                     onValueChange = {
                         channelName = it.take(20).lowercase().replace(" ", "-")
                         errorMessage = null
                     },
-                    textStyle = ConsoleTheme.body,
-                    cursorBrush = SolidColor(ConsoleTheme.cursor),
+                    textStyle = SmithType.body.copy(color = colors.ink),
+                    cursorBrush = SolidColor(colors.ink),
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                     decorationBox = { innerTextField ->
@@ -112,7 +115,7 @@ fun CreateChannelScreen(
                             if (channelName.isEmpty()) {
                                 Text(
                                     text = "trades, help, random",
-                                    style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder)
+                                    style = SmithType.body.copy(color = colors.inkMuted)
                                 )
                             }
                             innerTextField()
@@ -120,35 +123,35 @@ fun CreateChannelScreen(
                     }
                 )
             }
-            
+
             if (errorMessage != null) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = errorMessage!!,
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.warning)
+                    style = SmithType.caption.copy(color = colors.attention)
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(24.dp))
-            
-            Text(text = "TYPE", style = ConsoleTheme.captionBold)
+
+            Text(text = "TYPE", style = SmithType.captionBold.copy(color = colors.inkMuted))
             Spacer(modifier = Modifier.height(10.dp))
-            
+
             Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                 Text(
                     text = "BROADCAST",
-                    style = ConsoleTheme.bodyBold.copy(
-                        color = if (channelType == ChannelType.BROADCAST) ConsoleTheme.accent else ConsoleTheme.textMuted
+                    style = SmithType.bodyBold.copy(
+                        color = if (channelType == ChannelType.BROADCAST) colors.accent else colors.inkMuted
                     ),
                     modifier = Modifier
                         .clickable { channelType = ChannelType.BROADCAST }
                         .padding(6.dp)
                 )
-                
+
                 Text(
                     text = "GROUP",
-                    style = ConsoleTheme.bodyBold.copy(
-                        color = if (channelType == ChannelType.GROUP) ConsoleTheme.accent else ConsoleTheme.textMuted
+                    style = SmithType.bodyBold.copy(
+                        color = if (channelType == ChannelType.GROUP) colors.accent else colors.inkMuted
                     ),
                     modifier = Modifier
                         .clickable { channelType = ChannelType.GROUP }
@@ -158,7 +161,7 @@ fun CreateChannelScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text(text = "VISIBILITY", style = ConsoleTheme.captionBold)
+            Text(text = "VISIBILITY", style = SmithType.captionBold.copy(color = colors.inkMuted))
             Spacer(modifier = Modifier.height(10.dp))
 
             // Visibility options
@@ -194,19 +197,19 @@ fun CreateChannelScreen(
                 ) {
                     Text(
                         text = if (requiresApproval) "☑" else "☐",
-                        style = ConsoleTheme.body,
+                        style = SmithType.body.copy(color = colors.ink),
                         modifier = Modifier.padding(end = 8.dp)
                     )
                     Text(
                         text = "Require admin approval for joins",
-                        style = ConsoleTheme.bodySmall
+                        style = SmithType.bodySmall.copy(color = colors.inkMuted)
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text(text = "HISTORY", style = ConsoleTheme.captionBold)
+            Text(text = "HISTORY", style = SmithType.captionBold.copy(color = colors.inkMuted))
             Spacer(modifier = Modifier.height(10.dp))
 
             Row(
@@ -215,13 +218,13 @@ fun CreateChannelScreen(
             ) {
                 Text(
                     text = if (keepHistory) "☑" else "☐",
-                    style = ConsoleTheme.body,
+                    style = SmithType.body.copy(color = colors.ink),
                     modifier = Modifier.padding(end = 8.dp)
                 )
                 Column {
                     Text(
                         text = "Keep history on the server",
-                        style = ConsoleTheme.bodySmall
+                        style = SmithType.bodySmall.copy(color = colors.inkMuted)
                     )
                     Text(
                         text = if (keepHistory) {
@@ -229,7 +232,7 @@ fun CreateChannelScreen(
                         } else {
                             "Ephemeral — messages reach only members connected at send time"
                         },
-                        style = ConsoleTheme.caption
+                        style = SmithType.caption.copy(color = colors.inkMuted)
                     )
                 }
             }
@@ -239,7 +242,7 @@ fun CreateChannelScreen(
             if (channelName.trim().length >= 2) {
                 Text(
                     text = "CREATE →",
-                    style = ConsoleTheme.action,
+                    style = SmithType.action.copy(color = colors.accent),
                     modifier = Modifier
                         .clickable {
                             val name = channelName.trim()
@@ -337,12 +340,13 @@ private fun VisibilityOption(
     onSelect: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onSelect)
             .background(
-                if (selected) ConsoleTheme.accent.copy(alpha = 0.1f) else ConsoleTheme.surface
+                if (selected) colors.accent.copy(alpha = 0.1f) else colors.bgPanel
             )
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -351,21 +355,21 @@ private fun VisibilityOption(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = if (selected) "●" else "○",
-                    style = ConsoleTheme.body,
-                    color = if (selected) ConsoleTheme.accent else ConsoleTheme.textMuted,
+                    style = SmithType.body,
+                    color = if (selected) colors.accent else colors.inkMuted,
                     modifier = Modifier.padding(end = 8.dp)
                 )
                 Text(
                     text = visibility.name,
-                    style = ConsoleTheme.bodyBold.copy(
-                        color = if (selected) ConsoleTheme.accent else ConsoleTheme.text
+                    style = SmithType.bodyBold.copy(
+                        color = if (selected) colors.accent else colors.ink
                     )
                 )
             }
             Text(
                 text = description,
-                style = ConsoleTheme.caption,
-                color = ConsoleTheme.textMuted,
+                style = SmithType.caption,
+                color = colors.inkMuted,
                 modifier = Modifier.padding(start = 24.dp, top = 2.dp)
             )
         }

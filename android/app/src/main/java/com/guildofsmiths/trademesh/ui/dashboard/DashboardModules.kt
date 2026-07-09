@@ -37,11 +37,12 @@ import com.guildofsmiths.trademesh.data.CrewPresenceInfo
 import com.guildofsmiths.trademesh.data.CrewPresenceRepository
 import com.guildofsmiths.trademesh.data.Permission
 import com.guildofsmiths.trademesh.data.RoleContext
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.JobStage
 import com.guildofsmiths.trademesh.ui.map.JobDetailPanel
 import com.guildofsmiths.trademesh.ui.map.SiteDetailPanel
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 
 // ════════════════════════════════════════════════════════════════════
 // MY TASKS MODULE — TEAM_MEMBER primary surface
@@ -49,26 +50,27 @@ import com.guildofsmiths.trademesh.ui.map.SiteDetailPanel
 
 @Composable
 fun MyTasksModule() {
+    val colors = LocalSmithColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(4.dp))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text("TODAY'S TASKS", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+        Text("TODAY'S TASKS", style = SmithType.captionBold.copy(color = colors.inkMuted))
         Spacer(modifier = Modifier.height(4.dp))
 
         // Placeholder — will be populated when task assignment is implemented
         Text(
             text = "No tasks assigned yet.",
-            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+            style = SmithType.caption.copy(color = colors.inkMuted),
             modifier = Modifier.padding(vertical = 8.dp)
         )
         Text(
             text = "Tasks will appear here when your team lead or dispatcher assigns work.",
-            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+            style = SmithType.caption.copy(color = colors.inkMuted)
         )
     }
 }
@@ -85,6 +87,7 @@ fun TeamPresenceModule(
     onCallPhone: (String) -> Unit = {},
     onMessageCrew: ((CrewPresenceInfo) -> Unit)? = null
 ) {
+    val colors = LocalSmithColors.current
     val isExpanded = RoleContext.isForeman()
     val isGC = RoleContext.isGC()
     val crew = remember { CrewPresenceRepository.getCrewWithAI() }
@@ -105,8 +108,8 @@ fun TeamPresenceModule(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(4.dp))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
@@ -117,11 +120,11 @@ fun TeamPresenceModule(
         ) {
             Text(
                 text = if (isGC) "SITES & SUBS" else if (isExpanded) "CREW STATUS" else "CREW",
-                style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted)
+                style = SmithType.captionBold.copy(color = colors.inkMuted)
             )
             Text(
                 text = "$activeCount/${crew.size} active",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
         }
 
@@ -133,7 +136,7 @@ fun TeamPresenceModule(
             val unassigned = crew.filter { it.currentSite == null }
 
             if (bySite.isEmpty() && unassigned.isEmpty()) {
-                Text("No crew members connected.", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                Text("No crew members connected.", style = SmithType.caption.copy(color = colors.inkMuted))
             }
 
             bySite.forEach { (site, members) ->
@@ -144,20 +147,20 @@ fun TeamPresenceModule(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(">", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.accent))
-                        Text(site.take(30), style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
+                        Text(">", style = SmithType.bodySmall.copy(color = colors.accent))
+                        Text(site.take(30), style = SmithType.bodySmall.copy(color = colors.ink))
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                         members.forEach { m ->
                             val dot = if (m.status == ClockStatus.ON_CLOCK) "●" else "○"
-                            val dotColor = if (m.status == ClockStatus.ON_CLOCK) ConsoleTheme.success else ConsoleTheme.textMuted
-                            Text(dot, style = ConsoleTheme.caption.copy(color = dotColor))
+                            val dotColor = if (m.status == ClockStatus.ON_CLOCK) colors.statusOnline else colors.inkMuted
+                            Text(dot, style = SmithType.caption.copy(color = dotColor))
                         }
-                        Text("$siteActive/${members.size}", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                        Text("$siteActive/${members.size}", style = SmithType.caption.copy(color = colors.inkMuted))
                     }
                 }
                 val trades = members.joinToString(", ") { it.name }
-                Text("  $trades", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                Text("  $trades", style = SmithType.caption.copy(color = colors.inkMuted))
             }
         } else {
             // Team Lead (compact) / Foreman (expanded) variant
@@ -173,10 +176,10 @@ fun TeamPresenceModule(
                     else -> "○"
                 }
                 val dotColor = when {
-                    isAI -> ConsoleTheme.accent
-                    member.status == ClockStatus.ON_CLOCK -> ConsoleTheme.success
-                    member.status == ClockStatus.ON_BREAK -> ConsoleTheme.accent
-                    else -> ConsoleTheme.textMuted
+                    isAI -> colors.accent
+                    member.status == ClockStatus.ON_CLOCK -> colors.statusOnline
+                    member.status == ClockStatus.ON_BREAK -> colors.accent
+                    else -> colors.inkMuted
                 }
                 val rightText = when {
                     isAI -> "Always on"
@@ -207,16 +210,16 @@ fun TeamPresenceModule(
                 ) {
                     Text(
                         "($dot) ${member.name}${if (isAI) " · ${member.trade}" else ""}",
-                        style = ConsoleTheme.caption.copy(color = if (isAI) ConsoleTheme.accent else if (member.status == ClockStatus.OFF_CLOCK) ConsoleTheme.textMuted else ConsoleTheme.text)
+                        style = SmithType.caption.copy(color = if (isAI) colors.accent else if (member.status == ClockStatus.OFF_CLOCK) colors.inkMuted else colors.ink)
                     )
-                    Text(rightText, style = ConsoleTheme.caption.copy(color = if (isAI || member.status == ClockStatus.ON_CLOCK) ConsoleTheme.accent else ConsoleTheme.textMuted))
+                    Text(rightText, style = SmithType.caption.copy(color = if (isAI || member.status == ClockStatus.ON_CLOCK) colors.accent else colors.inkMuted))
                 }
             }
 
             if (!isExpanded && sorted.size > 3) {
                 Text(
                     text = "[See all ${sorted.size} >]",
-                    style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                    style = SmithType.action.copy(color = colors.accent),
                     modifier = Modifier.clickable { onCrewClick() }.padding(vertical = 4.dp)
                 )
             }
@@ -228,17 +231,17 @@ fun TeamPresenceModule(
             horizontalArrangement = Arrangement.End
         ) {
             if (isExpanded) {
-                Text("[Dispatch]", style = ConsoleTheme.action.copy(color = ConsoleTheme.accent), modifier = Modifier.clickable { onDispatchClick() }.padding(4.dp))
+                Text("[Dispatch]", style = SmithType.action.copy(color = colors.accent), modifier = Modifier.clickable { onDispatchClick() }.padding(4.dp))
             }
             if (isGC) {
-                Text("[Projects]", style = ConsoleTheme.action.copy(color = ConsoleTheme.accent), modifier = Modifier.clickable { onCrewClick() }.padding(4.dp))
+                Text("[Projects]", style = SmithType.action.copy(color = colors.accent), modifier = Modifier.clickable { onCrewClick() }.padding(4.dp))
             }
         }
 
         // Inline map — minimal site summary + OpenStreetMap
         if (isExpanded || isGC) {
             Spacer(modifier = Modifier.height(6.dp))
-            Box(Modifier.fillMaxWidth().height(0.5.dp).background(ConsoleTheme.text.copy(alpha = 0.06f)))
+            Box(Modifier.fillMaxWidth().height(0.5.dp).background(colors.ink.copy(alpha = 0.06f)))
             Spacer(modifier = Modifier.height(8.dp))
 
             // Minimal site list — just name + dots + count
@@ -250,18 +253,18 @@ fun TeamPresenceModule(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(site.take(30), style = ConsoleTheme.caption.copy(color = ConsoleTheme.text), modifier = Modifier.weight(1f))
+                    Text(site.take(30), style = SmithType.caption.copy(color = colors.ink), modifier = Modifier.weight(1f))
                     Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                         members.forEach { m ->
                             val dc = when (m.status) {
-                                ClockStatus.ON_CLOCK -> ConsoleTheme.success
-                                ClockStatus.ON_BREAK -> ConsoleTheme.accent
-                                ClockStatus.OFF_CLOCK -> ConsoleTheme.textMuted
+                                ClockStatus.ON_CLOCK -> colors.statusOnline
+                                ClockStatus.ON_BREAK -> colors.accent
+                                ClockStatus.OFF_CLOCK -> colors.inkMuted
                             }
-                            Text("●", style = ConsoleTheme.caption.copy(color = dc))
+                            Text("●", style = SmithType.caption.copy(color = dc))
                         }
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("$siteActive/${members.size}", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                        Text("$siteActive/${members.size}", style = SmithType.caption.copy(color = colors.inkMuted))
                     }
                 }
             }
@@ -284,13 +287,14 @@ fun DispatchModule(
     onAssignCrew: (Job) -> Unit = {},
     onJobClick: (String) -> Unit = {}
 ) {
-    val urgencyColor = if (unassignedJobs.isNotEmpty()) Color(0xFFD97706) else ConsoleTheme.textMuted
+    val colors = LocalSmithColors.current
+    val urgencyColor = if (unassignedJobs.isNotEmpty()) colors.attention else colors.inkMuted
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(3.dp, RoundedCornerShape(4.dp))
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(4.dp))
             .border(1.dp, urgencyColor.copy(alpha = 0.25f), RoundedCornerShape(4.dp))
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -305,8 +309,8 @@ fun DispatchModule(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(">>", style = ConsoleTheme.bodySmall.copy(color = urgencyColor))
-                Text("DISPATCH", style = ConsoleTheme.captionBold.copy(color = urgencyColor))
+                Text(">>", style = SmithType.bodySmall.copy(color = urgencyColor))
+                Text("DISPATCH", style = SmithType.captionBold.copy(color = urgencyColor))
                 if (unassignedJobs.isNotEmpty()) {
                     Box(
                         modifier = Modifier
@@ -315,7 +319,7 @@ fun DispatchModule(
                     ) {
                         Text(
                             "${unassignedJobs.size} unassigned",
-                            style = ConsoleTheme.caption.copy(color = urgencyColor)
+                            style = SmithType.caption.copy(color = urgencyColor)
                         )
                     }
                 }
@@ -323,7 +327,7 @@ fun DispatchModule(
         }
 
         if (unassignedJobs.isEmpty()) {
-            Text("All jobs assigned.", style = ConsoleTheme.caption.copy(color = ConsoleTheme.success), modifier = Modifier.padding(vertical = 4.dp))
+            Text("All jobs assigned.", style = SmithType.caption.copy(color = colors.statusOnline), modifier = Modifier.padding(vertical = 4.dp))
         } else {
             unassignedJobs.take(4).forEach { job ->
                 Row(
@@ -343,16 +347,16 @@ fun DispatchModule(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             "! ${job.clientName ?: job.title}",
-                            style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text)
+                            style = SmithType.bodySmall.copy(color = colors.ink)
                         )
                         Text(
                             "${job.stage.displayName} · ${job.clientAddress.take(25)}",
-                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                            style = SmithType.caption.copy(color = colors.inkMuted)
                         )
                     }
                     Text(
                         "[Assign]",
-                        style = ConsoleTheme.action.copy(color = urgencyColor),
+                        style = SmithType.action.copy(color = urgencyColor),
                         modifier = Modifier
                             .clickable { onAssignCrew(job) }
                             .background(urgencyColor.copy(alpha = 0.10f), RoundedCornerShape(4.dp))
@@ -374,31 +378,32 @@ fun CrewAssignDialog(
     onAssign: (Job, CrewPresenceInfo) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     val crew = remember { CrewPresenceRepository.getCrew() }
 
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.background, RoundedCornerShape(8.dp))
-                .border(1.dp, ConsoleTheme.text.copy(alpha = 0.10f), RoundedCornerShape(8.dp))
+                .background(colors.bgBase, RoundedCornerShape(8.dp))
+                .border(1.dp, colors.ink.copy(alpha = 0.10f), RoundedCornerShape(8.dp))
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text("ASSIGN CREW", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent))
+            Text("ASSIGN CREW", style = SmithType.captionBold.copy(color = colors.accent))
             Text(
                 job.clientName ?: job.title,
-                style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text)
+                style = SmithType.bodySmall.copy(color = colors.ink)
             )
             Text(
                 job.clientAddress.take(40),
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
 
-            Box(Modifier.fillMaxWidth().height(0.5.dp).background(ConsoleTheme.text.copy(alpha = 0.08f)))
+            Box(Modifier.fillMaxWidth().height(0.5.dp).background(colors.ink.copy(alpha = 0.08f)))
 
             if (crew.isEmpty()) {
-                Text("No crew members available.", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                Text("No crew members available.", style = SmithType.caption.copy(color = colors.inkMuted))
             } else {
                 crew.forEach { member ->
                     val isBusy = member.currentJobId != null
@@ -411,7 +416,7 @@ fun CrewAssignDialog(
                                 indication = rememberRipple(bounded = true),
                                 onClick = { onAssign(job, member) }
                             )
-                            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+                            .background(colors.bgPanel, RoundedCornerShape(4.dp))
                             .padding(10.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
@@ -424,21 +429,21 @@ fun CrewAssignDialog(
                                     ClockStatus.OFF_CLOCK -> "○"
                                 }
                                 val dotColor = when (member.status) {
-                                    ClockStatus.ON_CLOCK -> ConsoleTheme.success
-                                    ClockStatus.ON_BREAK -> ConsoleTheme.accent
-                                    ClockStatus.OFF_CLOCK -> ConsoleTheme.textMuted
+                                    ClockStatus.ON_CLOCK -> colors.statusOnline
+                                    ClockStatus.ON_BREAK -> colors.accent
+                                    ClockStatus.OFF_CLOCK -> colors.inkMuted
                                 }
-                                Text(dot, style = ConsoleTheme.bodySmall.copy(color = dotColor))
-                                Text(member.name, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
+                                Text(dot, style = SmithType.bodySmall.copy(color = dotColor))
+                                Text(member.name, style = SmithType.bodySmall.copy(color = colors.ink))
                             }
                             Text(
                                 if (isBusy) "${member.trade} · on ${member.currentJobTitle}" else "${member.trade} · available",
-                                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                                style = SmithType.caption.copy(color = colors.inkMuted)
                             )
                         }
                         Text(
                             "[Select]",
-                            style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                            style = SmithType.action.copy(color = colors.accent),
                             modifier = Modifier.padding(start = 8.dp)
                         )
                     }
@@ -449,7 +454,7 @@ fun CrewAssignDialog(
             // Cancel
             Text(
                 "[Cancel]",
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                style = SmithType.action.copy(color = colors.inkMuted),
                 modifier = Modifier
                     .clickable { onDismiss() }
                     .padding(vertical = 4.dp)
@@ -470,12 +475,13 @@ fun CrewProfileSheet(
     onCall: (String) -> Unit = {},
     onMessage: ((CrewPresenceInfo) -> Unit)? = null
 ) {
+    val colors = LocalSmithColors.current
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.background, RoundedCornerShape(8.dp))
-                .border(1.dp, ConsoleTheme.text.copy(alpha = 0.10f), RoundedCornerShape(8.dp))
+                .background(colors.bgBase, RoundedCornerShape(8.dp))
+                .border(1.dp, colors.ink.copy(alpha = 0.10f), RoundedCornerShape(8.dp))
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -490,18 +496,18 @@ fun CrewProfileSheet(
                     ClockStatus.OFF_CLOCK -> "○"
                 }
                 val dotColor = when (member.status) {
-                    ClockStatus.ON_CLOCK -> ConsoleTheme.success
-                    ClockStatus.ON_BREAK -> ConsoleTheme.accent
-                    ClockStatus.OFF_CLOCK -> ConsoleTheme.textMuted
+                    ClockStatus.ON_CLOCK -> colors.statusOnline
+                    ClockStatus.ON_BREAK -> colors.accent
+                    ClockStatus.OFF_CLOCK -> colors.inkMuted
                 }
-                Text(dot, style = ConsoleTheme.bodyBold.copy(color = dotColor))
-                Text(member.name, style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.text))
+                Text(dot, style = SmithType.bodyBold.copy(color = dotColor))
+                Text(member.name, style = SmithType.bodyBold.copy(color = colors.ink))
             }
 
-            Text(member.trade, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.accent))
-            Text(member.status.label, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+            Text(member.trade, style = SmithType.bodySmall.copy(color = colors.accent))
+            Text(member.status.label, style = SmithType.caption.copy(color = colors.inkMuted))
 
-            Box(Modifier.fillMaxWidth().height(0.5.dp).background(ConsoleTheme.text.copy(alpha = 0.08f)))
+            Box(Modifier.fillMaxWidth().height(0.5.dp).background(colors.ink.copy(alpha = 0.08f)))
 
             // Hours today
             if (member.clockInTime != null) {
@@ -529,23 +535,23 @@ fun CrewProfileSheet(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Progress", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted), modifier = Modifier.width(80.dp))
-                        Box(Modifier.weight(1f).height(6.dp).background(ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(3.dp))) {
-                            Box(Modifier.fillMaxHeight().fillMaxWidth(member.taskProgress / 100f).background(ConsoleTheme.accent, RoundedCornerShape(3.dp)))
+                        Text("Progress", style = SmithType.caption.copy(color = colors.inkMuted), modifier = Modifier.width(80.dp))
+                        Box(Modifier.weight(1f).height(6.dp).background(colors.ink.copy(alpha = 0.06f), RoundedCornerShape(3.dp))) {
+                            Box(Modifier.fillMaxHeight().fillMaxWidth(member.taskProgress / 100f).background(colors.accent, RoundedCornerShape(3.dp)))
                         }
-                        Text("${member.taskProgress}%", style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent))
+                        Text("${member.taskProgress}%", style = SmithType.caption.copy(color = colors.accent))
                     }
                 }
             }
 
             // Actions
-            Box(Modifier.fillMaxWidth().height(0.5.dp).background(ConsoleTheme.text.copy(alpha = 0.08f)))
+            Box(Modifier.fillMaxWidth().height(0.5.dp).background(colors.ink.copy(alpha = 0.08f)))
 
             // Message button
             if (onMessage != null && member.userId.isNotBlank()) {
                 Text(
                     "[Message ${member.name}]",
-                    style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                    style = SmithType.action.copy(color = colors.accent),
                     modifier = Modifier
                         .clickable { onMessage(member); onDismiss() }
                         .padding(vertical = 4.dp)
@@ -556,7 +562,7 @@ fun CrewProfileSheet(
             if (member.phone != null) {
                 Text(
                     "[Call ${member.phone}]",
-                    style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                    style = SmithType.action.copy(color = colors.inkMuted),
                     modifier = Modifier
                         .clickable { onCall(member.phone) }
                         .padding(vertical = 4.dp)
@@ -566,7 +572,7 @@ fun CrewProfileSheet(
             // Close
             Text(
                 "[Close]",
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                style = SmithType.action.copy(color = colors.inkMuted),
                 modifier = Modifier
                     .clickable { onDismiss() }
                     .padding(vertical = 4.dp)
@@ -578,12 +584,13 @@ fun CrewProfileSheet(
 
 @Composable
 private fun ProfileRow(label: String, value: String) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(label, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted), modifier = Modifier.width(80.dp))
-        Text(value, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text), modifier = Modifier.weight(1f))
+        Text(label, style = SmithType.caption.copy(color = colors.inkMuted), modifier = Modifier.width(80.dp))
+        Text(value, style = SmithType.bodySmall.copy(color = colors.ink), modifier = Modifier.weight(1f))
     }
 }
 
@@ -595,11 +602,12 @@ private fun ProfileRow(label: String, value: String) {
 fun ProjectOverviewModule(
     onProjectsClick: () -> Unit = {}
 ) {
+    val colors = LocalSmithColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(4.dp))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
@@ -608,10 +616,10 @@ fun ProjectOverviewModule(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("PROJECTS", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+            Text("PROJECTS", style = SmithType.captionBold.copy(color = colors.inkMuted))
             Text(
                 text = "[+ New]",
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                style = SmithType.action.copy(color = colors.accent),
                 modifier = Modifier
                     .clickable { onProjectsClick() }
                     .padding(2.dp)
@@ -620,12 +628,12 @@ fun ProjectOverviewModule(
 
         Text(
             text = "No projects yet.",
-            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+            style = SmithType.caption.copy(color = colors.inkMuted),
             modifier = Modifier.padding(vertical = 8.dp)
         )
         Text(
             text = "Create a project to manage multiple sites and subcontractors.",
-            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+            style = SmithType.caption.copy(color = colors.inkMuted)
         )
     }
 }
@@ -639,6 +647,7 @@ fun SiteMapModule(
     onMapClick: () -> Unit = {},
     allJobs: List<Job> = emptyList()
 ) {
+    val colors = LocalSmithColors.current
     val context = LocalContext.current
     val isSolo = com.guildofsmiths.trademesh.data.RoleContext.isSolo()
     val crew = CrewPresenceRepository.getCrew()
@@ -666,8 +675,8 @@ fun SiteMapModule(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(4.dp, RoundedCornerShape(4.dp))
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(4.dp))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
             .clip(RoundedCornerShape(4.dp))
     ) {
         // Header
@@ -680,7 +689,7 @@ fun SiteMapModule(
         ) {
             Text(
                 if (isSolo) "JOB SITES" else "CREW MAP",
-                style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted)
+                style = SmithType.captionBold.copy(color = colors.inkMuted)
             )
             Row(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -688,11 +697,11 @@ fun SiteMapModule(
             ) {
                 Text(
                     "${activeJobs.size} active",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent)
+                    style = SmithType.caption.copy(color = colors.accent)
                 )
                 Text(
                     "[OPEN MAP]",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent),
+                    style = SmithType.caption.copy(color = colors.accent),
                     modifier = Modifier.clickable { onMapClick() }
                 )
             }
@@ -815,6 +824,7 @@ fun SiteMapModule(
 fun FinancialsModule(
     allJobs: List<Job> = emptyList()
 ) {
+    val colors = LocalSmithColors.current
     val clientNames = remember(allJobs) {
         listOf("All Clients") + allJobs
             .mapNotNull { it.clientName?.trim() }
@@ -856,8 +866,8 @@ fun FinancialsModule(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(3.dp, RoundedCornerShape(4.dp))
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(4.dp))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -867,32 +877,32 @@ fun FinancialsModule(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("FINANCIALS", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+            Text("FINANCIALS", style = SmithType.captionBold.copy(color = colors.inkMuted))
             Box {
                 Text(
                     text = "[$selectedClient v]",
-                    style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                    style = SmithType.action.copy(color = colors.accent),
                     modifier = Modifier.clickable { showDropdown = !showDropdown }.padding(2.dp)
                 )
                 androidx.compose.material3.DropdownMenu(
                     expanded = showDropdown,
                     onDismissRequest = { showDropdown = false },
                     modifier = Modifier
-                        .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                        .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                        .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                        .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
                 ) {
                     clientNames.forEach { client ->
                         androidx.compose.material3.DropdownMenuItem(
                             text = {
                                 Text(
                                     client,
-                                    style = ConsoleTheme.bodySmall.copy(
-                                        color = if (client == selectedClient) ConsoleTheme.accent else ConsoleTheme.text
+                                    style = SmithType.bodySmall.copy(
+                                        color = if (client == selectedClient) colors.accent else colors.ink
                                     )
                                 )
                             },
                             onClick = { selectedClient = client; showDropdown = false },
-                            modifier = Modifier.background(ConsoleTheme.surface)
+                            modifier = Modifier.background(colors.bgPanel)
                         )
                     }
                 }
@@ -917,31 +927,31 @@ fun FinancialsModule(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier.weight(1f)
             ) {
-                FinancialRow("Budget", totalBudget, ConsoleTheme.text)
-                FinancialRow("Spent", totalSpent, Color(0xFFD97706))
-                FinancialRow("Remaining", remaining, ConsoleTheme.success)
+                FinancialRow("Budget", totalBudget, colors.ink)
+                FinancialRow("Spent", totalSpent, colors.attention)
+                FinancialRow("Remaining", remaining, colors.statusOnline)
             }
         }
 
-        Box(Modifier.fillMaxWidth().height(0.5.dp).background(ConsoleTheme.text.copy(alpha = 0.06f)))
+        Box(Modifier.fillMaxWidth().height(0.5.dp).background(colors.ink.copy(alpha = 0.06f)))
 
         // ── EXPENSE BREAKDOWN BARS ─────────────────────────────
-        Text("EXPENSES", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+        Text("EXPENSES", style = SmithType.captionBold.copy(color = colors.inkMuted))
 
         // Labor vs Materials pie-like bars
-        ExpenseBar("Labor", laborSpent, laborBudget, Color(0xFF1d4ed8))
-        ExpenseBar("Materials", materialsSpent, materialsBudget, Color(0xFFD97706))
+        ExpenseBar("Labor", laborSpent, laborBudget, colors.accent)
+        ExpenseBar("Materials", materialsSpent, materialsBudget, colors.attention)
 
-        Box(Modifier.fillMaxWidth().height(0.5.dp).background(ConsoleTheme.text.copy(alpha = 0.06f)))
+        Box(Modifier.fillMaxWidth().height(0.5.dp).background(colors.ink.copy(alpha = 0.06f)))
 
         // ── PER-JOB BUDGET BARS ────────────────────────────────
-        Text("BY JOB", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+        Text("BY JOB", style = SmithType.captionBold.copy(color = colors.inkMuted))
 
         jobBreakdown.forEach { (name, jobBudget, jobSpent) ->
-            ExpenseBar(name, jobSpent, jobBudget, ConsoleTheme.accent)
+            ExpenseBar(name, jobSpent, jobBudget, colors.accent)
         }
 
-        Box(Modifier.fillMaxWidth().height(0.5.dp).background(ConsoleTheme.text.copy(alpha = 0.06f)))
+        Box(Modifier.fillMaxWidth().height(0.5.dp).background(colors.ink.copy(alpha = 0.06f)))
 
         // ── EARNED / OUTSTANDING ───────────────────────────────
         Row(
@@ -949,12 +959,12 @@ fun FinancialsModule(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column {
-                Text("Earned", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
-                Text("$${String.format("%,.0f", earned)}", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.success))
+                Text("Earned", style = SmithType.caption.copy(color = colors.inkMuted))
+                Text("$${String.format("%,.0f", earned)}", style = SmithType.bodySmall.copy(color = colors.statusOnline))
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text("Outstanding", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
-                Text("$${String.format("%,.0f", outstanding)}", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.accent))
+                Text("Outstanding", style = SmithType.caption.copy(color = colors.inkMuted))
+                Text("$${String.format("%,.0f", outstanding)}", style = SmithType.bodySmall.copy(color = colors.accent))
             }
         }
     }
@@ -968,9 +978,10 @@ private fun BudgetRing(
     budget: Double,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     val fraction = if (budget > 0) (spent / budget).toFloat().coerceIn(0f, 1f) else 0f
-    val spentColor = if (fraction > 0.85f) Color(0xFFDC2626) else Color(0xFFD97706)
-    val trackColor = ConsoleTheme.text.copy(alpha = 0.06f)
+    val spentColor = if (fraction > 0.85f) colors.statusError else colors.attention
+    val trackColor = colors.ink.copy(alpha = 0.06f)
     val pct = (fraction * 100).toInt()
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
@@ -1002,8 +1013,8 @@ private fun BudgetRing(
         }
         // Center text
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("${pct}%", style = ConsoleTheme.bodySmall.copy(color = spentColor))
-            Text("used", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+            Text("${pct}%", style = SmithType.bodySmall.copy(color = spentColor))
+            Text("used", style = SmithType.caption.copy(color = colors.inkMuted))
         }
     }
 }
@@ -1017,6 +1028,7 @@ private fun ExpenseBar(
     budget: Double,
     barColor: Color
 ) {
+    val colors = LocalSmithColors.current
     val fraction = if (budget > 0) (spent / budget).toFloat().coerceIn(0f, 1f) else 0f
 
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -1024,17 +1036,17 @@ private fun ExpenseBar(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(label, style = ConsoleTheme.caption.copy(color = ConsoleTheme.text))
+            Text(label, style = SmithType.caption.copy(color = colors.ink))
             Text(
                 "$${String.format("%,.0f", spent)} / $${String.format("%,.0f", budget)}",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
         }
         Box(
             Modifier
                 .fillMaxWidth()
                 .height(6.dp)
-                .background(ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(3.dp))
+                .background(colors.ink.copy(alpha = 0.06f), RoundedCornerShape(3.dp))
         ) {
             Box(
                 Modifier
@@ -1050,12 +1062,13 @@ private fun ExpenseBar(
 
 @Composable
 private fun FinancialRow(label: String, value: Double, color: Color) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(label, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
-        Text("$${String.format("%,.0f", value)}", style = ConsoleTheme.bodySmall.copy(color = color))
+        Text(label, style = SmithType.caption.copy(color = colors.inkMuted))
+        Text("$${String.format("%,.0f", value)}", style = SmithType.bodySmall.copy(color = color))
     }
 }
 
@@ -1065,18 +1078,19 @@ private fun FinancialRow(label: String, value: Double, color: Color) {
 
 @Composable
 fun HubStatusModule() {
+    val colors = LocalSmithColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(4.dp))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Text("MESH HUB", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+        Text("MESH HUB", style = SmithType.captionBold.copy(color = colors.inkMuted))
         Text(
             text = "0 peers connected · Hub idle",
-            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+            style = SmithType.caption.copy(color = colors.inkMuted)
         )
     }
 }
@@ -1087,6 +1101,7 @@ fun HubStatusModule() {
 
 @Composable
 fun AIInboxModule() {
+    val colors = LocalSmithColors.current
     val insights by AISupervisor.insights.collectAsState()
     val autoPosted by AISupervisor.autoPosted.collectAsState()
     val isProcessing by AISupervisor.isProcessing.collectAsState()
@@ -1103,8 +1118,8 @@ fun AIInboxModule() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(4.dp))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -1114,13 +1129,13 @@ fun AIInboxModule() {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("(◈)", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.accent))
-                Text("SMITHAI", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+                Text("(◈)", style = SmithType.bodySmall.copy(color = colors.accent))
+                Text("SMITHAI", style = SmithType.captionBold.copy(color = colors.inkMuted))
             }
             if (isProcessing) {
-                Text("analyzing...", style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent))
+                Text("analyzing...", style = SmithType.caption.copy(color = colors.accent))
             } else if (mode == "semi-auto" && insights.isNotEmpty()) {
-                Text("${insights.size} pending", style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent))
+                Text("${insights.size} pending", style = SmithType.caption.copy(color = colors.accent))
             }
         }
 
@@ -1128,8 +1143,8 @@ fun AIInboxModule() {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.background, RoundedCornerShape(4.dp))
-                    .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.04f), RoundedCornerShape(4.dp))
+                    .background(colors.bgBase, RoundedCornerShape(4.dp))
+                    .border(0.5.dp, colors.ink.copy(alpha = 0.04f), RoundedCornerShape(4.dp))
                     .padding(10.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
@@ -1143,11 +1158,11 @@ fun AIInboxModule() {
                     AISupervisor.InsightType.FINANCIAL -> "($)"
                 }
                 val iconColor = when (insight.type) {
-                    AISupervisor.InsightType.ALERT -> ConsoleTheme.warning
-                    AISupervisor.InsightType.CREW -> Color(0xFFD97706)
-                    AISupervisor.InsightType.STAGE -> ConsoleTheme.success
-                    AISupervisor.InsightType.FINANCIAL -> ConsoleTheme.warning
-                    else -> ConsoleTheme.accent
+                    AISupervisor.InsightType.ALERT -> colors.attention
+                    AISupervisor.InsightType.CREW -> colors.attention
+                    AISupervisor.InsightType.STAGE -> colors.statusOnline
+                    AISupervisor.InsightType.FINANCIAL -> colors.attention
+                    else -> colors.accent
                 }
 
                 // Title row with dismiss X
@@ -1160,12 +1175,12 @@ fun AIInboxModule() {
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(icon, style = ConsoleTheme.bodySmall.copy(color = iconColor))
-                        Text(insight.title, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
+                        Text(icon, style = SmithType.bodySmall.copy(color = iconColor))
+                        Text(insight.title, style = SmithType.bodySmall.copy(color = colors.ink))
                     }
                     Text(
                         "[x]",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                        style = SmithType.action.copy(color = colors.inkMuted),
                         modifier = Modifier
                             .clickable { AISupervisor.dismissInsight(insight.id) }
                             .padding(horizontal = 6.dp, vertical = 4.dp)
@@ -1174,7 +1189,7 @@ fun AIInboxModule() {
 
                 Text(
                     insight.body,
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                    style = SmithType.caption.copy(color = colors.inkMuted)
                 )
 
                 // Confirm/Reject for FINANCIAL insights (needs permission)
@@ -1185,13 +1200,13 @@ fun AIInboxModule() {
                     ) {
                         Text(
                             "[Confirm]",
-                            style = ConsoleTheme.action.copy(color = ConsoleTheme.success),
+                            style = SmithType.action.copy(color = colors.statusOnline),
                             modifier = Modifier.clickable { AISupervisor.approveInsight(insight.id) }.padding(4.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             "[Reject]",
-                            style = ConsoleTheme.action.copy(color = ConsoleTheme.error),
+                            style = SmithType.action.copy(color = colors.statusError),
                             modifier = Modifier.clickable { AISupervisor.dismissInsight(insight.id) }.padding(4.dp)
                         )
                     }
@@ -1220,6 +1235,7 @@ fun CrewMapView(
     onJobClick: (jobId: String) -> Unit = {},
     fillContainer: Boolean = false
 ) {
+    val colors = LocalSmithColors.current
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
@@ -1236,7 +1252,7 @@ fun CrewMapView(
     } else {
         Modifier
             .clip(RoundedCornerShape(4.dp))
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
     }
 
     Box(modifier = sizeModifier.then(cornerModifier)) {

@@ -37,6 +37,9 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -54,7 +57,10 @@ import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.data.TradesList
 import com.guildofsmiths.trademesh.data.UserRole
 import com.guildofsmiths.trademesh.service.AuthService
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithConfirmDialog
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
+import com.guildofsmiths.trademesh.ui.theme2.ThemePreference
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -71,10 +77,13 @@ fun SettingsScreen(
     onNameChanged: (String) -> Unit,
     onProfileClick: (() -> Unit)? = null,
     onSignOut: (() -> Unit)? = null,
+    onThemePreferenceChange: (ThemePreference) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     var userName by remember { mutableStateOf(UserPreferences.getUserName()) }
     var hasChanges by remember { mutableStateOf(false) }
+    var themePreference by remember { mutableStateOf(UserPreferences.getThemePreference()) }
     val isScanning by BoundaryEngine.isScanning.collectAsState()
     val isMeshConnected by BoundaryEngine.isMeshConnected.collectAsState()
     val isGatewayConnected by BoundaryEngine.isGatewayConnected.collectAsState()
@@ -91,20 +100,20 @@ fun SettingsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(ConsoleTheme.background)
+            .background(colors.bgBase)
     ) {
         // Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.surface)
+                .background(colors.bgPanel)
                 .clickable(onClick = onBackClick)
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "←", style = ConsoleTheme.title)
+            Text(text = "←", style = SmithType.title.copy(color = colors.ink))
             Spacer(modifier = Modifier.width(14.dp))
-            Text(text = "SETTINGS", style = ConsoleTheme.title)
+            Text(text = "SETTINGS", style = SmithType.title.copy(color = colors.ink))
         }
         
         ConsoleSeparator()
@@ -122,21 +131,37 @@ fun SettingsScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .clickable { onProfileClick?.invoke() }
                     .padding(12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text(text = userName.ifBlank { "Set up profile" }, style = ConsoleTheme.bodyBold)
+                    Text(text = userName.ifBlank { "Set up profile" }, style = SmithType.bodyBold.copy(color = colors.ink))
                     Text(
                         text = "Name, trade, rates, billing",
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                        style = SmithType.caption.copy(color = colors.inkMuted)
                     )
                 }
-                Text(text = ">", style = ConsoleTheme.body, color = ConsoleTheme.textMuted)
+                Text(text = ">", style = SmithType.body, color = colors.inkMuted)
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            ConsoleSeparator()
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // ════════════════════════════════════════════════════════════════
+            // APPEARANCE — Light / Dark / System
+            // ════════════════════════════════════════════════════════════════
+            AppearanceSection(
+                current = themePreference,
+                onSelect = { pref ->
+                    themePreference = pref
+                    UserPreferences.setThemePreference(pref)
+                    onThemePreferenceChange(pref)
+                }
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
             ConsoleSeparator()
@@ -182,13 +207,13 @@ fun SettingsScreen(
             // MESH CONNECTION (hidden for solo — foreman/crew feature)
             // ════════════════════════════════════════════════════════════════
             if (RoleContext.can(Permission.GATEWAY_RELAY)) {
-            Text(text = "MESH CONNECTION", style = ConsoleTheme.captionBold)
+            Text(text = "MESH CONNECTION", style = SmithType.captionBold.copy(color = colors.inkMuted))
             Spacer(modifier = Modifier.height(10.dp))
             
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -198,9 +223,9 @@ fun SettingsScreen(
                         .clip(CircleShape)
                         .background(
                             when {
-                                isScanning -> ConsoleTheme.success
-                                isMeshConnected -> ConsoleTheme.warning
-                                else -> ConsoleTheme.textDim
+                                isScanning -> colors.statusOnline
+                                isMeshConnected -> colors.attention
+                                else -> colors.inkMuted
                             }
                         )
                 )
@@ -213,14 +238,14 @@ fun SettingsScreen(
                         isMeshConnected -> "Connected"
                         else -> "Offline"
                     },
-                    style = ConsoleTheme.body,
+                    style = SmithType.body.copy(color = colors.ink),
                     modifier = Modifier.weight(1f)
                 )
                 
                 Text(
                     text = if (isScanning) "STOP" else "START",
-                    style = ConsoleTheme.action.copy(
-                        color = if (isScanning) ConsoleTheme.textMuted else ConsoleTheme.accent
+                    style = SmithType.action.copy(
+                        color = if (isScanning) colors.inkMuted else colors.accent
                     ),
                     modifier = Modifier
                         .clickable {
@@ -238,25 +263,25 @@ fun SettingsScreen(
             // ════════════════════════════════════════════════════════════════
             // GATEWAY RELAY
             // ════════════════════════════════════════════════════════════════
-            Text(text = "GATEWAY RELAY", style = ConsoleTheme.captionBold)
+            Text(text = "GATEWAY RELAY", style = SmithType.captionBold.copy(color = colors.inkMuted))
             Spacer(modifier = Modifier.height(10.dp))
             
             BasicTextField(
                 value = gatewayUrl,
                 onValueChange = { gatewayUrl = it },
-                textStyle = ConsoleTheme.bodySmall,
-                cursorBrush = SolidColor(ConsoleTheme.cursor),
+                textStyle = SmithType.bodySmall.copy(color = colors.inkMuted),
+                cursorBrush = SolidColor(colors.ink),
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .padding(14.dp),
                 decorationBox = { innerTextField ->
                     Box {
                         if (gatewayUrl.isEmpty()) {
                             Text(
                                 text = "ws://ip:port",
-                                style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder)
+                                style = SmithType.bodySmall.copy(color = colors.inkMuted)
                             )
                         }
                         innerTextField()
@@ -269,7 +294,7 @@ fun SettingsScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -278,7 +303,7 @@ fun SettingsScreen(
                         .size(8.dp)
                         .clip(CircleShape)
                         .background(
-                            if (isGatewayConnected) ConsoleTheme.success else ConsoleTheme.textDim
+                            if (isGatewayConnected) colors.statusOnline else colors.inkMuted
                         )
                 )
                 
@@ -286,14 +311,14 @@ fun SettingsScreen(
                 
                 Text(
                     text = if (isGatewayConnected) "Connected to backend" else "Offline",
-                    style = ConsoleTheme.body,
+                    style = SmithType.body.copy(color = colors.ink),
                     modifier = Modifier.weight(1f)
                 )
                 
                 if (!isGatewayConnected) {
                     Text(
                         text = "CONNECT",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                        style = SmithType.action.copy(color = colors.accent),
                         modifier = Modifier
                             .clickable { BoundaryEngine.connectGateway(gatewayUrl) }
                             .padding(8.dp)
@@ -318,20 +343,20 @@ fun SettingsScreen(
             // ════════════════════════════════════════════════════════════════
             // ABOUT
             // ════════════════════════════════════════════════════════════════
-            Text(text = "ABOUT", style = ConsoleTheme.captionBold)
+            Text(text = "ABOUT", style = SmithType.captionBold.copy(color = colors.inkMuted))
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = "${ConsoleTheme.APP_NAME} v${ConsoleTheme.APP_VERSION}",
-                style = ConsoleTheme.bodyBold
+                style = SmithType.bodyBold.copy(color = colors.ink)
             )
             Text(
                 text = "build: ${ConsoleTheme.BUILD_HASH}",
-                style = ConsoleTheme.caption
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "made by ${ConsoleTheme.STUDIO}",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
             
             Spacer(modifier = Modifier.height(16.dp))
@@ -341,7 +366,7 @@ fun SettingsScreen(
             // ════════════════════════════════════════════════════════════════
             // ACCOUNT ACTIONS
             // ════════════════════════════════════════════════════════════════
-            Text(text = "ACCOUNT", style = ConsoleTheme.captionBold)
+            Text(text = "ACCOUNT", style = SmithType.captionBold.copy(color = colors.inkMuted))
             Spacer(modifier = Modifier.height(8.dp))
 
             // ════════════════════════════════════════════════════════════════
@@ -350,34 +375,34 @@ fun SettingsScreen(
             val locState by com.guildofsmiths.trademesh.data.LocationSharingPreferences.state.collectAsState()
             Text(
                 text = "LOCATION SHARING",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                style = SmithType.caption.copy(color = colors.inkMuted),
                 modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
             )
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(if (locState.enabled) ConsoleTheme.surface else ConsoleTheme.background)
+                    .background(if (locState.enabled) colors.bgPanel else colors.bgBase)
                     .clickable { com.guildofsmiths.trademesh.data.LocationSharingPreferences.setEnabled(!locState.enabled) }
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = if (locState.enabled) "((●))" else "((○))",
-                    style = ConsoleTheme.bodySmall.copy(
-                        color = if (locState.enabled) ConsoleTheme.accent else ConsoleTheme.textMuted
+                    style = SmithType.bodySmall.copy(
+                        color = if (locState.enabled) colors.accent else colors.inkMuted
                     )
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Share my location while clocked in",
-                        style = ConsoleTheme.bodySmall.copy(
-                            color = if (locState.enabled) ConsoleTheme.accent else ConsoleTheme.text
+                        style = SmithType.bodySmall.copy(
+                            color = if (locState.enabled) colors.accent else colors.ink
                         )
                     )
                     Text(
                         "Powers clock-in geofence validation and Lost & Found.",
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                        style = SmithType.caption.copy(color = colors.inkMuted)
                     )
                 }
             }
@@ -389,8 +414,8 @@ fun SettingsScreen(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .background(if (sel) ConsoleTheme.accent else ConsoleTheme.surface, androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
-                            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.12f), androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
+                            .background(if (sel) colors.accent else colors.bgPanel, androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
+                            .border(0.5.dp, colors.ink.copy(alpha = 0.12f), androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
                             .clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
                             .clickable { com.guildofsmiths.trademesh.data.LocationSharingPreferences.setCadence(cad) }
                             .padding(vertical = 8.dp),
@@ -401,7 +426,7 @@ fun SettingsScreen(
                             com.guildofsmiths.trademesh.data.LocationSharingPreferences.Cadence.MEDIUM -> "5min"
                             com.guildofsmiths.trademesh.data.LocationSharingPreferences.Cadence.MANUAL -> "Manual"
                         }
-                        Text(short, style = ConsoleTheme.caption.copy(color = if (sel) androidx.compose.ui.graphics.Color.White else ConsoleTheme.textMuted))
+                        Text(short, style = SmithType.caption.copy(color = if (sel) colors.inkOnAccent else colors.inkMuted))
                     }
                 }
             }
@@ -411,7 +436,7 @@ fun SettingsScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .clickable {
                         forgetScope.launch {
                             com.guildofsmiths.trademesh.data.LocationTrailRepository.forgetTrail(UserPreferences.getUserId())
@@ -420,16 +445,16 @@ fun SettingsScreen(
                     .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "[x]", style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.error))
+                Text(text = "[x]", style = SmithType.bodyBold.copy(color = colors.statusError))
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Forget my trail", style = ConsoleTheme.body)
+                    Text("Forget my trail", style = SmithType.body.copy(color = colors.ink))
                     Text(
                         "Deletes all GPS points stored on this device for your user ID.",
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                        style = SmithType.caption.copy(color = colors.inkMuted)
                     )
                 }
-                Text(text = ">", style = ConsoleTheme.body)
+                Text(text = ">", style = SmithType.body.copy(color = colors.ink))
             }
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -438,7 +463,7 @@ fun SettingsScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .clickable {
                         signOutScope.launch {
                             // Sign out from Supabase and clear local data
@@ -450,10 +475,10 @@ fun SettingsScreen(
                     .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "[↪]", style = ConsoleTheme.bodyBold)
+                Text(text = "[↪]", style = SmithType.bodyBold.copy(color = colors.ink))
                 Spacer(modifier = Modifier.width(10.dp))
-                Text(text = "SIGN OUT", style = ConsoleTheme.body, modifier = Modifier.weight(1f))
-                Text(text = ">", style = ConsoleTheme.body)
+                Text(text = "SIGN OUT", style = SmithType.body.copy(color = colors.ink), modifier = Modifier.weight(1f))
+                Text(text = ">", style = SmithType.body.copy(color = colors.ink))
             }
             
             Spacer(modifier = Modifier.height(4.dp))
@@ -463,7 +488,7 @@ fun SettingsScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .clickable {
                         // Disconnect services and close app
                         BoundaryEngine.disconnectMesh()
@@ -476,9 +501,9 @@ fun SettingsScreen(
                     .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "[✕]", style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.error))
+                Text(text = "[✕]", style = SmithType.bodyBold.copy(color = colors.statusError))
                 Spacer(modifier = Modifier.width(10.dp))
-                Text(text = "CLOSE APP", style = ConsoleTheme.body.copy(color = ConsoleTheme.error), modifier = Modifier.weight(1f))
+                Text(text = "CLOSE APP", style = SmithType.body.copy(color = colors.statusError), modifier = Modifier.weight(1f))
             }
             
             Spacer(modifier = Modifier.height(16.dp))
@@ -492,6 +517,7 @@ fun SettingsScreen(
 
 @Composable
 private fun PrivacySection() {
+    val colors = LocalSmithColors.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
@@ -521,7 +547,7 @@ private fun PrivacySection() {
         }
     }
 
-    Text(text = "PRIVACY", style = ConsoleTheme.captionBold)
+    Text(text = "PRIVACY", style = SmithType.captionBold.copy(color = colors.inkMuted))
     Spacer(modifier = Modifier.height(10.dp))
 
     val publicId = user?.publicId
@@ -529,7 +555,7 @@ private fun PrivacySection() {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface)
+            .background(colors.bgPanel)
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -541,25 +567,25 @@ private fun PrivacySection() {
             )
             Text(
                 text = if (uploadingAvatar) "…" else "+",
-                style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.surface, fontSize = 11.sp),
+                style = SmithType.captionBold.copy(color = colors.inkOnAccent, fontSize = 11.sp),
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .background(ConsoleTheme.accent, androidx.compose.foundation.shape.CircleShape)
+                    .background(colors.accent, androidx.compose.foundation.shape.CircleShape)
                     .padding(horizontal = 4.dp, vertical = 1.dp)
             )
         }
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text("Your SmithNet ID", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+            Text("Your SmithNet ID", style = SmithType.caption.copy(color = colors.inkMuted))
             Text(
                 text = formattedId ?: if (offline) "— (sign in to see)" else "—",
-                style = ConsoleTheme.bodyBold
+                style = SmithType.bodyBold.copy(color = colors.ink)
             )
         }
         if (formattedId != null) {
             Text(
                 text = "[Copy]",
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                style = SmithType.action.copy(color = colors.accent),
                 modifier = Modifier
                     .clickable {
                         clipboard.setText(AnnotatedString(formattedId))
@@ -569,7 +595,7 @@ private fun PrivacySection() {
             )
             Text(
                 text = if (showQr) "[Hide]" else "[QR]",
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                style = SmithType.action.copy(color = colors.accent),
                 modifier = Modifier
                     .clickable { showQr = !showQr }
                     .padding(8.dp)
@@ -584,7 +610,7 @@ private fun PrivacySection() {
     }
 
     Spacer(modifier = Modifier.height(12.dp))
-    Text("WHO CAN FIND ME", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+    Text("WHO CAN FIND ME", style = SmithType.caption.copy(color = colors.inkMuted))
     Spacer(modifier = Modifier.height(6.dp))
 
     val options = listOf(
@@ -600,7 +626,7 @@ private fun PrivacySection() {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(if (isSelected) ConsoleTheme.surface else ConsoleTheme.background)
+                .background(if (isSelected) colors.bgPanel else colors.bgBase)
                 .clickable(enabled = canTap) {
                     val prior = level
                     level = value
@@ -621,21 +647,21 @@ private fun PrivacySection() {
         ) {
             Text(
                 text = if (isSelected) "((●))" else "((○))",
-                style = ConsoleTheme.bodySmall.copy(
-                    color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.textMuted
+                style = SmithType.bodySmall.copy(
+                    color = if (isSelected) colors.accent else colors.inkMuted
                 )
             )
             Spacer(modifier = Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    style = ConsoleTheme.bodySmall.copy(
-                        color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.text
+                    style = SmithType.bodySmall.copy(
+                        color = if (isSelected) colors.accent else colors.ink
                     )
                 )
                 Text(
                     text = description,
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                    style = SmithType.caption.copy(color = colors.inkMuted)
                 )
             }
         }
@@ -645,7 +671,7 @@ private fun PrivacySection() {
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             "Offline — privacy changes sync when you reconnect.",
-            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+            style = SmithType.caption.copy(color = colors.inkMuted)
         )
     }
 }
@@ -661,6 +687,7 @@ private fun formatPublicId(raw: String): String {
 
 @Composable
 private fun SmithAISection() {
+    val colors = LocalSmithColors.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -701,14 +728,14 @@ private fun SmithAISection() {
     val isDownloading = downloadState is ModelDownloader.DownloadState.Downloading
     
     Column {
-        Text(text = "SMITHAI", style = ConsoleTheme.captionBold)
+        Text(text = "SMITHAI", style = SmithType.captionBold.copy(color = colors.inkMuted))
         Spacer(modifier = Modifier.height(8.dp))
 
         // ── Enable Toggle ──
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.surface)
+                .background(colors.bgPanel)
                 .clickable {
                     aiEnabled = !aiEnabled
                     AIRouter.setEnabled(aiEnabled)
@@ -716,11 +743,11 @@ private fun SmithAISection() {
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "Enable SmithAI", style = ConsoleTheme.body, modifier = Modifier.weight(1f))
+            Text(text = "Enable SmithAI", style = SmithType.body.copy(color = colors.ink), modifier = Modifier.weight(1f))
             Text(
                 text = if (aiEnabled) "[ON]" else "[OFF]",
-                style = ConsoleTheme.bodyBold.copy(
-                    color = if (aiEnabled) ConsoleTheme.success else ConsoleTheme.textDim
+                style = SmithType.bodyBold.copy(
+                    color = if (aiEnabled) colors.statusOnline else colors.inkMuted
                 )
             )
         }
@@ -728,7 +755,7 @@ private fun SmithAISection() {
         Spacer(modifier = Modifier.height(4.dp))
 
         // ── Mode: Auto / Approve / Off ──
-        Text(text = "MODE", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+        Text(text = "MODE", style = SmithType.caption.copy(color = colors.inkMuted),
             modifier = Modifier.padding(top = 4.dp))
         Spacer(modifier = Modifier.height(4.dp))
         Row(
@@ -741,11 +768,11 @@ private fun SmithAISection() {
                     modifier = Modifier
                         .weight(1f)
                         .background(
-                            if (isSelected) ConsoleTheme.accent.copy(alpha = 0.10f) else ConsoleTheme.surface
+                            if (isSelected) colors.accent.copy(alpha = 0.10f) else colors.bgPanel
                         )
                         .border(
                             0.5.dp,
-                            if (isSelected) ConsoleTheme.accent else ConsoleTheme.text.copy(alpha = 0.06f),
+                            if (isSelected) colors.accent else colors.ink.copy(alpha = 0.06f),
                             RoundedCornerShape(4.dp)
                         )
                         .clip(RoundedCornerShape(4.dp))
@@ -758,8 +785,8 @@ private fun SmithAISection() {
                 ) {
                     Text(
                         label,
-                        style = ConsoleTheme.captionBold.copy(
-                            color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.textMuted
+                        style = SmithType.captionBold.copy(
+                            color = if (isSelected) colors.accent else colors.inkMuted
                         )
                     )
                 }
@@ -772,20 +799,20 @@ private fun SmithAISection() {
                 "semi-auto" -> "Drafts suggestions for your approval before acting."
                 else -> "SmithAI will only respond when asked."
             },
-            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+            style = SmithType.caption.copy(color = colors.inkMuted)
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
         // ── Cloud Connection ──
-        Text(text = "CLOUD", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        Text(text = "CLOUD", style = SmithType.caption.copy(color = colors.inkMuted))
         Spacer(modifier = Modifier.height(4.dp))
 
         if (!showKeyField) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .clickable { showKeyField = true; keyInput = apiKey }
                     .padding(12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -793,36 +820,36 @@ private fun SmithAISection() {
             ) {
                 Text(
                     text = if (apiKey.isNotBlank()) maskedKey else "Not set",
-                    style = ConsoleTheme.bodySmall.copy(
-                        color = if (apiKey.isNotBlank()) ConsoleTheme.text else ConsoleTheme.textMuted
+                    style = SmithType.bodySmall.copy(
+                        color = if (apiKey.isNotBlank()) colors.ink else colors.inkMuted
                     )
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (apiKey.isNotBlank()) {
-                        Text("Connected", style = ConsoleTheme.caption.copy(color = ConsoleTheme.success))
+                        Text("Connected", style = SmithType.caption.copy(color = colors.statusOnline))
                     }
-                    Text("[Edit]", style = ConsoleTheme.action.copy(color = ConsoleTheme.accent))
+                    Text("[Edit]", style = SmithType.action.copy(color = colors.accent))
                 }
             }
         } else {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 BasicTextField(
                     value = keyInput,
                     onValueChange = { keyInput = it },
-                    textStyle = ConsoleTheme.bodySmall,
-                    cursorBrush = SolidColor(ConsoleTheme.cursor),
+                    textStyle = SmithType.bodySmall.copy(color = colors.inkMuted),
+                    cursorBrush = SolidColor(colors.ink),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     decorationBox = { inner ->
                         Box {
                             if (keyInput.isEmpty()) {
-                                Text("sk-or-v1-...", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted))
+                                Text("sk-or-v1-...", style = SmithType.bodySmall.copy(color = colors.inkMuted))
                             }
                             inner()
                         }
@@ -831,7 +858,7 @@ private fun SmithAISection() {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         "[Save]",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                        style = SmithType.action.copy(color = colors.accent),
                         modifier = Modifier.clickable {
                             UserPreferences.setOpenRouterApiKey(keyInput.trim())
                             apiKey = keyInput.trim()
@@ -845,7 +872,7 @@ private fun SmithAISection() {
                     )
                     Text(
                         "[Cancel]",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                        style = SmithType.action.copy(color = colors.inkMuted),
                         modifier = Modifier.clickable { showKeyField = false }
                     )
                 }
@@ -854,8 +881,8 @@ private fun SmithAISection() {
         if (testResult != null) {
             Text(
                 testResult!!,
-                style = ConsoleTheme.caption.copy(
-                    color = if (testResult == "Connected") ConsoleTheme.success else ConsoleTheme.error
+                style = SmithType.caption.copy(
+                    color = if (testResult == "Connected") colors.statusOnline else colors.statusError
                 )
             )
         }
@@ -863,14 +890,14 @@ private fun SmithAISection() {
         Spacer(modifier = Modifier.height(8.dp))
 
         // ── Cloud Model picker ──
-        Text(text = "MODEL", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        Text(text = "MODEL", style = SmithType.caption.copy(color = colors.inkMuted))
         Spacer(modifier = Modifier.height(4.dp))
 
         if (!modelEditing) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .clickable { modelEditing = true; modelInput = cloudModel }
                     .padding(12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -878,17 +905,17 @@ private fun SmithAISection() {
             ) {
                 Text(
                     text = if (cloudModel.isNotBlank()) cloudModel else "Provider default",
-                    style = ConsoleTheme.bodySmall.copy(
-                        color = if (cloudModel.isNotBlank()) ConsoleTheme.text else ConsoleTheme.textMuted
+                    style = SmithType.bodySmall.copy(
+                        color = if (cloudModel.isNotBlank()) colors.ink else colors.inkMuted
                     )
                 )
-                Text("[Edit]", style = ConsoleTheme.action.copy(color = ConsoleTheme.accent))
+                Text("[Edit]", style = SmithType.action.copy(color = colors.accent))
             }
         } else {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -904,7 +931,7 @@ private fun SmithAISection() {
                     "DeepSeek" to "deepseek/deepseek-chat",
                     "Free (Liquid)" to "liquid/lfm-2.5-1.2b-instruct:free"
                 )
-                Text("quick pick", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                Text("quick pick", style = SmithType.caption.copy(color = colors.inkMuted))
                 val quickScroll = androidx.compose.foundation.rememberScrollState()
                 Row(
                     modifier = Modifier
@@ -915,8 +942,8 @@ private fun SmithAISection() {
                     quickOptions.forEach { (label, slug) ->
                         Text(
                             text = "[$label]",
-                            style = ConsoleTheme.action.copy(
-                                color = if (modelInput == slug) ConsoleTheme.accent else ConsoleTheme.textMuted
+                            style = SmithType.action.copy(
+                                color = if (modelInput == slug) colors.accent else colors.inkMuted
                             ),
                             modifier = Modifier
                                 .clickable { modelInput = slug }
@@ -924,18 +951,18 @@ private fun SmithAISection() {
                         )
                     }
                 }
-                Text("or paste a model id", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                Text("or paste a model id", style = SmithType.caption.copy(color = colors.inkMuted))
                 BasicTextField(
                     value = modelInput,
                     onValueChange = { modelInput = it },
-                    textStyle = ConsoleTheme.bodySmall,
-                    cursorBrush = SolidColor(ConsoleTheme.cursor),
+                    textStyle = SmithType.bodySmall.copy(color = colors.inkMuted),
+                    cursorBrush = SolidColor(colors.ink),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     decorationBox = { inner ->
                         Box {
                             if (modelInput.isEmpty()) {
-                                Text("provider/model-id", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted))
+                                Text("provider/model-id", style = SmithType.bodySmall.copy(color = colors.inkMuted))
                             }
                             inner()
                         }
@@ -944,7 +971,7 @@ private fun SmithAISection() {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         "[Save]",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                        style = SmithType.action.copy(color = colors.accent),
                         modifier = Modifier.clickable {
                             UserPreferences.setCloudModel(modelInput.trim())
                             cloudModel = modelInput.trim()
@@ -953,7 +980,7 @@ private fun SmithAISection() {
                     )
                     Text(
                         "[Default]",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                        style = SmithType.action.copy(color = colors.inkMuted),
                         modifier = Modifier.clickable {
                             UserPreferences.setCloudModel("")
                             cloudModel = ""
@@ -962,13 +989,13 @@ private fun SmithAISection() {
                     )
                     Text(
                         "[Cancel]",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                        style = SmithType.action.copy(color = colors.inkMuted),
                         modifier = Modifier.clickable { modelEditing = false }
                     )
                 }
                 Text(
                     "Model id is sent to your provider. OpenRouter accepts any of these. Different providers (sk-, sk-or-, xai-) honor different ids — pick one your key supports.",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+                    style = SmithType.caption.copy(color = colors.inkMuted)
                 )
             }
         }
@@ -976,12 +1003,12 @@ private fun SmithAISection() {
         Spacer(modifier = Modifier.height(12.dp))
 
         // ── Offline Model ──
-        Text(text = "OFFLINE", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        Text(text = "OFFLINE", style = SmithType.caption.copy(color = colors.inkMuted))
         Spacer(modifier = Modifier.height(4.dp))
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.surface)
+                .background(colors.bgPanel)
                 .padding(12.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1004,26 +1031,26 @@ private fun SmithAISection() {
                 }
 
                 val statusColor = when {
-                    agentState == com.guildofsmiths.trademesh.ai.AgentState.ALIVE -> ConsoleTheme.success
-                    agentState == com.guildofsmiths.trademesh.ai.AgentState.WAKING -> ConsoleTheme.warning
-                    agentState == com.guildofsmiths.trademesh.ai.AgentState.RULE_BASED_FALLBACK -> ConsoleTheme.accent
-                    modelState == ModelState.READY -> ConsoleTheme.accent
-                    modelState == ModelState.LOADING || isDownloading -> ConsoleTheme.warning
-                    modelState == ModelState.ERROR -> ConsoleTheme.error
-                    modelDownloaded -> ConsoleTheme.accent
-                    else -> ConsoleTheme.textDim
+                    agentState == com.guildofsmiths.trademesh.ai.AgentState.ALIVE -> colors.statusOnline
+                    agentState == com.guildofsmiths.trademesh.ai.AgentState.WAKING -> colors.attention
+                    agentState == com.guildofsmiths.trademesh.ai.AgentState.RULE_BASED_FALLBACK -> colors.accent
+                    modelState == ModelState.READY -> colors.accent
+                    modelState == ModelState.LOADING || isDownloading -> colors.attention
+                    modelState == ModelState.ERROR -> colors.statusError
+                    modelDownloaded -> colors.accent
+                    else -> colors.inkMuted
                 }
 
                 Text(
                     text = statusText,
-                    style = ConsoleTheme.body.copy(color = statusColor),
+                    style = SmithType.body.copy(color = statusColor),
                     modifier = Modifier.weight(1f)
                 )
 
                 if (!isDownloading) {
                     Text(
                         text = if (modelDownloaded) "[MODELS]" else "[DOWNLOAD]",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                        style = SmithType.action.copy(color = colors.accent),
                         modifier = Modifier.clickable { showModelPicker = true }
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -1031,7 +1058,7 @@ private fun SmithAISection() {
                 if (modelDownloaded && modelState == ModelState.NOT_LOADED && aiEnabled && !isDownloading) {
                     Text(
                         text = "[LOAD]",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.success),
+                        style = SmithType.action.copy(color = colors.statusOnline),
                         modifier = Modifier.clickable {
                             scope.launch {
                                 val model = downloadedModels.firstOrNull()
@@ -1048,14 +1075,14 @@ private fun SmithAISection() {
                 if (isDownloading) {
                     Text(
                         text = "[CANCEL]",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.error),
+                        style = SmithType.action.copy(color = colors.statusError),
                         modifier = Modifier.clickable { ModelDownloader.cancelDownload() }
                     )
                 }
                 if (modelState == ModelState.READY || agentState == com.guildofsmiths.trademesh.ai.AgentState.ALIVE) {
                     Text(
                         text = "[UNLOAD]",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                        style = SmithType.action.copy(color = colors.inkMuted),
                         modifier = Modifier.clickable {
                             LlamaInference.unloadModel()
                             com.guildofsmiths.trademesh.ai.AgentInitializer.sleepAgent()
@@ -1071,12 +1098,12 @@ private fun SmithAISection() {
                 LinearProgressIndicator(
                     progress = downloadProgress,
                     modifier = Modifier.fillMaxWidth(),
-                    color = ConsoleTheme.accent,
-                    trackColor = ConsoleTheme.textDim.copy(alpha = 0.3f)
+                    color = colors.accent,
+                    trackColor = colors.inkMuted.copy(alpha = 0.3f)
                 )
                 Text(
                     text = "${(downloadProgress * 100).toInt()}% (${dlState?.model?.sizeDisplay ?: ""})",
-                    style = ConsoleTheme.caption
+                    style = SmithType.caption.copy(color = colors.inkMuted)
                 )
             }
             if (agentState == com.guildofsmiths.trademesh.ai.AgentState.WAKING) {
@@ -1084,19 +1111,19 @@ private fun SmithAISection() {
                 LinearProgressIndicator(
                     progress = agentInitProgress,
                     modifier = Modifier.fillMaxWidth(),
-                    color = ConsoleTheme.success,
-                    trackColor = ConsoleTheme.textDim.copy(alpha = 0.3f)
+                    color = colors.statusOnline,
+                    trackColor = colors.inkMuted.copy(alpha = 0.3f)
                 )
                 Text(
                     text = "Initializing agent context...",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.success)
+                    style = SmithType.caption.copy(color = colors.statusOnline)
                 )
             }
             if (downloadState is ModelDownloader.DownloadState.Complete) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Downloaded!",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.success)
+                    style = SmithType.caption.copy(color = colors.statusOnline)
                 )
             }
             if (downloadState is ModelDownloader.DownloadState.Error) {
@@ -1104,7 +1131,7 @@ private fun SmithAISection() {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = errorState.message,
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.error)
+                    style = SmithType.caption.copy(color = colors.statusError)
                 )
             }
         }
@@ -1136,7 +1163,7 @@ private fun SmithAISection() {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.surface)
+                .background(colors.bgPanel)
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1144,11 +1171,11 @@ private fun SmithAISection() {
             val chargingIcon = if (batteryState.isCharging) " charging" else ""
             Text(
                 text = "Battery: $batteryText$chargingIcon",
-                style = ConsoleTheme.body.copy(
+                style = SmithType.body.copy(
                     color = when {
-                        batteryState.batteryLevel <= 15 -> ConsoleTheme.error
-                        batteryState.batteryLevel <= 30 -> ConsoleTheme.warning
-                        else -> ConsoleTheme.text
+                        batteryState.batteryLevel <= 15 -> colors.statusError
+                        batteryState.batteryLevel <= 30 -> colors.attention
+                        else -> colors.ink
                     }
                 ),
                 modifier = Modifier.weight(1f)
@@ -1167,15 +1194,15 @@ private fun SmithAISection() {
                 else -> "[OFF]"
             }
             val aiStatusColor = when (aiStatus) {
-                AIStatus.READY -> ConsoleTheme.success
-                AIStatus.LOADING -> ConsoleTheme.warning
-                AIStatus.DEGRADED -> ConsoleTheme.warning
-                AIStatus.RULE_BASED -> ConsoleTheme.accent
-                AIStatus.OFFLINE, AIStatus.DISABLED -> ConsoleTheme.textDim
+                AIStatus.READY -> colors.statusOnline
+                AIStatus.LOADING -> colors.attention
+                AIStatus.DEGRADED -> colors.attention
+                AIStatus.RULE_BASED -> colors.accent
+                AIStatus.OFFLINE, AIStatus.DISABLED -> colors.inkMuted
             }
             Text(
                 text = aiStatusText,
-                style = ConsoleTheme.bodyBold.copy(color = aiStatusColor)
+                style = SmithType.bodyBold.copy(color = aiStatusColor)
             )
         }
 
@@ -1185,7 +1212,7 @@ private fun SmithAISection() {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.surface)
+                .background(colors.bgPanel)
                 .clickable {
                     autoDegradeEnabled = !autoDegradeEnabled
                     BatteryGate.setAutoDegradeEnabled(autoDegradeEnabled)
@@ -1193,13 +1220,68 @@ private fun SmithAISection() {
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "Auto-degrade on low battery", style = ConsoleTheme.body, modifier = Modifier.weight(1f))
+            Text(text = "Auto-degrade on low battery", style = SmithType.body.copy(color = colors.ink), modifier = Modifier.weight(1f))
             Text(
                 text = if (autoDegradeEnabled) "[ON]" else "[OFF]",
-                style = ConsoleTheme.bodyBold.copy(
-                    color = if (autoDegradeEnabled) ConsoleTheme.success else ConsoleTheme.textDim
+                style = SmithType.bodyBold.copy(
+                    color = if (autoDegradeEnabled) colors.statusOnline else colors.inkMuted
                 )
             )
+        }
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// APPEARANCE SECTION — Light / Dark / System segmented control
+// ════════════════════════════════════════════════════════════════════════════
+
+private val ThemeOptions = listOf(
+    ThemePreference.LIGHT to "LIGHT",
+    ThemePreference.DARK to "DARK",
+    ThemePreference.SYSTEM to "SYSTEM",
+)
+
+@Composable
+private fun AppearanceSection(
+    current: ThemePreference,
+    onSelect: (ThemePreference) -> Unit,
+) {
+    val colors = LocalSmithColors.current
+
+    Column {
+        Text(text = "APPEARANCE", style = SmithType.captionBold.copy(color = colors.inkMuted))
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            ThemeOptions.forEach { (pref, label) ->
+                val isSelected = pref == current
+                Text(
+                    text = label,
+                    textAlign = TextAlign.Center,
+                    style = TextStyle(
+                        fontFamily = ConsoleTheme.jetBrainsMono,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 0.5.sp,
+                        color = if (isSelected) colors.inkOnAccent else colors.inkMuted
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(4.dp))
+                        .then(
+                            if (isSelected) {
+                                Modifier.background(colors.accent)
+                            } else {
+                                Modifier.border(1.dp, colors.line, RoundedCornerShape(4.dp))
+                            }
+                        )
+                        .clickable { onSelect(pref) }
+                        .padding(vertical = 10.dp)
+                )
+            }
         }
     }
 }
@@ -1210,6 +1292,7 @@ private fun SmithAISection() {
 
 @Composable
 private fun WorkModeSection() {
+    val colors = LocalSmithColors.current
     var currentMode by remember { mutableStateOf(RoleContext.role) }
     val workModeScope = rememberCoroutineScope()
 
@@ -1222,7 +1305,7 @@ private fun WorkModeSection() {
     )
 
     Column {
-        Text(text = "WORK MODE", style = ConsoleTheme.captionBold)
+        Text(text = "WORK MODE", style = SmithType.captionBold.copy(color = colors.inkMuted))
         Spacer(modifier = Modifier.height(8.dp))
 
         modes.forEach { (role, description) ->
@@ -1231,7 +1314,7 @@ private fun WorkModeSection() {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(if (isSelected) ConsoleTheme.surface else ConsoleTheme.background)
+                    .background(if (isSelected) colors.bgPanel else colors.bgBase)
                     .clickable {
                         currentMode = role
                         AuthService.updateUserRole(role.key)
@@ -1242,21 +1325,21 @@ private fun WorkModeSection() {
             ) {
                 Text(
                     text = if (isSelected) "(●)" else "(○)",
-                    style = ConsoleTheme.bodySmall.copy(
-                        color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.textMuted
+                    style = SmithType.bodySmall.copy(
+                        color = if (isSelected) colors.accent else colors.inkMuted
                     )
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = role.displayName,
-                        style = ConsoleTheme.bodySmall.copy(
-                            color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.text
+                        style = SmithType.bodySmall.copy(
+                            color = if (isSelected) colors.accent else colors.ink
                         )
                     )
                     Text(
                         text = description,
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                        style = SmithType.caption.copy(color = colors.inkMuted)
                     )
                 }
             }
@@ -1265,7 +1348,7 @@ private fun WorkModeSection() {
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = "Changes the dashboard layout, permissions, and available features.",
-            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+            style = SmithType.caption.copy(color = colors.inkMuted)
         )
     }
 }
@@ -1293,6 +1376,7 @@ private fun TeamSection() {
 
 @Composable
 private fun ForemanTeamSection() {
+    val colors = LocalSmithColors.current
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
@@ -1315,13 +1399,13 @@ private fun ForemanTeamSection() {
     val amPeerForeman = members.any { it.id != selfId && it.role == "foreman" }
 
     Column {
-        Text(text = "TEAM", style = ConsoleTheme.captionBold)
+        Text(text = "TEAM", style = SmithType.captionBold.copy(color = colors.inkMuted))
         Spacer(modifier = Modifier.height(8.dp))
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.surface)
+                .background(colors.bgPanel)
                 .clickable(enabled = !loading) {
                     loading = true
                     scope.launch {
@@ -1339,7 +1423,7 @@ private fun ForemanTeamSection() {
         ) {
             Text(
                 text = if (loading) "[Generating...]" else "[Generate Invite Code]",
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.accent)
+                style = SmithType.action.copy(color = colors.accent)
             )
         }
 
@@ -1348,7 +1432,7 @@ private fun ForemanTeamSection() {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.background)
+                    .background(colors.bgBase)
                     .clickable {
                         clipboard.setText(AnnotatedString(inv.code))
                         Toast.makeText(context, "Code copied", Toast.LENGTH_SHORT).show()
@@ -1357,23 +1441,23 @@ private fun ForemanTeamSection() {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = inv.code, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
-                Text(text = "[Copy]", style = ConsoleTheme.action.copy(color = ConsoleTheme.accent))
+                Text(text = inv.code, style = SmithType.bodySmall.copy(color = colors.ink))
+                Text(text = "[Copy]", style = SmithType.action.copy(color = colors.accent))
             }
             Text(
                 text = "Expires ${inv.expiresAt.take(10)}. One-time use.",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                style = SmithType.caption.copy(color = colors.inkMuted),
                 modifier = Modifier.padding(start = 12.dp, top = 4.dp)
             )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-        Text(text = "TEAM MEMBERS", style = ConsoleTheme.captionBold)
+        Text(text = "TEAM MEMBERS", style = SmithType.captionBold.copy(color = colors.inkMuted))
         Spacer(modifier = Modifier.height(4.dp))
         if (members.isEmpty()) {
             Text(
                 text = "No members yet. Share an invite code to add your crew.",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                style = SmithType.caption.copy(color = colors.inkMuted),
                 modifier = Modifier.padding(horizontal = 12.dp)
             )
         } else {
@@ -1387,13 +1471,13 @@ private fun ForemanTeamSection() {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = m.displayName, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
-                        Text(text = m.role, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                        Text(text = m.displayName, style = SmithType.bodySmall.copy(color = colors.ink))
+                        Text(text = m.role, style = SmithType.caption.copy(color = colors.inkMuted))
                     }
                     if (canRemove) {
                         Text(
                             text = "[Remove]",
-                            style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                            style = SmithType.action.copy(color = colors.accent),
                             modifier = Modifier.clickable(enabled = !removing) { confirmTarget = m },
                         )
                     }
@@ -1406,14 +1490,14 @@ private fun ForemanTeamSection() {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .clickable(enabled = !leaving) { confirmLeave = true }
                     .padding(12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(text = "Leave this team", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
-                Text(text = "[Leave team]", style = ConsoleTheme.action.copy(color = ConsoleTheme.accent))
+                Text(text = "Leave this team", style = SmithType.bodySmall.copy(color = colors.ink))
+                Text(text = "[Leave team]", style = SmithType.action.copy(color = colors.accent))
             }
         }
     }
@@ -1473,6 +1557,7 @@ private fun ForemanTeamSection() {
 
 @Composable
 private fun JoinTeamSection() {
+    val colors = LocalSmithColors.current
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val selfId = remember { UserPreferences.getUserId() }
@@ -1494,62 +1579,62 @@ private fun JoinTeamSection() {
 
     Column {
         if (inSomeoneElsesOrg) {
-            Text(text = "YOUR TEAM", style = ConsoleTheme.captionBold)
+            Text(text = "YOUR TEAM", style = SmithType.captionBold.copy(color = colors.inkMuted))
             Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .padding(12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = "${members.size} member${if (members.size == 1) "" else "s"}",
-                    style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text),
+                    style = SmithType.bodySmall.copy(color = colors.ink),
                 )
                 Text(
                     text = "[Leave team]",
-                    style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                    style = SmithType.action.copy(color = colors.accent),
                     modifier = Modifier.clickable(enabled = !leaving) { confirmLeave = true },
                 )
             }
         } else {
-            Text(text = "JOIN A TEAM", style = ConsoleTheme.captionBold)
+            Text(text = "JOIN A TEAM", style = SmithType.captionBold.copy(color = colors.inkMuted))
             Spacer(modifier = Modifier.height(8.dp))
 
             if (!expanded) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .clickable { expanded = true; error = null }
                     .padding(12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "Have an invite code?", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
-                Text(text = "[Enter code]", style = ConsoleTheme.action.copy(color = ConsoleTheme.accent))
+                Text(text = "Have an invite code?", style = SmithType.bodySmall.copy(color = colors.ink))
+                Text(text = "[Enter code]", style = SmithType.action.copy(color = colors.accent))
             }
         } else {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 BasicTextField(
                     value = code,
                     onValueChange = { code = it.uppercase().take(8); error = null },
-                    textStyle = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text),
-                    cursorBrush = SolidColor(ConsoleTheme.cursor),
+                    textStyle = SmithType.bodySmall.copy(color = colors.ink),
+                    cursorBrush = SolidColor(colors.ink),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     decorationBox = { inner ->
                         Box {
                             if (code.isEmpty()) {
-                                Text("8-char code", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted))
+                                Text("8-char code", style = SmithType.bodySmall.copy(color = colors.inkMuted))
                             }
                             inner()
                         }
@@ -1558,7 +1643,7 @@ private fun JoinTeamSection() {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         text = if (loading) "[Joining...]" else "[Join]",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                        style = SmithType.action.copy(color = colors.accent),
                         modifier = Modifier.clickable(enabled = !loading && code.length == 8) {
                             loading = true
                             scope.launch {
@@ -1579,14 +1664,14 @@ private fun JoinTeamSection() {
                     )
                     Text(
                         text = "[Cancel]",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                        style = SmithType.action.copy(color = colors.inkMuted),
                         modifier = Modifier.clickable { expanded = false; code = ""; error = null }
                     )
                 }
                 error?.let {
                     Text(
                         text = it,
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent)
+                        style = SmithType.caption.copy(color = colors.accent)
                     )
                 }
             }
@@ -1629,6 +1714,7 @@ private fun JoinTeamSection() {
 
 @Composable
 private fun TradeRoleSection() {
+    val colors = LocalSmithColors.current
     var primaryTrade by remember { mutableStateOf(UserPreferences.getPrimaryTrade()) }
     var secondaryTrades by remember { mutableStateOf(UserPreferences.getSecondaryTrades()) }
     var searchQuery by remember { mutableStateOf("") }
@@ -1636,16 +1722,16 @@ private fun TradeRoleSection() {
     var showSecondaryPicker by remember { mutableStateOf(false) }
 
     Column {
-        Text(text = "TRADE", style = ConsoleTheme.captionBold)
+        Text(text = "TRADE", style = SmithType.captionBold.copy(color = colors.inkMuted))
         Spacer(modifier = Modifier.height(8.dp))
 
         // Primary trade
-        Text(text = "PRIMARY", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        Text(text = "PRIMARY", style = SmithType.caption.copy(color = colors.inkMuted))
         Spacer(modifier = Modifier.height(4.dp))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.surface)
+                .background(colors.bgPanel)
                 .clickable { showPrimaryPicker = true; searchQuery = "" }
                 .padding(12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1653,17 +1739,17 @@ private fun TradeRoleSection() {
         ) {
             Text(
                 text = primaryTrade.ifBlank { "Select your trade" },
-                style = ConsoleTheme.bodySmall.copy(
-                    color = if (primaryTrade.isBlank()) ConsoleTheme.textMuted else ConsoleTheme.accent
+                style = SmithType.bodySmall.copy(
+                    color = if (primaryTrade.isBlank()) colors.inkMuted else colors.accent
                 )
             )
-            Text(text = "[Change]", style = ConsoleTheme.action.copy(color = ConsoleTheme.accent))
+            Text(text = "[Change]", style = SmithType.action.copy(color = colors.accent))
         }
 
         Spacer(modifier = Modifier.height(10.dp))
 
         // Secondary trades
-        Text(text = "SECONDARY", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        Text(text = "SECONDARY", style = SmithType.caption.copy(color = colors.inkMuted))
         Spacer(modifier = Modifier.height(4.dp))
 
         if (secondaryTrades.isNotEmpty()) {
@@ -1673,15 +1759,15 @@ private fun TradeRoleSection() {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(ConsoleTheme.surface)
+                            .background(colors.bgPanel)
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(trade, style = ConsoleTheme.caption.copy(color = ConsoleTheme.text))
+                        Text(trade, style = SmithType.caption.copy(color = colors.ink))
                         Text(
                             text = "[x]",
-                            style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                            style = SmithType.action.copy(color = colors.inkMuted),
                             modifier = Modifier.clickable {
                                 UserPreferences.removeSecondaryTrade(trade)
                                 secondaryTrades = UserPreferences.getSecondaryTrades()
@@ -1695,7 +1781,7 @@ private fun TradeRoleSection() {
 
         Text(
             text = "[+ Add secondary trade]",
-            style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+            style = SmithType.action.copy(color = colors.accent),
             modifier = Modifier
                 .clickable { showSecondaryPicker = true; searchQuery = "" }
                 .padding(vertical = 6.dp)
@@ -1704,7 +1790,7 @@ private fun TradeRoleSection() {
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = "Trade affects AI suggestions, safety reminders, and material defaults.",
-            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+            style = SmithType.caption.copy(color = colors.inkMuted)
         )
     }
 
@@ -1757,6 +1843,7 @@ private fun TradePickerContent(
     onTradeSelected: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     val results = remember(searchQuery, excludeTrades) {
         TradesList.search(searchQuery).filter { it !in excludeTrades }
     }
@@ -1764,7 +1851,7 @@ private fun TradePickerContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.background, RoundedCornerShape(8.dp))
+            .background(colors.bgBase, RoundedCornerShape(8.dp))
             .padding(16.dp)
     ) {
         // Header
@@ -1773,8 +1860,8 @@ private fun TradePickerContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(title, style = ConsoleTheme.header)
-            Text("[x]", style = ConsoleTheme.bodyBold, modifier = Modifier.clickable { onDismiss() })
+            Text(title, style = SmithType.header.copy(color = colors.ink))
+            Text("[x]", style = SmithType.bodyBold.copy(color = colors.ink), modifier = Modifier.clickable { onDismiss() })
         }
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -1783,18 +1870,18 @@ private fun TradePickerContent(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.surface)
-                .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f))
+                .background(colors.bgPanel)
+                .border(0.5.dp, colors.ink.copy(alpha = 0.06f))
                 .padding(12.dp)
         ) {
             if (searchQuery.isEmpty()) {
-                Text("Search 120+ trades...", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted))
+                Text("Search 120+ trades...", style = SmithType.bodySmall.copy(color = colors.inkMuted))
             }
             BasicTextField(
                 value = searchQuery,
                 onValueChange = onSearchChange,
-                textStyle = ConsoleTheme.bodySmall,
-                cursorBrush = SolidColor(ConsoleTheme.cursor),
+                textStyle = SmithType.bodySmall.copy(color = colors.inkMuted),
+                cursorBrush = SolidColor(colors.ink),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -1804,7 +1891,7 @@ private fun TradePickerContent(
 
         Text(
             "${results.size} trades",
-            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+            style = SmithType.caption.copy(color = colors.inkMuted)
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -1821,22 +1908,22 @@ private fun TradePickerContent(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(if (isSelected) ConsoleTheme.surface else ConsoleTheme.background)
+                        .background(if (isSelected) colors.bgPanel else colors.bgBase)
                         .clickable { onTradeSelected(trade) }
                         .padding(horizontal = 10.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = if (isSelected) "(●)" else "(○)",
-                        style = ConsoleTheme.caption.copy(
-                            color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.textMuted
+                        style = SmithType.caption.copy(
+                            color = if (isSelected) colors.accent else colors.inkMuted
                         )
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = trade,
-                        style = ConsoleTheme.bodySmall.copy(
-                            color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.text
+                        style = SmithType.bodySmall.copy(
+                            color = if (isSelected) colors.accent else colors.ink
                         )
                     )
                 }
@@ -1858,13 +1945,14 @@ private fun ModelPickerDialog(
     onDelete: (ModelDownloader.ModelInfo) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     val isDownloading = downloadState is ModelDownloader.DownloadState.Downloading
     val downloadingModelId = (downloadState as? ModelDownloader.DownloadState.Downloading)?.model?.id
     
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(ConsoleTheme.background.copy(alpha = 0.95f))
+            .background(colors.bgBase.copy(alpha = 0.95f))
             .clickable(enabled = !isDownloading) { onDismiss() }
     ) {
         Column(
@@ -1881,12 +1969,12 @@ private fun ModelPickerDialog(
             ) {
                 Text(
                     text = "AI MODELS",
-                    style = ConsoleTheme.header
+                    style = SmithType.header.copy(color = colors.ink)
                 )
                 if (!isDownloading) {
                     Text(
                         text = "[✕]",
-                        style = ConsoleTheme.bodyBold,
+                        style = SmithType.bodyBold.copy(color = colors.ink),
                         modifier = Modifier.clickable { onDismiss() }
                     )
                 }
@@ -1896,7 +1984,7 @@ private fun ModelPickerDialog(
             
             Text(
                 text = "Select a model to download. Larger models = better quality but slower.",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
             
             Spacer(modifier = Modifier.height(16.dp))
@@ -1912,7 +2000,7 @@ private fun ModelPickerDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
-                            if (model.recommended) ConsoleTheme.surface else ConsoleTheme.background
+                            if (model.recommended) colors.bgPanel else colors.bgBase
                         )
                         .padding(12.dp)
                 ) {
@@ -1925,26 +2013,26 @@ private fun ModelPickerDialog(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = model.name,
-                                    style = ConsoleTheme.bodyBold
+                                    style = SmithType.bodyBold.copy(color = colors.ink)
                                 )
                                 if (model.recommended) {
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = "[★ RECOMMENDED]",
-                                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent)
+                                        style = SmithType.caption.copy(color = colors.accent)
                                     )
                                 }
                             }
                             Text(
                                 text = model.description,
-                                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+                                style = SmithType.caption.copy(color = colors.inkMuted)
                             )
                         }
                         
                         // Size
                         Text(
                             text = model.sizeDisplay,
-                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                            style = SmithType.caption.copy(color = colors.inkMuted)
                         )
                     }
                     
@@ -1962,8 +2050,8 @@ private fun ModelPickerDialog(
                                     LinearProgressIndicator(
                                         progress = downloadProgress,
                                         modifier = Modifier.fillMaxWidth(),
-                                        color = ConsoleTheme.accent,
-                                        trackColor = ConsoleTheme.textDim.copy(alpha = 0.3f)
+                                        color = colors.accent,
+                                        trackColor = colors.inkMuted.copy(alpha = 0.3f)
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Row(
@@ -1972,11 +2060,11 @@ private fun ModelPickerDialog(
                                     ) {
                                         Text(
                                             text = "${(downloadProgress * 100).toInt()}%",
-                                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.warning)
+                                            style = SmithType.caption.copy(color = colors.attention)
                                         )
                                         Text(
                                             text = "[CANCEL]",
-                                            style = ConsoleTheme.action.copy(color = ConsoleTheme.error),
+                                            style = SmithType.action.copy(color = colors.statusError),
                                             modifier = Modifier.clickable {
                                                 ModelDownloader.cancelDownload()
                                             }
@@ -1987,12 +2075,12 @@ private fun ModelPickerDialog(
                             isDownloaded -> {
                                 Text(
                                     text = "[✓ DOWNLOADED]",
-                                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.success)
+                                    style = SmithType.caption.copy(color = colors.statusOnline)
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Text(
                                     text = "[DELETE]",
-                                    style = ConsoleTheme.action.copy(color = ConsoleTheme.error),
+                                    style = SmithType.action.copy(color = colors.statusError),
                                     modifier = Modifier.clickable {
                                         onDelete(model)
                                     }
@@ -2002,13 +2090,13 @@ private fun ModelPickerDialog(
                                 // Another model is downloading
                                 Text(
                                     text = "[WAITING]",
-                                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+                                    style = SmithType.caption.copy(color = colors.inkMuted)
                                 )
                             }
                             else -> {
                                 Text(
                                     text = "[DOWNLOAD]",
-                                    style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                                    style = SmithType.action.copy(color = colors.accent),
                                     modifier = Modifier.clickable {
                                         onDownload(model)
                                     }
@@ -2028,11 +2116,11 @@ private fun ModelPickerDialog(
             // Info text
             Text(
                 text = "Models are downloaded from Hugging Face and stored locally.",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
             Text(
                 text = "Requires WiFi connection. Download may take several minutes.",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
         }
     }

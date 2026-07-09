@@ -2,9 +2,11 @@ package com.guildofsmiths.trademesh.ui
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -20,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.SupabaseAuth
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.ui.components.TradePickerField
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import kotlinx.coroutines.launch
 
 @Composable
@@ -27,6 +31,7 @@ fun ProfileScreen(
     onNavigateBack: () -> Unit,
     onSignOut: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     val context = LocalContext.current
     val signOutScope = rememberCoroutineScope()
 
@@ -65,7 +70,7 @@ fun ProfileScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(ConsoleTheme.background)
+            .background(colors.bgBase)
     ) {
         ConsoleHeader(title = "PROFILE", onBackClick = onNavigateBack)
         ConsoleSeparator()
@@ -208,7 +213,7 @@ fun ProfileScreen(
             // ── ACTIONS ──
             Text(
                 text = "[SAVE PROFILE]",
-                style = ConsoleTheme.action,
+                style = SmithType.action.copy(color = colors.accent),
                 modifier = Modifier
                     .clickable {
                         UserPreferences.setUserName(displayName)
@@ -227,7 +232,7 @@ fun ProfileScreen(
                         )
                         Toast.makeText(context, "Profile saved", Toast.LENGTH_SHORT).show()
                     }
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .padding(12.dp)
             )
 
@@ -235,7 +240,7 @@ fun ProfileScreen(
 
             Text(
                 text = "[SIGN OUT]",
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.error),
+                style = SmithType.action.copy(color = colors.statusError),
                 modifier = Modifier
                     .clickable {
                         signOutScope.launch {
@@ -244,7 +249,7 @@ fun ProfileScreen(
                             onSignOut()
                         }
                     }
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .padding(12.dp)
             )
 
@@ -255,14 +260,16 @@ fun ProfileScreen(
 
 @Composable
 private fun SectionLabel(text: String) {
-    Text(text = text, style = ConsoleTheme.captionBold)
+    val colors = LocalSmithColors.current
+    Text(text = text, style = SmithType.captionBold.copy(color = colors.inkMuted))
 }
 
 @Composable
 private fun ProfileField(label: String, value: String, readOnly: Boolean = false) {
+    val colors = LocalSmithColors.current
     Column {
-        Text(text = label, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
-        Text(text = value, style = ConsoleTheme.body)
+        Text(text = label, style = SmithType.caption.copy(color = colors.inkMuted))
+        Text(text = value, style = SmithType.body.copy(color = colors.ink))
     }
 }
 
@@ -273,20 +280,21 @@ private fun ProfileEditField(
     onValueChange: (String) -> Unit,
     placeholder: String
 ) {
+    val colors = LocalSmithColors.current
     Column {
-        Text(text = label, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        Text(text = label, style = SmithType.caption.copy(color = colors.inkMuted))
         TextField(
             value = value,
             onValueChange = onValueChange,
-            placeholder = { Text(placeholder, style = ConsoleTheme.caption) },
+            placeholder = { Text(placeholder, style = SmithType.caption.copy(color = colors.inkMuted)) },
             modifier = Modifier.fillMaxWidth(),
-            textStyle = ConsoleTheme.body,
+            textStyle = SmithType.body.copy(color = colors.ink),
             singleLine = true,
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = ConsoleTheme.surface,
-                unfocusedContainerColor = ConsoleTheme.surface,
-                focusedIndicatorColor = ConsoleTheme.accent,
-                unfocusedIndicatorColor = ConsoleTheme.textDim
+                focusedContainerColor = colors.bgPanel,
+                unfocusedContainerColor = colors.bgPanel,
+                focusedIndicatorColor = colors.accent,
+                unfocusedIndicatorColor = colors.inkMuted
             )
         )
     }
@@ -299,26 +307,30 @@ private fun ProfileDropdown(
     options: List<String>,
     onSelect: (Int) -> Unit
 ) {
+    val colors = LocalSmithColors.current
     var expanded by remember { mutableStateOf(false) }
     Column {
-        Text(text = label, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        Text(text = label, style = SmithType.caption.copy(color = colors.inkMuted))
         Box(modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = current,
-                style = ConsoleTheme.body,
+                style = SmithType.body.copy(color = colors.ink),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .clickable { expanded = true }
                     .padding(12.dp)
             )
             DropdownMenu(
                 expanded = expanded,
-                onDismissRequest = { expanded = false }
+                onDismissRequest = { expanded = false },
+                modifier = Modifier
+                    .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                    .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
             ) {
                 options.forEachIndexed { index, option ->
                     DropdownMenuItem(
-                        text = { Text(option, style = ConsoleTheme.body) },
+                        text = { Text(option, style = SmithType.body.copy(color = colors.ink)) },
                         onClick = {
                             onSelect(index)
                             expanded = false

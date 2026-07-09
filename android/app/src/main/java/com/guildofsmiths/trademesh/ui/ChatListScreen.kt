@@ -59,6 +59,7 @@ import com.guildofsmiths.trademesh.data.SupabaseAuth
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
 import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithConfirmDialog
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -88,6 +89,7 @@ fun ChatListScreen(
     typingState: Map<String, Boolean> = emptyMap(),
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     val beacons by BeaconRepository.beacons.collectAsState()
     val isMeshConnected by BoundaryEngine.isMeshConnected.collectAsState()
     val isNetOnline by BoundaryEngine.isOnline.collectAsState()
@@ -145,16 +147,16 @@ fun ChatListScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = ConsoleTheme.background,
+        containerColor = colors.bgBase,
         floatingActionButton = {
             Text(
                 text = "[+ NEW]",
-                style = ConsoleTheme.action,
+                style = SmithType.action,
                 modifier = Modifier
                     .clickable(onClick = onNewClick)
-                    .background(ConsoleTheme.accent)
+                    .background(colors.accent)
                     .padding(horizontal = 16.dp, vertical = 10.dp),
-                color = ConsoleTheme.surface
+                color = colors.inkOnAccent
             )
         }
     ) { padding ->
@@ -175,7 +177,7 @@ fun ChatListScreen(
                 onBackClick = onBackClick,
                 actionText = if (incomingCount > 0) "[Inbox $incomingCount]" else "[Inbox]",
                 onActionClick = onIncomingClick,
-                modifier = Modifier.background(ConsoleTheme.surface)
+                modifier = Modifier.background(colors.bgPanel)
             )
 
             ConsoleSeparator()
@@ -218,12 +220,12 @@ fun ChatListScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = "no conversations yet",
-                            style = ConsoleTheme.bodySmall
+                            style = SmithType.bodySmall.copy(color = colors.inkMuted)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "tap [+ NEW] to message a client or colleague",
-                            style = ConsoleTheme.caption
+                            style = SmithType.caption.copy(color = colors.inkMuted)
                         )
                     }
                 }
@@ -300,23 +302,24 @@ private fun QuickContactsStrip(
     onChannelClick: (beaconId: String, channelId: String) -> Unit,
     onSmithAIClick: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     val scrollState = rememberScrollState()
 
     val agentState by com.guildofsmiths.trademesh.ai.AgentInitializer.agentState.collectAsState()
     val modelState by com.guildofsmiths.trademesh.ai.LlamaInference.modelState.collectAsState()
     val backend = com.guildofsmiths.trademesh.ai.SmithAIBackendRouter.pick()
     val (smithLabel, smithStatusColor) = when {
-        agentState == com.guildofsmiths.trademesh.ai.AgentState.WAKING -> "Waking" to ConsoleTheme.textDim
+        agentState == com.guildofsmiths.trademesh.ai.AgentState.WAKING -> "Waking" to colors.inkMuted
         backend == com.guildofsmiths.trademesh.ai.SmithAIBackendRouter.Backend.ON_DEVICE &&
-            modelState == com.guildofsmiths.trademesh.ai.ModelState.READY -> "AI Ready" to ConsoleTheme.accent
-        backend == com.guildofsmiths.trademesh.ai.SmithAIBackendRouter.Backend.CLOUD -> "Cloud AI" to ConsoleTheme.success
-        else -> "AI Offline" to ConsoleTheme.error
+            modelState == com.guildofsmiths.trademesh.ai.ModelState.READY -> "AI Ready" to colors.accent
+        backend == com.guildofsmiths.trademesh.ai.SmithAIBackendRouter.Backend.CLOUD -> "Cloud AI" to colors.statusOnline
+        else -> "AI Offline" to colors.statusError
     }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface)
+            .background(colors.bgPanel)
             .horizontalScroll(scrollState)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -325,7 +328,7 @@ private fun QuickContactsStrip(
         QuickContact(
             initials = "AI",
             name = smithLabel,
-            avatarBrush = Brush.linearGradient(listOf(ConsoleTheme.accent, Color(0xFF8C6B2A))),
+            avatarBrush = Brush.linearGradient(listOf(colors.accent, colors.attention)),
             statusColor = smithStatusColor,
             showStatus = true,
             onClick = onSmithAIClick
@@ -342,8 +345,8 @@ private fun QuickContactsStrip(
                 name = channel.name.split(" ").firstOrNull() ?: channel.name.take(6),
                 avatarColor = avatarColorFor(channel),
                 statusColor = when {
-                    isMeshConnected -> ConsoleTheme.accent  // gold = mesh
-                    else -> ConsoleTheme.success             // green = online
+                    isMeshConnected -> colors.accent  // gold = mesh
+                    else -> colors.statusOnline        // green = online
                 },
                 showStatus = true,
                 onClick = { onChannelClick(beaconId, channel.id) }
@@ -356,12 +359,13 @@ private fun QuickContactsStrip(
 private fun QuickContact(
     initials: String,
     name: String,
-    avatarColor: Color = ConsoleTheme.accent,
+    avatarColor: Color = LocalSmithColors.current.accent,
     avatarBrush: Brush? = null,
-    statusColor: Color = ConsoleTheme.textDim,
+    statusColor: Color = LocalSmithColors.current.inkMuted,
     showStatus: Boolean = false,
     onClick: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.clickable(onClick = onClick)
@@ -379,8 +383,8 @@ private fun QuickContact(
             ) {
                 Text(
                     text = initials,
-                    style = ConsoleTheme.captionBold.copy(
-                        color = ConsoleTheme.surface,
+                    style = SmithType.captionBold.copy(
+                        color = colors.inkOnAccent,
                         fontSize = 10.sp
                     )
                 )
@@ -390,7 +394,7 @@ private fun QuickContact(
                     modifier = Modifier
                         .size(8.dp)
                         .clip(CircleShape)
-                        .background(ConsoleTheme.background)
+                        .background(colors.bgBase)
                         .align(Alignment.BottomEnd)
                 ) {
                     Box(
@@ -406,7 +410,7 @@ private fun QuickContact(
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = name,
-            style = ConsoleTheme.caption.copy(fontSize = 8.sp),
+            style = SmithType.caption.copy(color = colors.inkMuted, fontSize = 8.sp),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -428,10 +432,11 @@ private fun CommTabs(
     clientUnread: Int,
     dispatchUnread: Int
 ) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface),
+            .background(colors.bgPanel),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         CommTabItem("ALL", totalUnread, selectedTab == CommTab.ALL) { onTabSelected(CommTab.ALL) }
@@ -448,6 +453,7 @@ private fun CommTabItem(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -457,9 +463,9 @@ private fun CommTabItem(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = label,
-                style = ConsoleTheme.captionBold.copy(
+                style = SmithType.captionBold.copy(
                     fontSize = 10.sp,
-                    color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.textMuted,
+                    color = if (isSelected) colors.accent else colors.inkMuted,
                     letterSpacing = 0.5.sp
                 )
             )
@@ -467,14 +473,14 @@ private fun CommTabItem(
                 Spacer(modifier = Modifier.width(3.dp))
                 Box(
                     modifier = Modifier
-                        .background(ConsoleTheme.accent, CircleShape)
+                        .background(colors.accent, CircleShape)
                         .padding(horizontal = 4.dp, vertical = 1.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = if (unreadCount > 99) "99+" else unreadCount.toString(),
-                        style = ConsoleTheme.caption.copy(
-                            color = Color.White,
+                        style = SmithType.caption.copy(
+                            color = colors.inkOnAccent,
                             fontSize = 7.sp
                         )
                     )
@@ -486,7 +492,7 @@ private fun CommTabItem(
             Box(
                 modifier = Modifier
                     .size(width = 40.dp, height = 2.dp)
-                    .background(ConsoleTheme.accent)
+                    .background(colors.accent)
             )
         } else {
             Spacer(modifier = Modifier.height(6.dp))
@@ -500,6 +506,7 @@ private fun CommTabItem(
 
 @Composable
 private fun MeshBar(peerCount: Int, onClick: () -> Unit) {
+    val colors = LocalSmithColors.current
     val transition = rememberInfiniteTransition(label = "mesh_pulse")
     val alpha by transition.animateFloat(
         initialValue = 1f,
@@ -511,7 +518,7 @@ private fun MeshBar(peerCount: Int, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.accent.copy(alpha = 0.08f))
+            .background(colors.accent.copy(alpha = 0.08f))
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -520,13 +527,13 @@ private fun MeshBar(peerCount: Int, onClick: () -> Unit) {
             modifier = Modifier
                 .size(6.dp)
                 .clip(CircleShape)
-                .background(ConsoleTheme.accent.copy(alpha = alpha))
+                .background(colors.accent.copy(alpha = alpha))
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = "MESH · $peerCount peer${if (peerCount != 1) "s" else ""} nearby",
-            style = ConsoleTheme.caption.copy(
-                color = ConsoleTheme.accent,
+            style = SmithType.caption.copy(
+                color = colors.accent,
                 fontSize = 9.sp,
                 letterSpacing = 0.5.sp
             ),
@@ -534,7 +541,7 @@ private fun MeshBar(peerCount: Int, onClick: () -> Unit) {
         )
         Text(
             text = "›",
-            style = ConsoleTheme.body.copy(color = ConsoleTheme.accent)
+            style = SmithType.body.copy(color = colors.accent)
         )
     }
 }
@@ -561,6 +568,7 @@ private fun SwipeableChatRow(
     onUnarchive: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val colors = LocalSmithColors.current
     val canSwipe = channel.id != "general"
     val canDelete = channel.type == ChannelType.DM || isOwner
 
@@ -574,7 +582,7 @@ private fun SwipeableChatRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(64.dp)
-                    .background(ConsoleTheme.surface),
+                    .background(colors.bgPanel),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
@@ -587,7 +595,7 @@ private fun SwipeableChatRow(
                     if (canDelete) {
                         Text(
                             text = if (channel.type == ChannelType.DM) "HIDE" else "DELETE",
-                            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textDim)
+                            style = SmithType.captionBold.copy(color = colors.inkMuted)
                         )
                     }
                 }
@@ -600,7 +608,7 @@ private fun SwipeableChatRow(
                 ) {
                     Text(
                         text = if (isArchived) "RESTORE" else "ARCHIVE",
-                        style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textDim)
+                        style = SmithType.captionBold.copy(color = colors.inkMuted)
                     )
                 }
             }
@@ -610,7 +618,7 @@ private fun SwipeableChatRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .offset { IntOffset(animatedOffset.roundToInt(), 0) }
-                .background(ConsoleTheme.background)
+                .background(colors.bgBase)
                 .then(
                     if (canSwipe) {
                         Modifier.draggable(
@@ -648,6 +656,7 @@ private fun ChatRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -659,7 +668,7 @@ private fun ChatRow(
         com.guildofsmiths.trademesh.ui.components.SmithAvatar(
             name = chatDisplayName(channel),
             size = 44,
-            statusColor = if (isMeshConnected) ConsoleTheme.success else ConsoleTheme.textDim
+            statusColor = if (isMeshConnected) colors.statusOnline else colors.inkMuted
         )
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -668,7 +677,7 @@ private fun ChatRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = chatDisplayName(channel),
-                style = if (channel.unreadCount > 0) ConsoleTheme.bodyBold else ConsoleTheme.body,
+                style = (if (channel.unreadCount > 0) SmithType.bodyBold else SmithType.body).copy(color = colors.ink),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -676,7 +685,7 @@ private fun ChatRow(
             if (isTyping) {
                 Text(
                     text = "typing...",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent),
+                    style = SmithType.caption.copy(color = colors.accent),
                     maxLines = 1
                 )
             } else if (channel.lastMessagePreview != null) {
@@ -686,19 +695,19 @@ private fun ChatRow(
                     else -> "[<]"
                 }
                 val markerColor = when (marker) {
-                    "[x]" -> ConsoleTheme.error
-                    "[>]" -> ConsoleTheme.textDim
-                    else -> ConsoleTheme.textMuted
+                    "[x]" -> colors.statusError
+                    "[>]" -> colors.inkMuted
+                    else -> colors.inkMuted
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = marker,
-                        style = ConsoleTheme.commTimestamp.copy(color = markerColor)
+                        style = SmithType.commTimestamp.copy(color = markerColor)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = channel.lastMessagePreview,
-                        style = ConsoleTheme.caption,
+                        style = SmithType.caption.copy(color = colors.inkMuted),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -706,7 +715,7 @@ private fun ChatRow(
             } else {
                 Text(
                     text = "no messages yet",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim),
+                    style = SmithType.caption.copy(color = colors.inkMuted),
                     maxLines = 1
                 )
             }
@@ -722,7 +731,7 @@ private fun ChatRow(
             if (channel.lastMessageTime != null) {
                 Text(
                     text = chatFormatTime(channel.lastMessageTime),
-                    style = ConsoleTheme.timestamp
+                    style = SmithType.timestamp.copy(color = colors.inkMuted)
                 )
             }
 
@@ -743,6 +752,7 @@ private fun ChatAvatar(
     isOnline: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     val initials = chatInitials(channel)
     val avatarColor = avatarColorFor(channel)
 
@@ -756,8 +766,8 @@ private fun ChatAvatar(
         ) {
             Text(
                 text = initials,
-                style = ConsoleTheme.captionBold.copy(
-                    color = ConsoleTheme.surface,
+                style = SmithType.captionBold.copy(
+                    color = colors.inkOnAccent,
                     fontSize = 14.sp
                 )
             )
@@ -767,7 +777,7 @@ private fun ChatAvatar(
             modifier = Modifier
                 .size(10.dp)
                 .clip(CircleShape)
-                .background(ConsoleTheme.background)
+                .background(colors.bgBase)
                 .align(Alignment.BottomEnd)
         ) {
             Box(
@@ -775,7 +785,7 @@ private fun ChatAvatar(
                     .size(8.dp)
                     .clip(CircleShape)
                     .background(
-                        if (isOnline) ConsoleTheme.success else ConsoleTheme.textDim
+                        if (isOnline) colors.statusOnline else colors.inkMuted
                     )
                     .align(Alignment.Center)
             )
@@ -799,7 +809,7 @@ private fun UnreadBadge(count: Int) {
     ) {
         Text(
             text = if (count > 99) "99+" else count.toString(),
-            style = ConsoleTheme.caption.copy(
+            style = SmithType.caption.copy(
                 color = colors.inkOnAccent,
                 fontSize = 9.sp
             )
@@ -877,17 +887,13 @@ private fun chatInitials(channel: Channel): String {
 }
 
 /**
- * Deterministic accent color for an avatar based on channel id.
+ * Deterministic accent color for an avatar based on channel id — same
+ * accentForId-style rule as [com.guildofsmiths.trademesh.ui.components.avatarColorOf],
+ * sourced from the shared [com.guildofsmiths.trademesh.ui.Tokens2.AvatarPalette]
+ * instead of a mixed ConsoleTheme/hex list.
  */
 private fun avatarColorFor(channel: Channel): Color {
-    val palette = listOf(
-        ConsoleTheme.accent,
-        ConsoleTheme.success,
-        ConsoleTheme.warning,
-        ConsoleTheme.error,
-        Color(0xFF6B5E8C),
-        Color(0xFF3A6B8C),
-    )
+    val palette = com.guildofsmiths.trademesh.ui.Tokens2.AvatarPalette
     val index = Math.abs(channel.id.hashCode()) % palette.size
     return palette[index]
 }

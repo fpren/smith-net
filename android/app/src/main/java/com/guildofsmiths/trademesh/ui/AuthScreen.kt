@@ -22,6 +22,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.SupabaseAuth
 import com.guildofsmiths.trademesh.service.AuthService
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import kotlinx.coroutines.launch
 
 /**
@@ -53,7 +55,8 @@ fun AuthScreen(
     var showResendConfirmation by remember { mutableStateOf(false) }
     var isResending by remember { mutableStateOf(false) }
     var isResettingPassword by remember { mutableStateOf(false) }
-    
+
+    val colors = LocalSmithColors.current
     val scope = rememberCoroutineScope()
     
     // Auto-show offline option after network errors
@@ -62,7 +65,7 @@ fun AuthScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(ConsoleTheme.background)
+            .background(colors.bgBase)
             .verticalScroll(rememberScrollState())
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -71,22 +74,22 @@ fun AuthScreen(
         // Logo / Brand
         Text(
             text = "╔═══════════════════╗",
-            style = ConsoleTheme.body.copy(color = ConsoleTheme.accent)
+            style = SmithType.body.copy(color = colors.accent)
         )
         Text(
             text = "║  GUILD OF SMITHS  ║",
-            style = ConsoleTheme.title.copy(color = ConsoleTheme.accent)
+            style = SmithType.title.copy(color = colors.accent)
         )
         Text(
             text = "╚═══════════════════╝",
-            style = ConsoleTheme.body.copy(color = ConsoleTheme.accent)
+            style = SmithType.body.copy(color = colors.accent)
         )
         
         Spacer(modifier = Modifier.height(8.dp))
         
         Text(
             text = "Built for the trades",
-            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+            style = SmithType.caption.copy(color = colors.inkMuted)
         )
         
         Spacer(modifier = Modifier.height(32.dp))
@@ -98,19 +101,19 @@ fun AuthScreen(
             
             Text(
                 text = "🔑 RESET PASSWORD",
-                style = ConsoleTheme.header.copy(color = ConsoleTheme.accent)
+                style = SmithType.header.copy(color = colors.accent)
             )
             
             Spacer(modifier = Modifier.height(16.dp))
             
             Text(
                 text = "Enter your email address and we'll send",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                style = SmithType.caption.copy(color = colors.inkMuted),
                 textAlign = TextAlign.Center
             )
             Text(
                 text = "you a link to reset your password.",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                style = SmithType.caption.copy(color = colors.inkMuted),
                 textAlign = TextAlign.Center
             )
             
@@ -119,7 +122,7 @@ fun AuthScreen(
             Column(modifier = Modifier.widthIn(max = 300.dp)) {
                 Text(
                     text = "> email:",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                    style = SmithType.caption.copy(color = colors.inkMuted)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 ConsoleTextField(
@@ -154,7 +157,7 @@ fun AuthScreen(
             if (successMessage != null) {
                 Text(
                     text = "[✓] $successMessage",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.success),
+                    style = SmithType.caption.copy(color = colors.statusOnline),
                     modifier = Modifier.padding(8.dp),
                     textAlign = TextAlign.Center
                 )
@@ -165,7 +168,7 @@ fun AuthScreen(
             if (errorMessage != null) {
                 Text(
                     text = "[!] $errorMessage",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.error),
+                    style = SmithType.caption.copy(color = colors.statusError),
                     modifier = Modifier.padding(8.dp),
                     textAlign = TextAlign.Center
                 )
@@ -175,8 +178,8 @@ fun AuthScreen(
             // Send reset button
             Text(
                 text = if (isResettingPassword) "[...] SENDING..." else "[▶] SEND RESET LINK",
-                style = ConsoleTheme.bodyBold.copy(
-                    color = if (isResettingPassword) ConsoleTheme.textMuted else ConsoleTheme.accent
+                style = SmithType.bodyBold.copy(
+                    color = if (isResettingPassword) colors.inkMuted else colors.accent
                 ),
                 modifier = Modifier
                     .clickable(enabled = !isResettingPassword && email.isNotBlank()) {
@@ -194,7 +197,7 @@ fun AuthScreen(
                             }
                         }
                     }
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .padding(horizontal = 24.dp, vertical = 12.dp)
             )
             
@@ -202,7 +205,7 @@ fun AuthScreen(
             
             Text(
                 text = "[←] Back to Login",
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                style = SmithType.action.copy(color = colors.accent),
                 modifier = Modifier
                     .clickable { 
                         showResetPassword = false
@@ -223,8 +226,8 @@ fun AuthScreen(
             ) {
                 Text(
                     text = if (isLoginMode) "[●] LOGIN" else "[ ] LOGIN",
-                    style = ConsoleTheme.body.copy(
-                        color = if (isLoginMode) ConsoleTheme.accent else ConsoleTheme.textMuted
+                    style = SmithType.body.copy(
+                        color = if (isLoginMode) colors.accent else colors.inkMuted
                     ),
                     modifier = Modifier
                         .clickable { 
@@ -239,8 +242,8 @@ fun AuthScreen(
                 
                 Text(
                     text = if (!isLoginMode) "[●] REGISTER" else "[ ] REGISTER",
-                    style = ConsoleTheme.body.copy(
-                        color = if (!isLoginMode) ConsoleTheme.accent else ConsoleTheme.textMuted
+                    style = SmithType.body.copy(
+                        color = if (!isLoginMode) colors.accent else colors.inkMuted
                     ),
                     modifier = Modifier
                         .clickable { 
@@ -262,7 +265,7 @@ fun AuthScreen(
                 if (!isLoginMode) {
                     Text(
                         text = "> your_name:",
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                        style = SmithType.caption.copy(color = colors.inkMuted)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     ConsoleTextField(
@@ -276,7 +279,7 @@ fun AuthScreen(
                 // Email
                 Text(
                     text = "> email:",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                    style = SmithType.caption.copy(color = colors.inkMuted)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 ConsoleTextField(
@@ -297,14 +300,14 @@ fun AuthScreen(
                 ) {
                     Text(
                         text = "> password:",
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                        style = SmithType.caption.copy(color = colors.inkMuted)
                     )
                     
                     // Forgot password link (only in login mode)
                     if (isLoginMode) {
                         Text(
                             text = "Forgot?",
-                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent),
+                            style = SmithType.caption.copy(color = colors.accent),
                             modifier = Modifier
                                 .clickable { showResetPassword = true }
                                 .padding(4.dp)
@@ -357,7 +360,7 @@ fun AuthScreen(
             if (successMessage != null) {
                 Text(
                     text = "[✓] $successMessage",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.success),
+                    style = SmithType.caption.copy(color = colors.statusOnline),
                     modifier = Modifier.padding(8.dp)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -367,7 +370,7 @@ fun AuthScreen(
             if (errorMessage != null) {
                 Text(
                     text = "[!] $errorMessage",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.error),
+                    style = SmithType.caption.copy(color = colors.statusError),
                     modifier = Modifier.padding(8.dp),
                     textAlign = TextAlign.Center
                 )
@@ -377,8 +380,8 @@ fun AuthScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = if (isResending) "[...] SENDING..." else "[↻] RESEND CONFIRMATION EMAIL",
-                        style = ConsoleTheme.action.copy(
-                            color = if (isResending) ConsoleTheme.textMuted else ConsoleTheme.warning
+                        style = SmithType.action.copy(
+                            color = if (isResending) colors.inkMuted else colors.attention
                         ),
                         modifier = Modifier
                             .clickable(enabled = !isResending) {
@@ -409,8 +412,8 @@ fun AuthScreen(
                 } else {
                     "[▶] ${if (isLoginMode) "LOGIN" else "CREATE ACCOUNT"}"
                 },
-                style = ConsoleTheme.bodyBold.copy(
-                    color = if (isLoading) ConsoleTheme.textMuted else ConsoleTheme.accent
+                style = SmithType.bodyBold.copy(
+                    color = if (isLoading) colors.inkMuted else colors.accent
                 ),
                 modifier = Modifier
                     .clickable(enabled = !isLoading) {
@@ -439,7 +442,7 @@ fun AuthScreen(
                             )
                         }
                     }
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .padding(horizontal = 24.dp, vertical = 12.dp)
             )
             
@@ -453,12 +456,12 @@ fun AuthScreen(
             if (shouldShowOfflineHint) {
                 Text(
                     text = "Having connection issues?",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.warning)
+                    style = SmithType.caption.copy(color = colors.attention)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "[↷] Try Offline Mode",
-                    style = ConsoleTheme.action.copy(color = ConsoleTheme.warning),
+                    style = SmithType.action.copy(color = colors.attention),
                     modifier = Modifier
                         .clickable { showOfflineMode = true }
                         .padding(8.dp)
@@ -467,7 +470,7 @@ fun AuthScreen(
                 // Subtle "Having trouble?" link
                 Text(
                     text = if (showTroubleOptions) "[−] Having trouble?" else "[+] Having trouble?",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim),
+                    style = SmithType.caption.copy(color = colors.inkMuted),
                     modifier = Modifier
                         .clickable { showTroubleOptions = !showTroubleOptions }
                         .padding(8.dp)
@@ -478,7 +481,7 @@ fun AuthScreen(
                     
                     Text(
                         text = "[↷] Use Offline Mode (demo)",
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                        style = SmithType.caption.copy(color = colors.inkMuted),
                         modifier = Modifier
                             .clickable { showOfflineMode = true }
                             .padding(vertical = 4.dp)
@@ -486,7 +489,7 @@ fun AuthScreen(
                     
                     Text(
                         text = "Data won't sync across devices",
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+                        style = SmithType.caption.copy(color = colors.inkMuted)
                     )
                 }
             }
@@ -498,20 +501,20 @@ fun AuthScreen(
             
             Text(
                 text = "⚠ OFFLINE MODE",
-                style = ConsoleTheme.header.copy(color = ConsoleTheme.warning)
+                style = SmithType.header.copy(color = colors.attention)
             )
             
             Spacer(modifier = Modifier.height(8.dp))
             
             Text(
                 text = "Your data stays on this device only.",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                style = SmithType.caption.copy(color = colors.inkMuted),
                 textAlign = TextAlign.Center
             )
             
             Text(
                 text = "Create a real account anytime to sync.",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                style = SmithType.caption.copy(color = colors.inkMuted),
                 textAlign = TextAlign.Center
             )
             
@@ -520,7 +523,7 @@ fun AuthScreen(
             Column(modifier = Modifier.widthIn(max = 300.dp)) {
                 Text(
                     text = "> your_name:",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                    style = SmithType.caption.copy(color = colors.inkMuted)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 ConsoleTextField(
@@ -535,14 +538,14 @@ fun AuthScreen(
             if (errorMessage != null) {
                 Text(
                     text = "[!] $errorMessage",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.error)
+                    style = SmithType.caption.copy(color = colors.statusError)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
             
             Text(
                 text = "[▶] START DEMO",
-                style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.warning),
+                style = SmithType.bodyBold.copy(color = colors.attention),
                 modifier = Modifier
                     .clickable {
                         if (displayName.isBlank()) {
@@ -562,7 +565,7 @@ fun AuthScreen(
                             }
                         }
                     }
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .padding(horizontal = 24.dp, vertical = 12.dp)
             )
             
@@ -570,7 +573,7 @@ fun AuthScreen(
             
             Text(
                 text = "[←] Back to Login",
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                style = SmithType.action.copy(color = colors.accent),
                 modifier = Modifier
                     .clickable { 
                         showOfflineMode = false
@@ -596,25 +599,26 @@ private fun ConsoleTextField(
     onDone: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface)
+            .background(colors.bgPanel)
             .padding(12.dp)
     ) {
         if (value.isEmpty()) {
             Text(
                 text = placeholder,
-                style = ConsoleTheme.body.copy(color = ConsoleTheme.textDim)
+                style = SmithType.body.copy(color = colors.inkMuted)
             )
         }
-        
+
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth(),
-            textStyle = ConsoleTheme.body,
-            cursorBrush = SolidColor(ConsoleTheme.cursor),
+            textStyle = SmithType.body.copy(color = colors.ink),
+            cursorBrush = SolidColor(colors.ink),
             visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
             keyboardOptions = KeyboardOptions(
                 keyboardType = keyboardType,

@@ -27,6 +27,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 
 /**
  * Welcome screen — Big bold Smith Net branding.
@@ -36,13 +38,14 @@ fun WelcomeScreen(
     onComplete: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     var userName by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(ConsoleTheme.background)
+            .background(colors.bgBase)
             .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -50,42 +53,42 @@ fun WelcomeScreen(
         // Big brand — S P A C E D
         Text(
             text = ConsoleTheme.APP_NAME,
-            style = ConsoleTheme.brand.copy(fontSize = 36.sp, letterSpacing = 4.sp)
+            style = SmithType.brand.copy(fontSize = 36.sp, letterSpacing = 4.sp, color = colors.ink)
         )
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         Text(
             text = "v${ConsoleTheme.APP_VERSION}",
-            style = ConsoleTheme.version
+            style = SmithType.version.copy(color = colors.inkMuted)
         )
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         Text(
             text = "mesh communication",
-            style = ConsoleTheme.bodySmall,
+            style = SmithType.bodySmall.copy(color = colors.inkMuted),
             textAlign = TextAlign.Center
         )
-        
+
         Spacer(modifier = Modifier.height(48.dp))
-        
+
         Text(
             text = "WHAT'S YOUR NAME?",
-            style = ConsoleTheme.captionBold,
+            style = SmithType.captionBold.copy(color = colors.inkMuted),
             modifier = Modifier.fillMaxWidth()
         )
-        
+
         Spacer(modifier = Modifier.height(10.dp))
-        
+
         BasicTextField(
             value = userName,
             onValueChange = {
                 userName = it.take(20)
                 errorMessage = null
             },
-            textStyle = ConsoleTheme.header,
-            cursorBrush = SolidColor(ConsoleTheme.cursor),
+            textStyle = SmithType.header.copy(color = colors.ink),
+            cursorBrush = SolidColor(colors.ink),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(
                 onDone = {
@@ -99,55 +102,55 @@ fun WelcomeScreen(
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.surface)
+                .background(colors.bgPanel)
                 .padding(16.dp),
             decorationBox = { innerTextField ->
                 Box {
                     if (userName.isEmpty()) {
                         Text(
                             text = "Enter your name",
-                            style = ConsoleTheme.header.copy(color = ConsoleTheme.placeholder)
+                            style = SmithType.header.copy(color = colors.inkMuted)
                         )
                     }
                     innerTextField()
                 }
             }
         )
-        
+
         if (errorMessage != null) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = errorMessage!!,
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.warning),
+                style = SmithType.caption.copy(color = colors.attention),
                 modifier = Modifier.fillMaxWidth()
             )
         }
-        
+
         Spacer(modifier = Modifier.height(24.dp))
-        
+
         if (userName.trim().length >= 2) {
             Text(
                 text = "JOIN →",
-                style = ConsoleTheme.action.copy(fontSize = 18.sp),
+                style = SmithType.action.copy(fontSize = 18.sp, color = colors.accent),
                 modifier = Modifier
                     .clickable { onComplete(userName.trim()) }
                     .padding(12.dp)
             )
         }
-        
+
         Spacer(modifier = Modifier.height(24.dp))
-        
+
         Text(
             text = "Your name will be visible to others nearby",
-            style = ConsoleTheme.caption,
+            style = SmithType.caption.copy(color = colors.inkMuted),
             textAlign = TextAlign.Center
         )
-        
+
         Spacer(modifier = Modifier.height(32.dp))
-        
+
         Text(
             text = "made by ${ConsoleTheme.STUDIO}",
-            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim),
+            style = SmithType.caption.copy(color = colors.inkMuted),
             textAlign = TextAlign.Center
         )
     }

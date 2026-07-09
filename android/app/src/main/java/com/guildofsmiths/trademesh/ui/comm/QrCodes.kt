@@ -40,7 +40,8 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import java.util.concurrent.Executors
 
 /** A SmithNet id encoded as a scannable URI so a scan is unambiguous. */
@@ -71,10 +72,11 @@ fun qrBitmap(content: String, size: Int = 480): Bitmap {
 /** Shows the user's own id as a QR for in-person swaps. */
 @Composable
 fun MyIdQrCard(publicId: String, modifier: Modifier = Modifier) {
+    val colors = LocalSmithColors.current
     val bitmap = remember(publicId) { runCatching { qrBitmap(smithNetIdUri(publicId)) }.getOrNull() }
     Column(
         modifier = modifier
-            .background(ConsoleTheme.surface)
+            .background(colors.bgPanel)
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -86,7 +88,7 @@ fun MyIdQrCard(publicId: String, modifier: Modifier = Modifier) {
                 modifier = Modifier.size(180.dp)
             )
         }
-        Text("scan to message me", style = ConsoleTheme.commTimestamp, textAlign = TextAlign.Center)
+        Text("scan to message me", style = SmithType.commTimestamp.copy(color = colors.inkMuted), textAlign = TextAlign.Center)
     }
 }
 
@@ -96,6 +98,7 @@ fun MyIdQrCard(publicId: String, modifier: Modifier = Modifier) {
  */
 @Composable
 fun ScanIdScreen(onId: (String) -> Unit, onCancel: () -> Unit) {
+    val colors = LocalSmithColors.current
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -114,8 +117,8 @@ fun ScanIdScreen(onId: (String) -> Unit, onCancel: () -> Unit) {
     }
 
     if (!hasPermission) {
-        Box(Modifier.fillMaxSize().background(ConsoleTheme.background), contentAlignment = Alignment.Center) {
-            Text("Camera permission needed to scan.", style = ConsoleTheme.commBody)
+        Box(Modifier.fillMaxSize().background(colors.bgBase), contentAlignment = Alignment.Center) {
+            Text("Camera permission needed to scan.", style = SmithType.commBody.copy(color = colors.ink))
         }
         return
     }
@@ -176,9 +179,9 @@ fun ScanIdScreen(onId: (String) -> Unit, onCancel: () -> Unit) {
         ) {
             Text(
                 "[cancel]",
-                style = ConsoleTheme.action,
+                style = SmithType.action.copy(color = colors.accent),
                 modifier = Modifier
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .clickable { onCancel() }
                     .padding(8.dp)
             )

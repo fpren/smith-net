@@ -42,6 +42,8 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
 import com.guildofsmiths.trademesh.data.MediaAttachment
 import com.guildofsmiths.trademesh.data.MediaType
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import kotlinx.coroutines.delay
 import java.io.File
 
@@ -107,12 +109,13 @@ private fun VoicePlayer(
     media: MediaAttachment?,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     val context = LocalContext.current
     var isPlaying by remember { mutableStateOf(false) }
     var progress by remember { mutableFloatStateOf(0f) }
     var currentPosition by remember { mutableStateOf(0L) }
     val duration = media?.duration ?: 0L
-    
+
     // MediaPlayer instance
     var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
     
@@ -201,19 +204,19 @@ private fun VoicePlayer(
         // Play/Stop button - [▶] play, [■] stop (matching style)
         Text(
             text = if (isPlaying) "[■]" else "[▶]",
-            style = ConsoleTheme.body.copy(color = ConsoleTheme.accent)
+            style = SmithType.body.copy(color = colors.accent)
         )
-        
+
         Spacer(modifier = Modifier.width(6.dp))
-        
+
         // Progress bar: [■■■■■■□□□□]
         PixelProgressBar(
             progress = animatedProgress,
             totalBars = 10
         )
-        
+
         Spacer(modifier = Modifier.width(6.dp))
-        
+
         // Duration / remaining time
         val displayTime = if (isPlaying && currentPosition > 0) {
             val remaining = ((duration - currentPosition) / 1000).coerceAtLeast(0)
@@ -221,10 +224,10 @@ private fun VoicePlayer(
         } else {
             "${(duration / 1000)}s"
         }
-        
+
         Text(
             text = displayTime,
-            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+            style = SmithType.caption.copy(color = colors.inkMuted)
         )
     }
 }
@@ -239,19 +242,20 @@ private fun PixelProgressBar(
     totalBars: Int = 10,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     val filledBars = (progress * totalBars).toInt().coerceIn(0, totalBars)
     val emptyBars = totalBars - filledBars
-    
+
     val barText = buildString {
         append("[")
         repeat(filledBars) { append("■") }
         repeat(emptyBars) { append("□") }
         append("]")
     }
-    
+
     Text(
         text = barText,
-        style = ConsoleTheme.body.copy(color = ConsoleTheme.text),
+        style = SmithType.body.copy(color = colors.ink),
         modifier = modifier
     )
 }
@@ -267,6 +271,7 @@ private fun VideoPlayer(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     val context = LocalContext.current
     var thumbnail by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var showPopup by remember { mutableStateOf(false) }
@@ -303,16 +308,16 @@ private fun VideoPlayer(
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("[▶]", style = ConsoleTheme.body.copy(color = ConsoleTheme.accent))
+        Text("[▶]", style = SmithType.body.copy(color = colors.accent))
         Spacer(modifier = Modifier.width(6.dp))
         VideoProgressBar(progress = 0f)
         Spacer(modifier = Modifier.width(6.dp))
         Text(
             if (isRemote) "video" else "$mins:${secs.toString().padStart(2, '0')}",
-            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+            style = SmithType.caption.copy(color = colors.inkMuted)
         )
         if (isRemote) {
-            Text(" [↗]", style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent))
+            Text(" [↗]", style = SmithType.caption.copy(color = colors.accent))
         }
     }
     
@@ -342,6 +347,7 @@ private fun VideoPopupPlayer(
     onDismiss: () -> Unit,
     onOpenExternal: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     var isPlaying by remember { mutableStateOf(false) }
     var progress by remember { mutableFloatStateOf(0f) }
     var currentPosition by remember { mutableStateOf(0L) }
@@ -397,7 +403,7 @@ private fun VideoPopupPlayer(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(ConsoleTheme.background.copy(alpha = 0.9f))
+                .background(colors.bgBase.copy(alpha = 0.9f))
                 .pointerInput(Unit) {
                     detectTapGestures {
                         videoViewRef?.stopPlayback()
@@ -409,9 +415,9 @@ private fun VideoPopupPlayer(
             Column(
                 modifier = Modifier
                     .widthIn(max = 320.dp)
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .padding(1.dp)
-                    .background(ConsoleTheme.background)
+                    .background(colors.bgBase)
                     .pointerInput(Unit) {
                         detectTapGestures { /* consume tap */ }
                     }
@@ -420,27 +426,27 @@ private fun VideoPopupPlayer(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(ConsoleTheme.surface)
+                        .background(colors.bgPanel)
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("═══ VIDEO ═══", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.text))
+                    Text("═══ VIDEO ═══", style = SmithType.captionBold.copy(color = colors.ink))
                     Spacer(modifier = Modifier.weight(1f))
                     Text(
                         text = "[↗]",
-                        style = ConsoleTheme.body.copy(color = ConsoleTheme.accent),
+                        style = SmithType.body.copy(color = colors.accent),
                         modifier = Modifier
-                            .clickable { 
+                            .clickable {
                                 videoViewRef?.stopPlayback()
                                 onOpenExternal()
-                                onDismiss() 
+                                onDismiss()
                             }
                             .padding(4.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "[✕]",
-                        style = ConsoleTheme.body.copy(color = ConsoleTheme.textMuted),
+                        style = SmithType.body.copy(color = colors.inkMuted),
                         modifier = Modifier
                             .clickable {
                                 videoViewRef?.stopPlayback()
@@ -462,7 +468,7 @@ private fun VideoPopupPlayer(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(180.dp)
-                            .background(ConsoleTheme.surface)
+                            .background(colors.bgPanel)
                     ) {
                         if (isPlaying && videoUri != null) {
                             // Show VideoView when playing (works for both local and remote)
@@ -502,10 +508,10 @@ private fun VideoPopupPlayer(
                             if (isLoading) {
                                 Text(
                                     text = "Loading...",
-                                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent),
+                                    style = SmithType.caption.copy(color = colors.accent),
                                     modifier = Modifier
                                         .align(Alignment.Center)
-                                        .background(ConsoleTheme.background.copy(alpha = 0.7f))
+                                        .background(colors.bgBase.copy(alpha = 0.7f))
                                         .padding(8.dp)
                                 )
                             }
@@ -527,23 +533,23 @@ private fun VideoPopupPlayer(
                                 ) {
                                     Text(
                                         text = "[▶ VIDEO]",
-                                        style = ConsoleTheme.body.copy(color = ConsoleTheme.textMuted)
+                                        style = SmithType.body.copy(color = colors.inkMuted)
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = "tap to play",
-                                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+                                        style = SmithType.caption.copy(color = colors.inkMuted)
                                     )
                                 }
                             }
-                            
+
                             // Play button overlay - tap to start
                             Text(
                                 text = "[▶]",
-                                style = ConsoleTheme.title.copy(color = ConsoleTheme.accent),
+                                style = SmithType.title.copy(color = colors.accent),
                                 modifier = Modifier
                                     .align(Alignment.Center)
-                                    .background(ConsoleTheme.background.copy(alpha = 0.7f))
+                                    .background(colors.bgBase.copy(alpha = 0.7f))
                                     .clickable {
                                         if (videoUri != null) {
                                             isLoading = isRemote
@@ -566,7 +572,7 @@ private fun VideoPopupPlayer(
                         // Play/Stop button
                         Text(
                             text = if (isPlaying) "[■]" else "[▶]",
-                            style = ConsoleTheme.body.copy(color = ConsoleTheme.accent),
+                            style = SmithType.body.copy(color = colors.accent),
                             modifier = Modifier
                                 .clickable {
                                     if (isPlaying) {
@@ -598,17 +604,17 @@ private fun VideoPopupPlayer(
                         } else {
                             "$mins:${secs.toString().padStart(2, '0')}"
                         }
-                        Text(displayTime, style = ConsoleTheme.body.copy(color = ConsoleTheme.text))
+                        Text(displayTime, style = SmithType.body.copy(color = colors.ink))
                     }
                 }
-                
+
                 // Bottom hint
                 Text(
                     text = "tap [▶] to play · [■] to stop",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim),
+                    style = SmithType.caption.copy(color = colors.inkMuted),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(ConsoleTheme.surface)
+                        .background(colors.bgPanel)
                         .padding(8.dp)
                 )
             }
@@ -624,20 +630,21 @@ private fun VideoProgressBar(
     progress: Float,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     val totalBlocks = 6
     val filledBlocks = (progress * totalBlocks).toInt().coerceIn(0, totalBlocks)
     val emptyBlocks = totalBlocks - filledBlocks
-    
+
     val barText = buildString {
         append("[")
         repeat(filledBlocks) { append("█") }
         repeat(emptyBlocks) { append("▒") }
         append("]")
     }
-    
+
     Text(
         text = barText,
-        style = ConsoleTheme.body.copy(color = ConsoleTheme.text),
+        style = SmithType.body.copy(color = colors.ink),
         modifier = modifier
     )
 }
@@ -653,10 +660,11 @@ private fun ImageThumbnail(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     val context = LocalContext.current
     var imageBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var showPopup by remember { mutableStateOf(false) }
-    
+
     val isRemote = media?.localPath == null && media?.remotePath != null
     
     // Pixel art in chat: [▣] image
@@ -676,20 +684,20 @@ private fun ImageThumbnail(
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("[▣]", style = ConsoleTheme.body.copy(color = ConsoleTheme.accent))
+        Text("[▣]", style = SmithType.body.copy(color = colors.accent))
         Spacer(modifier = Modifier.width(6.dp))
-        Text("image", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
-        
+        Text("image", style = SmithType.caption.copy(color = colors.inkMuted))
+
         // Show dimensions if available
         if (media != null && media.width > 0 && media.height > 0) {
             Text(
                 " (${media.width}×${media.height})",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
         }
-        
+
         if (isRemote) {
-            Text(" [↗]", style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent))
+            Text(" [↗]", style = SmithType.caption.copy(color = colors.accent))
         }
     }
     
@@ -747,6 +755,7 @@ private fun ImagePopupViewer(
     onDismiss: () -> Unit,
     onOpenExternal: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -754,7 +763,7 @@ private fun ImagePopupViewer(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(ConsoleTheme.background.copy(alpha = 0.9f))
+                .background(colors.bgBase.copy(alpha = 0.9f))
                 .pointerInput(Unit) {
                     detectTapGestures { onDismiss() }
                 },
@@ -763,9 +772,9 @@ private fun ImagePopupViewer(
             Column(
                 modifier = Modifier
                     .widthIn(max = 320.dp)
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .padding(1.dp)
-                    .background(ConsoleTheme.background)
+                    .background(colors.bgBase)
                     .pointerInput(Unit) {
                         detectTapGestures { /* consume tap */ }
                     }
@@ -774,15 +783,15 @@ private fun ImagePopupViewer(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(ConsoleTheme.surface)
+                        .background(colors.bgPanel)
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("═══ IMAGE ═══", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.text))
+                    Text("═══ IMAGE ═══", style = SmithType.captionBold.copy(color = colors.ink))
                     Spacer(modifier = Modifier.weight(1f))
                     Text(
                         text = "[↗]",
-                        style = ConsoleTheme.body.copy(color = ConsoleTheme.accent),
+                        style = SmithType.body.copy(color = colors.accent),
                         modifier = Modifier
                             .clickable { onOpenExternal(); onDismiss() }
                             .padding(4.dp)
@@ -790,7 +799,7 @@ private fun ImagePopupViewer(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "[✕]",
-                        style = ConsoleTheme.body.copy(color = ConsoleTheme.textMuted),
+                        style = SmithType.body.copy(color = colors.inkMuted),
                         modifier = Modifier
                             .clickable { onDismiss() }
                             .padding(4.dp)
@@ -810,7 +819,7 @@ private fun ImagePopupViewer(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(220.dp)
-                                .background(ConsoleTheme.surface)
+                                .background(colors.bgPanel)
                                 .clickable { onOpenExternal(); onDismiss() }
                         ) {
                             androidx.compose.foundation.Image(
@@ -819,13 +828,13 @@ private fun ImagePopupViewer(
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = androidx.compose.ui.layout.ContentScale.Fit
                             )
-                            
+
                             Text(
                                 text = "[▣]",
-                                style = ConsoleTheme.body.copy(color = ConsoleTheme.accent),
+                                style = SmithType.body.copy(color = colors.accent),
                                 modifier = Modifier
                                     .align(Alignment.BottomEnd)
-                                    .background(ConsoleTheme.background.copy(alpha = 0.7f))
+                                    .background(colors.bgBase.copy(alpha = 0.7f))
                                     .padding(4.dp)
                             )
                         }
@@ -835,30 +844,30 @@ private fun ImagePopupViewer(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(150.dp)
-                                .background(ConsoleTheme.surface),
+                                .background(colors.bgPanel),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("[▣] loading...", style = ConsoleTheme.body.copy(color = ConsoleTheme.textMuted))
+                            Text("[▣] loading...", style = SmithType.body.copy(color = colors.inkMuted))
                         }
                     }
-                    
+
                     // Dimensions
                     if (media != null && media.width > 0 && media.height > 0) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "${media.width} × ${media.height}",
-                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                            style = SmithType.caption.copy(color = colors.inkMuted)
                         )
                     }
                 }
-                
+
                 // Bottom hint
                 Text(
                     text = "tap image or [↗] to open full",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim),
+                    style = SmithType.caption.copy(color = colors.inkMuted),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(ConsoleTheme.surface)
+                        .background(colors.bgPanel)
                         .padding(8.dp)
                 )
             }
@@ -876,6 +885,7 @@ private fun FileAttachment(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = modifier
             .clickable(onClick = onClick)
@@ -885,23 +895,23 @@ private fun FileAttachment(
         // File icon
         Text(
             text = "[■]",
-            style = ConsoleTheme.body.copy(color = ConsoleTheme.accent)
+            style = SmithType.body.copy(color = colors.accent)
         )
-        
+
         Spacer(modifier = Modifier.width(6.dp))
-        
+
         // Filename
         Text(
             text = media?.fileName ?: "document",
-            style = ConsoleTheme.body.copy(color = ConsoleTheme.text)
+            style = SmithType.body.copy(color = colors.ink)
         )
-        
+
         // File size if available
         if (media != null && media.fileSize > 0) {
             val sizeText = formatFileSize(media.fileSize)
             Text(
                 text = " ($sizeText)",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
         }
     }

@@ -21,7 +21,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.TradesList
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import androidx.compose.material3.Text
 
 /**
@@ -40,6 +41,7 @@ fun TradePickerField(
     placeholder: String = "Search trades (${TradesList.ALL_TRADES.size}+ available)",
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     var query by remember { mutableStateOf("") }
     var expanded by remember { mutableStateOf(false) }
 
@@ -53,13 +55,13 @@ fun TradePickerField(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.accent.copy(alpha = 0.08f))
+                    .background(colors.accent.copy(alpha = 0.08f))
                     .clickable { expanded = true }
                     .padding(16.dp)
             ) {
                 Text(
                     text = selected,
-                    style = ConsoleTheme.body.copy(color = ConsoleTheme.accent),
+                    style = SmithType.body.copy(color = colors.accent),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -69,19 +71,19 @@ fun TradePickerField(
         BasicTextField(
             value = query,
             onValueChange = { query = it; expanded = true },
-            textStyle = ConsoleTheme.body,
-            cursorBrush = SolidColor(ConsoleTheme.cursor),
+            textStyle = SmithType.body.copy(color = colors.ink),
+            cursorBrush = SolidColor(colors.ink),
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.surface)
+                .background(colors.bgPanel)
                 .padding(16.dp),
             decorationBox = { innerTextField ->
                 Box {
                     if (query.isEmpty()) {
                         Text(
                             text = placeholder,
-                            style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder)
+                            style = SmithType.body.copy(color = colors.inkMuted)
                         )
                     }
                     innerTextField()
@@ -93,15 +95,15 @@ fun TradePickerField(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .heightIn(max = 200.dp)
                     .verticalScroll(rememberScrollState())
             ) {
                 filtered.forEach { trade ->
                     Text(
                         text = trade,
-                        style = ConsoleTheme.bodySmall.copy(
-                            color = if (trade == selected) ConsoleTheme.accent else ConsoleTheme.text
+                        style = SmithType.bodySmall.copy(
+                            color = if (trade == selected) colors.accent else colors.ink
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -117,7 +119,7 @@ fun TradePickerField(
                             .fillMaxWidth()
                             .height(0.5.dp)
                             .padding(horizontal = 16.dp)
-                            .background(ConsoleTheme.text.copy(alpha = 0.04f))
+                            .background(colors.line)
                     )
                 }
             }

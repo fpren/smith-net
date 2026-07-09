@@ -30,10 +30,13 @@ import com.guildofsmiths.trademesh.data.ProfileRow
 import com.guildofsmiths.trademesh.data.SupabaseAuth
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
+import com.guildofsmiths.trademesh.ui.components.avatarColorOf
 import com.guildofsmiths.trademesh.ui.jobboard.Job
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithButton
 import com.guildofsmiths.trademesh.ui.theme2.SmithButtonVariant
 import com.guildofsmiths.trademesh.ui.theme2.SmithDialog
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import kotlinx.coroutines.delay
 
 /**
@@ -49,6 +52,7 @@ fun NewConversationScreen(
     onBackClick: () -> Unit,
     onScanClick: () -> Unit = {}
 ) {
+    val colors = LocalSmithColors.current
     var searchQuery by remember { mutableStateOf("") }
     var showAddClientDialog by remember { mutableStateOf(false) }
     var showAddColleagueDialog by remember { mutableStateOf(false) }
@@ -67,7 +71,7 @@ fun NewConversationScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(ConsoleTheme.background)
+            .background(colors.bgBase)
     ) {
         // Header
         ConsoleHeader(
@@ -75,7 +79,7 @@ fun NewConversationScreen(
             onBackClick = onBackClick,
             actionText = "[Scan QR]",
             onActionClick = onScanClick,
-            modifier = Modifier.background(ConsoleTheme.surface)
+            modifier = Modifier.background(colors.bgPanel)
         )
         ConsoleSeparator()
 
@@ -83,20 +87,20 @@ fun NewConversationScreen(
         TextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
-            placeholder = { Text("Search contacts...", style = ConsoleTheme.caption) },
+            placeholder = { Text("Search contacts...", style = SmithType.caption.copy(color = colors.inkMuted)) },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = ConsoleTheme.surface,
-                unfocusedContainerColor = ConsoleTheme.surface,
-                focusedTextColor = ConsoleTheme.text,
-                unfocusedTextColor = ConsoleTheme.text,
-                cursorColor = ConsoleTheme.accent,
-                focusedIndicatorColor = ConsoleTheme.accent,
+                focusedContainerColor = colors.bgPanel,
+                unfocusedContainerColor = colors.bgPanel,
+                focusedTextColor = colors.ink,
+                unfocusedTextColor = colors.ink,
+                cursorColor = colors.accent,
+                focusedIndicatorColor = colors.accent,
                 unfocusedIndicatorColor = Color.Transparent
             ),
-            textStyle = ConsoleTheme.bodySmall,
+            textStyle = SmithType.bodySmall.copy(color = colors.ink),
             singleLine = true
         )
 
@@ -120,7 +124,7 @@ fun NewConversationScreen(
             }
             Text(
                 text = "[+ Add Client]",
-                style = ConsoleTheme.action.copy(fontSize = 11.sp),
+                style = SmithType.action.copy(color = colors.accent, fontSize = 11.sp),
                 modifier = Modifier
                     .clickable { showAddClientDialog = true }
                     .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -141,7 +145,7 @@ fun NewConversationScreen(
             }
             Text(
                 text = "[+ Add Colleague]",
-                style = ConsoleTheme.action.copy(fontSize = 11.sp),
+                style = SmithType.action.copy(color = colors.accent, fontSize = 11.sp),
                 modifier = Modifier
                     .clickable { showAddColleagueDialog = true }
                     .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -159,11 +163,11 @@ fun NewConversationScreen(
             ) {
                 Text(
                     text = "NEARBY PEERS (${filteredPeers.size})",
-                    style = ConsoleTheme.captionBold.copy(letterSpacing = 1.sp)
+                    style = SmithType.captionBold.copy(color = colors.inkMuted, letterSpacing = 1.sp)
                 )
                 Text(
                     text = "[Scan]",
-                    style = ConsoleTheme.action.copy(fontSize = 10.sp),
+                    style = SmithType.action.copy(color = colors.accent, fontSize = 10.sp),
                     modifier = Modifier.clickable {
                         BoundaryEngine.requestPeerDiscovery()
                     }
@@ -191,12 +195,12 @@ fun NewConversationScreen(
             ) {
                 Text(
                     text = "Enter name manually",
-                    style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted),
+                    style = SmithType.bodySmall.copy(color = colors.inkMuted),
                     modifier = Modifier.weight(1f)
                 )
                 Text(
                     text = "›",
-                    style = ConsoleTheme.body.copy(color = ConsoleTheme.accent)
+                    style = SmithType.body.copy(color = colors.accent)
                 )
             }
 
@@ -249,24 +253,27 @@ fun NewConversationScreen(
 
 @Composable
 private fun SectionHeader(title: String, count: Int) {
+    val colors = LocalSmithColors.current
     Text(
         text = "$title ($count)",
-        style = ConsoleTheme.captionBold.copy(letterSpacing = 1.sp),
+        style = SmithType.captionBold.copy(color = colors.inkMuted, letterSpacing = 1.sp),
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
     )
 }
 
 @Composable
 private fun EmptySection(text: String) {
+    val colors = LocalSmithColors.current
     Text(
         text = text,
-        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim),
+        style = SmithType.caption.copy(color = colors.inkMuted),
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
     )
 }
 
 @Composable
 private fun ClientRow(client: ClientInfo, onClick: () -> Unit) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -274,7 +281,7 @@ private fun ClientRow(client: ClientInfo, onClick: () -> Unit) {
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Avatar
+        // Avatar — stable per-contact color (accentForId rule), not a fixed category hex
         val initials = client.name.split(" ").let { parts ->
             if (parts.size >= 2) "${parts[0].first()}${parts[1].first()}".uppercase()
             else client.name.take(2).uppercase()
@@ -283,10 +290,10 @@ private fun ClientRow(client: ClientInfo, onClick: () -> Unit) {
             modifier = Modifier
                 .size(36.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF3A6B8C)),
+                .background(avatarColorOf(client.name)),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = initials, style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.surface, fontSize = 11.sp))
+            Text(text = initials, style = SmithType.captionBold.copy(color = colors.inkOnAccent, fontSize = 11.sp))
         }
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -294,24 +301,25 @@ private fun ClientRow(client: ClientInfo, onClick: () -> Unit) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = client.name,
-                style = ConsoleTheme.bodySmall,
+                style = SmithType.bodySmall.copy(color = colors.ink),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             if (client.jobCount > 0) {
                 Text(
                     text = "${client.jobCount} job${if (client.jobCount != 1) "s" else ""}",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                    style = SmithType.caption.copy(color = colors.inkMuted)
                 )
             }
         }
 
-        Text(text = "›", style = ConsoleTheme.body.copy(color = ConsoleTheme.textMuted))
+        Text(text = "›", style = SmithType.body.copy(color = colors.inkMuted))
     }
 }
 
 @Composable
 private fun ColleagueRow(colleague: Colleague, onClick: () -> Unit) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -327,10 +335,10 @@ private fun ColleagueRow(colleague: Colleague, onClick: () -> Unit) {
             modifier = Modifier
                 .size(36.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF6B8C5A)),
+                .background(avatarColorOf(colleague.name)),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = initials, style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.surface, fontSize = 11.sp))
+            Text(text = initials, style = SmithType.captionBold.copy(color = colors.inkOnAccent, fontSize = 11.sp))
         }
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -338,24 +346,25 @@ private fun ColleagueRow(colleague: Colleague, onClick: () -> Unit) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = colleague.name,
-                style = ConsoleTheme.bodySmall,
+                style = SmithType.bodySmall.copy(color = colors.ink),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             if (colleague.trade.isNotBlank()) {
                 Text(
                     text = colleague.trade,
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                    style = SmithType.caption.copy(color = colors.inkMuted)
                 )
             }
         }
 
-        Text(text = "›", style = ConsoleTheme.body.copy(color = ConsoleTheme.textMuted))
+        Text(text = "›", style = SmithType.body.copy(color = colors.inkMuted))
     }
 }
 
 @Composable
 private fun PeerRow(peer: Peer, onClick: () -> Unit) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -368,7 +377,7 @@ private fun PeerRow(peer: Peer, onClick: () -> Unit) {
             modifier = Modifier
                 .size(8.dp)
                 .clip(CircleShape)
-                .background(if (peer.isActive()) ConsoleTheme.success else ConsoleTheme.textDim)
+                .background(if (peer.isActive()) colors.statusOnline else colors.inkMuted)
         )
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -376,17 +385,17 @@ private fun PeerRow(peer: Peer, onClick: () -> Unit) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = peer.userName,
-                style = ConsoleTheme.bodySmall,
+                style = SmithType.bodySmall.copy(color = colors.ink),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = "${peer.rssi} dBm",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
         }
 
-        Text(text = "›", style = ConsoleTheme.body.copy(color = ConsoleTheme.textMuted))
+        Text(text = "›", style = SmithType.body.copy(color = colors.inkMuted))
     }
 }
 
@@ -457,6 +466,7 @@ private fun AddColleagueDialog(
     onAdd: (name: String, phone: String, trade: String, note: String) -> Unit,
     onAddFromProfile: (profile: ProfileRow, source: String) -> Unit
 ) {
+    val colors = LocalSmithColors.current
     val offline = SupabaseAuth.isOfflineMode()
     val currentUser by SupabaseAuth.currentUser.collectAsState()
     val hasOrg = currentUser?.orgId != null
@@ -520,13 +530,13 @@ private fun AddColleagueDialog(
                 if (offline) {
                     Text(
                         text = "Search unavailable offline.",
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                        style = SmithType.caption.copy(color = colors.inkMuted),
                         modifier = Modifier.padding(top = 4.dp)
                     )
                 } else if (query.isBlank() && hasOrg) {
                     if (teammates.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text("YOUR TEAM (${teammates.size})", style = ConsoleTheme.captionBold)
+                        Text("YOUR TEAM (${teammates.size})", style = SmithType.captionBold.copy(color = colors.inkMuted))
                         teammates.forEach { p ->
                             ProfileRowItem(p) { onAddFromProfile(p, "team") }
                         }
@@ -534,13 +544,13 @@ private fun AddColleagueDialog(
                 } else if (query.isNotBlank()) {
                     Spacer(modifier = Modifier.height(4.dp))
                     when {
-                        searching -> Text("Searching...", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                        searching -> Text("Searching...", style = SmithType.caption.copy(color = colors.inkMuted))
                         results.isEmpty() -> Text(
                             "No users found. They may have privacy on.",
-                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                            style = SmithType.caption.copy(color = colors.inkMuted)
                         )
                         else -> {
-                            Text("SEARCH RESULTS (${results.size})", style = ConsoleTheme.captionBold)
+                            Text("SEARCH RESULTS (${results.size})", style = SmithType.captionBold.copy(color = colors.inkMuted))
                             results.forEach { p ->
                                 ProfileRowItem(p) { onAddFromProfile(p, "search") }
                             }
@@ -551,7 +561,7 @@ private fun AddColleagueDialog(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = if (manualExpanded) "── or enter manually ──" else "[+ Enter details manually]",
-                    style = ConsoleTheme.action.copy(fontSize = 11.sp),
+                    style = SmithType.action.copy(color = colors.accent, fontSize = 11.sp),
                     modifier = Modifier
                         .clickable { manualExpanded = !manualExpanded }
                         .padding(vertical = 4.dp)
@@ -569,6 +579,7 @@ private fun AddColleagueDialog(
 
 @Composable
 private fun ProfileRowItem(profile: ProfileRow, onAdd: () -> Unit) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -577,16 +588,16 @@ private fun ProfileRowItem(profile: ProfileRow, onAdd: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(profile.display_name, style = ConsoleTheme.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(profile.display_name, style = SmithType.bodySmall.copy(color = colors.ink), maxLines = 1, overflow = TextOverflow.Ellipsis)
             val subtitle = listOfNotNull(
                 profile.trade?.takeIf { it.isNotBlank() },
                 profile.public_id?.takeIf { it.isNotBlank() }?.let { "ID $it" }
             ).joinToString(" · ")
             if (subtitle.isNotEmpty()) {
-                Text(subtitle, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                Text(subtitle, style = SmithType.caption.copy(color = colors.inkMuted))
             }
         }
-        Text("[+ Add]", style = ConsoleTheme.action.copy(fontSize = 11.sp))
+        Text("[+ Add]", style = SmithType.action.copy(color = colors.accent, fontSize = 11.sp))
     }
 }
 
@@ -595,6 +606,7 @@ private fun ManualEntryDialog(
     onDismiss: () -> Unit,
     onStart: (name: String) -> Unit
 ) {
+    val colors = LocalSmithColors.current
     var name by remember { mutableStateOf("") }
 
     SmithDialog(
@@ -610,7 +622,7 @@ private fun ManualEntryDialog(
             )
         },
     ) {
-        Text("Enter a name to start a conversation:", style = ConsoleTheme.caption)
+        Text("Enter a name to start a conversation:", style = SmithType.caption.copy(color = colors.inkMuted))
         Spacer(modifier = Modifier.height(8.dp))
         DialogField("Name or ID", name) { name = it }
     }
@@ -618,21 +630,22 @@ private fun ManualEntryDialog(
 
 @Composable
 private fun DialogField(label: String, value: String, onValueChange: (String) -> Unit) {
+    val colors = LocalSmithColors.current
     TextField(
         value = value,
         onValueChange = onValueChange,
-        placeholder = { Text(label, style = ConsoleTheme.caption) },
+        placeholder = { Text(label, style = SmithType.caption.copy(color = colors.inkMuted)) },
         modifier = Modifier.fillMaxWidth(),
         colors = TextFieldDefaults.colors(
-            focusedContainerColor = ConsoleTheme.background,
-            unfocusedContainerColor = ConsoleTheme.background,
-            focusedTextColor = ConsoleTheme.text,
-            unfocusedTextColor = ConsoleTheme.text,
-            cursorColor = ConsoleTheme.accent,
-            focusedIndicatorColor = ConsoleTheme.accent,
+            focusedContainerColor = colors.bgBase,
+            unfocusedContainerColor = colors.bgBase,
+            focusedTextColor = colors.ink,
+            unfocusedTextColor = colors.ink,
+            cursorColor = colors.accent,
+            focusedIndicatorColor = colors.accent,
             unfocusedIndicatorColor = Color.Transparent
         ),
-        textStyle = ConsoleTheme.bodySmall,
+        textStyle = SmithType.bodySmall.copy(color = colors.ink),
         singleLine = true
     )
 }

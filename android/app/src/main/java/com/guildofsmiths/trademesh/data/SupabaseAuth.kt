@@ -9,11 +9,16 @@ import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.gotrue.auth
 import io.ktor.client.engine.okhttp.OkHttp
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 
@@ -239,25 +244,60 @@ object SupabaseAuth {
 
     // ── session refresh ─────────────────────────────────────────────────────
 
-    /** Refresh the access token from the stored refresh token, then reload the
-     *  user from /api/auth/me. Fire-and-forget; safe to call on resume / deep link. */
-    fun refreshSession() {
-        CoroutineScope(Dispatchers.IO).launch {
-            val refresh = prefs?.getString("refresh_token", null) ?: return@launch
-            val tokens = HetznerAuthClient.refresh(refresh)
-            if (tokens.ok) {
-                saveTokens(tokens.accessToken, tokens.refreshToken)
-                val token = tokens.accessToken
-                if (token != null) {
-                    val user = HetznerAuthClient.me(token)
-                    if (user != null) {
-                        _currentUser.value = user
-                        saveUserToPrefs(user)
-                    }
+    /**
+     * Refresh the access token from the stored refresh token, then reload the
+     * user from /api/auth/me. Suspend (not fire-and-forget) so a caller that
+     * hit a 401 on a Bearer token sourced from [getAccessToken] -- e.g.
+     * [com.guildofsmiths.trademesh.service.AuthedRequest] -- can await
+     * completion before retrying. Returns true iff the backend issued a fresh
+     * token pair.
+     */
+    // Single-flight guard for refreshSession(). Same rotation hazard as
+    // AuthService.refreshToken(): the backend revokes a refresh token the
+    // moment it's redeemed (backend/src/auth.ts refreshAccessToken ->
+    // revokeRefreshToken), so concurrent 401s must share one in-flight
+    // refresh rather than each spend the single-use refresh token
+    // independently. The scope is dedicated (not a per-call coroutineScope)
+    // so cancellation of one caller doesn't tear down the shared refresh for
+    // the others still awaiting it.
+    private val refreshScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val refreshMutex = Mutex()
+    private var refreshInFlight: Deferred<Boolean>? = null
+
+    suspend fun refreshSession(): Boolean {
+        val deferred = refreshMutex.withLock {
+            refreshInFlight ?: refreshScope.async { doRefreshSession() }.also { refreshInFlight = it }
+        }
+        return try {
+            deferred.await()
+        } finally {
+            // NonCancellable: see AuthService.refreshToken -- a cancelled caller
+            // must still clear the slot or future refreshes replay a stale result.
+            withContext(NonCancellable) {
+                refreshMutex.withLock {
+                    if (refreshInFlight === deferred) refreshInFlight = null
                 }
-            } else {
-                Log.w(TAG, "Session refresh failed: ${tokens.error}")
             }
+        }
+    }
+
+    private suspend fun doRefreshSession(): Boolean = withContext(Dispatchers.IO) {
+        val refresh = prefs?.getString("refresh_token", null) ?: return@withContext false
+        val tokens = HetznerAuthClient.refresh(refresh)
+        if (tokens.ok) {
+            saveTokens(tokens.accessToken, tokens.refreshToken)
+            val token = tokens.accessToken
+            if (token != null) {
+                val user = HetznerAuthClient.me(token)
+                if (user != null) {
+                    _currentUser.value = user
+                    saveUserToPrefs(user)
+                }
+            }
+            true
+        } else {
+            Log.w(TAG, "Session refresh failed: ${tokens.error}")
+            false
         }
     }
 

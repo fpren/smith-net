@@ -75,6 +75,7 @@ import com.guildofsmiths.trademesh.ui.components.SmithAvatar
 import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithConfirmDialog
 import com.guildofsmiths.trademesh.ui.theme2.SmithSheet
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -118,6 +119,7 @@ fun ConversationScreen(
     onDenyToolCall: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     val isSmithAI = initialDmPeer?.userId == "smith-ai"
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -180,12 +182,15 @@ fun ConversationScreen(
     val isNetOnline by BoundaryEngine.isOnline.collectAsState()
     val isOnline = isNetOnline
 
-    // Connection mode for status bar and background tint.
+    // Connection mode for status bar and background tint. ONLINE is the
+    // neutral chat surface; MESH/OFFLINE keep a faint job-matching wash
+    // (sage/statusOnline for mesh, brick/statusError for offline) instead of
+    // a baked hex, so the tint stays legible under both palettes.
     val connectionMode by ChatManager.connectionMode.collectAsState()
     val chatBgColor = when (connectionMode) {
-        ConnectionMode.ONLINE -> Color(0xFFF4F2EE)   // default warm
-        ConnectionMode.MESH -> Color(0xFFF0F4F1)     // sage tint
-        ConnectionMode.OFFLINE -> Color(0xFFF4F0EE)  // brick tint
+        ConnectionMode.ONLINE -> colors.bgBase
+        ConnectionMode.MESH -> colors.statusOnline.copy(alpha = 0.06f)
+        ConnectionMode.OFFLINE -> colors.statusError.copy(alpha = 0.05f)
     }
     
     LaunchedEffect(messages.size) {
@@ -207,13 +212,13 @@ fun ConversationScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(ConsoleTheme.background)
+            .background(colors.bgBase)
     ) {
         // Bold header - show peer name for DM, channel name otherwise
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.surface)
+                .background(colors.bgPanel)
                 .then(
                     if (onBackClick != null) Modifier.clickable(onClick = onBackClick)
                     else Modifier
@@ -224,7 +229,7 @@ fun ConversationScreen(
             if (onBackClick != null) {
                 Text(
                     text = "←",
-                    style = ConsoleTheme.title.copy(color = ConsoleTheme.text)
+                    style = SmithType.title.copy(color = colors.ink)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
             }
@@ -234,7 +239,7 @@ fun ConversationScreen(
                 com.guildofsmiths.trademesh.ui.components.SmithAvatar(
                     name = initialDmPeer.userName,
                     size = 36,
-                    statusColor = if (isOnline) ConsoleTheme.success else ConsoleTheme.textDim
+                    statusColor = if (isOnline) colors.statusOnline else colors.inkMuted
                 )
                 Spacer(modifier = Modifier.width(10.dp))
             }
@@ -246,17 +251,17 @@ fun ConversationScreen(
                     } else {
                         channel?.name?.uppercase() ?: "GENERAL"
                     },
-                    style = if (isDmChannel) ConsoleTheme.commName.copy(fontSize = 17.sp) else ConsoleTheme.title
+                    style = (if (isDmChannel) SmithType.commName.copy(fontSize = 17.sp) else SmithType.title).copy(color = colors.ink)
                 )
                 if (beaconName != null && !isDmChannel) {
                     Text(
                         text = beaconName,
-                        style = ConsoleTheme.caption
+                        style = SmithType.caption.copy(color = colors.inkMuted)
                     )
                 } else if (isDmChannel) {
                     Text(
                         text = if (isOnline) "[*] online · direct message" else "direct message",
-                        style = ConsoleTheme.commId
+                        style = SmithType.commId.copy(color = colors.inkMuted)
                     )
                 }
             }
@@ -265,7 +270,7 @@ fun ConversationScreen(
                 Box {
                     Text(
                         text = "⋯",
-                        style = ConsoleTheme.title.copy(color = ConsoleTheme.textMuted),
+                        style = SmithType.title.copy(color = colors.inkMuted),
                         modifier = Modifier
                             .clickable { menuExpanded = true }
                             .padding(horizontal = 10.dp, vertical = 4.dp)
@@ -274,10 +279,10 @@ fun ConversationScreen(
                         expanded = menuExpanded,
                         onDismissRequest = { menuExpanded = false },
                         modifier = Modifier
-                            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+                            .background(colors.bgPanel, RoundedCornerShape(4.dp))
                             .border(
                                 0.5.dp,
-                                ConsoleTheme.text.copy(alpha = 0.12f),
+                                colors.ink.copy(alpha = 0.12f),
                                 RoundedCornerShape(4.dp)
                             )
                     ) {
@@ -285,14 +290,14 @@ fun ConversationScreen(
                             text = {
                                 Text(
                                     text = "Clear messages (this device)",
-                                    style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text)
+                                    style = SmithType.bodySmall.copy(color = colors.ink)
                                 )
                             },
                             onClick = {
                                 menuExpanded = false
                                 showClearDialog = true
                             },
-                            modifier = Modifier.background(ConsoleTheme.surface)
+                            modifier = Modifier.background(colors.bgPanel)
                         )
                     }
                 }
@@ -311,47 +316,47 @@ fun ConversationScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.background)
+                    .background(colors.bgBase)
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "TO:",
-                    style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted)
+                    style = SmithType.captionBold.copy(color = colors.inkMuted)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                
+
                 Box {
                     Text(
                         text = selectedPeer?.userName ?: "everyone",
-                        style = ConsoleTheme.bodyBold.copy(
-                            color = if (selectedPeer != null) ConsoleTheme.accent else ConsoleTheme.text
+                        style = SmithType.bodyBold.copy(
+                            color = if (selectedPeer != null) colors.accent else colors.ink
                         ),
                         modifier = Modifier
                             .clickable { showPeerSelector = true }
                             .padding(4.dp)
                     )
-                    
+
                     DropdownMenu(
                         expanded = showPeerSelector,
                         onDismissRequest = { showPeerSelector = false },
                         modifier = Modifier
-                            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+                            .background(colors.bgPanel, RoundedCornerShape(4.dp))
                             .border(
                                 0.5.dp,
-                                ConsoleTheme.text.copy(alpha = 0.12f),
+                                colors.ink.copy(alpha = 0.12f),
                                 RoundedCornerShape(4.dp)
                             )
                     ) {
                         DropdownMenuItem(
                             text = {
-                                Text("everyone (group)", style = ConsoleTheme.body.copy(color = ConsoleTheme.text))
+                                Text("everyone (group)", style = SmithType.body.copy(color = colors.ink))
                             },
                             onClick = {
                                 selectedPeer = null
                                 showPeerSelector = false
                             },
-                            modifier = Modifier.background(ConsoleTheme.surface)
+                            modifier = Modifier.background(colors.bgPanel)
                         )
 
                         if (activePeers.isNotEmpty()) {
@@ -359,10 +364,10 @@ fun ConversationScreen(
                                 DropdownMenuItem(
                                     text = {
                                         Column {
-                                            Text(peer.userName, style = ConsoleTheme.body.copy(color = ConsoleTheme.text))
+                                            Text(peer.userName, style = SmithType.body.copy(color = colors.ink))
                                             Text(
                                                 "${peer.rssi} dBm · ${peer.lastSeenAgo()}",
-                                                style = ConsoleTheme.caption
+                                                style = SmithType.caption.copy(color = colors.inkMuted)
                                             )
                                         }
                                     },
@@ -370,34 +375,34 @@ fun ConversationScreen(
                                         selectedPeer = peer
                                         showPeerSelector = false
                                     },
-                                    modifier = Modifier.background(ConsoleTheme.surface)
+                                    modifier = Modifier.background(colors.bgPanel)
                                 )
                             }
                         }
                     }
                 }
-                
+
                 if (selectedPeer != null) {
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "×",
-                        style = ConsoleTheme.body.copy(color = ConsoleTheme.textMuted),
+                        style = SmithType.body.copy(color = colors.inkMuted),
                         modifier = Modifier
                             .clickable { selectedPeer = null }
                             .padding(4.dp)
                     )
                 }
-                
+
                 Spacer(modifier = Modifier.weight(1f))
-                
+
                 if (activePeers.isNotEmpty()) {
                     Text(
                         text = "${activePeers.size} nearby",
-                        style = ConsoleTheme.caption
+                        style = SmithType.caption.copy(color = colors.inkMuted)
                     )
                 }
             }
-            
+
             ConsoleSeparator()
         }
 
@@ -430,7 +435,7 @@ fun ConversationScreen(
                     ) {
                         Text(
                             text = "no messages yet",
-                            style = ConsoleTheme.bodySmall
+                            style = SmithType.bodySmall.copy(color = colors.inkMuted)
                         )
                     }
                 }
@@ -507,7 +512,7 @@ fun ConversationScreen(
                                 .align(Alignment.CenterStart)
                                 .width(actionButtonWidth)
                                 .fillMaxHeight()
-                                .background(ConsoleTheme.accent)
+                                .background(colors.accent)
                                 .clickable {
                                     offsetX = 0f
                                     onMessageAction?.invoke(message, MessageAction.ARCHIVE)
@@ -516,7 +521,7 @@ fun ConversationScreen(
                         ) {
                             Text(
                                 "Archive",
-                                style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.background)
+                                style = SmithType.captionBold.copy(color = colors.inkOnAccent)
                             )
                         }
 
@@ -533,7 +538,7 @@ fun ConversationScreen(
                                     modifier = Modifier
                                         .width(actionButtonWidth)
                                         .fillMaxHeight()
-                                        .background(ConsoleTheme.warning)
+                                        .background(colors.attention)
                                         .clickable {
                                             offsetX = 0f
                                             onMessageAction?.invoke(message, MessageAction.DELETE_FOR_ME)
@@ -543,11 +548,11 @@ fun ConversationScreen(
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                         Text(
                                             "Delete",
-                                            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.background)
+                                            style = SmithType.captionBold.copy(color = colors.inkOnAccent)
                                         )
                                         Text(
                                             "for me",
-                                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.background)
+                                            style = SmithType.caption.copy(color = colors.inkOnAccent)
                                         )
                                     }
                                 }
@@ -558,7 +563,7 @@ fun ConversationScreen(
                                         modifier = Modifier
                                             .width(actionButtonWidth)
                                             .fillMaxHeight()
-                                            .background(ConsoleTheme.error)
+                                            .background(colors.statusError)
                                             .clickable {
                                                 offsetX = 0f
                                                 onMessageAction?.invoke(message, MessageAction.DELETE_FOR_EVERYONE)
@@ -568,11 +573,11 @@ fun ConversationScreen(
                                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                             Text(
                                                 "Delete",
-                                                style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.background)
+                                                style = SmithType.captionBold.copy(color = colors.inkOnAccent)
                                             )
                                             Text(
                                                 "for all",
-                                                style = ConsoleTheme.caption.copy(color = ConsoleTheme.background)
+                                                style = SmithType.caption.copy(color = colors.inkOnAccent)
                                             )
                                         }
                                     }
@@ -586,7 +591,7 @@ fun ConversationScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .offset { IntOffset(animatedOffsetX.roundToInt(), 0) }
-                            .background(ConsoleTheme.background)
+                            .background(colors.bgBase)
                             .draggable(
                                 orientation = Orientation.Horizontal,
                                 state = rememberDraggableState { delta ->
@@ -633,7 +638,6 @@ fun ConversationScreen(
 
         // Jump-to-latest pill — shown once the reader has scrolled well above
         // the tail of the conversation.
-        val smithColors = LocalSmithColors.current
         val showJumpToLatest = messages.size > 8 &&
             listState.firstVisibleItemIndex < messages.size - 8
         if (showJumpToLatest) {
@@ -643,14 +647,14 @@ fun ConversationScreen(
                     fontFamily = ConsoleTheme.jetBrainsMono,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
-                    color = smithColors.inkOnAccent,
+                    color = colors.inkOnAccent,
                     letterSpacing = 0.5.sp
                 ),
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 12.dp)
                     .clip(RoundedCornerShape(999.dp))
-                    .background(smithColors.accent)
+                    .background(colors.accent)
                     .clickable {
                         scope.launch {
                             listState.animateScrollToItem(messages.size - 1)
@@ -707,7 +711,7 @@ fun ConversationScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -717,15 +721,15 @@ fun ConversationScreen(
                         enabled = isOnline,
                         onClick = { showAttachMenu = !showAttachMenu }
                     )
-                    
+
                     androidx.compose.material3.DropdownMenu(
                         expanded = showAttachMenu,
                         onDismissRequest = { showAttachMenu = false },
                         modifier = Modifier
-                            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+                            .background(colors.bgPanel, RoundedCornerShape(4.dp))
                             .border(
                                 0.5.dp,
-                                ConsoleTheme.text.copy(alpha = 0.12f),
+                                colors.ink.copy(alpha = 0.12f),
                                 RoundedCornerShape(4.dp)
                             )
                     ) {
@@ -743,12 +747,12 @@ fun ConversationScreen(
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 text = "photo",
-                                style = ConsoleTheme.body.copy(
-                                    color = if (isOnline) ConsoleTheme.text else ConsoleTheme.textDim
+                                style = SmithType.body.copy(
+                                    color = if (isOnline) colors.ink else colors.inkMuted
                                 )
                             )
                         }
-                        
+
                         // Video option with pixel video icon
                         Row(
                             modifier = Modifier
@@ -763,12 +767,12 @@ fun ConversationScreen(
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 text = "video",
-                                style = ConsoleTheme.body.copy(
-                                    color = if (isOnline) ConsoleTheme.text else ConsoleTheme.textDim
+                                style = SmithType.body.copy(
+                                    color = if (isOnline) colors.ink else colors.inkMuted
                                 )
                             )
                         }
-                        
+
                         // File option with pixel file
                         Row(
                             modifier = Modifier
@@ -783,8 +787,8 @@ fun ConversationScreen(
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 text = "file",
-                                style = ConsoleTheme.body.copy(
-                                    color = if (isOnline) ConsoleTheme.text else ConsoleTheme.textDim
+                                style = SmithType.body.copy(
+                                    color = if (isOnline) colors.ink else colors.inkMuted
                                 )
                             )
                         }
@@ -805,10 +809,10 @@ fun ConversationScreen(
                     },
                     modifier = Modifier
                         .weight(1f)
-                        .background(ConsoleTheme.background, RoundedCornerShape(20.dp))
+                        .background(colors.bgBase, RoundedCornerShape(20.dp))
                         .padding(horizontal = 14.dp, vertical = 9.dp),
-                    textStyle = ConsoleTheme.commBody,
-                    cursorBrush = SolidColor(ConsoleTheme.cursor),
+                    textStyle = SmithType.commBody.copy(color = colors.ink),
+                    cursorBrush = SolidColor(colors.ink),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(onSend = {
                         if (inputText.isNotBlank()) {
@@ -823,10 +827,10 @@ fun ConversationScreen(
                         Box {
                             if (inputText.isEmpty()) {
                                 Text(
-                                    text = if (isDmChannel) "message ${initialDmPeer?.userName ?: ""}" 
-                                           else if (selectedPeer != null) "DM ${selectedPeer?.userName}" 
+                                    text = if (isDmChannel) "message ${initialDmPeer?.userName ?: ""}"
+                                           else if (selectedPeer != null) "DM ${selectedPeer?.userName}"
                                            else "message",
-                                    style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder)
+                                    style = SmithType.body.copy(color = colors.inkMuted)
                                 )
                             }
                             innerTextField()
@@ -840,7 +844,7 @@ fun ConversationScreen(
                 if (inputText.isNotBlank()) {
                     Text(
                         text = if (isDmChannel || selectedPeer != null) "DM" else "send",
-                        style = ConsoleTheme.commName.copy(color = ConsoleTheme.surface, fontSize = 14.sp),
+                        style = SmithType.commName.copy(color = colors.inkOnAccent, fontSize = 14.sp),
                         modifier = Modifier
                             .clickable {
                                 ChatManager.sendTypingStop(channel?.id ?: "")
@@ -848,7 +852,7 @@ fun ConversationScreen(
                                 inputText = ""
                                 if (!isDmChannel) selectedPeer = null  // Only clear if not in DM channel
                             }
-                            .background(ConsoleTheme.accent, RoundedCornerShape(20.dp))
+                            .background(colors.accent, RoundedCornerShape(20.dp))
                             .padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                 } else {
@@ -871,13 +875,13 @@ fun ConversationScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .padding(horizontal = 16.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(
                     text = "media requires online · text works on mesh",
-                    style = ConsoleTheme.caption
+                    style = SmithType.caption.copy(color = colors.inkMuted)
                 )
             }
         }
@@ -901,7 +905,6 @@ fun ConversationScreen(
     // EVERYONE (same canDeleteForAll && isSentByMe gate as the swipe path),
     // RETRY (FAILED own-messages only).
     actionTarget?.let { target ->
-        val sheetColors = LocalSmithColors.current
         val clipboardManager = LocalClipboardManager.current
         val targetIsSentByMe = if (localUserId.isNotEmpty()) {
             target.senderId == localUserId
@@ -913,7 +916,7 @@ fun ConversationScreen(
         SmithSheet(onDismiss = { actionTarget = null }) {
             ActionSheetRow(
                 label = "COPY",
-                color = sheetColors.ink,
+                color = colors.ink,
                 onClick = {
                     clipboardManager.setText(AnnotatedString(target.content))
                     actionTarget = null
@@ -925,7 +928,7 @@ fun ConversationScreen(
             if (targetIsSentByMe) {
                 ActionSheetRow(
                     label = "DELETE FOR ME",
-                    color = sheetColors.statusError,
+                    color = colors.statusError,
                     onClick = {
                         onMessageAction?.invoke(target, MessageAction.DELETE_FOR_ME)
                         actionTarget = null
@@ -935,7 +938,7 @@ fun ConversationScreen(
             if (targetCanDeleteAll) {
                 ActionSheetRow(
                     label = "DELETE FOR EVERYONE",
-                    color = sheetColors.statusError,
+                    color = colors.statusError,
                     onClick = {
                         onMessageAction?.invoke(target, MessageAction.DELETE_FOR_EVERYONE)
                         actionTarget = null
@@ -945,7 +948,7 @@ fun ConversationScreen(
             if (target.deliveryStatus == DeliveryStatus.FAILED) {
                 ActionSheetRow(
                     label = "RETRY",
-                    color = sheetColors.ink,
+                    color = colors.ink,
                     onClick = {
                         onRetryMessage?.invoke(target.id)
                         actionTarget = null
@@ -1017,6 +1020,7 @@ private fun ActionSheetRow(label: String, color: Color, onClick: () -> Unit) {
 @Composable
 private fun TypingIndicator(typers: List<String>) {
     if (typers.isEmpty()) return
+    val colors = LocalSmithColors.current
     val text = when {
         typers.size == 1 -> "◀ ${typers[0]} is typing..."
         typers.size == 2 -> "◀ ${typers[0]}, ${typers[1]} are typing..."
@@ -1024,8 +1028,8 @@ private fun TypingIndicator(typers: List<String>) {
     }
     Text(
         text = text,
-        style = ConsoleTheme.caption.copy(
-            color = ConsoleTheme.textMuted
+        style = SmithType.caption.copy(
+            color = colors.inkMuted
         ),
         modifier = Modifier
             .fillMaxWidth()
@@ -1035,19 +1039,20 @@ private fun TypingIndicator(typers: List<String>) {
 
 @Composable
 private fun DateSeparator(date: String) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(modifier = Modifier.weight(1f).height(0.5.dp).background(ConsoleTheme.separatorFaint))
+        Box(modifier = Modifier.weight(1f).height(0.5.dp).background(colors.line))
         Text(
             text = "── $date ──",
-            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+            style = SmithType.caption.copy(color = colors.inkMuted),
             modifier = Modifier.padding(horizontal = 8.dp)
         )
-        Box(modifier = Modifier.weight(1f).height(0.5.dp).background(ConsoleTheme.separatorFaint))
+        Box(modifier = Modifier.weight(1f).height(0.5.dp).background(colors.line))
     }
 }
 
@@ -1125,13 +1130,13 @@ private fun MessageBlock(
                     if (message.isDirectMessage()) {
                         Text(
                             text = " [DM]",
-                            style = ConsoleTheme.timestamp.copy(color = ConsoleTheme.accent)
+                            style = SmithType.timestamp.copy(color = colors.accent)
                         )
                     }
                     if (message.isMediaQueued()) {
                         Text(
                             text = " [queued]",
-                            style = ConsoleTheme.timestamp.copy(color = ConsoleTheme.warning)
+                            style = SmithType.timestamp.copy(color = colors.attention)
                         )
                     }
                 }
@@ -1256,9 +1261,10 @@ private fun MessageTextContent(
                             message.content.startsWith("[FILE]")
                         val showTextContent = !message.hasMedia() && !isMediaPlaceholderText
                         if (showTextContent) {
+                            val colors = LocalSmithColors.current
                             Text(
                                 text = message.content,
-                                style = ConsoleTheme.bodySmall,
+                                style = SmithType.bodySmall.copy(color = colors.ink),
                                 modifier = modifier
                             )
     }
@@ -1297,10 +1303,11 @@ private fun PixelMicButton(
     onStartRecording: () -> Unit,
     onStopRecording: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     val color = when {
-        isRecording -> ConsoleTheme.warning
-        enabled -> ConsoleTheme.text
-        else -> ConsoleTheme.textMuted
+        isRecording -> colors.attention
+        enabled -> colors.ink
+        else -> colors.inkMuted
     }
     val px = 3.dp // bigger pixels
     
@@ -1359,7 +1366,7 @@ private fun PixelMicButton(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .size(8.dp)
-                    .background(ConsoleTheme.warning, shape = androidx.compose.foundation.shape.CircleShape)
+                    .background(colors.attention, shape = androidx.compose.foundation.shape.CircleShape)
             )
         }
     }
@@ -1400,6 +1407,7 @@ private fun RecordingBar(
     onCancel: () -> Unit,
     onStop: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     // Audio level (0-5) - updated from MediaHelper
     var audioLevel by remember { mutableStateOf(0) }
     
@@ -1420,7 +1428,7 @@ private fun RecordingBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface)
+            .background(colors.bgPanel)
             .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1428,48 +1436,48 @@ private fun RecordingBar(
         val pulseAlpha = if ((duration / 500) % 2 == 0L) 1f else 0.5f
         Text(
             text = "[●]",
-            style = ConsoleTheme.body.copy(
-                color = ConsoleTheme.warning.copy(alpha = pulseAlpha)
+            style = SmithType.body.copy(
+                color = colors.attention.copy(alpha = pulseAlpha)
             )
         )
-        
+
         Spacer(modifier = Modifier.width(4.dp))
-        
+
         Text(
             text = "REC",
-            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.warning)
+            style = SmithType.captionBold.copy(color = colors.attention)
         )
-        
+
         Spacer(modifier = Modifier.width(8.dp))
-        
+
         // Audio level waveform: [|||||] - reacts to sound
         AudioLevelBars(level = audioLevel)
-        
+
         Spacer(modifier = Modifier.width(8.dp))
-        
+
         // Duration
         Text(
             text = timeText,
-            style = ConsoleTheme.body.copy(color = ConsoleTheme.text)
+            style = SmithType.body.copy(color = colors.ink)
         )
-        
+
         Spacer(modifier = Modifier.weight(1f))
-        
+
         // Cancel button
         Text(
             text = "[✕]",
-            style = ConsoleTheme.body.copy(color = ConsoleTheme.textMuted),
+            style = SmithType.body.copy(color = colors.inkMuted),
             modifier = Modifier
                 .clickable(onClick = onCancel)
                 .padding(4.dp)
         )
-        
+
         Spacer(modifier = Modifier.width(8.dp))
-        
+
         // Stop & Send button - [■] matches the [▶] play style
         Text(
             text = "[■]",
-            style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.accent),
+            style = SmithType.bodyBold.copy(color = colors.accent),
             modifier = Modifier
                 .clickable(onClick = onStop)
                 .padding(4.dp)
@@ -1486,6 +1494,7 @@ private fun AudioLevelBars(
     level: Int,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     val maxBars = 12
     // Scale level (0-6) to maxBars
     val activeBars = ((level / 6.0) * maxBars).toInt().coerceIn(0, maxBars)
@@ -1504,11 +1513,11 @@ private fun AudioLevelBars(
     
     Text(
         text = pattern,
-        style = ConsoleTheme.body.copy(
+        style = SmithType.body.copy(
             color = when {
-                activeBars >= 10 -> ConsoleTheme.warning  // Loud = orange/yellow
-                activeBars >= 5 -> ConsoleTheme.accent    // Medium = accent color
-                else -> ConsoleTheme.textMuted            // Quiet = muted
+                activeBars >= 10 -> colors.attention  // Loud = orange/yellow
+                activeBars >= 5 -> colors.accent      // Medium = accent color
+                else -> colors.inkMuted               // Quiet = muted
             }
         ),
         modifier = modifier
@@ -1517,10 +1526,11 @@ private fun AudioLevelBars(
 
 @Composable
 private fun ConnectionStatusBar(mode: ConnectionMode, isEphemeral: Boolean = false) {
+    val colors = LocalSmithColors.current
     val (color, label, baseDetail) = when (mode) {
-        ConnectionMode.ONLINE -> Triple(Color(0xFF9A6F2E), "[ONLINE ●]", "ws://connected")
-        ConnectionMode.MESH -> Triple(Color(0xFF5A8C76), "[MESH ●]", "peers nearby")
-        ConnectionMode.OFFLINE -> Triple(Color(0xFF8C3A3A), "[OFFLINE ●]", "queued")
+        ConnectionMode.ONLINE -> Triple(colors.accent, "[ONLINE ●]", "ws://connected")
+        ConnectionMode.MESH -> Triple(colors.statusOnline, "[MESH ●]", "peers nearby")
+        ConnectionMode.OFFLINE -> Triple(colors.statusError, "[OFFLINE ●]", "queued")
     }
     val detail = if (isEphemeral) "ephemeral · $baseDetail" else baseDetail
 
@@ -1534,12 +1544,12 @@ private fun ConnectionStatusBar(mode: ConnectionMode, isEphemeral: Boolean = fal
     ) {
         Text(
             text = label,
-            style = ConsoleTheme.caption.copy(color = color, fontWeight = FontWeight.SemiBold)
+            style = SmithType.caption.copy(color = color, fontWeight = FontWeight.SemiBold)
         )
         Spacer(modifier = Modifier.width(6.dp))
         Text(
             text = detail,
-            style = ConsoleTheme.timestamp.copy(color = ConsoleTheme.textMuted)
+            style = SmithType.timestamp.copy(color = colors.inkMuted)
         )
     }
 }
@@ -1591,6 +1601,7 @@ private fun SmithAIStatusBanner() {
     val gateState by com.guildofsmiths.trademesh.ai.BatteryGate.gateState.collectAsState()
     val backend = com.guildofsmiths.trademesh.ai.SmithAIBackendRouter.pick()
 
+    val colors = LocalSmithColors.current
     val label = when {
         agentState == com.guildofsmiths.trademesh.ai.AgentState.WAKING ->
             "[AI WAKING ${(initProgress * 100).toInt()}%]"
@@ -1608,20 +1619,20 @@ private fun SmithAIStatusBanner() {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface)
+            .background(colors.bgPanel)
             .padding(horizontal = 16.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = label,
-            style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent)
+            style = SmithType.caption.copy(color = colors.accent)
         )
     }
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(0.5.dp)
-            .background(ConsoleTheme.separator)
+            .background(colors.line)
     )
 }
 
@@ -1631,27 +1642,28 @@ private fun ToolCallApprovalCard(
     onApprove: () -> Unit,
     onDeny: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-            .border(0.5.dp, ConsoleTheme.accent.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(4.dp))
+            .border(0.5.dp, colors.accent.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
         Text(
             text = "[ACTION] ${pending.toolName}",
-            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
+            style = SmithType.captionBold.copy(color = colors.accent)
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = pending.argsSummary,
-            style = ConsoleTheme.bodySmall
+            style = SmithType.bodySmall.copy(color = colors.ink)
         )
         Spacer(modifier = Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "[APPROVE]",
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.success),
+                style = SmithType.action.copy(color = colors.statusOnline),
                 modifier = Modifier
                     .clickable(onClick = onApprove)
                     .padding(horizontal = 10.dp, vertical = 6.dp)
@@ -1659,7 +1671,7 @@ private fun ToolCallApprovalCard(
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "[DENY]",
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.error),
+                style = SmithType.action.copy(color = colors.statusError),
                 modifier = Modifier
                     .clickable(onClick = onDeny)
                     .padding(horizontal = 10.dp, vertical = 6.dp)

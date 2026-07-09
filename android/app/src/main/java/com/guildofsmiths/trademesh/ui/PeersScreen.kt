@@ -45,6 +45,8 @@ import com.guildofsmiths.trademesh.data.Peer
 import com.guildofsmiths.trademesh.data.PeerRepository
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -58,6 +60,7 @@ fun PeersScreen(
     onStartChat: ((String) -> Unit)? = null, // Navigate to DM channel
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     val peersMap by PeerRepository.peers.collectAsState()
     val peers = peersMap.values.sortedByDescending { it.lastSeen }
     val activePeers = peers.filter { it.isActive() }
@@ -80,27 +83,27 @@ fun PeersScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(ConsoleTheme.background)
+            .background(colors.bgBase)
     ) {
         // Header - consistent with main screen style
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.surface)
+                .background(colors.bgPanel)
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "←", 
-                style = ConsoleTheme.title,
+                text = "←",
+                style = SmithType.title.copy(color = colors.ink),
                 modifier = Modifier.clickable(onClick = onBackClick)
             )
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = "PEERS", style = ConsoleTheme.title)
+                Text(text = "PEERS", style = SmithType.title.copy(color = colors.ink))
                 Text(
                     text = if (isRefreshing) "scanning..." else "${activePeers.size} active · ${peers.size} total",
-                    style = ConsoleTheme.caption
+                    style = SmithType.caption.copy(color = colors.inkMuted)
                 )
             }
         }
@@ -179,15 +182,15 @@ fun PeersScreen(
                     if (dragOffset > 20f) {
                         Text(
                             text = if (dragOffset >= pullThreshold) "release to scan" else "pull down...",
-                            style = ConsoleTheme.caption
+                            style = SmithType.caption.copy(color = colors.inkMuted)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
-                    Text(text = "no peers discovered", style = ConsoleTheme.bodySmall)
+                    Text(text = "no peers discovered", style = SmithType.bodySmall.copy(color = colors.inkMuted))
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = if (isRefreshing) "scanning for peers..." else "pull down to scan",
-                        style = ConsoleTheme.caption
+                        style = SmithType.caption.copy(color = colors.inkMuted)
                     )
                 }
             }
@@ -207,7 +210,7 @@ fun PeersScreen(
                                 .padding(vertical = 12.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(text = "scanning...", style = ConsoleTheme.caption)
+                            Text(text = "scanning...", style = SmithType.caption.copy(color = colors.inkMuted))
                         }
                     }
                 }
@@ -244,8 +247,9 @@ private fun PeerRow(
     onStartChat: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     val isActive = peer.isActive()
-    
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -257,32 +261,32 @@ private fun PeerRow(
             modifier = Modifier
                 .size(8.dp)
                 .clip(CircleShape)
-                .background(if (isActive) ConsoleTheme.success else ConsoleTheme.textDim)
+                .background(if (isActive) colors.statusOnline else colors.inkMuted)
         )
-        
+
         Spacer(modifier = Modifier.width(12.dp))
-        
+
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = peer.userName,
-                style = if (isActive) ConsoleTheme.bodyBold else ConsoleTheme.bodySmall
+                style = if (isActive) SmithType.bodyBold.copy(color = colors.ink) else SmithType.bodySmall.copy(color = colors.inkMuted)
             )
             Text(
                 text = "${peer.lastSeenAgo()} · ${peer.messageCount} msgs",
-                style = ConsoleTheme.caption
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
         }
-        
+
         Text(
             text = "${peer.rssi} dBm",
-            style = ConsoleTheme.caption
+            style = SmithType.caption.copy(color = colors.inkMuted)
         )
-        
+
         if (onStartChat != null) {
             Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = "CHAT",
-                style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent),
+                style = SmithType.captionBold.copy(color = colors.accent),
                 modifier = Modifier
                     .clickable(onClick = onStartChat)
                     .padding(horizontal = 8.dp, vertical = 4.dp)

@@ -38,6 +38,8 @@ import com.guildofsmiths.trademesh.data.UserRole
 import com.guildofsmiths.trademesh.data.WageService
 import com.guildofsmiths.trademesh.data.WageSuggestion
 import com.guildofsmiths.trademesh.service.AuthService
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -104,6 +106,7 @@ fun OnboardingScreen(
     onComplete: () -> Unit,
     userPreferences: UserPreferences = com.guildofsmiths.trademesh.data.UserPreferences
 ) {
+    val colors = LocalSmithColors.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -133,7 +136,7 @@ fun OnboardingScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(ConsoleTheme.background)
+            .background(colors.bgBase)
     ) {
         AnimatedContent(
             targetState = currentScreen,
@@ -207,6 +210,7 @@ private fun TradeScreen(
     onDataChange: (OnboardingData) -> Unit,
     onContinue: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -218,7 +222,7 @@ private fun TradeScreen(
 
         androidx.compose.material3.Text(
             "Your Trade",
-            style = ConsoleTheme.title,
+            style = SmithType.title.copy(color = colors.ink),
             textAlign = TextAlign.Center,
             lineHeight = 36.sp
         )
@@ -227,7 +231,7 @@ private fun TradeScreen(
 
         androidx.compose.material3.Text(
             "Tell us about your work so we can set up the right defaults.",
-            style = ConsoleTheme.body,
+            style = SmithType.body.copy(color = colors.ink),
             textAlign = TextAlign.Center,
             lineHeight = 24.sp
         )
@@ -250,11 +254,11 @@ private fun TradeScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.accent.copy(alpha = 0.08f))
+                    .background(colors.accent.copy(alpha = 0.08f))
                     .clickable { tradeExpanded = true }
                     .padding(16.dp)
             ) {
-                Text(selectedTrade, style = ConsoleTheme.body.copy(color = ConsoleTheme.accent))
+                Text(selectedTrade, style = SmithType.body.copy(color = colors.accent))
             }
         }
 
@@ -262,20 +266,20 @@ private fun TradeScreen(
         BasicTextField(
             value = tradeSearch,
             onValueChange = { tradeSearch = it; tradeExpanded = true },
-            textStyle = ConsoleTheme.body,
-            cursorBrush = SolidColor(ConsoleTheme.cursor),
+            textStyle = SmithType.body.copy(color = colors.ink),
+            cursorBrush = SolidColor(colors.ink),
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("solo_e2e_onboarding_trade_search")
-                .background(ConsoleTheme.surface)
+                .background(colors.bgPanel)
                 .padding(16.dp),
             decorationBox = { innerTextField ->
                 Box {
                     if (tradeSearch.isEmpty()) {
                         Text(
                             "Search trades (${TradesList.ALL_TRADES.size}+ available)",
-                            style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder)
+                            style = SmithType.body.copy(color = colors.inkMuted)
                         )
                     }
                     innerTextField()
@@ -288,15 +292,15 @@ private fun TradeScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .heightIn(max = 200.dp)
                     .verticalScroll(rememberScrollState())
             ) {
                 filteredTrades.forEach { trade ->
                     Text(
                         text = trade,
-                        style = ConsoleTheme.bodySmall.copy(
-                            color = if (trade == selectedTrade) ConsoleTheme.accent else ConsoleTheme.text
+                        style = SmithType.bodySmall.copy(
+                            color = if (trade == selectedTrade) colors.accent else colors.ink
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -317,7 +321,7 @@ private fun TradeScreen(
                             }
                             .padding(horizontal = 16.dp, vertical = 10.dp)
                     )
-                    Box(Modifier.fillMaxWidth().height(0.5.dp).padding(horizontal = 16.dp).background(ConsoleTheme.text.copy(alpha = 0.04f)))
+                    Box(Modifier.fillMaxWidth().height(0.5.dp).padding(horizontal = 16.dp).background(colors.line))
                 }
             }
         }
@@ -332,21 +336,21 @@ private fun TradeScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { experienceExpanded = true }
-                .background(ConsoleTheme.surface)
+                .background(colors.bgPanel)
                 .padding(16.dp)
         ) {
             androidx.compose.material3.Text(
                 text = data.experienceLevel?.name?.lowercase()?.replaceFirstChar { it.uppercase() }
                     ?.replace("_", " ") ?: "Select experience level",
-                style = if (data.experienceLevel != null) ConsoleTheme.body
-                        else ConsoleTheme.body.copy(color = ConsoleTheme.placeholder)
+                style = if (data.experienceLevel != null) SmithType.body.copy(color = colors.ink)
+                        else SmithType.body.copy(color = colors.inkMuted)
             )
             DropdownMenu(
                 expanded = experienceExpanded,
                 onDismissRequest = { experienceExpanded = false },
                 modifier = Modifier
                     .fillMaxWidth(0.8f)
-                    .background(ConsoleTheme.background)
+                    .background(colors.bgBase)
             ) {
                 ExperienceLevel.values().forEach { level ->
                     DropdownMenuItem(
@@ -354,8 +358,8 @@ private fun TradeScreen(
                             androidx.compose.material3.Text(
                                 level.name.lowercase().replaceFirstChar { it.uppercase() }
                                     .replace("_", " "),
-                                style = ConsoleTheme.body,
-                                color = ConsoleTheme.text
+                                style = SmithType.body,
+                                color = colors.ink
                             )
                         },
                         onClick = {
@@ -371,7 +375,7 @@ private fun TradeScreen(
 
         androidx.compose.material3.Text(
             text = "Fields are optional — you can update these in Settings.",
-            style = ConsoleTheme.caption,
+            style = SmithType.caption.copy(color = colors.inkMuted),
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
@@ -392,6 +396,7 @@ private fun AboutYouScreen(
     onDataChange: (OnboardingData) -> Unit,
     onContinue: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     var wageSuggestion by remember { mutableStateOf<WageSuggestion?>(null) }
 
     LaunchedEffect(data.zipPostal) {
@@ -418,7 +423,7 @@ private fun AboutYouScreen(
 
         androidx.compose.material3.Text(
             "About You",
-            style = ConsoleTheme.title,
+            style = SmithType.title.copy(color = colors.ink),
             textAlign = TextAlign.Center,
             lineHeight = 36.sp
         )
@@ -427,7 +432,7 @@ private fun AboutYouScreen(
 
         androidx.compose.material3.Text(
             "This info appears on invoices and job records.",
-            style = ConsoleTheme.body,
+            style = SmithType.body.copy(color = colors.ink),
             textAlign = TextAlign.Center,
             lineHeight = 24.sp
         )
@@ -526,7 +531,7 @@ private fun AboutYouScreen(
             Spacer(modifier = Modifier.height(6.dp))
             androidx.compose.material3.Text(
                 text = "${suggestion.metroName.split(",").first().trim()} area: typically \$${suggestion.lowRate.toInt()}–\$${suggestion.highRate.toInt()}/hr",
-                style = ConsoleTheme.caption,
+                style = SmithType.caption.copy(color = colors.inkMuted),
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -558,6 +563,7 @@ fun CrewCheckContent(
     onSolo: () -> Unit,
     onForeman: () -> Unit,
 ) {
+    val colors = LocalSmithColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -568,19 +574,19 @@ fun CrewCheckContent(
             text = "How do you work?",
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF2A2520),
+            color = colors.ink,
         )
         Text(
             text = "This shapes your SmithNet experience. You can change this later in Settings.",
             fontSize = 13.sp,
-            color = Color(0xFF8C8478),
+            color = colors.inkMuted,
         )
 
         Surface(
             onClick = onSolo,
             shape = RoundedCornerShape(10.dp),
-            color = Color(0xFFFAFAF8),
-            border = BorderStroke(0.5.dp, Color(0x12000000)),
+            color = colors.bgPanel,
+            border = BorderStroke(0.5.dp, colors.line),
             modifier = Modifier.fillMaxWidth(),
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -588,13 +594,13 @@ fun CrewCheckContent(
                     text = "I work solo",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF2A2520),
+                    color = colors.ink,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Jobs, time tracking, invoicing — just for me.",
                     fontSize = 12.sp,
-                    color = Color(0xFF8C8478),
+                    color = colors.inkMuted,
                 )
             }
         }
@@ -602,8 +608,8 @@ fun CrewCheckContent(
         Surface(
             onClick = onForeman,
             shape = RoundedCornerShape(10.dp),
-            color = Color(0xFFFAFAF8),
-            border = BorderStroke(0.5.dp, Color(0x12000000)),
+            color = colors.bgPanel,
+            border = BorderStroke(0.5.dp, colors.line),
             modifier = Modifier.fillMaxWidth(),
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -611,13 +617,13 @@ fun CrewCheckContent(
                     text = "I manage a crew",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF2A2520),
+                    color = colors.ink,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Crew tracking, dispatch, team invoicing, mesh relay.",
                     fontSize = 12.sp,
-                    color = Color(0xFF8C8478),
+                    color = colors.inkMuted,
                 )
             }
         }
@@ -628,6 +634,7 @@ fun CrewCheckContent(
 
 @Composable
 private fun DoneScreen(onComplete: () -> Unit) {
+    val colors = LocalSmithColors.current
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -639,7 +646,7 @@ private fun DoneScreen(onComplete: () -> Unit) {
 
         androidx.compose.material3.Text(
             "Welcome to\nSmith Net",
-            style = ConsoleTheme.title,
+            style = SmithType.title.copy(color = colors.ink),
             textAlign = TextAlign.Center,
             lineHeight = 44.sp
         )
@@ -648,7 +655,7 @@ private fun DoneScreen(onComplete: () -> Unit) {
 
         androidx.compose.material3.Text(
             "Your profile is set up. You can manage jobs, track time, and generate invoices — all from the dashboard.",
-            style = ConsoleTheme.body,
+            style = SmithType.body.copy(color = colors.ink),
             textAlign = TextAlign.Center,
             lineHeight = 24.sp
         )
@@ -657,7 +664,7 @@ private fun DoneScreen(onComplete: () -> Unit) {
 
         androidx.compose.material3.Text(
             "You can update any of this in Settings at any time.",
-            style = ConsoleTheme.caption,
+            style = SmithType.caption.copy(color = colors.inkMuted),
             textAlign = TextAlign.Center
         )
 
@@ -673,9 +680,10 @@ private fun DoneScreen(onComplete: () -> Unit) {
 
 @Composable
 private fun ConsoleLabel(text: String) {
+    val colors = LocalSmithColors.current
     androidx.compose.material3.Text(
         text = text,
-        style = ConsoleTheme.captionBold,
+        style = SmithType.captionBold.copy(color = colors.inkMuted),
         modifier = Modifier.fillMaxWidth()
     )
 }
@@ -689,11 +697,12 @@ private fun ConsoleTextField(
     imeAction: ImeAction = ImeAction.Next,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
-        textStyle = ConsoleTheme.body,
-        cursorBrush = SolidColor(ConsoleTheme.cursor),
+        textStyle = SmithType.body.copy(color = colors.ink),
+        cursorBrush = SolidColor(colors.ink),
         keyboardOptions = KeyboardOptions(
             keyboardType = keyboardType,
             imeAction = imeAction
@@ -701,14 +710,14 @@ private fun ConsoleTextField(
         singleLine = true,
         modifier = modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface)
+            .background(colors.bgPanel)
             .padding(16.dp),
         decorationBox = { innerTextField ->
             Box {
                 if (value.isEmpty()) {
                     androidx.compose.material3.Text(
                         text = placeholder,
-                        style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder)
+                        style = SmithType.body.copy(color = colors.inkMuted)
                     )
                 }
                 innerTextField()
@@ -723,12 +732,13 @@ private fun ConsoleButton(
     onClick: () -> Unit,
     filled: Boolean = false
 ) {
-    val bg = if (filled) ConsoleTheme.accent else ConsoleTheme.surface
-    val textColor = if (filled) Color.White else ConsoleTheme.accent
+    val colors = LocalSmithColors.current
+    val bg = if (filled) colors.accent else colors.bgPanel
+    val textColor = if (filled) colors.inkOnAccent else colors.accent
 
     androidx.compose.material3.Text(
         text = label,
-        style = ConsoleTheme.action.copy(fontSize = 18.sp, color = textColor),
+        style = SmithType.action.copy(fontSize = 18.sp, color = textColor),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
@@ -745,6 +755,7 @@ private fun PageDots(
     currentScreen: OnboardingScreen,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     val screens = OnboardingScreen.values()
     val currentIndex = screens.indexOf(currentScreen)
 
@@ -759,7 +770,7 @@ private fun PageDots(
                     .size(if (isActive) 10.dp else 8.dp)
                     .clip(RoundedCornerShape(4.dp))
                     .background(
-                        if (isActive) ConsoleTheme.accent else ConsoleTheme.separator
+                        if (isActive) colors.accent else colors.line
                     )
             )
         }

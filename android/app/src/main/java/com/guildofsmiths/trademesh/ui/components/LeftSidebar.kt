@@ -11,7 +11,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import com.guildofsmiths.trademesh.data.RoleContext
 import com.guildofsmiths.trademesh.data.Permission
 
@@ -30,6 +31,7 @@ fun LeftSidebar(
     onNavigateToTime: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     var expandedItem by remember { mutableStateOf<SidebarItem?>(null) }
 
     Box(
@@ -41,7 +43,7 @@ fun LeftSidebar(
         Column(
             modifier = Modifier
                 .background(
-                    color = ConsoleTheme.surface,
+                    color = colors.bgPanel,
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(
                         topEnd = 8.dp,
                         bottomEnd = 8.dp
@@ -92,11 +94,12 @@ private fun SidebarButton(
     isExpanded: Boolean,
     onClick: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = Modifier
             .clickable(onClick = onClick)
             .background(
-                color = if (isExpanded) ConsoleTheme.accent.copy(alpha = 0.1f)
+                color = if (isExpanded) colors.accent.copy(alpha = 0.1f)
                         else Color.Transparent
             )
             .padding(horizontal = 12.dp, vertical = 10.dp),
@@ -106,8 +109,8 @@ private fun SidebarButton(
         // Icon (always visible)
         Text(
             text = icon,
-            style = ConsoleTheme.bodyBold,
-            color = ConsoleTheme.accent
+            style = SmithType.bodyBold,
+            color = colors.accent
         )
 
         // Label (animated expand/collapse)
@@ -120,8 +123,8 @@ private fun SidebarButton(
         ) {
             Text(
                 text = " $label",
-                style = ConsoleTheme.body,
-                color = ConsoleTheme.text,
+                style = SmithType.body,
+                color = colors.ink,
                 modifier = Modifier.padding(start = 4.dp)
             )
         }

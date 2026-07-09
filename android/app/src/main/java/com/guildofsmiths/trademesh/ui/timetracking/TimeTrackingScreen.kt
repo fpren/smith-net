@@ -23,10 +23,12 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
 import com.guildofsmiths.trademesh.ui.ConsoleSeparator
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import com.guildofsmiths.trademesh.ui.theme2.SmithButton
 import com.guildofsmiths.trademesh.ui.theme2.SmithButtonVariant
 import com.guildofsmiths.trademesh.ui.theme2.SmithDialog
+import com.guildofsmiths.trademesh.ui.theme2.SmithEmptyState
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
@@ -51,6 +53,7 @@ fun TimeTrackingScreen(
     onNavigateBack: () -> Unit,
     viewModel: TimeTrackingViewModel = viewModel()
 ) {
+    val colors = LocalSmithColors.current
     val isClockedIn by viewModel.isClockedIn.collectAsState()
     val activeEntry by viewModel.activeEntry.collectAsState()
     val entries by viewModel.entries.collectAsState()
@@ -85,7 +88,7 @@ fun TimeTrackingScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(ConsoleTheme.background)
+            .background(colors.bgBase)
     ) {
         // Header
         ConsoleHeader(
@@ -99,7 +102,7 @@ fun TimeTrackingScreen(
         error?.let { errorMsg ->
             Text(
                 text = "! $errorMsg",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.error),
+                style = SmithType.caption.copy(color = colors.statusError),
                 modifier = Modifier
                     .padding(16.dp)
                     .clickable { viewModel.clearError() }
@@ -110,7 +113,7 @@ fun TimeTrackingScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.surface)
+                .background(colors.bgPanel)
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -124,13 +127,13 @@ fun TimeTrackingScreen(
                     val visible = tickCount % 2 == 0
                     Text(
                         text = if (visible) ">" else " ",
-                        style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.success)
+                        style = SmithType.bodyBold.copy(color = colors.statusOnline)
                     )
                 }
                 Text(
                     text = if (isClockedIn) "CLOCKED IN" else "CLOCKED OUT",
-                    style = ConsoleTheme.captionBold.copy(
-                        color = if (isClockedIn) ConsoleTheme.success else ConsoleTheme.textMuted
+                    style = SmithType.captionBold.copy(
+                        color = if (isClockedIn) colors.statusOnline else colors.inkMuted
                     )
                 )
             }
@@ -146,9 +149,9 @@ fun TimeTrackingScreen(
                 // Active timer with seconds
                 Text(
                     text = String.format("%02d:%02d:%02d", hours, minutes, seconds),
-                    style = ConsoleTheme.brand.copy(
+                    style = SmithType.brand.copy(
                         fontSize = 52.sp,
-                        color = ConsoleTheme.text
+                        color = colors.ink
                     )
                 )
                 
@@ -159,7 +162,7 @@ fun TimeTrackingScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = "Started ${formatTime(entry.clockInTime)} - ${entry.entryType.displayName}",
-                            style = ConsoleTheme.caption
+                            style = SmithType.caption.copy(color = colors.inkMuted)
                         )
                         com.guildofsmiths.trademesh.data.TimeEntryRepository
                             .resolveJobTitle(entry)
@@ -167,7 +170,7 @@ fun TimeTrackingScreen(
                             ?.let { job ->
                                 Text(
                                     text = "@ $job",
-                                    style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
+                                    style = SmithType.captionBold.copy(color = colors.accent)
                                 )
                             }
                     }
@@ -175,9 +178,9 @@ fun TimeTrackingScreen(
             } else {
                 Text(
                     text = "--:--:--",
-                    style = ConsoleTheme.brand.copy(
+                    style = SmithType.brand.copy(
                         fontSize = 52.sp,
-                        color = ConsoleTheme.textDim
+                        color = colors.inkMuted
                     )
                 )
             }
@@ -189,26 +192,26 @@ fun TimeTrackingScreen(
                 // CLOCK OUT button
                 Box(
                     modifier = Modifier
-                        .background(ConsoleTheme.error.copy(alpha = 0.15f))
+                        .background(colors.statusError.copy(alpha = 0.15f))
                         .clickable(enabled = !isLoading) { showClockOutDialog = true }
                         .padding(horizontal = 48.dp, vertical = 16.dp)
                 ) {
                     Text(
                         text = if (isLoading) "..." else "CLOCK OUT",
-                        style = ConsoleTheme.header.copy(color = ConsoleTheme.error)
+                        style = SmithType.header.copy(color = colors.statusError)
                     )
                 }
             } else {
                 // CLOCK IN button - opens entry type dialog
                 Box(
                     modifier = Modifier
-                        .background(ConsoleTheme.success.copy(alpha = 0.15f))
+                        .background(colors.statusOnline.copy(alpha = 0.15f))
                         .clickable(enabled = !isLoading) { showClockInDialog = true }
                         .padding(horizontal = 48.dp, vertical = 16.dp)
                 ) {
                     Text(
                         text = if (isLoading) "..." else "CLOCK IN",
-                        style = ConsoleTheme.header.copy(color = ConsoleTheme.success)
+                        style = SmithType.header.copy(color = colors.statusOnline)
                     )
                 }
             }
@@ -223,12 +226,12 @@ fun TimeTrackingScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .padding(12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "TODAY", style = ConsoleTheme.captionBold)
+                Text(text = "TODAY", style = SmithType.captionBold.copy(color = colors.inkMuted))
 
                 // Compute today's cumulative minutes live: completed entries
                 // that overlap today's window + currently-active entry clamped
@@ -261,35 +264,35 @@ fun TimeTrackingScreen(
                 val shiftHalves = halfSegs.coerceAtMost(16)
                 val otHalves = (halfSegs - 16).coerceAtLeast(0)
                 val atTarget = totalMin >= targetMin
-                val shiftColor = if (atTarget) ConsoleTheme.success else ConsoleTheme.accent
+                val shiftColor = if (atTarget) colors.statusOnline else colors.accent
 
                 // Wrap-around overlay: once past 8h, OT halves re-color slots
                 // left-to-right in red ON TOP of the sage shift fill. Same
                 // bracket frame either way.
                 val bar = buildAnnotatedString {
-                    withStyle(SpanStyle(color = ConsoleTheme.textMuted)) { append("[") }
+                    withStyle(SpanStyle(color = colors.inkMuted)) { append("[") }
                     for (h in 0 until 8) {
                         val otFull = (h * 2 + 2) <= otHalves
                         val otHalf = !otFull && (h * 2 + 1) == otHalves
                         val shiftFull = (h * 2 + 2) <= shiftHalves
                         val shiftHalf = !shiftFull && (h * 2 + 1) == shiftHalves
                         val (glyph, color) = when {
-                            otFull -> "■" to ConsoleTheme.error
-                            otHalf -> "▣" to ConsoleTheme.error
+                            otFull -> "■" to colors.statusError
+                            otHalf -> "▣" to colors.statusError
                             shiftFull -> "■" to shiftColor
                             shiftHalf -> "▣" to shiftColor
-                            else -> "□" to ConsoleTheme.textMuted
+                            else -> "□" to colors.inkMuted
                         }
                         withStyle(SpanStyle(color = color)) { append(glyph) }
                     }
-                    withStyle(SpanStyle(color = ConsoleTheme.textMuted)) { append("]") }
+                    withStyle(SpanStyle(color = colors.inkMuted)) { append("]") }
                 }
-                Text(text = bar, style = ConsoleTheme.body)
+                Text(text = bar, style = SmithType.body.copy(color = colors.ink))
 
                 Text(
                     text = "${formatDuration(totalMin)} / 8:00",
-                    style = ConsoleTheme.bodyBold.copy(
-                        color = if (atTarget) ConsoleTheme.error else ConsoleTheme.text
+                    style = SmithType.bodyBold.copy(
+                        color = if (atTarget) colors.statusError else colors.ink
                     )
                 )
             }
@@ -303,15 +306,15 @@ fun TimeTrackingScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = "TODAY'S ENTRIES", style = ConsoleTheme.captionBold)
+            Text(text = "TODAY'S ENTRIES", style = SmithType.captionBold.copy(color = colors.inkMuted))
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(
                     text = "< SWIPE TO DELETE",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+                    style = SmithType.caption.copy(color = colors.inkMuted)
                 )
                 Text(
                     text = "REFRESH",
-                    style = ConsoleTheme.action,
+                    style = SmithType.action.copy(color = colors.accent),
                     modifier = Modifier.clickable {
                         viewModel.loadStatus()
                         viewModel.loadEntries()
@@ -337,11 +340,7 @@ fun TimeTrackingScreen(
             
             if (entries.isEmpty()) {
                 item {
-                    Text(
-                        text = "No entries today",
-                        style = ConsoleTheme.caption,
-                        modifier = Modifier.padding(16.dp)
-                    )
+                    SmithEmptyState(title = "No entries today")
                 }
             }
         }
@@ -392,7 +391,7 @@ fun TimeTrackingScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // Step 1: Entry Type
-                    Text(text = "1. SELECT ENTRY TYPE", style = ConsoleTheme.captionBold)
+                    Text(text = "1. SELECT ENTRY TYPE", style = SmithType.captionBold.copy(color = colors.inkMuted))
                     
                     Spacer(modifier = Modifier.height(4.dp))
                     
@@ -408,8 +407,8 @@ fun TimeTrackingScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .background(
-                                    if (isSelected) ConsoleTheme.accent.copy(alpha = 0.1f)
-                                    else ConsoleTheme.surface
+                                    if (isSelected) colors.accent.copy(alpha = 0.1f)
+                                    else colors.bgPanel
                                 )
                                 .clickable { selectedType = type }
                                 .padding(12.dp),
@@ -419,14 +418,14 @@ fun TimeTrackingScreen(
                             Column {
                                 Text(
                                     text = type.displayName.uppercase(),
-                                    style = ConsoleTheme.bodyBold.copy(
-                                        color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.text
+                                    style = SmithType.bodyBold.copy(
+                                        color = if (isSelected) colors.accent else colors.ink
                                     )
                                 )
-                                Text(text = desc, style = ConsoleTheme.caption)
+                                Text(text = desc, style = SmithType.caption.copy(color = colors.inkMuted))
                             }
                             if (isSelected) {
-                                Text(text = "[x]", style = ConsoleTheme.action)
+                                Text(text = "[x]", style = SmithType.action.copy(color = colors.accent))
                             }
                         }
                     }
@@ -436,7 +435,7 @@ fun TimeTrackingScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     // Step 2: Job (optional)
-                    Text(text = "2. TAG TO JOB (optional)", style = ConsoleTheme.captionBold)
+                    Text(text = "2. TAG TO JOB (optional)", style = SmithType.captionBold.copy(color = colors.inkMuted))
                     
                     Spacer(modifier = Modifier.height(4.dp))
                     
@@ -446,8 +445,8 @@ fun TimeTrackingScreen(
                             .fillMaxWidth()
                             .background(
                                 if (selectedJob == null && customJobName.isEmpty()) 
-                                    ConsoleTheme.accent.copy(alpha = 0.1f)
-                                else ConsoleTheme.surface
+                                    colors.accent.copy(alpha = 0.1f)
+                                else colors.bgPanel
                             )
                             .clickable { 
                                 selectedJob = null
@@ -456,9 +455,9 @@ fun TimeTrackingScreen(
                             .padding(12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "No job (general time)", style = ConsoleTheme.body)
+                        Text(text = "No job (general time)", style = SmithType.body.copy(color = colors.ink))
                         if (selectedJob == null && customJobName.isEmpty()) {
-                            Text(text = "[x]", style = ConsoleTheme.action)
+                            Text(text = "[x]", style = SmithType.action.copy(color = colors.accent))
                         }
                     }
 
@@ -469,8 +468,8 @@ fun TimeTrackingScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .background(
-                                    if (isSelected) ConsoleTheme.accent.copy(alpha = 0.1f)
-                                    else ConsoleTheme.surface
+                                    if (isSelected) colors.accent.copy(alpha = 0.1f)
+                                    else colors.bgPanel
                                 )
                                 .clickable { 
                                     selectedJob = job
@@ -481,36 +480,36 @@ fun TimeTrackingScreen(
                         ) {
                             Text(
                                 text = job,
-                                style = ConsoleTheme.body.copy(
-                                    color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.text
+                                style = SmithType.body.copy(
+                                    color = if (isSelected) colors.accent else colors.ink
                                 )
                             )
                             if (isSelected) {
-                                Text(text = "[x]", style = ConsoleTheme.action)
+                                Text(text = "[x]", style = SmithType.action.copy(color = colors.accent))
                             }
                         }
                     }
 
                     // Custom job name
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = "Or enter job name:", style = ConsoleTheme.caption)
+                    Text(text = "Or enter job name:", style = SmithType.caption.copy(color = colors.inkMuted))
                     BasicTextField(
                         value = customJobName,
                         onValueChange = { 
                             customJobName = it
                             if (it.isNotEmpty()) selectedJob = null
                         },
-                        textStyle = ConsoleTheme.body,
-                        cursorBrush = SolidColor(ConsoleTheme.cursor),
+                        textStyle = SmithType.body.copy(color = colors.ink),
+                        cursorBrush = SolidColor(colors.ink),
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(ConsoleTheme.surface)
+                            .background(colors.bgPanel)
                             .padding(12.dp),
                         decorationBox = { innerTextField ->
                             Box {
                                 if (customJobName.isEmpty()) {
-                                    Text("Type job name...", style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder))
+                                    Text("Type job name...", style = SmithType.body.copy(color = colors.inkMuted))
                                 }
                                 innerTextField()
                             }
@@ -550,7 +549,7 @@ fun TimeTrackingScreen(
         ) {
             Text(
                 text = "Duration: ${hours}h ${minutes}m",
-                style = ConsoleTheme.caption
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
             activeEntry?.let { e ->
                 com.guildofsmiths.trademesh.data.TimeEntryRepository
@@ -559,7 +558,7 @@ fun TimeTrackingScreen(
                     ?.let { job ->
                         Text(
                             text = "Job: $job",
-                            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
+                            style = SmithType.captionBold.copy(color = colors.accent)
                         )
                     }
             }
@@ -570,7 +569,7 @@ fun TimeTrackingScreen(
                         .imePadding(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(text = "SELECT REASON", style = ConsoleTheme.captionBold)
+                    Text(text = "SELECT REASON", style = SmithType.captionBold.copy(color = colors.inkMuted))
                     
                     Spacer(modifier = Modifier.height(8.dp))
                     
@@ -580,8 +579,8 @@ fun TimeTrackingScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .background(
-                                    if (isSelected) ConsoleTheme.accent.copy(alpha = 0.1f)
-                                    else ConsoleTheme.surface
+                                    if (isSelected) colors.accent.copy(alpha = 0.1f)
+                                    else colors.bgPanel
                                 )
                                 .clickable { selectedReason = reason }
                                 .padding(14.dp),
@@ -590,12 +589,12 @@ fun TimeTrackingScreen(
                         ) {
                             Text(
                                 text = reason.displayName,
-                                style = ConsoleTheme.body.copy(
-                                    color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.text
+                                style = SmithType.body.copy(
+                                    color = if (isSelected) colors.accent else colors.ink
                                 )
                             )
                             if (isSelected) {
-                                Text(text = "[x]", style = ConsoleTheme.action)
+                                Text(text = "[x]", style = SmithType.action.copy(color = colors.accent))
                             }
                         }
                     }
@@ -603,21 +602,21 @@ fun TimeTrackingScreen(
                     // Note field for "Other"
                     if (selectedReason == ClockOutReason.OTHER) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = "SPECIFY REASON", style = ConsoleTheme.captionBold)
+                        Text(text = "SPECIFY REASON", style = SmithType.captionBold.copy(color = colors.inkMuted))
                         BasicTextField(
                             value = otherNote,
                             onValueChange = { otherNote = it },
-                            textStyle = ConsoleTheme.body,
-                            cursorBrush = SolidColor(ConsoleTheme.cursor),
+                            textStyle = SmithType.body.copy(color = colors.ink),
+                            cursorBrush = SolidColor(colors.ink),
                             singleLine = true,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(ConsoleTheme.surface)
+                                .background(colors.bgPanel)
                                 .padding(12.dp),
                             decorationBox = { innerTextField ->
                                 Box {
                                     if (otherNote.isEmpty()) {
-                                        Text("Enter reason...", style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder))
+                                        Text("Enter reason...", style = SmithType.body.copy(color = colors.inkMuted))
                                     }
                                     innerTextField()
                                 }
@@ -638,13 +637,14 @@ private fun SwipeToDeleteEntry(
     entry: TimeEntry,
     onDelete: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     var offsetX by remember { mutableStateOf(0f) }
     val deleteThreshold = -200f
     var isDeleting by remember { mutableStateOf(false) }
     
     val backgroundColor by animateColorAsState(
-        targetValue = if (offsetX < deleteThreshold / 2) ConsoleTheme.error.copy(alpha = 0.3f) 
-                      else ConsoleTheme.surface,
+        targetValue = if (offsetX < deleteThreshold / 2) colors.statusError.copy(alpha = 0.3f) 
+                      else colors.bgPanel,
         label = "bgColor"
     )
 
@@ -662,7 +662,7 @@ private fun SwipeToDeleteEntry(
             ) {
                 Text(
                     text = if (offsetX < deleteThreshold) "RELEASE TO DELETE" else "< DELETE",
-                    style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.error)
+                    style = SmithType.captionBold.copy(color = colors.statusError)
                 )
             }
         }
@@ -672,7 +672,7 @@ private fun SwipeToDeleteEntry(
             modifier = Modifier
                 .fillMaxWidth()
                 .offset { IntOffset(offsetX.roundToInt(), 0) }
-                .background(ConsoleTheme.surface)
+                .background(colors.bgPanel)
                 .pointerInput(Unit) {
                     detectHorizontalDragGestures(
                         onDragEnd = {
@@ -697,13 +697,13 @@ private fun SwipeToDeleteEntry(
             Column {
                 // Time range
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(text = formatTime(entry.clockInTime), style = ConsoleTheme.body)
-                    Text(text = "-", style = ConsoleTheme.caption)
+                    Text(text = formatTime(entry.clockInTime), style = SmithType.body.copy(color = colors.ink))
+                    Text(text = "-", style = SmithType.caption.copy(color = colors.inkMuted))
                     Text(
                         text = entry.clockOutTime?.let { formatTime(it) } ?: "NOW",
-                        style = ConsoleTheme.body.copy(
-                            color = if (entry.clockOutTime != null) ConsoleTheme.text 
-                                    else ConsoleTheme.success
+                        style = SmithType.body.copy(
+                            color = if (entry.clockOutTime != null) colors.ink 
+                                    else colors.statusOnline
                         )
                     )
                 }
@@ -712,7 +712,7 @@ private fun SwipeToDeleteEntry(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         text = entry.entryType.displayName,
-                        style = ConsoleTheme.caption
+                        style = SmithType.caption.copy(color = colors.inkMuted)
                     )
                     // Show job if tagged (resolved through Job for live employer renames)
                     com.guildofsmiths.trademesh.data.TimeEntryRepository
@@ -721,14 +721,14 @@ private fun SwipeToDeleteEntry(
                         ?.let { job ->
                             Text(
                                 text = "@ $job",
-                                style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
+                                style = SmithType.captionBold.copy(color = colors.accent)
                             )
                         }
                     // Show clock out reason if present
                     entry.notes.lastOrNull()?.text?.let { note ->
                         Text(
                             text = "- $note",
-                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                            style = SmithType.caption.copy(color = colors.inkMuted)
                         )
                     }
                 }
@@ -737,7 +737,7 @@ private fun SwipeToDeleteEntry(
             // Duration
             Text(
                 text = entry.durationMinutes?.let { formatDuration(it) } ?: "--:--",
-                style = ConsoleTheme.bodyBold
+                style = SmithType.bodyBold.copy(color = colors.ink)
             )
         }
     }

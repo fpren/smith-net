@@ -1,10 +1,8 @@
 package com.guildofsmiths.trademesh.ui.theme
 
 import android.app.Activity
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -13,28 +11,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.core.view.WindowCompat
-
-// Console-style dark color scheme
-private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFF58A6FF),
-    onPrimary = Color(0xFF0D1117),
-    primaryContainer = Color(0xFF1F6FEB),
-    onPrimaryContainer = Color(0xFFE6EDF3),
-    secondary = Color(0xFF7EE787),
-    onSecondary = Color(0xFF0D1117),
-    secondaryContainer = Color(0xFF238636),
-    onSecondaryContainer = Color(0xFFE6EDF3),
-    tertiary = Color(0xFFA371F7),
-    onTertiary = Color(0xFF0D1117),
-    background = Color(0xFF0D1117),
-    onBackground = Color(0xFFE6EDF3),
-    surface = Color(0xFF161B22),
-    onSurface = Color(0xFFE6EDF3),
-    surfaceVariant = Color(0xFF21262D),
-    onSurfaceVariant = Color(0xFF7D8590),
-    outline = Color(0xFF30363D),
-    outlineVariant = Color(0xFF21262D)
-)
+import com.guildofsmiths.trademesh.ui.theme2.smithColorsFor
 
 // Light scheme fallback (console style still preferred)
 private val LightColorScheme = lightColorScheme(
@@ -77,9 +54,16 @@ private val MonospaceTypography = Typography(
     labelSmall = Typography().labelSmall.copy(fontFamily = FontFamily.Monospace)
 )
 
+/**
+ * Root Material shell. The status bar is plumbed from the resolved Smith palette
+ * rather than hardcoded hex: [statusBarColor] + [lightIcons] are fed by the caller
+ * (MainActivity) from the app's actual resolved dark/light state (Task 9). The
+ * defaults below only apply to callers that don't pass these explicitly.
+ */
 @Composable
 fun TradeMeshTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    statusBarColor: Color = smithColorsFor(dark = false).bgBase,
+    lightIcons: Boolean = true,
     content: @Composable () -> Unit
 ) {
     // Use light theme - matching original design
@@ -89,8 +73,8 @@ fun TradeMeshTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.background.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true
+            window.statusBarColor = statusBarColor.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = lightIcons
         }
     }
 

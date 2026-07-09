@@ -14,7 +14,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.SubcomposeAsyncImage
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.Tokens2
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 
 /**
  * Shared circular avatar for the comm surface: renders an uploaded photo via
@@ -33,6 +35,7 @@ fun SmithAvatar(
     size: Int = 44,
     statusColor: Color? = null,
 ) {
+    val colors = LocalSmithColors.current
     val initials = initialsOf(name)
     val bg = avatarColorOf(name)
 
@@ -63,7 +66,7 @@ fun SmithAvatar(
                 modifier = Modifier
                     .size((size * 0.24f).dp.coerceAtLeast(8.dp))
                     .clip(CircleShape)
-                    .background(ConsoleTheme.background)
+                    .background(colors.bgBase)
                     .align(Alignment.BottomEnd),
                 contentAlignment = Alignment.Center
             ) {
@@ -80,9 +83,10 @@ fun SmithAvatar(
 
 @Composable
 private fun InitialsLabel(initials: String, size: Int) {
+    val colors = LocalSmithColors.current
     Text(
         text = initials,
-        style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.surface, fontSize = (size * 0.32f).sp)
+        style = SmithType.captionBold.copy(color = colors.inkOnAccent, fontSize = (size * 0.32f).sp)
     )
 }
 
@@ -96,19 +100,10 @@ fun initialsOf(name: String): String {
     }
 }
 
-private val AVATAR_PALETTE = listOf(
-    Color(0xFF9A6F2E), // gold
-    Color(0xFF5A8C76), // sage
-    Color(0xFF8C5A2E), // sienna
-    Color(0xFF8C3A3A), // brick
-    Color(0xFF4A6FA5), // slate blue
-    Color(0xFF6E5A8C), // muted violet
-)
-
-/** Stable color from a seed string (name/id). */
+/** Stable color from a seed string (name/id) — mirrors the web's accentForId rule. */
 fun avatarColorOf(seed: String): Color {
-    if (seed.isEmpty()) return AVATAR_PALETTE[0]
+    if (seed.isEmpty()) return Tokens2.AvatarPalette[0]
     var h = 0
     for (c in seed) h = (h * 31 + c.code) and 0x7fffffff
-    return AVATAR_PALETTE[h % AVATAR_PALETTE.size]
+    return Tokens2.AvatarPalette[h % Tokens2.AvatarPalette.size]
 }

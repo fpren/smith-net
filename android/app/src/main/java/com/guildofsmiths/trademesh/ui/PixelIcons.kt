@@ -15,10 +15,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 
 @Composable
 internal fun PixelCamera(enabled: Boolean) {
-    val color = if (enabled) ConsoleTheme.text else ConsoleTheme.textDim
+    val colors = LocalSmithColors.current
+    val color = if (enabled) colors.ink else colors.inkMuted
     val px = 2.dp
 
     Box(
@@ -35,14 +37,15 @@ internal fun PixelCamera(enabled: Boolean) {
         Box(
             modifier = Modifier
                 .size(px * 2)
-                .background(ConsoleTheme.background)
+                .background(colors.bgBase)
         )
     }
 }
 
 @Composable
 internal fun PixelFile(enabled: Boolean) {
-    val color = if (enabled) ConsoleTheme.text else ConsoleTheme.textDim
+    val colors = LocalSmithColors.current
+    val color = if (enabled) colors.ink else colors.inkMuted
     val px = 2.dp
 
     Box(
@@ -56,14 +59,15 @@ internal fun PixelFile(enabled: Boolean) {
                 .padding(end = 2.dp, top = 2.dp)
                 .width(px * 2)
                 .height(px * 2)
-                .background(ConsoleTheme.background)
+                .background(colors.bgBase)
         )
     }
 }
 
 @Composable
 internal fun PixelVideo(enabled: Boolean) {
-    val color = if (enabled) ConsoleTheme.text else ConsoleTheme.textDim
+    val colors = LocalSmithColors.current
+    val color = if (enabled) colors.ink else colors.inkMuted
     val px = 2.dp
 
     Box(
@@ -75,15 +79,15 @@ internal fun PixelVideo(enabled: Boolean) {
             modifier = Modifier.align(Alignment.TopCenter).padding(top = 1.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            Box(modifier = Modifier.size(px).background(ConsoleTheme.background))
-            Box(modifier = Modifier.size(px).background(ConsoleTheme.background))
+            Box(modifier = Modifier.size(px).background(colors.bgBase))
+            Box(modifier = Modifier.size(px).background(colors.bgBase))
         }
         Row(
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 1.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            Box(modifier = Modifier.size(px).background(ConsoleTheme.background))
-            Box(modifier = Modifier.size(px).background(ConsoleTheme.background))
+            Box(modifier = Modifier.size(px).background(colors.bgBase))
+            Box(modifier = Modifier.size(px).background(colors.bgBase))
         }
     }
 }
@@ -93,7 +97,8 @@ internal fun PixelPlusButton(
     enabled: Boolean,
     onClick: () -> Unit
 ) {
-    val color = if (enabled) ConsoleTheme.text else ConsoleTheme.textMuted
+    val colors = LocalSmithColors.current
+    val color = if (enabled) colors.ink else colors.inkMuted
     val px = 3.dp
 
     Box(
@@ -120,7 +125,8 @@ internal fun PixelPlusButton(
 
 @Composable
 internal fun PixelNote(enabled: Boolean) {
-    val color = if (enabled) ConsoleTheme.text else ConsoleTheme.textDim
+    val colors = LocalSmithColors.current
+    val color = if (enabled) colors.ink else colors.inkMuted
     val px = 2.dp
 
     Box(
@@ -139,7 +145,7 @@ internal fun PixelNote(enabled: Boolean) {
                     modifier = Modifier
                         .width(px * 4)
                         .height(px / 2)
-                        .background(ConsoleTheme.background)
+                        .background(colors.bgBase)
                 )
             }
         }
@@ -148,7 +154,8 @@ internal fun PixelNote(enabled: Boolean) {
 
 @Composable
 internal fun PixelPackage(enabled: Boolean) {
-    val color = if (enabled) ConsoleTheme.text else ConsoleTheme.textDim
+    val colors = LocalSmithColors.current
+    val color = if (enabled) colors.ink else colors.inkMuted
     val px = 2.dp
 
     Box(
@@ -163,7 +170,7 @@ internal fun PixelPackage(enabled: Boolean) {
                 .align(Alignment.Center)
                 .width(px * 7)
                 .height(px)
-                .background(ConsoleTheme.background)
+                .background(colors.bgBase)
         )
         // Vertical band (tape)
         Box(
@@ -171,14 +178,15 @@ internal fun PixelPackage(enabled: Boolean) {
                 .align(Alignment.Center)
                 .width(px)
                 .height(px * 5)
-                .background(ConsoleTheme.background)
+                .background(colors.bgBase)
         )
     }
 }
 
 @Composable
 internal fun PixelCheckmark(enabled: Boolean) {
-    val color = if (enabled) ConsoleTheme.accent else ConsoleTheme.textDim
+    val colors = LocalSmithColors.current
+    val color = if (enabled) colors.accent else colors.inkMuted
     val px = 2.dp
 
     Box(

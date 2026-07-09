@@ -18,17 +18,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.ExpenseCategoryRepository
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.jobboard.FreightTerm
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel
 import com.guildofsmiths.trademesh.ui.jobboard.JobExpense
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
@@ -37,6 +37,7 @@ fun ExpenseCsvImportScreen(
     viewModel: JobBoardViewModel,
     onBack: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     val context = LocalContext.current
     val jobs by viewModel.jobs.collectAsState()
     val categories by ExpenseCategoryRepository.categories.collectAsState()
@@ -54,7 +55,7 @@ fun ExpenseCsvImportScreen(
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(ConsoleTheme.background)) {
+    Column(modifier = Modifier.fillMaxSize().background(colors.bgBase)) {
         ConsoleHeader(title = "IMPORT EXPENSES (CSV)", onBackClick = onBack)
 
         Column(
@@ -66,24 +67,24 @@ fun ExpenseCsvImportScreen(
         ) {
             Text(
                 "Expected columns: date, job, category, description, qty, unit, unit_cost, vendor, ref_no, hazardous, freight_term, notes. Extra columns are ignored; missing ones default.",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Box(
                     modifier = Modifier
-                        .background(ConsoleTheme.accent.copy(alpha = 0.14f), RoundedCornerShape(4.dp))
-                        .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                        .background(colors.accent.copy(alpha = 0.14f), RoundedCornerShape(4.dp))
+                        .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
                         .clip(RoundedCornerShape(4.dp))
                         .clickable { picker.launch(arrayOf("text/csv", "text/*", "text/comma-separated-values", "application/vnd.ms-excel")) }
                         .padding(horizontal = 10.dp, vertical = 8.dp)
                 ) {
-                    Text("[Choose CSV file]", style = ConsoleTheme.action.copy(color = ConsoleTheme.accent))
+                    Text("[Choose CSV file]", style = SmithType.action.copy(color = colors.accent))
                 }
                 Box(
                     modifier = Modifier
-                        .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                        .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                        .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                        .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
                         .clip(RoundedCornerShape(4.dp))
                         .clickable {
                             copyTemplateToDownloads(context, "all_categories.csv")
@@ -91,22 +92,22 @@ fun ExpenseCsvImportScreen(
                         }
                         .padding(horizontal = 10.dp, vertical = 8.dp)
                 ) {
-                    Text("[Download template]", style = ConsoleTheme.action.copy(color = ConsoleTheme.text))
+                    Text("[Download template]", style = SmithType.action.copy(color = colors.ink))
                 }
             }
 
             fileName?.let {
-                Text("File: $it", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                Text("File: $it", style = SmithType.caption.copy(color = colors.inkMuted))
             }
 
             if (errors.isNotEmpty()) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(ConsoleTheme.error.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                        .background(colors.statusError.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
                         .padding(8.dp)
                 ) {
-                    errors.forEach { Text("• $it", style = ConsoleTheme.caption.copy(color = ConsoleTheme.error)) }
+                    errors.forEach { Text("• $it", style = SmithType.caption.copy(color = colors.statusError)) }
                 }
             }
 
@@ -115,31 +116,31 @@ fun ExpenseCsvImportScreen(
                 val warn = parsedRows.count { it.status != ParseStatus.OK }
                 Text(
                     "Preview: $ok ready · $warn warning${if (warn != 1) "s" else ""}",
-                    style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text)
+                    style = SmithType.bodySmall.copy(color = colors.ink)
                 )
 
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                        .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
+                        .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                        .border(0.5.dp, colors.ink.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
                         .padding(8.dp)
                 ) {
                     Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
                         Column {
                             parsedRows.forEach { r ->
                                 val color = when (r.status) {
-                                    ParseStatus.OK -> ConsoleTheme.text
-                                    ParseStatus.NO_JOB_MATCH -> ConsoleTheme.warning
-                                    ParseStatus.UNKNOWN_CATEGORY -> ConsoleTheme.warning
-                                    ParseStatus.INVALID -> ConsoleTheme.error
+                                    ParseStatus.OK -> colors.ink
+                                    ParseStatus.NO_JOB_MATCH -> colors.attention
+                                    ParseStatus.UNKNOWN_CATEGORY -> colors.attention
+                                    ParseStatus.INVALID -> colors.statusError
                                 }
                                 Row(modifier = Modifier.padding(vertical = 2.dp)) {
-                                    Text(r.statusTag, style = ConsoleTheme.caption.copy(color = color), modifier = Modifier.width(64.dp))
-                                    Text(r.jobLabel, style = ConsoleTheme.caption.copy(color = color), modifier = Modifier.width(120.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Text(r.categoryLabel, style = ConsoleTheme.caption.copy(color = color), modifier = Modifier.width(80.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Text(r.expense.description, style = ConsoleTheme.caption.copy(color = color), modifier = Modifier.width(140.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Text("$${String.format("%.2f", r.expense.totalCost)}", style = ConsoleTheme.caption.copy(color = color), modifier = Modifier.width(70.dp))
+                                    Text(r.statusTag, style = SmithType.caption.copy(color = color), modifier = Modifier.width(64.dp))
+                                    Text(r.jobLabel, style = SmithType.caption.copy(color = color), modifier = Modifier.width(120.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(r.categoryLabel, style = SmithType.caption.copy(color = color), modifier = Modifier.width(80.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(r.expense.description, style = SmithType.caption.copy(color = color), modifier = Modifier.width(140.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text("$${String.format("%.2f", r.expense.totalCost)}", style = SmithType.caption.copy(color = color), modifier = Modifier.width(70.dp))
                                 }
                             }
                         }
@@ -149,8 +150,8 @@ fun ExpenseCsvImportScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Box(
                         modifier = Modifier
-                            .background(ConsoleTheme.accent.copy(alpha = 0.14f), RoundedCornerShape(4.dp))
-                            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                            .background(colors.accent.copy(alpha = 0.14f), RoundedCornerShape(4.dp))
+                            .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
                             .clip(RoundedCornerShape(4.dp))
                             .clickable {
                                 var imported = 0
@@ -177,17 +178,17 @@ fun ExpenseCsvImportScreen(
                             .padding(horizontal = 12.dp, vertical = 8.dp)
                     ) {
                         Text("[Import ${parsedRows.count { it.matchedJobId != null && it.status != ParseStatus.INVALID }} rows]",
-                            style = ConsoleTheme.action.copy(color = ConsoleTheme.accent))
+                            style = SmithType.action.copy(color = colors.accent))
                     }
                     Box(
                         modifier = Modifier
-                            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                            .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                            .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
                             .clip(RoundedCornerShape(4.dp))
                             .clickable { parsedRows = emptyList(); fileName = null; errors = emptyList() }
                             .padding(horizontal = 12.dp, vertical = 8.dp)
                     ) {
-                        Text("[clear]", style = ConsoleTheme.action.copy(color = ConsoleTheme.text))
+                        Text("[clear]", style = SmithType.action.copy(color = colors.ink))
                     }
                 }
             }

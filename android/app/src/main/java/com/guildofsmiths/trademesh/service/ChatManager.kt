@@ -9,9 +9,13 @@ import com.guildofsmiths.trademesh.data.MediaType
 import com.guildofsmiths.trademesh.data.Message
 import com.guildofsmiths.trademesh.data.MessageRepository
 import com.guildofsmiths.trademesh.data.UserPreferences
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -68,7 +72,20 @@ object ChatManager {
     private val handler = Handler(Looper.getMainLooper())
     private var reconnectRunnable: Runnable? = null
     private const val RECONNECT_DELAY_MS = 5000L
-    
+
+    // Background scope for one-off suspend work (session refresh) kicked off
+    // from the (non-suspend) WebSocketListener callbacks.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    // Task 3 (401 -> refreshSession wiring): a rejected-JWT upgrade would
+    // otherwise reconnect-loop forever with the same stale token. Guard the
+    // refresh attempt so a dead session doesn't hot-loop refresh calls --
+    // at most one attempt per this window, regardless of how many reconnect
+    // cycles land inside it.
+    @Volatile
+    private var lastAuthRefreshAtMs = 0L
+    private const val AUTH_REFRESH_MIN_INTERVAL_MS = 60_000L
+
     /** Connection state */
     private var isConnected = false
     private var isAuthenticated = false
@@ -177,6 +194,19 @@ object ChatManager {
                 isConnected = false
                 isAuthenticated = false
                 _connectionMode.value = ConnectionMode.OFFLINE
+
+                // The upgrade request was rejected on auth grounds (expired/invalid
+                // JWT) rather than a network/transient failure -- reconnecting with
+                // the same token would just loop forever. Kick off one guarded
+                // session refresh before the normal reconnect cadence resumes; the
+                // next connect() call will read whatever token AuthService.getAccessToken()
+                // returns, refreshed or not. Every other failure keeps today's
+                // behavior exactly.
+                val code = response?.code
+                if (code == 401 || code == 403) {
+                    maybeRefreshAuthSession(code)
+                }
+
                 // Try the fallback URL next time — keeps Hetzner primary,
                 // flips to Mac Mini LAN (or back) after a failed attempt.
                 rotateUrl()
@@ -184,7 +214,36 @@ object ChatManager {
             }
         })
     }
-    
+
+    /**
+     * Fire a guarded, one-shot session refresh after a WS upgrade rejection
+     * (401/403). Guarded to at most one attempt per [AUTH_REFRESH_MIN_INTERVAL_MS]
+     * so a dead/revoked session doesn't hammer the refresh endpoint once per
+     * reconnect cycle. Refreshes via [AuthService] -- not [SupabaseAuth] --
+     * because [connect] reads its Bearer token from `AuthService.getAccessToken()`;
+     * the two auth stacks keep independent token stores.
+     */
+    private fun maybeRefreshAuthSession(httpCode: Int) {
+        val now = System.currentTimeMillis()
+        if (now - lastAuthRefreshAtMs < AUTH_REFRESH_MIN_INTERVAL_MS) {
+            Log.d(TAG, "Skipping session refresh (guarded, last attempt too recent) for HTTP $httpCode")
+            return
+        }
+        lastAuthRefreshAtMs = now
+        Log.w(TAG, "WS upgrade rejected (HTTP $httpCode) — refreshing session before reconnect")
+        scope.launch {
+            val refreshed = try {
+                AuthService.refreshToken()
+            } catch (e: Exception) {
+                Log.w(TAG, "Session refresh threw: ${e.message}")
+                false
+            }
+            if (!refreshed) {
+                Log.w(TAG, "[x] session refresh failed")
+            }
+        }
+    }
+
     /**
      * Handle incoming WebSocket message
      */
