@@ -16,19 +16,22 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.ExpenseCategoryRepository
 import com.guildofsmiths.trademesh.data.TimeEntryRepository
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel
 import com.guildofsmiths.trademesh.ui.jobboard.JobExpense
 import com.guildofsmiths.trademesh.ui.report.ReportPeriod
 import com.guildofsmiths.trademesh.ui.report.getPeriodStart
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithEmptyState
+import com.guildofsmiths.trademesh.ui.theme2.SmithErrorState
+import com.guildofsmiths.trademesh.ui.theme2.SmithLoadingState
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -48,7 +51,10 @@ fun ExpensesScreen(
     onOpenCsvImport: () -> Unit,
     onOpenLegalSettings: () -> Unit = {}
 ) {
+    val colors = LocalSmithColors.current
     val jobs by viewModel.jobs.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val error by viewModel.error.collectAsState()
     val timeEntries by TimeEntryRepository.entries.collectAsState()
     val categories by ExpenseCategoryRepository.categories.collectAsState()
     val context = LocalContext.current
@@ -115,7 +121,7 @@ fun ExpensesScreen(
     }
     val grandTotal = rollups.sumOf { it.amount }
 
-    Column(modifier = Modifier.fillMaxSize().background(ConsoleTheme.background)) {
+    Column(modifier = Modifier.fillMaxSize().background(colors.bgBase)) {
         ConsoleHeader(title = "EXPENSES", onBackClick = onBack)
 
         // Period tabs
@@ -128,8 +134,8 @@ fun ExpensesScreen(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .background(if (sel) ConsoleTheme.accent else ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                        .border(0.5.dp, if (sel) ConsoleTheme.accent else ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                        .background(if (sel) colors.accent else colors.bgPanel, RoundedCornerShape(4.dp))
+                        .border(0.5.dp, if (sel) colors.accent else colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
                         .clip(RoundedCornerShape(4.dp))
                         .clickable {
                             period = p
@@ -138,7 +144,7 @@ fun ExpensesScreen(
                         .padding(vertical = 6.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(p.label, style = ConsoleTheme.captionBold.copy(color = if (sel) Color.White else ConsoleTheme.textMuted))
+                    Text(p.label, style = SmithType.captionBold.copy(color = if (sel) colors.inkOnAccent else colors.inkMuted))
                 }
             }
         }
@@ -155,8 +161,8 @@ fun ExpensesScreen(
                 val sel = v == view
                 Box(
                     modifier = Modifier
-                        .background(if (sel) ConsoleTheme.accent.copy(alpha = 0.20f) else ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                        .border(0.5.dp, if (sel) ConsoleTheme.accent else ConsoleTheme.text.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
+                        .background(if (sel) colors.accent.copy(alpha = 0.20f) else colors.bgPanel, RoundedCornerShape(4.dp))
+                        .border(0.5.dp, if (sel) colors.accent else colors.ink.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
                         .clip(RoundedCornerShape(4.dp))
                         .clickable {
                             view = v
@@ -164,7 +170,7 @@ fun ExpensesScreen(
                         }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Text("[${v.label}]", style = ConsoleTheme.caption.copy(color = if (sel) ConsoleTheme.accent else ConsoleTheme.textMuted))
+                    Text("[${v.label}]", style = SmithType.caption.copy(color = if (sel) colors.accent else colors.inkMuted))
                 }
             }
         }
@@ -174,34 +180,44 @@ fun ExpensesScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 4.dp)
-                .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
+                .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                .border(0.5.dp, colors.ink.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
                 .padding(8.dp)
         ) {
             if (rollups.isEmpty()) {
-                Text("No expenses this period.", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                Text("No expenses this period.", style = SmithType.caption.copy(color = colors.inkMuted))
             } else {
                 rollups.forEach { r ->
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("${r.short} ${r.display}", style = ConsoleTheme.caption.copy(color = ConsoleTheme.text), modifier = Modifier.weight(1f))
-                        Text("$${String.format("%.2f", r.amount)}", style = ConsoleTheme.caption.copy(color = ConsoleTheme.text))
+                        Text("${r.short} ${r.display}", style = SmithType.caption.copy(color = colors.ink), modifier = Modifier.weight(1f))
+                        Text("$${String.format("%.2f", r.amount)}", style = SmithType.caption.copy(color = colors.ink))
                     }
                 }
-                Box(Modifier.fillMaxWidth().padding(vertical = 2.dp).height(0.5.dp).background(ConsoleTheme.text.copy(alpha = 0.08f)))
+                Box(Modifier.fillMaxWidth().padding(vertical = 2.dp).height(0.5.dp).background(colors.ink.copy(alpha = 0.08f)))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("TOTAL", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.text))
-                    Text("$${String.format("%.2f", grandTotal)}", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent))
+                    Text("TOTAL", style = SmithType.captionBold.copy(color = colors.ink))
+                    Text("$${String.format("%.2f", grandTotal)}", style = SmithType.captionBold.copy(color = colors.accent))
                 }
             }
         }
 
-        // View body
+        // View body — Smith trio per JobBoardViewModel's isLoading/error flags (same
+        // signal JobBoardScreen/ArchiveScreen already wire to); per-view empty states
+        // below (ByJobView etc.) handle the finer-grained "no expenses this period"
+        // case once jobs have actually loaded.
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            when (view) {
-                ExpenseView.BY_JOB -> ByJobView(periodJobs, ::totalFor, ::laborCostFor, onOpenJobExpenses)
-                ExpenseView.LEDGER -> LedgerView(periodJobs, ::laborCostFor)
-                ExpenseView.TIMELINE -> TimelineView(periodJobs, onOpenJobExpenses)
-                ExpenseView.BOL_TABLE -> BolTableView(periodJobs, onOpenJobExpenses)
+            when {
+                error != null -> SmithErrorState(
+                    message = error ?: "Couldn't load expenses.",
+                    onRetry = { viewModel.loadJobs() }
+                )
+                isLoading && jobs.isEmpty() -> SmithLoadingState(label = "LOADING EXPENSES")
+                else -> when (view) {
+                    ExpenseView.BY_JOB -> ByJobView(periodJobs, ::totalFor, ::laborCostFor, onOpenJobExpenses)
+                    ExpenseView.LEDGER -> LedgerView(periodJobs, ::laborCostFor)
+                    ExpenseView.TIMELINE -> TimelineView(periodJobs, onOpenJobExpenses)
+                    ExpenseView.BOL_TABLE -> BolTableView(periodJobs, onOpenJobExpenses)
+                }
             }
         }
 
@@ -233,19 +249,20 @@ fun ExpensesScreen(
 
 @Composable
 private fun ToolbarButton(label: String, accent: Boolean = false, onClick: () -> Unit) {
+    val colors = LocalSmithColors.current
     Box(
         modifier = Modifier
-            .background(if (accent) ConsoleTheme.accent.copy(alpha = 0.14f) else ConsoleTheme.surface, RoundedCornerShape(4.dp))
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+            .background(if (accent) colors.accent.copy(alpha = 0.14f) else colors.bgPanel, RoundedCornerShape(4.dp))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
             .clip(RoundedCornerShape(4.dp))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = rememberRipple(bounded = true, color = ConsoleTheme.accent),
+                indication = rememberRipple(bounded = true, color = colors.accent),
                 onClick = onClick
             )
             .padding(horizontal = 10.dp, vertical = 6.dp)
     ) {
-        Text(label, style = ConsoleTheme.action.copy(color = if (accent) ConsoleTheme.accent else ConsoleTheme.text))
+        Text(label, style = SmithType.action.copy(color = if (accent) colors.accent else colors.ink))
     }
 }
 
@@ -258,6 +275,7 @@ private fun ByJobView(
     laborCostFor: (Job) -> Double,
     onOpen: (String) -> Unit
 ) {
+    val colors = LocalSmithColors.current
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -276,22 +294,22 @@ private fun ByJobView(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                        .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
+                        .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                        .border(0.5.dp, colors.ink.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
                         .clip(RoundedCornerShape(4.dp))
                         .clickable { onOpen(job.id) }
                         .padding(12.dp)
                 ) {
-                    Text(job.clientName ?: job.title, style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.text))
+                    Text(job.clientName ?: job.title, style = SmithType.bodyBold.copy(color = colors.ink))
                     Spacer(Modifier.height(4.dp))
                     Text(
                         "Labor $${String.format("%.2f", labor)}  ·  Materials $${String.format("%.2f", mats)}  ·  Other $${String.format("%.2f", other)}",
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                        style = SmithType.caption.copy(color = colors.inkMuted)
                     )
                     Spacer(Modifier.height(6.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("TOTAL $${String.format("%.2f", total)}", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent))
-                        Text("[View BOL →]", style = ConsoleTheme.action.copy(color = ConsoleTheme.accent))
+                        Text("TOTAL $${String.format("%.2f", total)}", style = SmithType.captionBold.copy(color = colors.accent))
+                        Text("[View BOL →]", style = SmithType.action.copy(color = colors.accent))
                     }
                 }
             }
@@ -303,6 +321,7 @@ private fun ByJobView(
 
 @Composable
 private fun LedgerView(jobs: List<Job>, laborCostFor: (Job) -> Double) {
+    val colors = LocalSmithColors.current
     data class Entry(val catId: String, val display: String, val short: String, val desc: String, val amount: Double, val subtitle: String)
     val allEntries = remember(jobs) {
         val list = mutableListOf<Entry>()
@@ -338,22 +357,22 @@ private fun LedgerView(jobs: List<Job>, laborCostFor: (Job) -> Double) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                        .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
+                        .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                        .border(0.5.dp, colors.ink.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
                         .padding(10.dp)
                 ) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("${d.shortCode} ${d.displayName}", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.text))
-                        Text("$${String.format("%.2f", total)}", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent))
+                        Text("${d.shortCode} ${d.displayName}", style = SmithType.captionBold.copy(color = colors.ink))
+                        Text("$${String.format("%.2f", total)}", style = SmithType.captionBold.copy(color = colors.accent))
                     }
                     Spacer(Modifier.height(4.dp))
                     entries.forEach { e ->
                         Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(e.desc, style = ConsoleTheme.caption.copy(color = ConsoleTheme.text), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(e.subtitle, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(e.desc, style = SmithType.caption.copy(color = colors.ink), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(e.subtitle, style = SmithType.caption.copy(color = colors.inkMuted), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
-                            Text("$${String.format("%.2f", e.amount)}", style = ConsoleTheme.caption.copy(color = ConsoleTheme.text))
+                            Text("$${String.format("%.2f", e.amount)}", style = SmithType.caption.copy(color = colors.ink))
                         }
                     }
                 }
@@ -366,6 +385,7 @@ private fun LedgerView(jobs: List<Job>, laborCostFor: (Job) -> Double) {
 
 @Composable
 private fun TimelineView(jobs: List<Job>, onOpen: (String) -> Unit) {
+    val colors = LocalSmithColors.current
     data class Row(val at: Long, val jobId: String, val label: String, val amount: Double, val short: String, val job: String)
     val rows = remember(jobs) {
         val out = mutableListOf<Row>()
@@ -392,7 +412,7 @@ private fun TimelineView(jobs: List<Job>, onOpen: (String) -> Unit) {
             EmptyHint("No dated expenses yet.")
         } else {
             grouped.forEach { (dateLabel, items) ->
-                Text(dateLabel, style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+                Text(dateLabel, style = SmithType.captionBold.copy(color = colors.inkMuted))
                 items.forEach { r ->
                     androidx.compose.foundation.layout.Row(
                         modifier = Modifier
@@ -401,12 +421,12 @@ private fun TimelineView(jobs: List<Job>, onOpen: (String) -> Unit) {
                             .clickable { onOpen(r.jobId) }
                             .padding(vertical = 4.dp)
                     ) {
-                        Text(r.short, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted), modifier = Modifier.width(36.dp))
+                        Text(r.short, style = SmithType.caption.copy(color = colors.inkMuted), modifier = Modifier.width(36.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(r.label, style = ConsoleTheme.caption.copy(color = ConsoleTheme.text), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(r.job, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(r.label, style = SmithType.caption.copy(color = colors.ink), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(r.job, style = SmithType.caption.copy(color = colors.inkMuted), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                        Text("$${String.format("%.2f", r.amount)}", style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent))
+                        Text("$${String.format("%.2f", r.amount)}", style = SmithType.caption.copy(color = colors.accent))
                     }
                 }
             }
@@ -418,6 +438,7 @@ private fun TimelineView(jobs: List<Job>, onOpen: (String) -> Unit) {
 
 @Composable
 private fun BolTableView(jobs: List<Job>, onOpen: (String) -> Unit) {
+    val colors = LocalSmithColors.current
     data class Row(val date: Long, val jobId: String, val job: String, val catShort: String, val desc: String, val qty: Double, val rate: Double, val total: Double)
     val rows = remember(jobs) {
         val out = mutableListOf<Row>()
@@ -448,12 +469,12 @@ private fun BolTableView(jobs: List<Job>, onOpen: (String) -> Unit) {
                     TH("RATE", 60.dp)
                     TH("TOTAL", 70.dp)
                 }
-                Box(Modifier.fillMaxWidth().height(0.5.dp).background(ConsoleTheme.text.copy(alpha = 0.1f)))
+                Box(Modifier.fillMaxWidth().height(0.5.dp).background(colors.ink.copy(alpha = 0.1f)))
                 val vScroll = rememberScrollState()
                 Column(modifier = Modifier.verticalScroll(vScroll)) {
                     if (rows.isEmpty()) {
                         Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                            Text("No line items.", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                            Text("No line items.", style = SmithType.caption.copy(color = colors.inkMuted))
                         }
                     }
                     rows.forEach { r ->
@@ -480,18 +501,20 @@ private fun BolTableView(jobs: List<Job>, onOpen: (String) -> Unit) {
 
 @Composable
 private fun TH(label: String, width: androidx.compose.ui.unit.Dp) {
+    val colors = LocalSmithColors.current
     Text(
         label,
-        style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted),
+        style = SmithType.captionBold.copy(color = colors.inkMuted),
         modifier = Modifier.width(width).padding(horizontal = 4.dp)
     )
 }
 
 @Composable
 private fun TD(label: String, width: androidx.compose.ui.unit.Dp, accent: Boolean = false) {
+    val colors = LocalSmithColors.current
     Text(
         label,
-        style = ConsoleTheme.caption.copy(color = if (accent) ConsoleTheme.accent else ConsoleTheme.text),
+        style = SmithType.caption.copy(color = if (accent) colors.accent else colors.ink),
         modifier = Modifier.width(width).padding(horizontal = 4.dp),
         maxLines = 1,
         overflow = TextOverflow.Ellipsis
@@ -501,6 +524,6 @@ private fun TD(label: String, width: androidx.compose.ui.unit.Dp, accent: Boolea
 @Composable
 private fun EmptyHint(text: String) {
     Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-        Text(text, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        SmithEmptyState(title = text)
     }
 }

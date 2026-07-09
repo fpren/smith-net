@@ -12,16 +12,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.BolLegalPreferences
 import com.guildofsmiths.trademesh.data.BolLegalPreferences.Group
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 
 @Composable
 fun BolLegalSettingsScreen(onBack: () -> Unit) {
+    val colors = LocalSmithColors.current
     val state by BolLegalPreferences.state.collectAsState()
     var custom by remember(state.customDisclaimer) { mutableStateOf(state.customDisclaimer) }
     var shipper by remember(state.shipperLabel) { mutableStateOf(state.shipperLabel) }
@@ -38,7 +39,7 @@ fun BolLegalSettingsScreen(onBack: () -> Unit) {
     // Search filter for US States (handy when the list grows)
     var stateFilter by remember { mutableStateOf("") }
 
-    Column(modifier = Modifier.fillMaxSize().background(ConsoleTheme.background)) {
+    Column(modifier = Modifier.fillMaxSize().background(colors.bgBase)) {
         ConsoleHeader(title = "BOL LEGAL TERMS", onBackClick = onBack)
 
         Column(
@@ -50,7 +51,7 @@ fun BolLegalSettingsScreen(onBack: () -> Unit) {
         ) {
             Text(
                 "Toggle which legal framework(s) appear at the bottom of every BOL. The text is a starting template with statute, regulation, UN/UNCITRAL convention, and procedural-rule citations — not legal advice.",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
 
             GroupSection(
@@ -69,18 +70,18 @@ fun BolLegalSettingsScreen(onBack: () -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Filter states:", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                    Text("Filter states:", style = SmithType.caption.copy(color = colors.inkMuted))
                     Spacer(Modifier.width(8.dp))
                     BasicTextField(
                         value = stateFilter,
                         onValueChange = { stateFilter = it },
                         singleLine = true,
-                        textStyle = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text),
-                        cursorBrush = SolidColor(ConsoleTheme.cursor),
+                        textStyle = SmithType.bodySmall.copy(color = colors.ink),
+                        cursorBrush = SolidColor(colors.ink),
                         modifier = Modifier
                             .weight(1f)
-                            .background(ConsoleTheme.background, RoundedCornerShape(2.dp))
-                            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.1f), RoundedCornerShape(2.dp))
+                            .background(colors.bgBase, RoundedCornerShape(2.dp))
+                            .border(0.5.dp, colors.ink.copy(alpha = 0.1f), RoundedCornerShape(2.dp))
                             .padding(6.dp)
                     )
                 }
@@ -133,18 +134,18 @@ fun BolLegalSettingsScreen(onBack: () -> Unit) {
                         custom = it
                         BolLegalPreferences.setCustomDisclaimer(it)
                     },
-                    textStyle = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text),
-                    cursorBrush = SolidColor(ConsoleTheme.cursor),
+                    textStyle = SmithType.bodySmall.copy(color = colors.ink),
+                    cursorBrush = SolidColor(colors.ink),
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 80.dp)
-                        .background(ConsoleTheme.background, RoundedCornerShape(4.dp))
-                        .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                        .background(colors.bgBase, RoundedCornerShape(4.dp))
+                        .border(0.5.dp, colors.ink.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
                         .padding(8.dp)
                 )
                 Text(
                     "Appended under [Additional terms] — use for trade-specific warranties, limitations, or payment terms.",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                    style = SmithType.caption.copy(color = colors.inkMuted)
                 )
             }
 
@@ -159,7 +160,7 @@ fun BolLegalSettingsScreen(onBack: () -> Unit) {
                 ) {
                     Checkbox(sigOn)
                     Spacer(Modifier.width(8.dp))
-                    Text("Include signature lines", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
+                    Text("Include signature lines", style = SmithType.bodySmall.copy(color = colors.ink))
                 }
 
                 val notOn = state.includeNotarization
@@ -173,10 +174,10 @@ fun BolLegalSettingsScreen(onBack: () -> Unit) {
                     Checkbox(notOn)
                     Spacer(Modifier.width(8.dp))
                     Column {
-                        Text("Include notarization block", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
+                        Text("Include notarization block", style = SmithType.bodySmall.copy(color = colors.ink))
                         Text(
                             "Adds 'Sworn to (or affirmed) before me …' after the three signature stanzas.",
-                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                            style = SmithType.caption.copy(color = colors.inkMuted)
                         )
                     }
                 }
@@ -188,14 +189,14 @@ fun BolLegalSettingsScreen(onBack: () -> Unit) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(ConsoleTheme.accent.copy(alpha = 0.14f), RoundedCornerShape(4.dp))
+                        .background(colors.accent.copy(alpha = 0.14f), RoundedCornerShape(4.dp))
                         .clickable {
                             BolLegalPreferences.setLabels(shipper, carrier, consignee)
                         }
                         .padding(vertical = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("[save labels]", style = ConsoleTheme.action.copy(color = ConsoleTheme.accent))
+                    Text("[save labels]", style = SmithType.action.copy(color = colors.accent))
                 }
             }
 
@@ -215,6 +216,7 @@ private fun GroupSection(
     group: Group,
     filter: String
 ) {
+    val colors = LocalSmithColors.current
     val allItems = BolLegalTerms.inGroup(group)
     val items = if (filter.isBlank()) allItems else {
         val q = filter.trim().lowercase()
@@ -229,8 +231,8 @@ private fun GroupSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(4.dp))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
     ) {
         Row(
             modifier = Modifier
@@ -239,15 +241,15 @@ private fun GroupSection(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(if (expanded) "▾" else "▸", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+            Text(if (expanded) "▾" else "▸", style = SmithType.caption.copy(color = colors.inkMuted))
             Spacer(Modifier.width(8.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.text))
-                Text(subtitle, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                Text(title, style = SmithType.captionBold.copy(color = colors.ink))
+                Text(subtitle, style = SmithType.caption.copy(color = colors.inkMuted))
             }
             Text(
                 "$enabledCount / ${items.size}",
-                style = ConsoleTheme.caption.copy(color = if (enabledCount > 0) ConsoleTheme.accent else ConsoleTheme.textMuted)
+                style = SmithType.caption.copy(color = if (enabledCount > 0) colors.accent else colors.inkMuted)
             )
         }
         if (expanded) {
@@ -255,11 +257,11 @@ private fun GroupSection(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(ConsoleTheme.warning.copy(alpha = 0.10f))
-                        .border(0.5.dp, ConsoleTheme.warning.copy(alpha = 0.3f))
+                        .background(colors.attention.copy(alpha = 0.10f))
+                        .border(0.5.dp, colors.attention.copy(alpha = 0.3f))
                         .padding(10.dp)
                 ) {
-                    Text(warning, style = ConsoleTheme.caption.copy(color = ConsoleTheme.warning))
+                    Text(warning, style = SmithType.caption.copy(color = colors.attention))
                 }
             }
             Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
@@ -275,11 +277,11 @@ private fun GroupSection(
                         Checkbox(on)
                         Spacer(Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(info.shortLabel, style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.text))
-                            Text(info.jurisdiction, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                            Text(info.shortLabel, style = SmithType.captionBold.copy(color = colors.ink))
+                            Text(info.jurisdiction, style = SmithType.caption.copy(color = colors.inkMuted))
                             if (on) {
                                 Spacer(Modifier.height(4.dp))
-                                Text(info.body, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                                Text(info.body, style = SmithType.caption.copy(color = colors.inkMuted))
                             }
                         }
                     }
@@ -291,15 +293,16 @@ private fun GroupSection(
 
 @Composable
 private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
+    val colors = LocalSmithColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(4.dp))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Text(title, style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+        Text(title, style = SmithType.captionBold.copy(color = colors.inkMuted))
         Spacer(Modifier.height(4.dp))
         content()
     }
@@ -307,31 +310,33 @@ private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) 
 
 @Composable
 private fun Checkbox(on: Boolean) {
+    val colors = LocalSmithColors.current
     Box(
         modifier = Modifier
             .size(18.dp)
-            .background(if (on) ConsoleTheme.accent else ConsoleTheme.background, RoundedCornerShape(2.dp))
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.3f), RoundedCornerShape(2.dp)),
+            .background(if (on) colors.accent else colors.bgBase, RoundedCornerShape(2.dp))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.3f), RoundedCornerShape(2.dp)),
         contentAlignment = Alignment.Center
     ) {
-        if (on) Text("✓", style = ConsoleTheme.caption.copy(color = Color.White))
+        if (on) Text("✓", style = SmithType.caption.copy(color = colors.inkOnAccent))
     }
 }
 
 @Composable
 private fun LabeledLine(label: String, value: String, onChange: (String) -> Unit) {
+    val colors = LocalSmithColors.current
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(label, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        Text(label, style = SmithType.caption.copy(color = colors.inkMuted))
         BasicTextField(
             value = value,
             onValueChange = onChange,
             singleLine = true,
-            textStyle = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text),
-            cursorBrush = SolidColor(ConsoleTheme.cursor),
+            textStyle = SmithType.bodySmall.copy(color = colors.ink),
+            cursorBrush = SolidColor(colors.ink),
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.background, RoundedCornerShape(2.dp))
-                .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.1f), RoundedCornerShape(2.dp))
+                .background(colors.bgBase, RoundedCornerShape(2.dp))
+                .border(0.5.dp, colors.ink.copy(alpha = 0.1f), RoundedCornerShape(2.dp))
                 .padding(8.dp)
         )
     }

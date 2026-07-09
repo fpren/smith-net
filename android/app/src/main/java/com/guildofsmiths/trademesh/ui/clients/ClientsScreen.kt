@@ -23,11 +23,12 @@ import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.ClientInfo
 import com.guildofsmiths.trademesh.data.ClientRepository
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.jobboard.Job
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithButton
 import com.guildofsmiths.trademesh.ui.theme2.SmithButtonVariant
 import com.guildofsmiths.trademesh.ui.theme2.SmithDialog
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 
 @Composable
 fun ClientsScreen(
@@ -35,6 +36,7 @@ fun ClientsScreen(
     onClientClick: (String) -> Unit,
     onBack: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     var searchQuery by remember { mutableStateOf("") }
     var showAddDialog by remember { mutableStateOf(false) }
     // Bump to force the client list to recompute after a manual client is added
@@ -50,7 +52,7 @@ fun ClientsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(ConsoleTheme.background)
+            .background(colors.bgBase)
     ) {
         ConsoleHeader(
             title = "CLIENTS",
@@ -64,20 +66,20 @@ fun ClientsScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
-                .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
                 .padding(horizontal = 12.dp, vertical = 10.dp)
         ) {
             if (searchQuery.isEmpty()) {
                 Text(
                     text = "Search clients...",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                    style = SmithType.caption.copy(color = colors.inkMuted)
                 )
             }
             BasicTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                textStyle = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text),
+                textStyle = SmithType.bodySmall.copy(color = colors.ink),
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
@@ -91,7 +93,7 @@ fun ClientsScreen(
                 Text(
                     text = if (searchQuery.isNotBlank()) "No clients match \"$searchQuery\""
                            else "No clients yet. Create a job or tap [+ ADD].",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                    style = SmithType.caption.copy(color = colors.inkMuted)
                 )
             }
         } else {
@@ -105,7 +107,7 @@ fun ClientsScreen(
                         Modifier
                             .fillMaxWidth()
                             .height(0.5.dp)
-                            .background(ConsoleTheme.text.copy(alpha = 0.06f))
+                            .background(colors.ink.copy(alpha = 0.06f))
                     )
                 }
             }
@@ -127,6 +129,7 @@ fun ClientsScreen(
 
 @Composable
 private fun ClientRow(client: ClientInfo, onClick: () -> Unit) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -143,7 +146,7 @@ private fun ClientRow(client: ClientInfo, onClick: () -> Unit) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = client.name,
-                style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text)
+                style = SmithType.bodySmall.copy(color = colors.ink)
             )
             val stageIcon = client.latestStage?.icon ?: ""
             val jobLabel = if (client.jobCount == 1) "1 job" else "${client.jobCount} jobs"
@@ -157,14 +160,14 @@ private fun ClientRow(client: ClientInfo, onClick: () -> Unit) {
             }
             Text(
                 text = subtitle,
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                style = SmithType.caption.copy(color = colors.inkMuted),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
         Text(
             text = ">",
-            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+            style = SmithType.caption.copy(color = colors.inkMuted),
             modifier = Modifier.padding(start = 8.dp)
         )
     }
@@ -216,15 +219,16 @@ private fun AddClientDialog(
 
 @Composable
 private fun DialogField(label: String, value: String, onValueChange: (String) -> Unit) {
+    val colors = LocalSmithColors.current
     Column {
-        Text(label, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        Text(label, style = SmithType.caption.copy(color = colors.inkMuted))
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
-            textStyle = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text),
+            textStyle = SmithType.bodySmall.copy(color = colors.ink),
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.background, RoundedCornerShape(4.dp))
+                .background(colors.bgBase, RoundedCornerShape(4.dp))
                 .padding(8.dp),
             singleLine = true
         )

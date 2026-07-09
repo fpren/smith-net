@@ -32,12 +32,16 @@ import com.guildofsmiths.trademesh.data.TimeEntryRepository
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.ai.AISupervisor
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.jobboard.FreightTerm
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel
 import com.guildofsmiths.trademesh.ui.jobboard.JobExpense
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithEmptyState
+import com.guildofsmiths.trademesh.ui.theme2.SmithErrorState
+import com.guildofsmiths.trademesh.ui.theme2.SmithLoadingState
 import com.guildofsmiths.trademesh.ui.theme2.SmithSheet
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import com.guildofsmiths.trademesh.ui.timetracking.EntryType
 import java.text.SimpleDateFormat
 import java.util.*
@@ -49,7 +53,10 @@ fun JobExpenseDetailScreen(
     viewModel: JobBoardViewModel,
     onBack: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     val jobs by viewModel.jobs.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val error by viewModel.error.collectAsState()
     val timeEntries by TimeEntryRepository.entries.collectAsState()
     val categories by ExpenseCategoryRepository.categories.collectAsState()
     val context = LocalContext.current
@@ -57,10 +64,20 @@ fun JobExpenseDetailScreen(
 
     val job = jobs.firstOrNull { it.id == jobId }
     if (job == null) {
-        Column(modifier = Modifier.fillMaxSize().background(ConsoleTheme.background)) {
+        // Smith trio per JobBoardViewModel's isLoading/error flags (same signal
+        // ExpensesScreen/JobBoardScreen already wire to) — distinguishes "still
+        // loading the job list" and "sync failed" from a genuinely missing job id.
+        Column(modifier = Modifier.fillMaxSize().background(colors.bgBase)) {
             ConsoleHeader(title = "EXPENSES", onBackClick = onBack)
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Job not found.", style = ConsoleTheme.body)
+                when {
+                    error != null -> SmithErrorState(
+                        message = error ?: "Couldn't load this job.",
+                        onRetry = { viewModel.loadJobs() }
+                    )
+                    isLoading -> SmithLoadingState(label = "LOADING JOB")
+                    else -> SmithEmptyState(title = "Job not found.")
+                }
             }
         }
         return
@@ -101,7 +118,7 @@ fun JobExpenseDetailScreen(
 
     val dateFmt = remember { SimpleDateFormat("MMM d yy", Locale.US) }
 
-    Column(modifier = Modifier.fillMaxSize().background(ConsoleTheme.background)) {
+    Column(modifier = Modifier.fillMaxSize().background(colors.bgBase)) {
         ConsoleHeader(title = "BILL OF WORK & EXPENSES", onBackClick = onBack)
 
         Column(
@@ -115,37 +132,37 @@ fun JobExpenseDetailScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                    .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                    .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                    .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
                     .padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("BOL #: $bolNumber", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.text))
-                    Text(dateFmt.format(Date()), style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                    Text("BOL #: $bolNumber", style = SmithType.captionBold.copy(color = colors.ink))
+                    Text(dateFmt.format(Date()), style = SmithType.caption.copy(color = colors.inkMuted))
                 }
-                Box(Modifier.fillMaxWidth().padding(vertical = 4.dp).height(0.5.dp).background(ConsoleTheme.text.copy(alpha = 0.08f)))
+                Box(Modifier.fillMaxWidth().padding(vertical = 4.dp).height(0.5.dp).background(colors.ink.copy(alpha = 0.08f)))
 
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("SHIP FROM", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
-                        Text(UserPreferences.getBusinessName().ifBlank { "My Business" }, style = ConsoleTheme.caption)
+                        Text("SHIP FROM", style = SmithType.captionBold.copy(color = colors.inkMuted))
+                        Text(UserPreferences.getBusinessName().ifBlank { "My Business" }, style = SmithType.caption.copy(color = colors.inkMuted))
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("SHIP TO", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
-                        Text(job.clientName ?: "—", style = ConsoleTheme.caption)
+                        Text("SHIP TO", style = SmithType.captionBold.copy(color = colors.inkMuted))
+                        Text(job.clientName ?: "—", style = SmithType.caption.copy(color = colors.inkMuted))
                         if (job.clientAddress.isNotBlank()) {
-                            Text(job.clientAddress, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                            Text(job.clientAddress, style = SmithType.caption.copy(color = colors.inkMuted))
                         }
                         if (job.clientPhone.isNotBlank()) {
-                            Text(job.clientPhone, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                            Text(job.clientPhone, style = SmithType.caption.copy(color = colors.inkMuted))
                         }
                     }
                 }
 
                 Text(
                     "Job: ${job.title} · Stage: ${job.stage.displayName}",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.text)
+                    style = SmithType.caption.copy(color = colors.ink)
                 )
 
                 // Deposit row (tappable)
@@ -159,9 +176,9 @@ fun JobExpenseDetailScreen(
                 ) {
                     Text(
                         "Deposit collected: $${String.format("%.2f", job.depositCollected)}${if (!job.depositNote.isNullOrBlank()) " · ${job.depositNote}" else ""}",
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.text)
+                        style = SmithType.caption.copy(color = colors.ink)
                     )
-                    Text("[edit]", style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent))
+                    Text("[edit]", style = SmithType.caption.copy(color = colors.accent))
                 }
             }
 
@@ -169,19 +186,19 @@ fun JobExpenseDetailScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                    .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                    .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                    .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
                     .padding(10.dp)
             ) {
                 // Column headers
                 Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                    Text("UNIT", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted), modifier = Modifier.width(36.dp))
-                    Text("DESCRIPTION", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted), modifier = Modifier.weight(1f))
-                    Text("QTY", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted), modifier = Modifier.width(44.dp))
-                    Text("RATE", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted), modifier = Modifier.width(64.dp))
-                    Text("TOTAL", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted), modifier = Modifier.width(70.dp))
+                    Text("UNIT", style = SmithType.captionBold.copy(color = colors.inkMuted), modifier = Modifier.width(36.dp))
+                    Text("DESCRIPTION", style = SmithType.captionBold.copy(color = colors.inkMuted), modifier = Modifier.weight(1f))
+                    Text("QTY", style = SmithType.captionBold.copy(color = colors.inkMuted), modifier = Modifier.width(44.dp))
+                    Text("RATE", style = SmithType.captionBold.copy(color = colors.inkMuted), modifier = Modifier.width(64.dp))
+                    Text("TOTAL", style = SmithType.captionBold.copy(color = colors.inkMuted), modifier = Modifier.width(70.dp))
                 }
-                Box(Modifier.fillMaxWidth().height(0.5.dp).background(ConsoleTheme.text.copy(alpha = 0.1f)))
+                Box(Modifier.fillMaxWidth().height(0.5.dp).background(colors.ink.copy(alpha = 0.1f)))
 
                 // LABOR rows (read-only, tap jumps to Time Tracking)
                 laborRows.forEach { lr ->
@@ -192,16 +209,16 @@ fun JobExpenseDetailScreen(
                             .padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("[L]", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted), modifier = Modifier.width(36.dp))
+                        Text("[L]", style = SmithType.caption.copy(color = colors.inkMuted), modifier = Modifier.width(36.dp))
                         Text(
                             "Labor $dateLabel · ${lr.entryTypeLabel}",
-                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.text),
+                            style = SmithType.caption.copy(color = colors.ink),
                             modifier = Modifier.weight(1f),
                             maxLines = 1, overflow = TextOverflow.Ellipsis
                         )
-                        Text(String.format("%.2f", lr.hours), style = ConsoleTheme.caption.copy(color = ConsoleTheme.text), modifier = Modifier.width(44.dp))
-                        Text(String.format("%.2f", lr.rate), style = ConsoleTheme.caption.copy(color = ConsoleTheme.text), modifier = Modifier.width(64.dp))
-                        Text("$${String.format("%.2f", lr.hours * lr.rate)}", style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent), modifier = Modifier.width(70.dp))
+                        Text(String.format("%.2f", lr.hours), style = SmithType.caption.copy(color = colors.ink), modifier = Modifier.width(44.dp))
+                        Text(String.format("%.2f", lr.rate), style = SmithType.caption.copy(color = colors.ink), modifier = Modifier.width(64.dp))
+                        Text("$${String.format("%.2f", lr.hours * lr.rate)}", style = SmithType.caption.copy(color = colors.accent), modifier = Modifier.width(70.dp))
                     }
                 }
 
@@ -211,11 +228,11 @@ fun JobExpenseDetailScreen(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("[M]", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted), modifier = Modifier.width(36.dp))
-                        Text(m.name, style = ConsoleTheme.caption.copy(color = ConsoleTheme.text), modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(String.format("%.2f", m.quantity), style = ConsoleTheme.caption.copy(color = ConsoleTheme.text), modifier = Modifier.width(44.dp))
-                        Text(String.format("%.2f", m.unitCost), style = ConsoleTheme.caption.copy(color = ConsoleTheme.text), modifier = Modifier.width(64.dp))
-                        Text("$${String.format("%.2f", m.totalCost)}", style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent), modifier = Modifier.width(70.dp))
+                        Text("[M]", style = SmithType.caption.copy(color = colors.inkMuted), modifier = Modifier.width(36.dp))
+                        Text(m.name, style = SmithType.caption.copy(color = colors.ink), modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(String.format("%.2f", m.quantity), style = SmithType.caption.copy(color = colors.ink), modifier = Modifier.width(44.dp))
+                        Text(String.format("%.2f", m.unitCost), style = SmithType.caption.copy(color = colors.ink), modifier = Modifier.width(64.dp))
+                        Text("$${String.format("%.2f", m.totalCost)}", style = SmithType.caption.copy(color = colors.accent), modifier = Modifier.width(70.dp))
                     }
                 }
 
@@ -230,31 +247,31 @@ fun JobExpenseDetailScreen(
 
                 if (laborRows.isEmpty() && materialRows.isEmpty() && expenseRows.isEmpty()) {
                     Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
-                        Text("No line items yet.", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                        SmithEmptyState(title = "No line items yet.")
                     }
                 }
 
-                Box(Modifier.fillMaxWidth().padding(vertical = 4.dp).height(0.5.dp).background(ConsoleTheme.text.copy(alpha = 0.1f)))
+                Box(Modifier.fillMaxWidth().padding(vertical = 4.dp).height(0.5.dp).background(colors.ink.copy(alpha = 0.1f)))
 
                 SubtotalRow("Subtotal Labor", laborSubtotal)
                 SubtotalRow("Subtotal Materials", materialSubtotal + expenseRows.filter { it.category == "material" }.sumOf { it.totalCost })
                 SubtotalRow("Subtotal Other", otherSubtotal)
 
-                Box(Modifier.fillMaxWidth().padding(vertical = 4.dp).height(0.5.dp).background(ConsoleTheme.text.copy(alpha = 0.2f)))
+                Box(Modifier.fillMaxWidth().padding(vertical = 4.dp).height(0.5.dp).background(colors.ink.copy(alpha = 0.2f)))
 
                 Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("GRAND TOTAL", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.text))
-                    Text("$${String.format("%.2f", grandTotal)}", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent))
+                    Text("GRAND TOTAL", style = SmithType.captionBold.copy(color = colors.ink))
+                    Text("$${String.format("%.2f", grandTotal)}", style = SmithType.captionBold.copy(color = colors.accent))
                 }
 
                 if (job.depositCollected > 0) {
                     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Deposit applied", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
-                        Text("−$${String.format("%.2f", job.depositCollected)}", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                        Text("Deposit applied", style = SmithType.caption.copy(color = colors.inkMuted))
+                        Text("−$${String.format("%.2f", job.depositCollected)}", style = SmithType.caption.copy(color = colors.inkMuted))
                     }
                     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Net unbilled", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.text))
-                        Text("$${String.format("%.2f", grandTotal - job.depositCollected)}", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent))
+                        Text("Net unbilled", style = SmithType.captionBold.copy(color = colors.ink))
+                        Text("$${String.format("%.2f", grandTotal - job.depositCollected)}", style = SmithType.captionBold.copy(color = colors.accent))
                     }
                 }
 
@@ -262,7 +279,7 @@ fun JobExpenseDetailScreen(
                     Spacer(Modifier.height(4.dp))
                     Text(
                         "$estimatedCount item${if (estimatedCount != 1) "s" else ""} estimated — review rates marked [AI est.]",
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.warning)
+                        style = SmithType.caption.copy(color = colors.attention)
                     )
                 }
             }
@@ -360,25 +377,27 @@ private data class LaborRow(
 
 @Composable
 private fun SubtotalRow(label: String, amount: Double) {
+    val colors = LocalSmithColors.current
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
-        Text("$${String.format("%.2f", amount)}", style = ConsoleTheme.caption.copy(color = ConsoleTheme.text))
+        Text(label, style = SmithType.caption.copy(color = colors.inkMuted))
+        Text("$${String.format("%.2f", amount)}", style = SmithType.caption.copy(color = colors.ink))
     }
 }
 
 @Composable
 private fun ActionButton(label: String, accent: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val colors = LocalSmithColors.current
     Box(
         modifier = modifier
             .background(
-                if (accent) ConsoleTheme.accent.copy(alpha = 0.14f) else ConsoleTheme.surface,
+                if (accent) colors.accent.copy(alpha = 0.14f) else colors.bgPanel,
                 RoundedCornerShape(4.dp)
             )
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
             .clip(RoundedCornerShape(4.dp))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = rememberRipple(bounded = true, color = ConsoleTheme.accent),
+                indication = rememberRipple(bounded = true, color = colors.accent),
                 onClick = onClick
             )
             .padding(vertical = 10.dp),
@@ -386,8 +405,8 @@ private fun ActionButton(label: String, accent: Boolean, modifier: Modifier = Mo
     ) {
         Text(
             label,
-            style = ConsoleTheme.action.copy(
-                color = if (accent) ConsoleTheme.accent else ConsoleTheme.text
+            style = SmithType.action.copy(
+                color = if (accent) colors.accent else colors.ink
             )
         )
     }
@@ -400,6 +419,7 @@ private fun ExpenseRowEditable(
     onUpdate: (JobExpense) -> Unit,
     onDelete: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     val def = ExpenseCategoryRepository.resolve(expense.category)
     var expanded by remember { mutableStateOf(false) }
     var editingDesc by remember { mutableStateOf(false) }
@@ -417,7 +437,7 @@ private fun ExpenseRowEditable(
             .padding(vertical = 4.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(def.shortCode, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted), modifier = Modifier.width(36.dp))
+            Text(def.shortCode, style = SmithType.caption.copy(color = colors.inkMuted), modifier = Modifier.width(36.dp))
 
             // Description cell — tap to edit
             Box(modifier = Modifier.weight(1f)) {
@@ -426,18 +446,18 @@ private fun ExpenseRowEditable(
                         value = descDraft,
                         onValueChange = { descDraft = it },
                         singleLine = true,
-                        textStyle = ConsoleTheme.caption.copy(color = ConsoleTheme.text),
-                        cursorBrush = SolidColor(ConsoleTheme.cursor),
+                        textStyle = SmithType.caption.copy(color = colors.ink),
+                        cursorBrush = SolidColor(colors.ink),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(ConsoleTheme.background, RoundedCornerShape(2.dp))
+                            .background(colors.bgBase, RoundedCornerShape(2.dp))
                             .padding(4.dp)
                     )
                 } else {
                     Text(
                         text = expense.description.ifBlank { "(tap to edit)" },
-                        style = ConsoleTheme.caption.copy(
-                            color = if (expense.description.isBlank()) ConsoleTheme.textMuted else ConsoleTheme.text
+                        style = SmithType.caption.copy(
+                            color = if (expense.description.isBlank()) colors.inkMuted else colors.ink
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -466,7 +486,7 @@ private fun ExpenseRowEditable(
             )
             Text(
                 "$${String.format("%.2f", expense.totalCost)}",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent),
+                style = SmithType.caption.copy(color = colors.accent),
                 modifier = Modifier.width(70.dp)
             )
         }
@@ -477,7 +497,7 @@ private fun ExpenseRowEditable(
                 horizontalArrangement = Arrangement.End
             ) {
                 Text("[save]",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent),
+                    style = SmithType.caption.copy(color = colors.accent),
                     modifier = Modifier
                         .clickable {
                             onUpdate(expense.copy(description = descDraft))
@@ -486,7 +506,7 @@ private fun ExpenseRowEditable(
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 )
                 Text("[cancel]",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                    style = SmithType.caption.copy(color = colors.inkMuted),
                     modifier = Modifier
                         .clickable {
                             descDraft = expense.description
@@ -501,21 +521,21 @@ private fun ExpenseRowEditable(
             Spacer(Modifier.height(4.dp))
             Column(modifier = Modifier.padding(start = 36.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 if (expense.vendor.isNotBlank()) {
-                    Text("Vendor: ${expense.vendor}", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                    Text("Vendor: ${expense.vendor}", style = SmithType.caption.copy(color = colors.inkMuted))
                 }
                 if (!expense.referenceNumber.isNullOrBlank()) {
-                    Text("Ref: ${expense.referenceNumber}", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                    Text("Ref: ${expense.referenceNumber}", style = SmithType.caption.copy(color = colors.inkMuted))
                 }
-                Text("Unit: ${expense.unit}", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                Text("Unit: ${expense.unit}", style = SmithType.caption.copy(color = colors.inkMuted))
                 if (expense.hazardous) {
-                    Text("[HM]", style = ConsoleTheme.caption.copy(color = ConsoleTheme.warning))
+                    Text("[HM]", style = SmithType.caption.copy(color = colors.attention))
                 }
                 if (expense.aiEstimated) {
                     Text("[AI est.] — tap rate to override",
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.warning))
+                        style = SmithType.caption.copy(color = colors.attention))
                 }
                 Text("Long-press row to delete",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                    style = SmithType.caption.copy(color = colors.inkMuted))
             }
         }
     }
@@ -528,6 +548,7 @@ private fun NumericCell(
     onCommit: () -> Unit,
     width: androidx.compose.ui.unit.Dp
 ) {
+    val colors = LocalSmithColors.current
     BasicTextField(
         value = value,
         onValueChange = { new ->
@@ -535,8 +556,8 @@ private fun NumericCell(
             if (new.matches(Regex("^\\d*\\.?\\d*$"))) onValueChange(new)
         },
         singleLine = true,
-        textStyle = ConsoleTheme.caption.copy(color = ConsoleTheme.text),
-        cursorBrush = SolidColor(ConsoleTheme.cursor),
+        textStyle = SmithType.caption.copy(color = colors.ink),
+        cursorBrush = SolidColor(colors.ink),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
         modifier = Modifier.width(width).padding(end = 4.dp)
     )
@@ -554,6 +575,7 @@ private fun AddExpenseSheet(
     onSave: (JobExpense) -> Unit,
     onCancel: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     val categories by ExpenseCategoryRepository.categories.collectAsState()
     val visible = categories.filter { !it.hidden }.sortedBy { it.sortOrder }
 
@@ -588,10 +610,10 @@ private fun AddExpenseSheet(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text("ADD EXPENSE", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.text))
+        Text("ADD EXPENSE", style = SmithType.captionBold.copy(color = colors.ink))
 
         // Category picker
-        Text("Category", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        Text("Category", style = SmithType.caption.copy(color = colors.inkMuted))
         Row(
             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -601,17 +623,17 @@ private fun AddExpenseSheet(
                 Box(
                     modifier = Modifier
                         .background(
-                            if (selected) ConsoleTheme.accent else ConsoleTheme.background,
+                            if (selected) colors.accent else colors.bgBase,
                             RoundedCornerShape(4.dp)
                         )
-                        .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                        .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
                         .clip(RoundedCornerShape(4.dp))
                         .clickable { categoryId = c.id }
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
                         "${c.shortCode} ${c.displayName}",
-                        style = ConsoleTheme.caption.copy(color = if (selected) Color.White else ConsoleTheme.text)
+                        style = SmithType.caption.copy(color = if (selected) colors.inkOnAccent else colors.ink)
                     )
                 }
             }
@@ -633,15 +655,15 @@ private fun AddExpenseSheet(
                 Box(
                     modifier = Modifier
                         .background(
-                            if (selected) ConsoleTheme.accent.copy(alpha = 0.2f) else ConsoleTheme.background,
+                            if (selected) colors.accent.copy(alpha = 0.2f) else colors.bgBase,
                             RoundedCornerShape(4.dp)
                         )
-                        .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                        .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
                         .clip(RoundedCornerShape(4.dp))
                         .clickable { freight = ft }
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    Text(ft.displayName, style = ConsoleTheme.caption.copy(color = if (selected) ConsoleTheme.accent else ConsoleTheme.textMuted))
+                    Text(ft.displayName, style = SmithType.caption.copy(color = if (selected) colors.accent else colors.inkMuted))
                 }
             }
         }
@@ -650,12 +672,12 @@ private fun AddExpenseSheet(
             Box(
                 modifier = Modifier
                     .size(18.dp)
-                    .border(1.dp, ConsoleTheme.warning, RoundedCornerShape(2.dp))
-                    .background(if (hazardous) ConsoleTheme.warning.copy(alpha = 0.3f) else Color.Transparent)
+                    .border(1.dp, colors.attention, RoundedCornerShape(2.dp))
+                    .background(if (hazardous) colors.attention.copy(alpha = 0.3f) else Color.Transparent)
                     .clickable { hazardous = !hazardous }
             )
             Spacer(Modifier.width(8.dp))
-            Text("Hazardous material (HM)", style = ConsoleTheme.caption.copy(color = ConsoleTheme.text))
+            Text("Hazardous material (HM)", style = SmithType.caption.copy(color = colors.ink))
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -690,19 +712,20 @@ private fun LabeledInput(
     numeric: Boolean = false,
     onChange: (String) -> Unit
 ) {
+    val colors = LocalSmithColors.current
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(label, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        Text(label, style = SmithType.caption.copy(color = colors.inkMuted))
         BasicTextField(
             value = value,
             onValueChange = onChange,
             singleLine = true,
-            textStyle = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text),
-            cursorBrush = SolidColor(ConsoleTheme.cursor),
+            textStyle = SmithType.bodySmall.copy(color = colors.ink),
+            cursorBrush = SolidColor(colors.ink),
             keyboardOptions = if (numeric) KeyboardOptions(keyboardType = KeyboardType.Decimal) else KeyboardOptions.Default,
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.background, RoundedCornerShape(2.dp))
-                .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.12f), RoundedCornerShape(2.dp))
+                .background(colors.bgBase, RoundedCornerShape(2.dp))
+                .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(2.dp))
                 .padding(8.dp)
         )
     }
@@ -715,17 +738,18 @@ private fun DepositDialog(
     onSave: (Double, String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     var amount by remember { mutableStateOf(current.cleanStr()) }
     var note by remember { mutableStateOf(currentNote) }
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
-                .background(ConsoleTheme.surface, RoundedCornerShape(6.dp))
-                .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                .background(colors.bgPanel, RoundedCornerShape(6.dp))
+                .border(0.5.dp, colors.ink.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("DEPOSIT", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.text))
+            Text("DEPOSIT", style = SmithType.captionBold.copy(color = colors.ink))
             LabeledInput("Amount", amount, numeric = true) { amount = it }
             LabeledInput("Note (check #, method)", note) { note = it }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

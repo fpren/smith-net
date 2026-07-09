@@ -12,8 +12,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
 import com.guildofsmiths.trademesh.ui.ConsoleSeparator
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithDialog
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -32,6 +33,7 @@ fun InvoicePreviewDialog(
     onShareBol: (String) -> Unit = {},
     onPreviewRendered: (() -> Unit)? = null
 ) {
+    val colors = LocalSmithColors.current
     val dateFormat = remember { SimpleDateFormat("MMMM d, yyyy", Locale.US) }
     val shortDateFormat = remember { SimpleDateFormat("MMM d, yyyy", Locale.US) }
     // Default to OFF — user must opt in to bundle the BOL with the invoice
@@ -52,19 +54,19 @@ fun InvoicePreviewDialog(
                             modifier = Modifier
                                 .size(18.dp)
                                 .background(
-                                    if (attachBol) ConsoleTheme.accent else ConsoleTheme.surface
+                                    if (attachBol) colors.accent else colors.bgPanel
                                 )
                                 .clickable { attachBol = !attachBol },
                             contentAlignment = Alignment.Center
                         ) {
                             if (attachBol) {
-                                Text("✓", style = ConsoleTheme.caption.copy(color = androidx.compose.ui.graphics.Color.White))
+                                Text("✓", style = SmithType.caption.copy(color = colors.inkOnAccent))
                             }
                         }
                         Spacer(Modifier.width(8.dp))
                         Text(
                             text = "Attach BOL to invoice",
-                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.text),
+                            style = SmithType.caption.copy(color = colors.ink),
                             modifier = Modifier.clickable { attachBol = !attachBol }
                         )
                     }
@@ -73,13 +75,13 @@ fun InvoicePreviewDialog(
                     if (onPreviewRendered != null) {
                         Text(
                             text = "[>] PREVIEW & SHARE",
-                            style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                            style = SmithType.action.copy(color = colors.accent),
                             modifier = Modifier.clickable { onPreviewRendered() }
                         )
                     }
                     Text(
                         text = "[>] TEXT",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                        style = SmithType.action.copy(color = colors.inkMuted),
                         modifier = Modifier.clickable {
                             val invoiceText = InvoiceFormatter.formatAsText(invoice)
                             val payload = if (attachBol && bolText != null) invoiceText + "\n\n" + bolText else invoiceText
@@ -88,7 +90,7 @@ fun InvoicePreviewDialog(
                     )
                     Text(
                         text = "[OK] DONE",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.success),
+                        style = SmithType.action.copy(color = colors.statusOnline),
                         modifier = Modifier.clickable { onDismiss() }
                     )
                 }
@@ -102,13 +104,13 @@ fun InvoicePreviewDialog(
         ) {
             Text(
                 text = if (invoice.mode == InvoiceMode.ENTERPRISE) "[ENTERPRISE/CREW]" else "[SOLO]",
-                style = ConsoleTheme.caption.copy(
-                    color = if (invoice.mode == InvoiceMode.ENTERPRISE) ConsoleTheme.accent else ConsoleTheme.success
+                style = SmithType.caption.copy(
+                    color = if (invoice.mode == InvoiceMode.ENTERPRISE) colors.accent else colors.statusOnline
                 )
             )
             Text(
                 text = "X",
-                style = ConsoleTheme.action,
+                style = SmithType.action.copy(color = colors.accent),
                 modifier = Modifier.clickable { onDismiss() }
             )
         }
@@ -125,7 +127,7 @@ fun InvoicePreviewDialog(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(ConsoleTheme.surface)
+                        .background(colors.bgPanel)
                         .padding(12.dp)
                 ) {
                     Column {
@@ -133,13 +135,13 @@ fun InvoicePreviewDialog(
                             text = if (invoice.mode == InvoiceMode.ENTERPRISE) 
                                 "GUILD OF SMITHS INVOICE (ENTERPRISE)" 
                                 else "GUILD OF SMITHS INVOICE",
-                            style = ConsoleTheme.header,
+                            style = SmithType.header.copy(color = colors.ink),
                             modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.Center
                         )
                         Text(
                             text = "──────────────────────────────",
-                            style = ConsoleTheme.caption,
+                            style = SmithType.caption.copy(color = colors.inkMuted),
                             modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.Center
                         )
@@ -163,20 +165,20 @@ fun InvoicePreviewDialog(
                 // ═══════════════════════════════════════════════════
                 // FROM
                 // ═══════════════════════════════════════════════════
-                Text(text = "FROM:", style = ConsoleTheme.captionBold)
+                Text(text = "FROM:", style = SmithType.captionBold.copy(color = colors.inkMuted))
                 Column(modifier = Modifier.padding(start = 16.dp)) {
-                    Text(text = invoice.fromName, style = ConsoleTheme.body)
+                    Text(text = invoice.fromName, style = SmithType.body.copy(color = colors.ink))
                     if (invoice.fromBusiness.isNotEmpty()) {
-                        Text(text = invoice.fromBusiness, style = ConsoleTheme.body)
+                        Text(text = invoice.fromBusiness, style = SmithType.body.copy(color = colors.ink))
                     }
                     if (invoice.fromTrade.isNotEmpty()) {
-                        Text(text = invoice.fromTrade, style = ConsoleTheme.caption)
+                        Text(text = invoice.fromTrade, style = SmithType.caption.copy(color = colors.inkMuted))
                     }
                     if (invoice.fromPhone.isNotEmpty()) {
-                        Text(text = "Phone: ${invoice.fromPhone}", style = ConsoleTheme.caption)
+                        Text(text = "Phone: ${invoice.fromPhone}", style = SmithType.caption.copy(color = colors.inkMuted))
                     }
                     if (invoice.fromEmail.isNotEmpty()) {
-                        Text(text = "Email: ${invoice.fromEmail}", style = ConsoleTheme.caption)
+                        Text(text = "Email: ${invoice.fromEmail}", style = SmithType.caption.copy(color = colors.inkMuted))
                     }
                 }
 
@@ -186,19 +188,19 @@ fun InvoicePreviewDialog(
                 // TO
                 // ═══════════════════════════════════════════════════
                 if (invoice.toName.isNotEmpty() || invoice.projectRef.isNotEmpty()) {
-                    Text(text = "TO:", style = ConsoleTheme.captionBold)
+                    Text(text = "TO:", style = SmithType.captionBold.copy(color = colors.inkMuted))
                     Column(modifier = Modifier.padding(start = 16.dp)) {
                         if (invoice.toName.isNotEmpty()) {
-                            Text(text = invoice.toName, style = ConsoleTheme.body)
+                            Text(text = invoice.toName, style = SmithType.body.copy(color = colors.ink))
                         }
                         if (invoice.toCompany.isNotEmpty()) {
-                            Text(text = invoice.toCompany, style = ConsoleTheme.body)
+                            Text(text = invoice.toCompany, style = SmithType.body.copy(color = colors.ink))
                         }
                         if (invoice.projectRef.isNotEmpty()) {
-                            Text(text = "Project: ${invoice.projectRef}", style = ConsoleTheme.caption)
+                            Text(text = "Project: ${invoice.projectRef}", style = SmithType.caption.copy(color = colors.inkMuted))
                         }
                         if (invoice.poNumber.isNotEmpty()) {
-                            Text(text = "PO #: ${invoice.poNumber}", style = ConsoleTheme.caption)
+                            Text(text = "PO #: ${invoice.poNumber}", style = SmithType.caption.copy(color = colors.inkMuted))
                         }
                     }
                     ConsoleSeparator()
@@ -208,11 +210,11 @@ fun InvoicePreviewDialog(
                 // CREW DEPLOYMENT (Enterprise only)
                 // ═══════════════════════════════════════════════════
                 if (invoice.mode == InvoiceMode.ENTERPRISE && invoice.crew.isNotEmpty()) {
-                    Text(text = "CREW DEPLOYMENT", style = ConsoleTheme.captionBold)
+                    Text(text = "CREW DEPLOYMENT", style = SmithType.captionBold.copy(color = colors.inkMuted))
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(ConsoleTheme.surface)
+                            .background(colors.bgPanel)
                             .padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
@@ -223,11 +225,11 @@ fun InvoicePreviewDialog(
                             ) {
                                 Text(
                                     text = "${member.role}: ${member.name}",
-                                    style = ConsoleTheme.body
+                                    style = SmithType.body.copy(color = colors.ink)
                                 )
                                 Text(
                                     text = "${String.format("%.1f", member.totalHours)}h",
-                                    style = ConsoleTheme.bodyBold
+                                    style = SmithType.bodyBold.copy(color = colors.ink)
                                 )
                             }
                         }
@@ -238,16 +240,16 @@ fun InvoicePreviewDialog(
                         ) {
                             Text(
                                 text = "Total crew-hours logged:",
-                                style = ConsoleTheme.captionBold
+                                style = SmithType.captionBold.copy(color = colors.inkMuted)
                             )
                             Text(
                                 text = "${String.format("%.1f", invoice.totalCrewHours)}h",
-                                style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.accent)
+                                style = SmithType.bodyBold.copy(color = colors.accent)
                             )
                         }
                         Text(
                             text = "(${invoice.meshPresence})",
-                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                            style = SmithType.caption.copy(color = colors.inkMuted)
                         )
                     }
                     ConsoleSeparator()
@@ -257,13 +259,13 @@ fun InvoicePreviewDialog(
                 // DAILY BREAKDOWN (Enterprise only)
                 // ═══════════════════════════════════════════════════
                 if (invoice.mode == InvoiceMode.ENTERPRISE && invoice.dailyBreakdown.isNotEmpty()) {
-                    Text(text = "DAILY BREAKDOWN", style = ConsoleTheme.captionBold)
+                    Text(text = "DAILY BREAKDOWN", style = SmithType.captionBold.copy(color = colors.inkMuted))
                     
                     invoice.dailyBreakdown.forEach { day ->
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(ConsoleTheme.surface)
+                                .background(colors.bgPanel)
                                 .padding(10.dp),
                             verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
@@ -273,27 +275,27 @@ fun InvoicePreviewDialog(
                             ) {
                                 Text(
                                     text = "Day ${day.day} – ${shortDateFormat.format(Date(day.date))}",
-                                    style = ConsoleTheme.bodyBold
+                                    style = SmithType.bodyBold.copy(color = colors.ink)
                                 )
                                 Text(
                                     text = "${String.format("%.1f", day.totalHours)}h",
-                                    style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.accent)
+                                    style = SmithType.bodyBold.copy(color = colors.accent)
                                 )
                             }
                             if (day.startTime.isNotEmpty() && day.endTime.isNotEmpty()) {
                                 Text(
                                     text = "${day.startTime} – ${day.endTime}",
-                                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                                    style = SmithType.caption.copy(color = colors.inkMuted)
                                 )
                             }
                             Text(
                                 text = day.activities.take(100) + if (day.activities.length > 100) "..." else "",
-                                style = ConsoleTheme.caption
+                                style = SmithType.caption.copy(color = colors.inkMuted)
                             )
                             if (day.meshSyncNotes.isNotEmpty()) {
                                 Text(
                                     text = "Mesh: ${day.meshSyncNotes}",
-                                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                                    style = SmithType.caption.copy(color = colors.inkMuted)
                                 )
                             }
                         }
@@ -305,7 +307,7 @@ fun InvoicePreviewDialog(
                 // ═══════════════════════════════════════════════════
                 // LINE ITEMS
                 // ═══════════════════════════════════════════════════
-                Text(text = "LINE ITEMS", style = ConsoleTheme.captionBold)
+                Text(text = "LINE ITEMS", style = SmithType.captionBold.copy(color = colors.inkMuted))
 
                 // Header row: Description | Amount. Qty x Rate moves to a per-item
                 // sub-line so the description has room in the narrow preview and the
@@ -313,18 +315,18 @@ fun InvoicePreviewDialog(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(ConsoleTheme.surface)
+                        .background(colors.bgPanel)
                         .padding(horizontal = 8.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
                         text = "Description",
-                        style = ConsoleTheme.captionBold,
+                        style = SmithType.captionBold.copy(color = colors.inkMuted),
                         modifier = Modifier.weight(1f)
                     )
                     Text(
                         text = "Amount",
-                        style = ConsoleTheme.captionBold,
+                        style = SmithType.captionBold.copy(color = colors.inkMuted),
                         textAlign = TextAlign.End
                     )
                 }
@@ -339,15 +341,15 @@ fun InvoicePreviewDialog(
                         verticalAlignment = Alignment.Top
                     ) {
                         Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                            Text(text = item.description, style = ConsoleTheme.body)
+                            Text(text = item.description, style = SmithType.body.copy(color = colors.ink))
                             Text(
                                 text = "[${item.code}]  ${formatQty(item.quantity, item.unit)} x ${formatCurrency(item.rate)}",
-                                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                                style = SmithType.caption.copy(color = colors.inkMuted)
                             )
                         }
                         Text(
                             text = formatCurrency(item.total),
-                            style = ConsoleTheme.bodyBold,
+                            style = SmithType.bodyBold.copy(color = colors.ink),
                             textAlign = TextAlign.End
                         )
                     }
@@ -366,10 +368,10 @@ fun InvoicePreviewDialog(
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            Text(text = "Subtotal:", style = ConsoleTheme.body)
+                            Text(text = "Subtotal:", style = SmithType.body.copy(color = colors.ink))
                             Text(
                                 text = formatCurrency(invoice.subtotal),
-                                style = ConsoleTheme.body,
+                                style = SmithType.body.copy(color = colors.ink),
                                 modifier = Modifier.width(80.dp),
                                 textAlign = TextAlign.End
                             )
@@ -379,11 +381,11 @@ fun InvoicePreviewDialog(
                         ) {
                             Text(
                                 text = "Tax (${invoice.taxRate}%):",
-                                style = ConsoleTheme.body
+                                style = SmithType.body.copy(color = colors.ink)
                             )
                             Text(
                                 text = formatCurrency(invoice.taxAmount),
-                                style = ConsoleTheme.body,
+                                style = SmithType.body.copy(color = colors.ink),
                                 modifier = Modifier.width(80.dp),
                                 textAlign = TextAlign.End
                             )
@@ -392,10 +394,10 @@ fun InvoicePreviewDialog(
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            Text(text = "TOTAL DUE:", style = ConsoleTheme.header)
+                            Text(text = "TOTAL DUE:", style = SmithType.header.copy(color = colors.ink))
                             Text(
                                 text = formatCurrency(invoice.totalDue),
-                                style = ConsoleTheme.header.copy(color = ConsoleTheme.accent),
+                                style = SmithType.header.copy(color = colors.accent),
                                 modifier = Modifier.width(80.dp),
                                 textAlign = TextAlign.End
                             )
@@ -408,16 +410,16 @@ fun InvoicePreviewDialog(
                 // ═══════════════════════════════════════════════════
                 // PAYMENT INSTRUCTIONS
                 // ═══════════════════════════════════════════════════
-                Text(text = "PAYMENT INSTRUCTIONS", style = ConsoleTheme.captionBold)
+                Text(text = "PAYMENT INSTRUCTIONS", style = SmithType.captionBold.copy(color = colors.inkMuted))
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(ConsoleTheme.surface)
+                        .background(colors.bgPanel)
                         .padding(12.dp)
                 ) {
                     invoice.paymentInstructions.lines().forEach { line ->
                         if (line.isNotBlank()) {
-                            Text(text = line, style = ConsoleTheme.caption)
+                            Text(text = line, style = SmithType.caption.copy(color = colors.inkMuted))
                         }
                     }
                 }
@@ -431,20 +433,20 @@ fun InvoicePreviewDialog(
                     text = if (invoice.mode == InvoiceMode.ENTERPRISE) 
                         "SUPERVISOR REPORT (Foreman / Crew Summary)" 
                         else "AI SUPERVISOR REPORT",
-                    style = ConsoleTheme.captionBold
+                    style = SmithType.captionBold.copy(color = colors.inkMuted)
                 )
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(ConsoleTheme.accent.copy(alpha = 0.05f))
-                        .border(1.dp, ConsoleTheme.accent.copy(alpha = 0.3f))
+                        .background(colors.accent.copy(alpha = 0.05f))
+                        .border(1.dp, colors.accent.copy(alpha = 0.3f))
                         .padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     if (invoice.workWindow.isNotEmpty()) {
                         Text(
                             text = "• Job executed: ${invoice.workWindow}",
-                            style = ConsoleTheme.body
+                            style = SmithType.body.copy(color = colors.ink)
                         )
                     }
                     if (invoice.totalOnSiteMinutes > 0) {
@@ -452,19 +454,19 @@ fun InvoicePreviewDialog(
                         val mins = invoice.totalOnSiteMinutes % 60
                         Text(
                             text = "• Total on-site: ${hours}h ${mins}m",
-                            style = ConsoleTheme.body
+                            style = SmithType.body.copy(color = colors.ink)
                         )
                     }
                     
                     // Enterprise: Crew hours breakdown
                     if (invoice.mode == InvoiceMode.ENTERPRISE && invoice.crew.isNotEmpty()) {
-                        Text(text = "• Hours Summary:", style = ConsoleTheme.body)
+                        Text(text = "• Hours Summary:", style = SmithType.body.copy(color = colors.ink))
                         val crewSummary = invoice.crew.joinToString(" | ") { 
                             "${it.name}: ${String.format("%.1f", it.totalHours)}h" 
                         }
                         Text(
                             text = "  $crewSummary",
-                            style = ConsoleTheme.caption
+                            style = SmithType.caption.copy(color = colors.inkMuted)
                         )
                     }
                     
@@ -472,7 +474,7 @@ fun InvoicePreviewDialog(
                     if (invoice.photoCount > 0 || invoice.voiceNoteCount > 0 || invoice.checklistCount > 0) {
                         Text(
                             text = "• Media: ${invoice.photoCount} photos, ${invoice.voiceNoteCount} voice notes, ${invoice.checklistCount} checklists",
-                            style = ConsoleTheme.body
+                            style = SmithType.body.copy(color = colors.ink)
                         )
                     }
                     
@@ -480,17 +482,17 @@ fun InvoicePreviewDialog(
                     if (invoice.mode == InvoiceMode.ENTERPRISE && invoice.efficiencyScore > 0) {
                         Text(
                             text = "• Efficiency score: ${invoice.efficiencyScore}/100",
-                            style = ConsoleTheme.body.copy(color = ConsoleTheme.success)
+                            style = SmithType.body.copy(color = colors.statusOnline)
                         )
                     }
                     
                     if (invoice.workLogSummary.isNotEmpty()) {
-                        Text(text = "• Work summary:", style = ConsoleTheme.body)
+                        Text(text = "• Work summary:", style = SmithType.body.copy(color = colors.ink))
                         invoice.workLogSummary.lines().forEach { line ->
                             if (line.isNotBlank()) {
                                 Text(
                                     text = "  $line",
-                                    style = ConsoleTheme.caption
+                                    style = SmithType.caption.copy(color = colors.inkMuted)
                                 )
                             }
                         }
@@ -502,8 +504,8 @@ fun InvoicePreviewDialog(
                 // ═══════════════════════════════════════════════════
                 if (invoice.notes.isNotEmpty()) {
                     ConsoleSeparator()
-                    Text(text = "NOTES", style = ConsoleTheme.captionBold)
-                    Text(text = "• ${invoice.notes}", style = ConsoleTheme.caption)
+                    Text(text = "NOTES", style = SmithType.captionBold.copy(color = colors.inkMuted))
+                    Text(text = "• ${invoice.notes}", style = SmithType.caption.copy(color = colors.inkMuted))
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -513,7 +515,7 @@ fun InvoicePreviewDialog(
                     text = if (invoice.mode == InvoiceMode.ENTERPRISE)
                         "Guild of Smiths – Built for the trades. Foreman Hub active."
                         else "Guild of Smiths – Built for the trades.",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                    style = SmithType.caption.copy(color = colors.inkMuted),
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Center
                 )
@@ -523,12 +525,13 @@ fun InvoicePreviewDialog(
 
 @Composable
 private fun InvoiceRow(label: String, value: String) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = "$label:", style = ConsoleTheme.caption)
-        Text(text = value, style = ConsoleTheme.body)
+        Text(text = "$label:", style = SmithType.caption.copy(color = colors.inkMuted))
+        Text(text = value, style = SmithType.body.copy(color = colors.ink))
     }
 }
 

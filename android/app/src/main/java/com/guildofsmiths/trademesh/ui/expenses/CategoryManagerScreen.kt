@@ -18,15 +18,17 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.ExpenseCategoryRepository
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.jobboard.ExpenseCategoryDef
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 
 @Composable
 fun CategoryManagerScreen(onBack: () -> Unit) {
+    val colors = LocalSmithColors.current
     val categories by ExpenseCategoryRepository.categories.collectAsState()
     var addingNew by remember { mutableStateOf(false) }
 
-    Column(modifier = Modifier.fillMaxSize().background(ConsoleTheme.background)) {
+    Column(modifier = Modifier.fillMaxSize().background(colors.bgBase)) {
         ConsoleHeader(title = "EXPENSE CATEGORIES", onBackClick = onBack)
 
         Column(
@@ -38,7 +40,7 @@ fun CategoryManagerScreen(onBack: () -> Unit) {
         ) {
             Text(
                 "Built-in categories can be renamed or hidden. Custom categories can be deleted if no expenses reference them.",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
 
             categories.sortedBy { it.sortOrder }.forEach { cat ->
@@ -59,14 +61,14 @@ fun CategoryManagerScreen(onBack: () -> Unit) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(ConsoleTheme.accent.copy(alpha = 0.14f), RoundedCornerShape(4.dp))
-                        .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                        .background(colors.accent.copy(alpha = 0.14f), RoundedCornerShape(4.dp))
+                        .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
                         .clip(RoundedCornerShape(4.dp))
                         .clickable { addingNew = true }
                         .padding(vertical = 10.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("[+ Add category]", style = ConsoleTheme.action.copy(color = ConsoleTheme.accent))
+                    Text("[+ Add category]", style = SmithType.action.copy(color = colors.accent))
                 }
             }
 
@@ -77,6 +79,7 @@ fun CategoryManagerScreen(onBack: () -> Unit) {
 
 @Composable
 private fun CategoryRow(cat: ExpenseCategoryDef) {
+    val colors = LocalSmithColors.current
     var editing by remember(cat.id) { mutableStateOf(false) }
     var name by remember(cat.id) { mutableStateOf(cat.displayName) }
     var code by remember(cat.id) { mutableStateOf(cat.shortCode) }
@@ -84,8 +87,8 @@ private fun CategoryRow(cat: ExpenseCategoryDef) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(4.dp))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -93,7 +96,7 @@ private fun CategoryRow(cat: ExpenseCategoryDef) {
         Box(
             modifier = Modifier
                 .size(14.dp)
-                .background(parseColor(cat.colorHex), RoundedCornerShape(2.dp))
+                .background(parseColor(cat.colorHex, fallback = colors.accent), RoundedCornerShape(2.dp))
         )
         Spacer(Modifier.width(8.dp))
         if (editing) {
@@ -101,21 +104,21 @@ private fun CategoryRow(cat: ExpenseCategoryDef) {
                 BasicTextField(
                     value = name, onValueChange = { name = it },
                     singleLine = true,
-                    textStyle = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text),
-                    cursorBrush = SolidColor(ConsoleTheme.cursor),
-                    modifier = Modifier.fillMaxWidth().background(ConsoleTheme.background, RoundedCornerShape(2.dp)).padding(4.dp)
+                    textStyle = SmithType.bodySmall.copy(color = colors.ink),
+                    cursorBrush = SolidColor(colors.ink),
+                    modifier = Modifier.fillMaxWidth().background(colors.bgBase, RoundedCornerShape(2.dp)).padding(4.dp)
                 )
                 Spacer(Modifier.height(4.dp))
                 BasicTextField(
                     value = code, onValueChange = { code = it.take(4) },
                     singleLine = true,
-                    textStyle = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
-                    cursorBrush = SolidColor(ConsoleTheme.cursor),
-                    modifier = Modifier.width(60.dp).background(ConsoleTheme.background, RoundedCornerShape(2.dp)).padding(4.dp)
+                    textStyle = SmithType.caption.copy(color = colors.inkMuted),
+                    cursorBrush = SolidColor(colors.ink),
+                    modifier = Modifier.width(60.dp).background(colors.bgBase, RoundedCornerShape(2.dp)).padding(4.dp)
                 )
             }
             Text("[save]",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent),
+                style = SmithType.caption.copy(color = colors.accent),
                 modifier = Modifier
                     .clickable {
                         ExpenseCategoryRepository.update(cat.id) { it.copy(displayName = name, shortCode = code.ifBlank { "[?]" }) }
@@ -124,7 +127,7 @@ private fun CategoryRow(cat: ExpenseCategoryDef) {
                     .padding(horizontal = 6.dp, vertical = 4.dp)
             )
             Text("[x]",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                style = SmithType.caption.copy(color = colors.inkMuted),
                 modifier = Modifier
                     .clickable {
                         name = cat.displayName; code = cat.shortCode; editing = false
@@ -134,32 +137,32 @@ private fun CategoryRow(cat: ExpenseCategoryDef) {
         } else {
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(cat.shortCode, style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+                    Text(cat.shortCode, style = SmithType.captionBold.copy(color = colors.inkMuted))
                     Spacer(Modifier.width(8.dp))
-                    Text(cat.displayName, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
+                    Text(cat.displayName, style = SmithType.bodySmall.copy(color = colors.ink))
                     if (cat.builtIn) {
                         Spacer(Modifier.width(6.dp))
-                        Text("• built-in", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                        Text("• built-in", style = SmithType.caption.copy(color = colors.inkMuted))
                     }
                     if (cat.hidden) {
                         Spacer(Modifier.width(6.dp))
-                        Text("• hidden", style = ConsoleTheme.caption.copy(color = ConsoleTheme.warning))
+                        Text("• hidden", style = SmithType.caption.copy(color = colors.attention))
                     }
                 }
             }
             Text("[edit]",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent),
+                style = SmithType.caption.copy(color = colors.accent),
                 modifier = Modifier.clickable { editing = true }.padding(horizontal = 6.dp, vertical = 4.dp)
             )
             Text(if (cat.hidden) "[show]" else "[hide]",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                style = SmithType.caption.copy(color = colors.inkMuted),
                 modifier = Modifier.clickable {
                     ExpenseCategoryRepository.setHidden(cat.id, !cat.hidden)
                 }.padding(horizontal = 6.dp, vertical = 4.dp)
             )
             if (!cat.builtIn) {
                 Text("[del]",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.error),
+                    style = SmithType.caption.copy(color = colors.statusError),
                     modifier = Modifier.clickable {
                         ExpenseCategoryRepository.delete(cat.id)
                     }.padding(horizontal = 6.dp, vertical = 4.dp)
@@ -174,38 +177,39 @@ private fun AddCategoryRow(
     onSave: (name: String, code: String, colorHex: String) -> Unit,
     onCancel: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     var name by remember { mutableStateOf("") }
     var code by remember { mutableStateOf("") }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-            .border(0.5.dp, ConsoleTheme.accent, RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(4.dp))
+            .border(0.5.dp, colors.accent, RoundedCornerShape(4.dp))
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text("Name", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+            Text("Name", style = SmithType.caption.copy(color = colors.inkMuted))
             BasicTextField(
                 value = name, onValueChange = { name = it },
                 singleLine = true,
-                textStyle = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text),
-                cursorBrush = SolidColor(ConsoleTheme.cursor),
-                modifier = Modifier.fillMaxWidth().background(ConsoleTheme.background, RoundedCornerShape(2.dp)).padding(4.dp)
+                textStyle = SmithType.bodySmall.copy(color = colors.ink),
+                cursorBrush = SolidColor(colors.ink),
+                modifier = Modifier.fillMaxWidth().background(colors.bgBase, RoundedCornerShape(2.dp)).padding(4.dp)
             )
             Spacer(Modifier.height(4.dp))
-            Text("Short code (e.g. [A])", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+            Text("Short code (e.g. [A])", style = SmithType.caption.copy(color = colors.inkMuted))
             BasicTextField(
                 value = code, onValueChange = { code = it.take(4) },
                 singleLine = true,
-                textStyle = ConsoleTheme.caption.copy(color = ConsoleTheme.text),
-                cursorBrush = SolidColor(ConsoleTheme.cursor),
-                modifier = Modifier.width(60.dp).background(ConsoleTheme.background, RoundedCornerShape(2.dp)).padding(4.dp)
+                textStyle = SmithType.caption.copy(color = colors.ink),
+                cursorBrush = SolidColor(colors.ink),
+                modifier = Modifier.width(60.dp).background(colors.bgBase, RoundedCornerShape(2.dp)).padding(4.dp)
             )
         }
         Text("[save]",
-            style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent),
+            style = SmithType.caption.copy(color = colors.accent),
             modifier = Modifier
                 .clickable {
                     if (name.isNotBlank()) onSave(name.trim(), code.ifBlank { "[${name.take(1).uppercase()}]" }, "#8C6B2A")
@@ -213,18 +217,22 @@ private fun AddCategoryRow(
                 .padding(horizontal = 6.dp, vertical = 4.dp)
         )
         Text("[x]",
-            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+            style = SmithType.caption.copy(color = colors.inkMuted),
             modifier = Modifier.clickable(onClick = onCancel).padding(horizontal = 6.dp, vertical = 4.dp)
         )
     }
 }
 
-private fun parseColor(hex: String): Color {
+// User-entered hex parsing stays literal — the swatch color is user data typed
+// into the "custom category color" field, not a theme token. Only the
+// parse-failure fallback is a theme color (Smith accent), since that's what
+// renders when there's no valid user color to show.
+private fun parseColor(hex: String, fallback: Color): Color {
     return try {
         val clean = hex.removePrefix("#")
         val v = clean.toLong(16)
         if (clean.length == 6) Color(0xFF000000 or v) else Color(v)
     } catch (_: Throwable) {
-        Color(0xFF8C6B2A)
+        fallback
     }
 }

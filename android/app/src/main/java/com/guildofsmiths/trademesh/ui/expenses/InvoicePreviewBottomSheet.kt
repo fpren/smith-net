@@ -18,16 +18,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.guildofsmiths.trademesh.data.BolLegalPreferences
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.invoice.Invoice
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.LegalFooterScope
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithSheet
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import com.guildofsmiths.trademesh.ui.timetracking.TimeEntry
 import java.io.File
 
@@ -38,6 +38,7 @@ fun InvoicePreviewBottomSheet(
     timeEntries: List<TimeEntry>,
     onDismiss: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     val context = LocalContext.current
     val legal by BolLegalPreferences.state.collectAsState()
 
@@ -71,7 +72,7 @@ fun InvoicePreviewBottomSheet(
         ) {
             Text(
                 "PREVIEW & SHARE",
-                style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
+                style = SmithType.captionBold.copy(color = colors.accent)
             )
 
             // Output mode
@@ -99,7 +100,7 @@ fun InvoicePreviewBottomSheet(
                     LegalFooterScope.INTERNATIONAL -> "CISG · Incoterms · UNCITRAL · carrier conventions · US suppressed"
                     LegalFooterScope.BOTH -> "every enabled preset — recommended for mixed US + non-US engagements"
                 }
-                Text(hint, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                Text(hint, style = SmithType.caption.copy(color = colors.inkMuted))
             }
 
             // Draft approval checkboxes
@@ -142,9 +143,10 @@ fun InvoicePreviewBottomSheet(
 
 @Composable
 private fun SectionLabel(text: String) {
+    val colors = LocalSmithColors.current
     Text(
         text.uppercase(),
-        style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted)
+        style = SmithType.captionBold.copy(color = colors.inkMuted)
     )
 }
 
@@ -154,18 +156,19 @@ private fun <T> RadioRow(
     selected: T,
     onSelect: (T) -> Unit
 ) {
+    val colors = LocalSmithColors.current
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         options.forEach { (value, label) ->
             val isSel = value == selected
             Box(
                 modifier = Modifier
                     .background(
-                        if (isSel) ConsoleTheme.accent else ConsoleTheme.background,
+                        if (isSel) colors.accent else colors.bgBase,
                         RoundedCornerShape(4.dp)
                     )
                     .border(
                         0.5.dp,
-                        if (isSel) ConsoleTheme.accent else ConsoleTheme.text.copy(alpha = 0.12f),
+                        if (isSel) colors.accent else colors.ink.copy(alpha = 0.12f),
                         RoundedCornerShape(4.dp)
                     )
                     .clip(RoundedCornerShape(4.dp))
@@ -174,8 +177,8 @@ private fun <T> RadioRow(
             ) {
                 Text(
                     label,
-                    style = ConsoleTheme.caption.copy(
-                        color = if (isSel) Color.White else ConsoleTheme.text
+                    style = SmithType.caption.copy(
+                        color = if (isSel) colors.inkOnAccent else colors.ink
                     )
                 )
             }
@@ -185,6 +188,7 @@ private fun <T> RadioRow(
 
 @Composable
 private fun Checkbox(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -196,28 +200,29 @@ private fun Checkbox(label: String, checked: Boolean, onChange: (Boolean) -> Uni
             modifier = Modifier
                 .size(18.dp)
                 .background(
-                    if (checked) ConsoleTheme.accent else ConsoleTheme.background,
+                    if (checked) colors.accent else colors.bgBase,
                     RoundedCornerShape(2.dp)
                 )
-                .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.3f), RoundedCornerShape(2.dp)),
+                .border(0.5.dp, colors.ink.copy(alpha = 0.3f), RoundedCornerShape(2.dp)),
             contentAlignment = Alignment.Center
         ) {
-            if (checked) Text("✓", style = ConsoleTheme.caption.copy(color = Color.White))
+            if (checked) Text("✓", style = SmithType.caption.copy(color = colors.inkOnAccent))
         }
         Spacer(Modifier.width(8.dp))
-        Text(label, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
+        Text(label, style = SmithType.bodySmall.copy(color = colors.ink))
     }
 }
 
 @Composable
 private fun ActionBtn(label: String, accent: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val colors = LocalSmithColors.current
     Box(
         modifier = modifier
             .background(
-                if (accent) ConsoleTheme.accent.copy(alpha = 0.14f) else ConsoleTheme.surface,
+                if (accent) colors.accent.copy(alpha = 0.14f) else colors.bgPanel,
                 RoundedCornerShape(4.dp)
             )
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
             .clip(RoundedCornerShape(4.dp))
             .clickable(onClick = onClick)
             .padding(vertical = 10.dp),
@@ -225,8 +230,8 @@ private fun ActionBtn(label: String, accent: Boolean, modifier: Modifier = Modif
     ) {
         Text(
             label,
-            style = ConsoleTheme.action.copy(
-                color = if (accent) ConsoleTheme.accent else ConsoleTheme.text
+            style = SmithType.action.copy(
+                color = if (accent) colors.accent else colors.ink
             )
         )
     }
@@ -234,6 +239,7 @@ private fun ActionBtn(label: String, accent: Boolean, modifier: Modifier = Modif
 
 @Composable
 private fun HtmlPreview(html: String, modifier: Modifier = Modifier) {
+    val colors = LocalSmithColors.current
     androidx.compose.ui.viewinterop.AndroidView(
         factory = { ctx ->
             WebView(ctx).apply {
@@ -247,8 +253,8 @@ private fun HtmlPreview(html: String, modifier: Modifier = Modifier) {
         },
         update = { wv -> wv.loadDataWithBaseURL(null, html, "text/html", "utf-8", null) },
         modifier = modifier
-            .background(ConsoleTheme.background)
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.15f))
+            .background(colors.bgBase)
+            .border(0.5.dp, colors.ink.copy(alpha = 0.15f))
     )
 }
 

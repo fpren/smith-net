@@ -22,13 +22,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.ClientRepository
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.JobStage
 import com.guildofsmiths.trademesh.ui.jobboard.Task
 import com.guildofsmiths.trademesh.ui.jobboard.TaskStatus
 import com.guildofsmiths.trademesh.ui.jobboard.WorkLogEntry
 import com.guildofsmiths.trademesh.ui.jobboard.Priority
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -43,6 +44,7 @@ fun ClientDetailScreen(
     onJobClick: (String) -> Unit,
     onBack: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     val context = LocalContext.current
     val clientJobs = remember(clientName, allJobs) {
         ClientRepository.getJobsForClient(clientName, allJobs)
@@ -86,7 +88,7 @@ fun ClientDetailScreen(
         .sumOf { (jobBilled(it) - it.depositCollected).coerceAtLeast(0.0) }
 
     Column(
-        modifier = Modifier.fillMaxSize().background(ConsoleTheme.background)
+        modifier = Modifier.fillMaxSize().background(colors.bgBase)
     ) {
         ConsoleHeader(
             title = displayName,
@@ -173,7 +175,7 @@ fun ClientDetailScreen(
                     if (pendingTasks.size > 15) {
                         Text(
                             "+${pendingTasks.size - 15} more",
-                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                            style = SmithType.caption.copy(color = colors.inkMuted),
                             modifier = Modifier.padding(top = 4.dp)
                         )
                     }
@@ -214,6 +216,7 @@ private fun HeaderStrip(
     openCount: Int, lastServiceMs: Long?, createdMs: Long?, balanceDue: Double,
     onCallPhone: () -> Unit, onMapAddress: () -> Unit, onEmailClick: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     Card {
         if (isEditing) {
             EditField("NAME", editName, onNameChange)
@@ -222,21 +225,21 @@ private fun HeaderStrip(
             EditField("ADDRESS", editAddress, onAddressChange)
             Text(
                 "[Cancel]",
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                style = SmithType.action.copy(color = colors.inkMuted),
                 modifier = Modifier.clickable { onCancel() }.padding(top = 4.dp)
             )
         } else {
             val statusLabel = if (openCount > 0) "ACTIVE" else "INACTIVE"
-            val statusColor = if (openCount > 0) ConsoleTheme.success else ConsoleTheme.textMuted
+            val statusColor = if (openCount > 0) colors.statusOnline else colors.inkMuted
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("[$statusLabel]", style = ConsoleTheme.captionBold.copy(color = statusColor))
+                Text("[$statusLabel]", style = SmithType.captionBold.copy(color = statusColor))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Chip("$openCount open", if (openCount > 0) ConsoleTheme.accent else ConsoleTheme.textMuted)
-                    if (balanceDue > 0.01) Chip("$${"%.0f".format(balanceDue)} due", ConsoleTheme.warning)
+                    Chip("$openCount open", if (openCount > 0) colors.accent else colors.inkMuted)
+                    if (balanceDue > 0.01) Chip("$${"%.0f".format(balanceDue)} due", colors.attention)
                 }
             }
             Spacer(Modifier.height(6.dp))
@@ -246,7 +249,7 @@ private fun HeaderStrip(
             if (phone.isBlank() && email.isBlank() && address.isBlank()) {
                 Text(
                     "No contact info. Tap [Edit] to add.",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                    style = SmithType.caption.copy(color = colors.inkMuted)
                 )
             }
             Spacer(Modifier.height(4.dp))
@@ -255,7 +258,7 @@ private fun HeaderStrip(
                 createdMs?.let { add("Since ${SHORT_YEAR.format(Date(it))}") }
             }.joinToString("  ·  ")
             if (meta.isNotEmpty()) {
-                Text(meta, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                Text(meta, style = SmithType.caption.copy(color = colors.inkMuted))
             }
         }
     }
@@ -263,17 +266,19 @@ private fun HeaderStrip(
 
 @Composable
 private fun ContactLine(icon: String, value: String, onClick: () -> Unit) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("$icon  ", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted))
-        Text(value, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.accent), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text("$icon  ", style = SmithType.bodySmall.copy(color = colors.inkMuted))
+        Text(value, style = SmithType.bodySmall.copy(color = colors.accent), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
 @Composable
 private fun CurrentJobRow(j: Job, estimate: Double, onClick: () -> Unit) {
+    val colors = LocalSmithColors.current
     val due = j.dueDate ?: j.estimatedEndDate
     val nextAction = j.workLog.maxByOrNull { it.timestamp }?.text
         ?: j.stage.displayName
@@ -291,18 +296,18 @@ private fun CurrentJobRow(j: Job, estimate: Double, onClick: () -> Unit) {
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(j.stage.icon, style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent))
+                Text(j.stage.icon, style = SmithType.caption.copy(color = colors.accent))
                 Spacer(Modifier.width(6.dp))
                 Text(
                     j.title,
-                    style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text),
+                    style = SmithType.bodySmall.copy(color = colors.ink),
                     maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
             }
             Text(
                 j.stage.displayName + "  ·  " + priorityLabel(j.priority) +
                     (due?.let { "  ·  due ${SHORT.format(Date(it))}" } ?: ""),
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
             val assignee = j.assignedTo.firstOrNull()
             val meta = listOfNotNull(
@@ -310,25 +315,26 @@ private fun CurrentJobRow(j: Job, estimate: Double, onClick: () -> Unit) {
                 "Next: $nextAction".take(60)
             ).joinToString("  ·  ")
             if (meta.isNotEmpty()) {
-                Text(meta, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(meta, style = SmithType.caption.copy(color = colors.inkMuted), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
         Column(horizontalAlignment = Alignment.End) {
             if (estimate > 0.0) Text(
                 "$${"%.0f".format(estimate)}",
-                style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text)
+                style = SmithType.bodySmall.copy(color = colors.ink)
             )
-            Text(">", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+            Text(">", style = SmithType.caption.copy(color = colors.inkMuted))
         }
     }
 }
 
 @Composable
 private fun TaskRow(t: Task, jobTitle: String, onClick: () -> Unit) {
+    val colors = LocalSmithColors.current
     val statusColor = when (t.status) {
-        TaskStatus.BLOCKED -> ConsoleTheme.error
-        TaskStatus.IN_PROGRESS -> ConsoleTheme.accent
-        else -> ConsoleTheme.textMuted
+        TaskStatus.BLOCKED -> colors.statusError
+        TaskStatus.IN_PROGRESS -> colors.accent
+        else -> colors.inkMuted
     }
     Row(
         modifier = Modifier
@@ -342,21 +348,22 @@ private fun TaskRow(t: Task, jobTitle: String, onClick: () -> Unit) {
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("[${t.status.displayName}]", style = ConsoleTheme.caption.copy(color = statusColor))
+        Text("[${t.status.displayName}]", style = SmithType.caption.copy(color = statusColor))
         Spacer(Modifier.width(8.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(t.title, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(t.title, style = SmithType.bodySmall.copy(color = colors.ink), maxLines = 1, overflow = TextOverflow.Ellipsis)
             val sub = listOfNotNull(
                 jobTitle.takeIf { it.isNotBlank() }?.let { "in $it" },
                 t.assignedTo?.takeIf { it.isNotBlank() }?.let { "→ $it" }
             ).joinToString("  ·  ")
-            if (sub.isNotEmpty()) Text(sub, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (sub.isNotEmpty()) Text(sub, style = SmithType.caption.copy(color = colors.inkMuted), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
 
 @Composable
 private fun RecentJobRow(j: Job, billed: Double, onClick: () -> Unit) {
+    val colors = LocalSmithColors.current
     val date = j.completedAt ?: j.actualEndDate ?: j.updatedAt
     Row(
         modifier = Modifier
@@ -371,17 +378,17 @@ private fun RecentJobRow(j: Job, billed: Double, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(j.title, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(j.title, style = SmithType.bodySmall.copy(color = colors.ink), maxLines = 1, overflow = TextOverflow.Ellipsis)
             val tech = j.crew.firstOrNull()?.name ?: j.assignedTo.firstOrNull().orEmpty()
             val sub = listOfNotNull(
                 SHORT.format(Date(date)),
                 tech.takeIf { it.isNotBlank() }?.let { "by $it" }
             ).joinToString("  ·  ")
-            Text(sub, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+            Text(sub, style = SmithType.caption.copy(color = colors.inkMuted))
         }
         if (billed > 0.0) Text(
             "$${"%.0f".format(billed)}",
-            style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text)
+            style = SmithType.bodySmall.copy(color = colors.ink)
         )
     }
 }
@@ -394,6 +401,7 @@ private fun BillingBlock(
     billed: (Job) -> Double,
     estimate: (Job) -> Double
 ) {
+    val colors = LocalSmithColors.current
     val proposalsOut = openJobs.count { it.proposalId != null && it.stage == JobStage.PROPOSAL }
     val invoiced = openJobs.filter { it.invoiceId != null || it.stage == JobStage.INVOICE }
     val invoicedTotal = invoiced.sumOf(billed)
@@ -410,7 +418,7 @@ private fun BillingBlock(
     Stat(
         "Balance due",
         if (balanceDue > 0.01) "$${"%.0f".format(balanceDue)}" else "—",
-        valueColor = if (balanceDue > 0.01) ConsoleTheme.warning else ConsoleTheme.textMuted
+        valueColor = if (balanceDue > 0.01) colors.attention else colors.inkMuted
     )
     Stat("Lifetime billed", "$${"%.0f".format(lifetime)}")
 }
@@ -419,6 +427,7 @@ private data class Event(val ts: Long, val label: String, val detail: String, va
 
 @Composable
 private fun TimelineFeed(jobs: List<Job>) {
+    val colors = LocalSmithColors.current
     val events = remember(jobs) {
         val list = mutableListOf<Event>()
         jobs.forEach { j ->
@@ -443,14 +452,14 @@ private fun TimelineFeed(jobs: List<Job>) {
         ) {
             Text(
                 "[${e.label}]",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent),
+                style = SmithType.caption.copy(color = colors.accent),
                 modifier = Modifier.width(72.dp)
             )
             Column(modifier = Modifier.weight(1f)) {
-                Text(e.detail, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(e.detail, style = SmithType.bodySmall.copy(color = colors.ink), maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(
                     "${SHORT.format(Date(e.ts))}  ·  ${e.jobTitle}",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                    style = SmithType.caption.copy(color = colors.inkMuted),
                     maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
             }
@@ -461,14 +470,15 @@ private fun TimelineFeed(jobs: List<Job>) {
 
 @Composable
 private fun Section(title: String, content: @Composable () -> Unit) {
+    val colors = LocalSmithColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(4.dp))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
             .padding(12.dp)
     ) {
-        Text(title, style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+        Text(title, style = SmithType.captionBold.copy(color = colors.inkMuted))
         Spacer(Modifier.height(6.dp))
         content()
     }
@@ -476,11 +486,12 @@ private fun Section(title: String, content: @Composable () -> Unit) {
 
 @Composable
 private fun Card(content: @Composable ColumnScope.() -> Unit) {
+    val colors = LocalSmithColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(4.dp))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
         content = content
@@ -488,33 +499,40 @@ private fun Card(content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-private fun Stat(label: String, value: String, valueColor: androidx.compose.ui.graphics.Color = ConsoleTheme.text) {
+private fun Stat(
+    label: String,
+    value: String,
+    valueColor: androidx.compose.ui.graphics.Color = LocalSmithColors.current.ink
+) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(label, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
-        Text(value, style = ConsoleTheme.bodySmall.copy(color = valueColor))
+        Text(label, style = SmithType.caption.copy(color = colors.inkMuted))
+        Text(value, style = SmithType.bodySmall.copy(color = valueColor))
     }
 }
 
 @Composable
 private fun Chip(text: String, color: androidx.compose.ui.graphics.Color) {
-    Text(text, style = ConsoleTheme.captionBold.copy(color = color))
+    Text(text, style = SmithType.captionBold.copy(color = color))
 }
 
 @Composable
 private fun Empty(text: String) {
+    val colors = LocalSmithColors.current
     Text(
         text,
-        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+        style = SmithType.caption.copy(color = colors.inkMuted),
         modifier = Modifier.padding(vertical = 4.dp)
     )
 }
 
 @Composable
 private fun Divider() {
-    Box(Modifier.fillMaxWidth().height(0.5.dp).background(ConsoleTheme.text.copy(alpha = 0.06f)))
+    val colors = LocalSmithColors.current
+    Box(Modifier.fillMaxWidth().height(0.5.dp).background(colors.ink.copy(alpha = 0.06f)))
 }
 
 private fun priorityLabel(p: Priority): String = when (p) {
@@ -526,15 +544,16 @@ private fun priorityLabel(p: Priority): String = when (p) {
 
 @Composable
 private fun EditField(label: String, value: String, onValueChange: (String) -> Unit) {
+    val colors = LocalSmithColors.current
     Column(modifier = Modifier.padding(vertical = 2.dp)) {
-        Text(label, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        Text(label, style = SmithType.caption.copy(color = colors.inkMuted))
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
-            textStyle = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text),
+            textStyle = SmithType.bodySmall.copy(color = colors.ink),
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.background, RoundedCornerShape(4.dp))
+                .background(colors.bgBase, RoundedCornerShape(4.dp))
                 .padding(8.dp),
             singleLine = true
         )
