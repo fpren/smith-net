@@ -27,6 +27,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.guildofsmiths.trademesh.R
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 
 /**
  * smith net — Altara Design Tokens
@@ -278,10 +280,11 @@ fun ConsoleHeader(
     onActionClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.background)
+            .background(colors.bgBase)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -292,7 +295,7 @@ fun ConsoleHeader(
                     fontFamily = ConsoleTheme.plexMono,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
-                    color = ConsoleTheme.text
+                    color = colors.ink
                 ),
                 modifier = Modifier.clickable(onClick = onBackClick)
             )
@@ -300,16 +303,16 @@ fun ConsoleHeader(
         }
 
         androidx.compose.foundation.layout.Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = ConsoleTheme.header)
+            Text(text = title, style = SmithType.header.copy(color = colors.ink))
             if (subtitle != null) {
-                Text(text = subtitle, style = ConsoleTheme.caption)
+                Text(text = subtitle, style = SmithType.caption.copy(color = colors.inkMuted))
             }
         }
 
         if (actionText != null && onActionClick != null) {
             Text(
                 text = actionText,
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                style = SmithType.action.copy(color = colors.accent),
                 modifier = Modifier
                     .clickable(onClick = onActionClick)
                     .padding(4.dp)
@@ -345,6 +348,7 @@ fun BottomNavBar(
     onClockIn: () -> Unit = {},
     onDispatch: () -> Unit = {}
 ) {
+    val colors = LocalSmithColors.current
     val role = com.guildofsmiths.trademesh.data.RoleContext.role
 
     // Role-specific nav tabs
@@ -385,13 +389,13 @@ fun BottomNavBar(
     Column(
         Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface)
+            .background(colors.bgPanel)
     ) {
         Box(
             Modifier
                 .fillMaxWidth()
                 .height(0.5.dp)
-                .background(ConsoleTheme.text.copy(alpha = 0.08f))
+                .background(colors.ink.copy(alpha = 0.08f))
         )
         Row(
             Modifier
@@ -406,7 +410,7 @@ fun BottomNavBar(
         }
         Text(
             text = "\u00A9 2026 Guild of Smiths",
-            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted.copy(alpha = 0.5f)),
+            style = SmithType.captionBold.copy(color = colors.inkMuted.copy(alpha = 0.5f)),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 6.dp)
@@ -417,9 +421,10 @@ fun BottomNavBar(
 
 @Composable
 private fun BottomNavTab(label: String, isActive: Boolean, onClick: () -> Unit) {
+    val colors = LocalSmithColors.current
     Text(
         text = label,
-        style = ConsoleTheme.action.copy(color = if (isActive) ConsoleTheme.accent else ConsoleTheme.textMuted),
+        style = SmithType.action.copy(color = if (isActive) colors.accent else colors.inkMuted),
         modifier = Modifier
             .clickable { onClick() }
             .padding(horizontal = 12.dp, vertical = 6.dp)
