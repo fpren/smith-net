@@ -89,7 +89,7 @@
   border: 2px solid var(--sn-bg-base);
   border-radius: 4px;
   cursor: pointer;
-  color: white;
+  color: var(--sn-ink-on-accent);
 }
 .job-marker-planned     { background: var(--sn-ink-muted); }
 .job-marker-in_progress { background: var(--sn-status-online); }
@@ -130,6 +130,8 @@
   align-items: center;
   justify-content: center;
   border: 2px solid var(--sn-bg-base);
-  box-shadow: 0 0 6px rgba(34, 211, 238, 0.6);
+  /* Glow derives from the same token as the fill so it stays coherent in
+     both themes (light cobalt #2F5FE8, dark #6B8CFF). */
+  box-shadow: 0 0 6px color-mix(in srgb, var(--sn-accent) 60%, transparent);
   cursor: default;
 }
