@@ -7,6 +7,10 @@ import com.guildofsmiths.trademesh.BuildConfig
 import com.guildofsmiths.trademesh.data.Message
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -39,6 +43,10 @@ object GatewayClient {
     private val handler = Handler(Looper.getMainLooper())
     private var reconnectRunnable: Runnable? = null
     private const val RECONNECT_DELAY_MS = 5000L
+
+    // Background scope for one-off suspend work (session refresh) kicked off
+    // from the (non-suspend) OkHttp Callback below.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     
     // Listener for incoming online messages
     interface OnlineMessageListener {
@@ -513,6 +521,20 @@ object GatewayClient {
      * Note: This works via HTTP even without WebSocket connection
      */
     fun fetchChannels(callback: (JSONArray?, Exception?) -> Unit) {
+        fetchChannelsInternal(callback, retriedAfterAuthRefresh = false)
+    }
+
+    /**
+     * [fetchChannels] routes through [HttpClientFactory] (Bearer-attaching,
+     * [AuthService]-backed) and is therefore just as 401-prone as the WS
+     * upgrade path -- but this call is a plain callback-based HTTP request,
+     * not a suspend fun, so it can't use [AuthedRequest.withAuthRetry]
+     * directly. On a 401, kick off exactly one [AuthService.refreshToken]
+     * (single-flight-guarded -- see AuthService/SupabaseAuth) on [scope] and
+     * re-issue the call once with [retriedAfterAuthRefresh] set so a second
+     * 401 is surfaced as a normal failure instead of looping.
+     */
+    private fun fetchChannelsInternal(callback: (JSONArray?, Exception?) -> Unit, retriedAfterAuthRefresh: Boolean) {
         // HTTP API works without WebSocket connection
         val httpUrl = backendUrl.replace("ws://", "http://").replace("wss://", "https://")
         val request = Request.Builder()
@@ -530,6 +552,23 @@ object GatewayClient {
             }
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
+                if (response.code == 401 && !retriedAfterAuthRefresh) {
+                    response.close()
+                    Log.w(TAG, "Channel fetch got 401 -- refreshing session before one retry")
+                    scope.launch {
+                        val refreshed = try {
+                            AuthService.refreshToken()
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Session refresh threw: ${e.message}")
+                            false
+                        }
+                        if (!refreshed) {
+                            Log.w(TAG, "[x] session refresh failed; retrying channel fetch anyway")
+                        }
+                        fetchChannelsInternal(callback, retriedAfterAuthRefresh = true)
+                    }
+                    return
+                }
                 try {
                     if (response.isSuccessful) {
                         val body = response.body?.string()

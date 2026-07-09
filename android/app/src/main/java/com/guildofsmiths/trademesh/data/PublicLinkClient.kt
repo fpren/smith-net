@@ -70,16 +70,18 @@ object PublicLinkClient {
 
     private suspend fun postForUuid(path: String, body: JSONObject): String? = withContext(Dispatchers.IO) {
         try {
-            val builder = Request.Builder()
-                .url("${host()}$path")
-                .post(body.toString().toRequestBody(JSON))
-            // /api/invoice-links and /api/proposals sit behind authenticateToken.
-            SupabaseAuth.getAccessToken()?.let { builder.header("Authorization", "Bearer $it") }
-            val req = builder.build()
             // SupabaseAuth-backed Bearer token -> use AuthedRequest's default
-            // refresh (SupabaseAuth.refreshSession), not AuthService's.
+            // refresh (SupabaseAuth.refreshSession), not AuthService's. The
+            // Request is built INSIDE the block so the retry attempt re-reads
+            // SupabaseAuth.getAccessToken() after a refresh rather than
+            // resending the stale token baked into a pre-built Request.
             AuthedRequest.withAuthRetry(isAuthFailure = { it.code == 401 }) {
-                http.newCall(req).execute()
+                val builder = Request.Builder()
+                    .url("${host()}$path")
+                    .post(body.toString().toRequestBody(JSON))
+                // /api/invoice-links and /api/proposals sit behind authenticateToken.
+                SupabaseAuth.getAccessToken()?.let { builder.header("Authorization", "Bearer $it") }
+                http.newCall(builder.build()).execute()
             }.use { resp ->
                 if (!resp.isSuccessful) {
                     Log.w(TAG, "POST $path -> ${resp.code}")

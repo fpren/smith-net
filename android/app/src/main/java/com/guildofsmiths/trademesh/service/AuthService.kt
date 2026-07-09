@@ -5,7 +5,13 @@ import android.content.SharedPreferences
 import android.util.Log
 import com.guildofsmiths.trademesh.BuildConfig
 import com.guildofsmiths.trademesh.data.RoleContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -429,35 +435,61 @@ object AuthService {
     // TOKEN REFRESH
     // ════════════════════════════════════════════════════════════════════
     
-    suspend fun refreshToken(): Boolean = withContext(Dispatchers.IO) {
+    // Single-flight guard for refreshToken(). The backend rotates refresh
+    // tokens on use -- refreshAccessToken() (backend/src/auth.ts) revokes the
+    // presented refresh token and issues a new pair, and the old one no
+    // longer validates (usersService.validateRefreshToken /
+    // revokeRefreshToken). If N callers hit a 401 concurrently and each ran
+    // its own network refresh, only the first would succeed and the rest
+    // would present an already-revoked refresh token and fail. A dedicated
+    // scope (not the caller's own coroutineScope) keeps the in-flight
+    // [Deferred] alive across whichever caller happens to cancel first.
+    private val refreshScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val refreshMutex = Mutex()
+    private var refreshInFlight: Deferred<Boolean>? = null
+
+    suspend fun refreshToken(): Boolean {
+        val deferred = refreshMutex.withLock {
+            refreshInFlight ?: refreshScope.async { doRefreshToken() }.also { refreshInFlight = it }
+        }
+        return try {
+            deferred.await()
+        } finally {
+            refreshMutex.withLock {
+                if (refreshInFlight === deferred) refreshInFlight = null
+            }
+        }
+    }
+
+    private suspend fun doRefreshToken(): Boolean = withContext(Dispatchers.IO) {
         try {
             val refreshToken = prefs?.getString(KEY_REFRESH_TOKEN, null)
             if (refreshToken.isNullOrBlank()) {
                 Log.w(TAG, "No refresh token available")
                 return@withContext false
             }
-            
+
             val json = JSONObject().apply {
                 put("refreshToken", refreshToken)
             }
-            
+
             val request = Request.Builder()
                 .url("$baseUrl/api/auth/refresh")
                 .post(json.toString().toRequestBody(JSON_MEDIA_TYPE))
                 .build()
-            
+
             val response = client.newCall(request).execute()
             val body = response.body?.string() ?: "{}"
-            
+
             if (response.isSuccessful) {
                 val result = JSONObject(body)
-                
+
                 prefs?.edit()?.apply {
                     putString(KEY_ACCESS_TOKEN, result.getString("accessToken"))
                     putString(KEY_REFRESH_TOKEN, result.getString("refreshToken"))
                     apply()
                 }
-                
+
                 Log.i(TAG, "✓ Token refreshed")
                 true
             } else {

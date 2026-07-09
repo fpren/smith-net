@@ -8,10 +8,16 @@ import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.gotrue.auth
 import io.ktor.client.engine.okhttp.OkHttp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 
@@ -245,7 +251,32 @@ object SupabaseAuth {
      * completion before retrying. Returns true iff the backend issued a fresh
      * token pair.
      */
-    suspend fun refreshSession(): Boolean = withContext(Dispatchers.IO) {
+    // Single-flight guard for refreshSession(). Same rotation hazard as
+    // AuthService.refreshToken(): the backend revokes a refresh token the
+    // moment it's redeemed (backend/src/auth.ts refreshAccessToken ->
+    // revokeRefreshToken), so concurrent 401s must share one in-flight
+    // refresh rather than each spend the single-use refresh token
+    // independently. The scope is dedicated (not a per-call coroutineScope)
+    // so cancellation of one caller doesn't tear down the shared refresh for
+    // the others still awaiting it.
+    private val refreshScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val refreshMutex = Mutex()
+    private var refreshInFlight: Deferred<Boolean>? = null
+
+    suspend fun refreshSession(): Boolean {
+        val deferred = refreshMutex.withLock {
+            refreshInFlight ?: refreshScope.async { doRefreshSession() }.also { refreshInFlight = it }
+        }
+        return try {
+            deferred.await()
+        } finally {
+            refreshMutex.withLock {
+                if (refreshInFlight === deferred) refreshInFlight = null
+            }
+        }
+    }
+
+    private suspend fun doRefreshSession(): Boolean = withContext(Dispatchers.IO) {
         val refresh = prefs?.getString("refresh_token", null) ?: return@withContext false
         val tokens = HetznerAuthClient.refresh(refresh)
         if (tokens.ok) {

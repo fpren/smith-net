@@ -86,6 +86,37 @@ class AuthedRequestTest {
     }
 
     @Test
+    fun `retry re-reads the current token after refresh instead of reusing a stale one`() = runTest {
+        // Regression for the stale-Request bug (PublicLinkClient /
+        // JobReportClient built an immutable okhttp3.Request -- baking in the
+        // Authorization header -- BEFORE calling withAuthRetry, so the retry
+        // resent the OLD token and 401'd again. A correctly-wired caller
+        // reads the current token INSIDE the block on every invocation. Model
+        // that here with a mutable "currentToken" var the block reads each
+        // call; refresh() flips it to the new value; assert the second
+        // attempt observed "new", not a captured-once "old".
+        var currentToken = "old"
+        val tokensSeenByBlock = mutableListOf<String>()
+        var refreshCalls = 0
+
+        val result = AuthedRequest.withAuthRetry(
+            isAuthFailure = { it == 401 },
+            refresh = {
+                refreshCalls++
+                currentToken = "new"
+                true
+            },
+        ) {
+            tokensSeenByBlock.add(currentToken)
+            if (currentToken == "old") 401 else 200
+        }
+
+        assertEquals(200, result)
+        assertEquals(1, refreshCalls)
+        assertEquals(listOf("old", "new"), tokensSeenByBlock)
+    }
+
+    @Test
     fun `omitting refresh never touches the default (SupabaseAuth) on the no-failure path`() = runTest {
         // Confirms callers can omit `refresh` entirely (relying on the
         // AuthedRequest default) without that default ever being invoked

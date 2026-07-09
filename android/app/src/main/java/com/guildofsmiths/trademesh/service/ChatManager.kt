@@ -82,6 +82,7 @@ object ChatManager {
     // refresh attempt so a dead session doesn't hot-loop refresh calls --
     // at most one attempt per this window, regardless of how many reconnect
     // cycles land inside it.
+    @Volatile
     private var lastAuthRefreshAtMs = 0L
     private const val AUTH_REFRESH_MIN_INTERVAL_MS = 60_000L
 

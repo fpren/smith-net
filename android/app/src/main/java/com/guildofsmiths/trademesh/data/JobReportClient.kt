@@ -42,15 +42,17 @@ object JobReportClient {
         val payload = buildPayload(job, laborMinutes, contractorName, workSummary, periodLabel)
         val host = BuildConfig.BACKEND_URL_PRIMARY.trimEnd('/')
         try {
-            val builder = Request.Builder()
-                .url("$host/api/reports/job?format=$format")
-                .post(payload.toString().toRequestBody(JSON))
-            SupabaseAuth.getAccessToken()?.let { builder.header("Authorization", "Bearer $it") }
-            val req = builder.build()
             // SupabaseAuth-backed Bearer token -> use AuthedRequest's default
-            // refresh (SupabaseAuth.refreshSession), not AuthService's.
+            // refresh (SupabaseAuth.refreshSession), not AuthService's. The
+            // Request is built INSIDE the block so the retry attempt re-reads
+            // SupabaseAuth.getAccessToken() after a refresh rather than
+            // resending the stale token baked into a pre-built Request.
             AuthedRequest.withAuthRetry(isAuthFailure = { it.code == 401 }) {
-                http.newCall(req).execute()
+                val builder = Request.Builder()
+                    .url("$host/api/reports/job?format=$format")
+                    .post(payload.toString().toRequestBody(JSON))
+                SupabaseAuth.getAccessToken()?.let { builder.header("Authorization", "Bearer $it") }
+                http.newCall(builder.build()).execute()
             }.use { resp ->
                 if (!resp.isSuccessful) {
                     Log.w(TAG, "render($format) -> ${resp.code}")
