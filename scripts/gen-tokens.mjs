@@ -59,6 +59,7 @@ ${avatarKeys.map((k) => `        'sn-avatar-${kebab(k)}': 'var(--sn-avatar-${keb
         'sn-card': '${t.radius.card}px',
         'sn-bubble': '${t.radius.bubble}px',
         'sn-input': '${t.radius.input}px',
+        'sn-ops': '${t.radius.ops}px',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
