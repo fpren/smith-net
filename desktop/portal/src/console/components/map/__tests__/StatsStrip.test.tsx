@@ -30,18 +30,19 @@ describe('StatsStrip', () => {
       j('old-c',    'complete', 10),
       j('recent-x', 'cancelled', 1),
     ];
-    render(<StatsStrip jobs={jobs} />);
-    // recent complete counted; old not counted
-    expect(screen.getByText(/COMPLETE/)).toBeInTheDocument();
-    expect(screen.getByText(/CANCELLED/)).toBeInTheDocument();
+    const { container } = render(<StatsStrip jobs={jobs} />);
+    // toHaveTextContent matches across the tabular-nums span split:
+    // the recent complete is counted, the 10-day-old one is NOT.
+    expect(container).toHaveTextContent('COMPLETE 1');
+    expect(container).toHaveTextContent('CANCELLED 1');
   });
 
   it('renders zeros for empty jobs', () => {
-    render(<StatsStrip jobs={[]} />);
-    expect(screen.getByText(/PLANNED/)).toBeInTheDocument();
-    expect(screen.getByText(/IN PROGRESS/)).toBeInTheDocument();
-    expect(screen.getByText(/COMPLETE/)).toBeInTheDocument();
-    expect(screen.getByText(/CANCELLED/)).toBeInTheDocument();
+    const { container } = render(<StatsStrip jobs={[]} />);
+    expect(container).toHaveTextContent('PLANNED 0');
+    expect(container).toHaveTextContent('IN PROGRESS 0');
+    expect(container).toHaveTextContent('COMPLETE 0');
+    expect(container).toHaveTextContent('CANCELLED 0');
   });
 
   it('numeric values in StatsStrip carry tabular-nums class', () => {
