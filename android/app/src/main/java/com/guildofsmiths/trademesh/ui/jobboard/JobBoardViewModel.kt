@@ -350,7 +350,7 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
     fun loadJobs() {
         _isLoading.value = true
         _error.value = null
-        
+
         // Try backend first, fall back to local
         viewModelScope.launch {
             try {
@@ -358,7 +358,28 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
             } catch (e: Exception) {
                 // Backend not available - use local jobs
                 _isLoading.value = false
+                surfaceLoadFailureIfNoLocalData()
             }
+        }
+    }
+
+    /**
+     * Error rule: a failed/unreachable backend load is NOT a user-facing error
+     * as long as the user still has usable local data to look at (jobs
+     * restored from disk, or already loaded this session) — that's the
+     * offline-fallback path SmithNet is designed around. `_error` is only
+     * set when the load fails AND `_jobs` is empty, i.e. the user would
+     * otherwise be staring at a blank board with no explanation.
+     *
+     * `internal` (not `private`) solely so JobBoardViewModelLoadFailureTest
+     * can exercise this rule directly — the surrounding OkHttp Callback
+     * wiring (real async network I/O on a non-injectable client) isn't
+     * unit-testable without a bigger DI refactor; this keeps the actual
+     * decision logic under test even though the plumbing around it isn't.
+     */
+    internal fun surfaceLoadFailureIfNoLocalData() {
+        if (_jobs.value.isEmpty()) {
+            _error.value = "Couldn't load jobs."
         }
     }
 
@@ -366,6 +387,7 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
         val token = AuthService.getAccessToken()
         if (token == null) {
             _isLoading.value = false
+            // Not logged in yet - not a failure, just nothing to sync.
             return
         }
 
@@ -378,7 +400,8 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 _isLoading.value = false
-                // Keep local jobs, don't show error
+                // Keep local jobs; only surface an error if there's nothing local to show.
+                surfaceLoadFailureIfNoLocalData()
             }
 
             override fun onResponse(call: Call, response: Response) {
@@ -403,8 +426,12 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
                         }
                         _jobs.value = merged
                     } catch (e: Exception) {
-                        // Parse error - keep local jobs
+                        // Parse error - keep local jobs; only surface if nothing local.
+                        surfaceLoadFailureIfNoLocalData()
                     }
+                } else {
+                    // Non-2xx from backend - keep local jobs; only surface if nothing local.
+                    surfaceLoadFailureIfNoLocalData()
                 }
             }
         })
