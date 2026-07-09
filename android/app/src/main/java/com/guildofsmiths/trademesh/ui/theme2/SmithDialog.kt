@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.Tokens2
 
 @Composable
 fun SmithDialog(
@@ -32,6 +33,7 @@ fun SmithDialog(
     onDismiss: () -> Unit,
     destructive: Boolean = false,
     sizeFraction: Pair<Float, Float>? = null,
+    ops: Boolean = false,
     actions: @Composable RowScope.() -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -44,8 +46,9 @@ fun SmithDialog(
             usePlatformDefaultWidth = sizeFraction == null,
         ),
     ) {
+        val panelShape = if (ops) RoundedCornerShape(Tokens2.RadiusOps) else RoundedCornerShape(20.dp)
         var panel = Modifier
-            .clip(RoundedCornerShape(20.dp))
+            .clip(panelShape)
             .background(colors.bgPanel)
         if (sizeFraction != null) {
             panel = panel
@@ -56,13 +59,17 @@ fun SmithDialog(
         }
         Column(modifier = panel.padding(20.dp)) {
             Text(
-                text = title,
-                style = TextStyle(
-                    fontFamily = ConsoleTheme.inter,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp,
-                    color = colors.ink,
-                ),
+                text = if (ops) title.uppercase() else title,
+                style = if (ops) {
+                    SmithType.captionBold.copy(color = colors.ink)
+                } else {
+                    TextStyle(
+                        fontFamily = ConsoleTheme.inter,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp,
+                        color = colors.ink,
+                    )
+                },
             )
             Spacer(modifier = Modifier.height(10.dp))
             Column(

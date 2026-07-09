@@ -19,10 +19,10 @@ function WorkerRow({ w }: { w: WorkerHeartbeat }) {
   const badge = ageBadge(w.ageSec);
   return (
     <tr className="border-t border-sn-line">
-      <td className="px-3 py-2 text-sn-ink">{w.workerId}</td>
-      <td className="px-3 py-2 text-sn-ink-muted">{w.kinds.join(', ')}</td>
-      <td className={`px-3 py-2 ${toneClass(badge.tone)}`}>
-        {badge.label} {w.ageSec}s
+      <td className="px-2 py-1.5 text-sn-ink">{w.workerId}</td>
+      <td className="px-2 py-1.5 text-sn-ink-muted">{w.kinds.join(', ')}</td>
+      <td className={`px-2 py-1.5 ${toneClass(badge.tone)}`}>
+        {badge.label} <span className="font-data tabular-nums">{w.ageSec}s</span>
       </td>
     </tr>
   );
@@ -78,9 +78,9 @@ export function AdminRoute() {
               <table className="w-full text-sm border border-sn-line">
                 <thead className="bg-sn-bg-panel">
                   <tr>
-                    <th className="text-left px-3 py-2 text-sn-ink-muted">Worker</th>
-                    <th className="text-left px-3 py-2 text-sn-ink-muted">Kinds</th>
-                    <th className="text-left px-3 py-2 text-sn-ink-muted">Age</th>
+                    <th className="text-left px-2 py-1.5 text-sn-ink-muted font-data uppercase text-[10px] tracking-wide">Worker</th>
+                    <th className="text-left px-2 py-1.5 text-sn-ink-muted font-data uppercase text-[10px] tracking-wide">Kinds</th>
+                    <th className="text-left px-2 py-1.5 text-sn-ink-muted font-data uppercase text-[10px] tracking-wide">Age</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -98,21 +98,21 @@ export function AdminRoute() {
               <table className="w-full text-sm border border-sn-line">
                 <thead className="bg-sn-bg-panel">
                   <tr>
-                    <th className="text-left px-3 py-2 text-sn-ink-muted">Kind</th>
-                    <th className="text-left px-3 py-2 text-sn-ink-muted">State</th>
-                    <th className="text-left px-3 py-2 text-sn-ink-muted">Count</th>
+                    <th className="text-left px-2 py-1.5 text-sn-ink-muted font-data uppercase text-[10px] tracking-wide">Kind</th>
+                    <th className="text-left px-2 py-1.5 text-sn-ink-muted font-data uppercase text-[10px] tracking-wide">State</th>
+                    <th className="text-left px-2 py-1.5 text-sn-ink-muted font-data uppercase text-[10px] tracking-wide">Count</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.queue.byKindState.map((r) => (
                     <tr key={`${r.kind}:${r.state}`} className="border-t border-sn-line">
-                      <td className="px-3 py-2 text-sn-ink">{r.kind}</td>
-                      <td className={`px-3 py-2 ${
+                      <td className="px-2 py-1.5 text-sn-ink">{r.kind}</td>
+                      <td className={`px-2 py-1.5 ${
                         r.state === 'dead' ? 'text-sn-status-error'
                         : r.state === 'failed' ? 'text-sn-attention'
                         : 'text-sn-ink-muted'
                       }`}>{r.state}</td>
-                      <td className="px-3 py-2 text-sn-ink">{r.count}</td>
+                      <td className="px-2 py-1.5 text-sn-ink font-data tabular-nums">{r.count}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -126,7 +126,7 @@ export function AdminRoute() {
               {data.queue.oldestQueued ? (
                 <div className="text-sm">
                   <span className="text-sn-ink">{data.queue.oldestQueued.kind}</span>
-                  <span className="text-sn-ink-muted"> &middot; {data.queue.oldestQueued.ageSec}s</span>
+                  <span className="text-sn-ink-muted"> &middot; <span className="font-data tabular-nums">{data.queue.oldestQueued.ageSec}s</span></span>
                 </div>
               ) : <div className="text-sn-ink-muted text-sm">none</div>}
             </div>
@@ -135,7 +135,7 @@ export function AdminRoute() {
               {data.queue.oldestRunning ? (
                 <div className="text-sm">
                   <span className="text-sn-ink">{data.queue.oldestRunning.kind}</span>
-                  <span className="text-sn-ink-muted"> &middot; {data.queue.oldestRunning.ageSec}s</span>
+                  <span className="text-sn-ink-muted"> &middot; <span className="font-data tabular-nums">{data.queue.oldestRunning.ageSec}s</span></span>
                 </div>
               ) : <div className="text-sn-ink-muted text-sm">none</div>}
             </div>

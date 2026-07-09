@@ -71,6 +71,22 @@
   .comm-bubble, .comm-ring-in, .comm-pop { animation: none; }
 }
 
+/* Panel slide motion (Design System v2 Plan 5 Task 5, spec section 9): the
+   beside-list detail panel on the jobs/clients/invoices list routes slides
+   in from the right when a new id is selected. Keyed on the id (key={id} on
+   the wrapper) so re-selecting a different row re-runs the animation. Only
+   visible at xl (where the panel actually renders beside the list), but the
+   class is harmless below that breakpoint. */
+@keyframes panelIn {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: none; }
+}
+.panel-in { animation: panelIn .22s cubic-bezier(.2,.8,.2,1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-in { animation: none; }
+}
+
 /* Plan 4: map marker styles. Used by createJobMarkerElement(). */
 .job-marker {
   width: 24px;

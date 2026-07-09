@@ -30,6 +30,7 @@ module.exports = {
         'sn-card': '20px',
         'sn-bubble': '14px',
         'sn-input': '999px',
+        'sn-ops': '0px',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

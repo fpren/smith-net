@@ -98,6 +98,16 @@ describe('SmithRail', () => {
     expect(screen.getByRole('link', { name: /^Comm$/ }).className).toMatch(/focus-visible:ring/);
   });
 
+  it('uses the font-data semantic token (not font-mono) for tab labels and the logout glyph', () => {
+    setUser('foreman');
+    render(<MemoryRouter><SmithRail /></MemoryRouter>);
+    expect(screen.getByRole('link', { name: /^Home$/ }).className).toMatch(/font-data/);
+    expect(screen.getByRole('link', { name: /^Home$/ }).className).not.toMatch(/font-mono/);
+    const logout = screen.getByRole('button', { name: /log out/i });
+    expect(logout.className).toMatch(/font-data/);
+    expect(logout.className).not.toMatch(/font-mono/);
+  });
+
   it('renders the avatar with the display name as title', () => {
     setUser('foreman');
     render(<MemoryRouter><SmithRail /></MemoryRouter>);

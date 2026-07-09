@@ -11,6 +11,8 @@ import { useAdminHealth } from '../../hooks/useAdminHealth';
 import { useAdminHealthStore } from '../../stores/adminHealthStore';
 import { useCrewPositionsPolling } from '../../hooks/useCrewPositionsPolling';
 import { useCrewPositionsStore } from '../../stores/crewPositionsStore';
+import { useCrewRoster } from '../../hooks/useCrewRoster';
+import { useCrewStore } from '../../stores/crewStore';
 import { useInvoicesPolling } from '../../hooks/useInvoicesPolling';
 import { useInvoicesStore } from '../../stores/invoicesStore';
 import type { InvoiceStatus } from '../../api/invoicesClient';
@@ -396,6 +398,64 @@ export function InvoicesCard() {
                 <span className="ml-auto tabular-nums pl-2">${Math.round(inv.totalDue).toLocaleString()}</span>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// CREW -- foreman-tier entry point to the crew roster (Design System v2 Plan
+// 5 Task 5, "Crew entry point"). Small presence summary + a [open] link to
+// the full /console/crew screen, matching the JobsCard/InvoicesCard idiom
+// (PanelHeader + status precedence loading -> error -> empty -> data). This
+// card is crew's ONLY dashboard presence (grid and swipe); the full roster
+// lives at /console/crew.
+export function CrewPresenceCard() {
+  const { reload } = useCrewRoster();
+  useCrewPositionsPolling();
+  const roster = useCrewStore((s) => s.roster);
+  const isLoadingRoster = useCrewStore((s) => s.isLoadingRoster);
+  const isStale = useCrewStore((s) => s.isStale);
+  const positions = useCrewPositionsStore((s) => s.positions);
+  const onShiftCount = positions.length;
+
+  if (isLoadingRoster && roster.length === 0) {
+    return (
+      <div className="h-full flex flex-col min-h-0">
+        <PanelHeader title="Crew" to="/console/crew" />
+        <LoadingState label="Loading crew" />
+      </div>
+    );
+  }
+
+  if (isStale && roster.length === 0) {
+    return (
+      <div className="h-full flex flex-col min-h-0">
+        <PanelHeader title="Crew" to="/console/crew" />
+        <ErrorState message="Couldn't load crew." onRetry={reload} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full flex flex-col min-h-0">
+      <PanelHeader title="Crew" to="/console/crew" />
+      {isStale && <ErrorState message="Couldn't refresh crew — showing cached data." onRetry={reload} />}
+      <div className="flex-1 min-h-0 overflow-y-auto font-sans text-[13px] text-sn-ink">
+        {roster.length === 0 ? (
+          <EmptyState title="No crew." />
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            <div>
+              <span className="text-sn-status-online text-[10px] leading-none">●</span> {roster.length} member
+              {roster.length === 1 ? '' : 's'}
+            </div>
+            {onShiftCount > 0 && (
+              <div className="text-sn-ink-muted">
+                {onShiftCount} on shift
+              </div>
+            )}
           </div>
         )}
       </div>

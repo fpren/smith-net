@@ -47,7 +47,7 @@ describe('BottomTabBar', () => {
     expect(screen.getByRole('link', { name: /Set/ })).toHaveAttribute('href', '/console/settings');
   });
 
-  it('shows no Admin tab even for an admin (admin lives behind the gear)', () => {
+  it('shows no Admin tab even for an admin (admin reachable via Settings below lg)', () => {
     useAuthStore.getState().setUser({
       id: 'a1', email: 'a@x.com', displayName: 'A', role: 'admin', emailVerified: true,
     });

@@ -3,6 +3,7 @@ package com.guildofsmiths.trademesh.ui.plan
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
@@ -15,14 +16,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.IntentRepository
 import com.guildofsmiths.trademesh.data.UserPreferences
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.Tokens2
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithButton
 import com.guildofsmiths.trademesh.ui.theme2.SmithButtonVariant
 import com.guildofsmiths.trademesh.ui.theme2.SmithDialog
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import kotlinx.coroutines.launch
 
 // ════════════════════════════════════════════════════════════════════
@@ -43,6 +45,7 @@ fun CreateIntentDialog(
         crewSize: Int
     ) -> Unit
 ) {
+    val colors = LocalSmithColors.current
     var scopeStatement by remember { mutableStateOf("") }
     var clientName by remember { mutableStateOf("") }
     var crewSizeText by remember { mutableStateOf("1") }
@@ -84,8 +87,14 @@ fun CreateIntentDialog(
     SmithDialog(
         title = "NEW PROPOSAL",
         onDismiss = onDismiss,
+        ops = true,
         actions = {
-            SmithButton(text = "CANCEL", onClick = onDismiss, variant = SmithButtonVariant.Ghost)
+            SmithButton(
+                text = "CANCEL",
+                onClick = onDismiss,
+                variant = SmithButtonVariant.Ghost,
+                shape = RoundedCornerShape(Tokens2.RadiusOps),
+            )
             Spacer(modifier = Modifier.width(8.dp))
             SmithButton(
                 text = "CREATE",
@@ -100,12 +109,13 @@ fun CreateIntentDialog(
                     )
                 },
                 enabled = scopeStatement.isNotBlank(),
+                shape = RoundedCornerShape(Tokens2.RadiusOps),
             )
         },
     ) {
         Text(
             text = "Define scope, tasks, equipment, and crew",
-            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+            style = SmithType.caption.copy(color = colors.inkMuted)
         )
         Spacer(modifier = Modifier.height(8.dp))
         Column(
@@ -121,26 +131,26 @@ fun CreateIntentDialog(
                     TextField(
                         value = scopeStatement,
                         onValueChange = { scopeStatement = it },
-                        placeholder = { Text("Describe the work to be performed...", style = ConsoleTheme.caption) },
+                        placeholder = { Text("Describe the work to be performed...", style = SmithType.caption.copy(color = colors.inkMuted)) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("solo_e2e_intent_scope")
                             .onFocusChanged { state ->
                                 if (!state.isFocused) triggerAssist()
                             },
-                        textStyle = ConsoleTheme.body,
+                        textStyle = SmithType.body.copy(color = colors.ink),
                         colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            focusedIndicatorColor = ConsoleTheme.accent,
-                            unfocusedIndicatorColor = ConsoleTheme.text.copy(alpha = 0.2f)
+                            focusedContainerColor = colors.bgPanel,
+                            unfocusedContainerColor = colors.bgPanel,
+                            focusedIndicatorColor = colors.accent,
+                            unfocusedIndicatorColor = colors.ink.copy(alpha = 0.2f)
                         )
                     )
                     if (isAssisting) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Generating suggestions...",
-                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent)
+                            style = SmithType.caption.copy(color = colors.accent)
                         )
                     }
                 }
@@ -192,7 +202,7 @@ fun CreateIntentDialog(
                         val crewNum = crewSizeText.toIntOrNull() ?: 1
                         Text(
                             text = "[-]",
-                            style = ConsoleTheme.action,
+                            style = SmithType.action.copy(color = colors.accent),
                             modifier = Modifier
                                 .clickable {
                                     if (crewNum > 1) crewSizeText = (crewNum - 1).toString()
@@ -201,11 +211,11 @@ fun CreateIntentDialog(
                         )
                         Text(
                             text = "$crewNum person${if (crewNum != 1) "s" else ""}",
-                            style = ConsoleTheme.bodyBold
+                            style = SmithType.bodyBold.copy(color = colors.ink)
                         )
                         Text(
                             text = "[+]",
-                            style = ConsoleTheme.action,
+                            style = SmithType.action.copy(color = colors.accent),
                             modifier = Modifier
                                 .clickable {
                                     crewSizeText = (crewNum + 1).toString()
@@ -224,8 +234,9 @@ fun CreateIntentDialog(
 
 @Composable
 private fun ProposalSection(label: String, content: @Composable () -> Unit) {
+    val colors = LocalSmithColors.current
     Column {
-        Text(text = label, style = ConsoleTheme.captionBold)
+        Text(text = label, style = SmithType.captionBold.copy(color = colors.inkMuted))
         Spacer(modifier = Modifier.height(4.dp))
         content()
     }
@@ -238,17 +249,18 @@ private fun ProposalTextField(
     placeholder: String,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     TextField(
         value = value,
         onValueChange = onValueChange,
-        placeholder = { Text(placeholder, style = ConsoleTheme.caption) },
+        placeholder = { Text(placeholder, style = SmithType.caption.copy(color = colors.inkMuted)) },
         modifier = modifier.fillMaxWidth(),
-        textStyle = ConsoleTheme.body,
+        textStyle = SmithType.body.copy(color = colors.ink),
         colors = TextFieldDefaults.colors(
-            focusedContainerColor = Color.White,
-            unfocusedContainerColor = Color.White,
-            focusedIndicatorColor = ConsoleTheme.accent,
-            unfocusedIndicatorColor = ConsoleTheme.text.copy(alpha = 0.2f)
+            focusedContainerColor = colors.bgPanel,
+            unfocusedContainerColor = colors.bgPanel,
+            focusedIndicatorColor = colors.accent,
+            unfocusedIndicatorColor = colors.ink.copy(alpha = 0.2f)
         )
     )
 }
@@ -260,6 +272,7 @@ private fun DynamicListField(
     placeholder: String,
     tagPrefix: String? = null
 ) {
+    val colors = LocalSmithColors.current
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         lines.forEachIndexed { index, line ->
             Row(
@@ -268,7 +281,7 @@ private fun DynamicListField(
             ) {
                 Text(
                     text = "${index + 1}.",
-                    style = ConsoleTheme.caption,
+                    style = SmithType.caption.copy(color = colors.inkMuted),
                     modifier = Modifier.width(24.dp)
                 )
                 TextField(
@@ -278,21 +291,21 @@ private fun DynamicListField(
                         updated[index] = newValue
                         onLinesChange(updated)
                     },
-                    placeholder = { Text(placeholder, style = ConsoleTheme.caption) },
+                    placeholder = { Text(placeholder, style = SmithType.caption.copy(color = colors.inkMuted)) },
                     modifier = (if (tagPrefix != null) Modifier.testTag("${tagPrefix}_$index") else Modifier).weight(1f),
-                    textStyle = ConsoleTheme.bodySmall,
+                    textStyle = SmithType.bodySmall.copy(color = colors.ink),
                     singleLine = true,
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        focusedIndicatorColor = ConsoleTheme.accent,
-                        unfocusedIndicatorColor = ConsoleTheme.text.copy(alpha = 0.1f)
+                        focusedContainerColor = colors.bgPanel,
+                        unfocusedContainerColor = colors.bgPanel,
+                        focusedIndicatorColor = colors.accent,
+                        unfocusedIndicatorColor = colors.ink.copy(alpha = 0.1f)
                     )
                 )
                 if (lines.size > 1) {
                     Text(
                         text = "[x]",
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                        style = SmithType.caption.copy(color = colors.inkMuted),
                         modifier = Modifier
                             .clickable {
                                 val updated = lines.toMutableList()
@@ -307,7 +320,7 @@ private fun DynamicListField(
 
         Text(
             text = "[+] Add",
-            style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent),
+            style = SmithType.caption.copy(color = colors.accent),
             modifier = Modifier
                 .then(if (tagPrefix != null) Modifier.testTag("${tagPrefix}_add") else Modifier)
                 .clickable { onLinesChange(lines + "") }
@@ -327,11 +340,18 @@ fun IntentDetailDialog(
     onDismiss: () -> Unit,
     onCreateJob: (IntentVersionData) -> Unit = {}
 ) {
+    val colors = LocalSmithColors.current
     SmithDialog(
         title = "${version.status.icon} ${version.scopeStatement.take(30)}",
         onDismiss = onDismiss,
+        ops = true,
         actions = {
-            SmithButton(text = "CLOSE", onClick = onDismiss, variant = SmithButtonVariant.Ghost)
+            SmithButton(
+                text = "CLOSE",
+                onClick = onDismiss,
+                variant = SmithButtonVariant.Ghost,
+                shape = RoundedCornerShape(Tokens2.RadiusOps),
+            )
             when (version.status) {
                 IntentStatus.DRAFT -> {
                     Spacer(modifier = Modifier.width(8.dp))
@@ -342,6 +362,7 @@ fun IntentDetailDialog(
                             onDismiss()
                         },
                         enabled = version.canPropose(),
+                        shape = RoundedCornerShape(Tokens2.RadiusOps),
                     )
                 }
                 IntentStatus.PROPOSED -> {
@@ -353,6 +374,7 @@ fun IntentDetailDialog(
                             onDismiss()
                         },
                         enabled = version.canConfirm(),
+                        shape = RoundedCornerShape(Tokens2.RadiusOps),
                     )
                 }
                 IntentStatus.CONFIRMED -> {
@@ -363,6 +385,7 @@ fun IntentDetailDialog(
                             onCreateJob(version)
                             onDismiss()
                         },
+                        shape = RoundedCornerShape(Tokens2.RadiusOps),
                     )
                 }
                 IntentStatus.SUPERSEDED -> Unit
@@ -371,8 +394,8 @@ fun IntentDetailDialog(
     ) {
         Text(
             text = version.status.displayName.uppercase(),
-            style = ConsoleTheme.caption,
-            color = ConsoleTheme.accent
+            style = SmithType.caption,
+            color = colors.accent
         )
         Spacer(modifier = Modifier.height(8.dp))
         when (version.status) {
@@ -390,6 +413,7 @@ fun IntentDetailDialog(
 
 @Composable
 private fun ProposalDetails(version: IntentVersionData) {
+    val colors = LocalSmithColors.current
     IntentDetailSection(label = "Version", value = "v${version.versionNumber}")
     IntentDetailSection(label = "Scope", value = version.scopeStatement)
 
@@ -399,11 +423,11 @@ private fun ProposalDetails(version: IntentVersionData) {
 
     if (version.taskDescriptions.isNotEmpty()) {
         Spacer(modifier = Modifier.height(8.dp))
-        Text(text = "TASKS (${version.taskDescriptions.size})", style = ConsoleTheme.captionBold)
+        Text(text = "TASKS (${version.taskDescriptions.size})", style = SmithType.captionBold.copy(color = colors.inkMuted))
         version.taskDescriptions.forEachIndexed { i, task ->
             Text(
                 text = "  ${i + 1}. $task",
-                style = ConsoleTheme.bodySmall,
+                style = SmithType.bodySmall.copy(color = colors.ink),
                 modifier = Modifier.padding(vertical = 2.dp)
             )
         }
@@ -411,11 +435,11 @@ private fun ProposalDetails(version: IntentVersionData) {
 
     if (version.equipmentNeeded.isNotEmpty()) {
         Spacer(modifier = Modifier.height(8.dp))
-        Text(text = "EQUIPMENT (${version.equipmentNeeded.size})", style = ConsoleTheme.captionBold)
+        Text(text = "EQUIPMENT (${version.equipmentNeeded.size})", style = SmithType.captionBold.copy(color = colors.inkMuted))
         version.equipmentNeeded.forEach { item ->
             Text(
                 text = "  - $item",
-                style = ConsoleTheme.bodySmall,
+                style = SmithType.bodySmall.copy(color = colors.ink),
                 modifier = Modifier.padding(vertical = 2.dp)
             )
         }
@@ -423,11 +447,11 @@ private fun ProposalDetails(version: IntentVersionData) {
 
     if (version.suppliesNeeded.isNotEmpty()) {
         Spacer(modifier = Modifier.height(8.dp))
-        Text(text = "SUPPLIES & MATERIALS (${version.suppliesNeeded.size})", style = ConsoleTheme.captionBold)
+        Text(text = "SUPPLIES & MATERIALS (${version.suppliesNeeded.size})", style = SmithType.captionBold.copy(color = colors.inkMuted))
         version.suppliesNeeded.forEach { item ->
             Text(
                 text = "  - $item",
-                style = ConsoleTheme.bodySmall,
+                style = SmithType.bodySmall.copy(color = colors.ink),
                 modifier = Modifier.padding(vertical = 2.dp)
             )
         }
@@ -466,11 +490,12 @@ private fun ProposedIntentUI(
     version: IntentVersionData,
     onDismiss: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             text = "PROPOSED — AWAITING CONFIRMATION",
-            style = ConsoleTheme.captionBold,
-            color = ConsoleTheme.accent
+            style = SmithType.captionBold,
+            color = colors.accent
         )
         Spacer(modifier = Modifier.height(4.dp))
 
@@ -489,11 +514,12 @@ private fun ConfirmedIntentUI(
     onDismiss: () -> Unit,
     onCreateJob: (IntentVersionData) -> Unit
 ) {
+    val colors = LocalSmithColors.current
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             text = "CONFIRMED — Ready for job execution",
-            style = ConsoleTheme.captionBold,
-            color = ConsoleTheme.accent
+            style = SmithType.captionBold,
+            color = colors.accent
         )
         Spacer(modifier = Modifier.height(4.dp))
 
@@ -515,11 +541,12 @@ private fun SupersededIntentUI(
     version: IntentVersionData,
     onDismiss: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             text = "SUPERSEDED — See newer version",
-            style = ConsoleTheme.captionBold,
-            color = ConsoleTheme.textMuted
+            style = SmithType.captionBold,
+            color = colors.inkMuted
         )
         Spacer(modifier = Modifier.height(4.dp))
         ProposalDetails(version)
@@ -535,15 +562,16 @@ private fun SupersededIntentUI(
 
 @Composable
 private fun IntentDetailSection(label: String, value: String) {
+    val colors = LocalSmithColors.current
     Column(modifier = Modifier.padding(vertical = 2.dp)) {
         Text(
             text = label,
-            style = ConsoleTheme.captionBold,
-            color = ConsoleTheme.text.copy(alpha = 0.6f)
+            style = SmithType.captionBold,
+            color = colors.ink.copy(alpha = 0.6f)
         )
         Text(
             text = value,
-            style = ConsoleTheme.body
+            style = SmithType.body.copy(color = colors.ink)
         )
     }
 }

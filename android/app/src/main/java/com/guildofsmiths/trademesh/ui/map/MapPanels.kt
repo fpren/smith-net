@@ -27,8 +27,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.ClockStatus
 import com.guildofsmiths.trademesh.data.CrewPresenceInfo
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.Tokens2
 import com.guildofsmiths.trademesh.ui.jobboard.Job
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
+import com.guildofsmiths.trademesh.ui.theme2.tabular
 
 @Composable
 internal fun SiteDetailPanel(
@@ -38,17 +41,18 @@ internal fun SiteDetailPanel(
     onCrewTap: (CrewPresenceInfo) -> Unit,
     onClose: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     val activeOnSite = members.count { it.status == ClockStatus.ON_CLOCK }
     val jobTitle = members.firstOrNull()?.currentJobTitle
 
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(12.dp)
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
-            .clip(RoundedCornerShape(4.dp))
-            .padding(12.dp),
+            .padding(9.dp)
+            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusOps))
+            .border(1.dp, colors.line, RoundedCornerShape(Tokens2.RadiusOps))
+            .clip(RoundedCornerShape(Tokens2.RadiusOps))
+            .padding(9.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Row(
@@ -58,9 +62,9 @@ internal fun SiteDetailPanel(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 if (jobTitle != null) {
-                    Text(jobTitle, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
+                    Text(jobTitle, style = SmithType.bodySmall.copy(color = colors.ink))
                 }
-                Text(site, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                Text(site, style = SmithType.caption.copy(color = colors.inkMuted))
             }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -69,27 +73,27 @@ internal fun SiteDetailPanel(
                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                     members.forEach { m ->
                         val dotColor = when (m.status) {
-                            ClockStatus.ON_CLOCK -> ConsoleTheme.success
-                            ClockStatus.ON_BREAK -> ConsoleTheme.accent
-                            ClockStatus.OFF_CLOCK -> ConsoleTheme.textMuted
+                            ClockStatus.ON_CLOCK -> colors.statusOnline
+                            ClockStatus.ON_BREAK -> colors.accent
+                            ClockStatus.OFF_CLOCK -> colors.inkMuted
                         }
-                        Text("●", style = ConsoleTheme.caption.copy(color = dotColor))
+                        Text("●", style = SmithType.caption.copy(color = dotColor))
                     }
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("$activeOnSite/${members.size}", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                    Text("$activeOnSite/${members.size}", style = SmithType.caption.copy(color = colors.inkMuted).tabular)
                 }
                 Text(
                     "[x]",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent),
+                    style = SmithType.caption.copy(color = colors.accent),
                     modifier = Modifier.clickable(onClick = onClose).padding(start = 4.dp)
                 )
             }
         }
 
-        Box(Modifier.fillMaxWidth().height(0.5.dp).background(ConsoleTheme.text.copy(alpha = 0.06f)))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(colors.line))
 
         if (members.isEmpty()) {
-            Text("No crew on site.", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+            Text("No crew on site.", style = SmithType.caption.copy(color = colors.inkMuted))
         } else {
             Column(
                 modifier = Modifier
@@ -100,9 +104,9 @@ internal fun SiteDetailPanel(
             ) {
                 members.forEach { member ->
                     val dotColor = when (member.status) {
-                        ClockStatus.ON_CLOCK -> ConsoleTheme.success
-                        ClockStatus.ON_BREAK -> ConsoleTheme.accent
-                        ClockStatus.OFF_CLOCK -> ConsoleTheme.textMuted
+                        ClockStatus.ON_CLOCK -> colors.statusOnline
+                        ClockStatus.ON_BREAK -> colors.accent
+                        ClockStatus.OFF_CLOCK -> colors.inkMuted
                     }
                     val hoursText = if (member.clockInTime != null) {
                         val mins = (System.currentTimeMillis() - member.clockInTime) / 60_000
@@ -112,7 +116,7 @@ internal fun SiteDetailPanel(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(4.dp))
+                            .clip(RoundedCornerShape(Tokens2.RadiusOps))
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = rememberRipple(bounded = true),
@@ -126,13 +130,13 @@ internal fun SiteDetailPanel(
                             modifier = Modifier.weight(1f),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text("(●)", style = ConsoleTheme.caption.copy(color = dotColor))
+                            Text("(●)", style = SmithType.caption.copy(color = dotColor))
                             Text(
                                 "${member.name} · ${member.trade}",
-                                style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text)
+                                style = SmithType.bodySmall.copy(color = colors.ink)
                             )
                         }
-                        Text(hoursText, style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent))
+                        Text(hoursText, style = SmithType.caption.copy(color = colors.accent).tabular)
                     }
                 }
             }
@@ -147,14 +151,15 @@ internal fun JobDetailPanel(
     onJumpToJob: () -> Unit,
     onClose: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(12.dp)
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
-            .clip(RoundedCornerShape(4.dp))
-            .padding(12.dp),
+            .padding(9.dp)
+            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusOps))
+            .border(1.dp, colors.line, RoundedCornerShape(Tokens2.RadiusOps))
+            .clip(RoundedCornerShape(Tokens2.RadiusOps))
+            .padding(9.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Row(
@@ -165,27 +170,27 @@ internal fun JobDetailPanel(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     job.clientName ?: job.title,
-                    style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text)
+                    style = SmithType.bodySmall.copy(color = colors.ink)
                 )
                 Text(
                     "${job.stage.displayName} · ${job.clientAddress}",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                    style = SmithType.caption.copy(color = colors.inkMuted)
                 )
                 if (job.crew.isNotEmpty()) {
                     Text(
                         "Assigned: ${job.crew.joinToString(", ") { it.name }}",
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.success)
+                        style = SmithType.caption.copy(color = colors.statusOnline)
                     )
                 } else {
                     Text(
                         "No crew assigned",
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                        style = SmithType.caption.copy(color = colors.inkMuted)
                     )
                 }
             }
             Text(
                 "[x]",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent),
+                style = SmithType.caption.copy(color = colors.accent),
                 modifier = Modifier.clickable(onClick = onClose).padding(start = 4.dp)
             )
         }
@@ -196,7 +201,7 @@ internal fun JobDetailPanel(
         ) {
             Text(
                 "[OPEN JOB >]",
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                style = SmithType.action.copy(color = colors.accent),
                 modifier = Modifier.clickable(onClick = onJumpToJob).padding(4.dp)
             )
         }

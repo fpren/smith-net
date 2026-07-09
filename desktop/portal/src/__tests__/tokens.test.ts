@@ -23,6 +23,11 @@ describe('generated tokens', () => {
     expect(preset).toContain('JetBrains Mono');
   });
 
+  it('tailwind preset carries the ops radius token', () => {
+    const preset = readFileSync(resolve(repo, 'desktop/portal/tailwind.tokens.cjs'), 'utf8');
+    expect(preset).toContain(`'sn-ops': '${tokens.radius.ops}px'`);
+  });
+
   it('Tokens2.kt carries both palettes as Compose colors', () => {
     const kt = readFileSync(
       resolve(repo, 'android/app/src/main/java/com/guildofsmiths/trademesh/ui/Tokens2.kt'), 'utf8');

@@ -20,12 +20,14 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.guildofsmiths.trademesh.data.CrewPresenceInfo
 import com.guildofsmiths.trademesh.data.CrewPresenceRepository
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.Tokens2
 import com.guildofsmiths.trademesh.ui.dashboard.CrewMapView
 import com.guildofsmiths.trademesh.ui.dashboard.CrewProfileSheet
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel
 import com.guildofsmiths.trademesh.ui.jobboard.JobStage
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 
 @Composable
 fun MapScreen(
@@ -35,6 +37,7 @@ fun MapScreen(
     onMessageCrew: ((CrewPresenceInfo) -> Unit)? = null,
     jobViewModel: JobBoardViewModel = viewModel()
 ) {
+    val colors = LocalSmithColors.current
     val crew by CrewPresenceRepository.crew.collectAsState()
     val allJobs by jobViewModel.jobs.collectAsState()
     val activeJobs = allJobs.filter { it.stage != JobStage.CLOSED }
@@ -46,7 +49,7 @@ fun MapScreen(
     var selectedJob by remember { mutableStateOf<Job?>(null) }
     var selectedCrew by remember { mutableStateOf<CrewPresenceInfo?>(null) }
 
-    Box(modifier = Modifier.fillMaxSize().background(ConsoleTheme.background)) {
+    Box(modifier = Modifier.fillMaxSize().background(colors.bgBase)) {
         // Layer 1: full-bleed map
         CrewMapView(
             crew = crew,
@@ -66,13 +69,13 @@ fun MapScreen(
         Box(
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(12.dp)
-                .background(ConsoleTheme.surface.copy(alpha = 0.85f), RoundedCornerShape(4.dp))
-                .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                .padding(9.dp)
+                .background(colors.bgPanel.copy(alpha = 0.85f), RoundedCornerShape(Tokens2.RadiusOps))
+                .border(1.dp, colors.line, RoundedCornerShape(Tokens2.RadiusOps))
                 .clickable(onClick = onBack)
                 .padding(horizontal = 10.dp, vertical = 6.dp)
         ) {
-            Text("[← BACK]", style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent))
+            Text("[← BACK]", style = SmithType.caption.copy(color = colors.accent))
         }
 
         // Layer 3: contextual panels — appear when a marker is tapped.

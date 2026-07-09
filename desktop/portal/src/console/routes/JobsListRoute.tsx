@@ -46,7 +46,13 @@ export function JobsListRoute() {
   const [showCreate, setShowCreate] = useState(false);
   // Independent path match (not useParams — the :id param belongs to the
   // nested child route, which isn't in this component's own route context).
-  const idActive = Boolean(useMatch('/console/jobs/:id'));
+  const detailMatch = useMatch('/console/jobs/:id');
+  const idActive = Boolean(detailMatch);
+  // Double-EmptyState fix (Plan 5 Task 5): when the list itself has nothing
+  // in it (the "no jobs yet" CTA branch below), the beside-list panel must
+  // render nothing rather than its own "Select a job" EmptyState -- otherwise
+  // the screen shows two empty states at once.
+  const noJobsYet = jobs.length === 0 && !isLoadingList && !listStale;
 
   const byStatus = (st: JobStatus) => jobs.filter((j) => j.status === st);
 
@@ -105,7 +111,13 @@ export function JobsListRoute() {
             : 'hidden xl:block xl:overflow-y-auto xl:min-h-0 xl:border-l xl:border-sn-line xl:pl-6'
         }
       >
-        {idActive ? <Outlet /> : <EmptyState title="Select a job" />}
+        {idActive ? (
+          <div key={detailMatch?.params.id} className="panel-in">
+            <Outlet />
+          </div>
+        ) : noJobsYet ? null : (
+          <EmptyState title="Select a job" />
+        )}
       </div>
     </div>
   );

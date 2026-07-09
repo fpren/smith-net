@@ -17,7 +17,13 @@ export function ClientsListRoute() {
   const [query, setQuery] = useState('');
   // Independent path match (not useParams — the :id param belongs to the
   // nested child route, which isn't in this component's own route context).
-  const idActive = Boolean(useMatch('/console/clients/:id'));
+  const detailMatch = useMatch('/console/clients/:id');
+  const idActive = Boolean(detailMatch);
+  // Double-EmptyState fix (Plan 5 Task 5): when the list itself has no
+  // clients at all (not just filtered-to-zero by search), the beside-list
+  // panel must render nothing rather than its own "Select a client"
+  // EmptyState -- otherwise the screen shows two empty states at once.
+  const noClientsYet = clients.length === 0 && !isLoadingList && !listStale;
   const shown = query.trim()
     ? clients.filter((c) => {
         const q = query.trim().toLowerCase();
@@ -76,7 +82,13 @@ export function ClientsListRoute() {
             : 'hidden xl:block xl:overflow-y-auto xl:min-h-0 xl:border-l xl:border-sn-line xl:pl-6'
         }
       >
-        {idActive ? <Outlet /> : <EmptyState title="Select a client" />}
+        {idActive ? (
+          <div key={detailMatch?.params.id} className="panel-in">
+            <Outlet />
+          </div>
+        ) : noClientsYet ? null : (
+          <EmptyState title="Select a client" />
+        )}
       </div>
     </div>
   );

@@ -18,7 +18,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -95,46 +94,18 @@ object ConsoleTheme {
     )
 
     // ═══════════════════════════════════════════════════════════════
-    // COLORS — Warm parchment palette
-    // ═══════════════════════════════════════════════════════════════
-
-    val background = Color(0xFFF4F2EE)
-    val surface = Color(0xFFFAFAF8)
-
-    val text = Color(0xFF2A2520)
-    val textSecondary = Color(0xFF494137)
-    val textMuted = Color(0xFF6E675B)
-    val textQuiet = Color(0xFF6E675B)
-    val textDim = Color(0xFF948C7C)
-    val placeholder = Color(0xFFB0A898)
-
-    val accent = Color(0xFF9A6F2E)            // Gold
-    val accentDim = Color(0xFF9A6F2E).copy(alpha = 0.4f)
-    val sentLine = Color(0xFF9A6F2E).copy(alpha = 0.15f)
-
-    val success = Color(0xFF5A8C76)           // Sage
-    val warning = Color(0xFF8C5A2E)           // Sienna
-    val error = Color(0xFF8C3A3A)             // Brick
-
-    val separator = Color(0xFFE8E4DE)
-    val separatorFaint = Color(0xFFF0EDE8)
-
-    val cursor = Color(0xFF2A2520)
-
-    // Prefixes
-    val receivedPrefix = Color(0xFF8C8478)
-    val sentPrefix = Color(0xFF9A6F2E).copy(alpha = 0.6f)
-
-    // ═══════════════════════════════════════════════════════════════
     // TYPOGRAPHY
     // ═══════════════════════════════════════════════════════════════
+    // Colorless — every TextStyle here has zero call sites in the app that
+    // rely on a baked color (verified by grepping for `ConsoleTheme.<style>`
+    // app-wide: zero hits). Design System v2's Tokens2/LocalSmithColors is
+    // the only color system; callers apply color via `.copy(color = ...)`.
 
     // Brand header — Syne, bold, spaced
     val brand = TextStyle(
         fontFamily = syne,
         fontSize = 24.sp,
         fontWeight = FontWeight.Bold,
-        color = text,
         letterSpacing = 2.sp
     )
 
@@ -142,7 +113,6 @@ object ConsoleTheme {
         fontFamily = plexMono,
         fontSize = 10.sp,
         fontWeight = FontWeight.Medium,
-        color = textMuted,
         letterSpacing = 0.5.sp
     )
 
@@ -150,7 +120,6 @@ object ConsoleTheme {
         fontFamily = syne,
         fontSize = 22.sp,
         fontWeight = FontWeight.Bold,
-        color = text,
         letterSpacing = 0.3.sp
     )
 
@@ -158,50 +127,43 @@ object ConsoleTheme {
         fontFamily = syne,
         fontSize = 18.sp,
         fontWeight = FontWeight.Bold,
-        color = text,
         letterSpacing = 0.2.sp
     )
 
     val body = TextStyle(
         fontFamily = plexSans,
         fontSize = 16.sp,
-        fontWeight = FontWeight.Medium,
-        color = text
+        fontWeight = FontWeight.Medium
     )
 
     val bodyBold = TextStyle(
         fontFamily = plexSans,
         fontSize = 16.sp,
-        fontWeight = FontWeight.SemiBold,
-        color = text
+        fontWeight = FontWeight.SemiBold
     )
 
     val bodySmall = TextStyle(
         fontFamily = plexSans,
         fontSize = 14.sp,
-        fontWeight = FontWeight.Medium,
-        color = textSecondary
+        fontWeight = FontWeight.Medium
     )
 
     val caption = TextStyle(
         fontFamily = plexMono,
         fontSize = 12.sp,
-        fontWeight = FontWeight.Medium,
-        color = textMuted
+        fontWeight = FontWeight.Medium
     )
 
     val captionBold = TextStyle(
         fontFamily = plexMono,
         fontSize = 12.sp,
-        fontWeight = FontWeight.SemiBold,
-        color = textMuted
+        fontWeight = FontWeight.SemiBold
     )
 
     val timestamp = TextStyle(
         fontFamily = plexMono,
         fontSize = 10.sp,
         fontWeight = FontWeight.Medium,
-        color = textQuiet,
         letterSpacing = (-0.3).sp
     )
 
@@ -215,15 +177,13 @@ object ConsoleTheme {
     val prompt = TextStyle(
         fontFamily = plexMono,
         fontSize = 13.sp,
-        fontWeight = FontWeight.Medium,
-        color = textMuted
+        fontWeight = FontWeight.Medium
     )
 
     val action = TextStyle(
         fontFamily = plexMono,
         fontSize = 13.sp,
-        fontWeight = FontWeight.SemiBold,
-        color = accent
+        fontWeight = FontWeight.SemiBold
     )
 
     // ── Comm-surface typography (Public Sans + JetBrains Mono) ──────────
@@ -233,37 +193,32 @@ object ConsoleTheme {
     val commName = TextStyle(
         fontFamily = publicSans,
         fontSize = 15.sp,
-        fontWeight = FontWeight.SemiBold,
-        color = text
+        fontWeight = FontWeight.SemiBold
     )
 
     val commBody = TextStyle(
         fontFamily = publicSans,
         fontSize = 15.sp,
-        fontWeight = FontWeight.Normal,
-        color = text
+        fontWeight = FontWeight.Normal
     )
 
     val commId = TextStyle(
         fontFamily = jetBrainsMono,
         fontSize = 12.sp,
         fontWeight = FontWeight.Medium,
-        color = textDim,
         letterSpacing = 1.sp
     )
 
     val commTimestamp = TextStyle(
         fontFamily = jetBrainsMono,
         fontSize = 10.sp,
-        fontWeight = FontWeight.Normal,
-        color = textDim
+        fontWeight = FontWeight.Normal
     )
 
     val dialpad = TextStyle(
         fontFamily = jetBrainsMono,
         fontSize = 16.sp,
         fontWeight = FontWeight.Medium,
-        color = text,
         letterSpacing = 4.sp
     )
 }

@@ -474,7 +474,10 @@ object InvoiceBolHtmlRenderer {
     // ── SHARED STYLESHEET ────────────────────────────────────────────
 
     private val CSS = """
-        :root{--bg:#f4f2ee;--surface:#fff;--ink:#1c1814;--muted:#6b645c;--rule:#d8d1c4;--accent:#8c6b2a;--accent-soft:#f2ead8;--success:#5a8c76;--warn:#a67c00;--danger:#8c3a3a;--mono:"IBM Plex Mono","SFMono-Regular",Menlo,Consolas,monospace;--sans:-apple-system,"Inter",Segoe UI,Roboto,system-ui,sans-serif}
+        /* North Cobalt (Design System v2, 2026-07-09): customer-facing invoice/BOL paper
+           matches the app's rebrand. Radii (2px/4px/50%) are left as-is — this is a printed
+           customer document, not an app surface, so no need to chase the app's radius scale. */
+        :root{--bg:#F7F8FA;--surface:#FFFFFF;--ink:#1C2128;--muted:#7A8290;--rule:#E2E6EC;--accent:#2F5FE8;--accent-soft:#EEF1F5;--success:#3E9B4F;--warn:#E8590C;--danger:#D64545;--mono:"IBM Plex Mono","SFMono-Regular",Menlo,Consolas,monospace;--sans:-apple-system,"Inter",Segoe UI,Roboto,system-ui,sans-serif}
         html,body{background:var(--bg);color:var(--ink);margin:0;font-family:var(--sans);font-size:14px;line-height:1.5}
         .page{max-width:840px;margin:24px auto;background:var(--surface);border:1px solid var(--rule);padding:42px 52px}
         .page+.page{margin-top:32px}
@@ -514,7 +517,7 @@ object InvoiceBolHtmlRenderer {
         .day-artifacts{margin-top:10px;display:flex;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--muted)}
         .day-artifacts .chip{padding:2px 8px;border:1px solid var(--rule);border-radius:2px;background:var(--surface)}
         .day-artifacts .chip b{color:var(--ink)}
-        .key-notes{margin-top:8px;padding:6px 10px;background:#fbf5df;border-left:2px solid var(--warn);font-size:12px;color:#5b4320}
+        .key-notes{margin-top:8px;padding:6px 10px;background:#FDF1E8;border-left:2px solid var(--warn);font-size:12px;color:#8A3D12}
         table.lines{width:100%;border-collapse:collapse;margin-top:18px;font-family:var(--mono);font-size:12.5px}
         table.lines thead th{text-align:left;color:var(--muted);font-weight:600;font-size:10.5px;letter-spacing:1px;text-transform:uppercase;border-bottom:1.5px solid var(--ink);padding:8px 6px}
         table.lines th.n,table.lines td.n{text-align:right;white-space:nowrap}
@@ -533,9 +536,9 @@ object InvoiceBolHtmlRenderer {
         .supervisor{margin-top:26px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
         .sup-card{border:1px solid var(--rule);border-radius:4px;padding:12px 14px;font-size:12.5px;line-height:1.55}
         .sup-card h4{font-family:var(--mono);font-size:10.5px;letter-spacing:1.2px;color:var(--muted);margin:0 0 6px;text-transform:uppercase}
-        .sup-card.compliance{border-color:#c8d8cf;background:#f0f6f3}
-        .sup-card.recommend{border-color:#d7cfb8;background:#faf5e6}
-        .sup-card.summary{grid-column:1/-1;border-color:var(--rule);background:#faf8f3}
+        .sup-card.compliance{border-color:#BFE3C8;background:#EBF5EE}
+        .sup-card.recommend{border-color:#D7DEE8;background:var(--accent-soft)}
+        .sup-card.summary{grid-column:1/-1;border-color:var(--rule);background:var(--bg)}
         section.legal{margin-top:24px;border-top:1px dashed var(--rule);padding-top:18px}
         section.legal h3{font-family:var(--mono);font-size:12px;letter-spacing:2px;margin:0 0 12px;color:var(--muted)}
         .legal .group-head{font-family:var(--mono);color:var(--accent);letter-spacing:1.4px;font-size:10.5px;margin:18px 0 6px;font-weight:700;text-transform:uppercase;border-top:1px solid var(--rule);padding-top:12px}

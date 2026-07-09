@@ -1253,7 +1253,10 @@ private fun AppearanceSection(
         Spacer(modifier = Modifier.height(10.dp))
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(colors.bgPanel)
+                .padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             ThemeOptions.forEach { (pref, label) ->

@@ -1,7 +1,6 @@
 import { ReactNode } from 'react';
 import { useContainerSize } from '../../hooks/useContainerSize';
 import { adaptLayout, surfaceFromPx } from '../surface-lab/surface';
-import { CrewRoute } from '../../routes/CrewRoute';
 import { CommRoute } from '../../routes/CommRoute';
 import {
   NotificationsCard,
@@ -11,11 +10,13 @@ import {
   MapPreview,
   JobsCard,
   InvoicesCard,
+  CrewPresenceCard,
 } from './cards';
 import { useJobsPolling } from '../../hooks/useJobsPolling';
 import { useJobsStore } from '../../stores/jobsStore';
 import { useCrewPositionsPolling } from '../../hooks/useCrewPositionsPolling';
 import { useCrewPositionsStore } from '../../stores/crewPositionsStore';
+import { useAuthStore } from '../../auth/authStore';
 
 // "Use the app's real screens", adaptively. The home is the app's dashboard --
 // a scrolling grid of rounded cards (the Android DashboardModules idiom), each
@@ -64,6 +65,7 @@ function GlanceLine() {
 export function AdaptiveDashboard() {
   const [ref, size] = useContainerSize();
   const plan = size.width > 0 ? adaptLayout(surfaceFromPx(size.width, size.height)) : null;
+  const hasForemanRole = useAuthStore((s) => s.hasForemanRole);
 
   let content: ReactNode = null;
   if (plan) {
@@ -82,7 +84,9 @@ export function AdaptiveDashboard() {
         { key: 'dispatch', el: <DispatchCard /> },
         { key: 'system', el: <SystemCard /> },
         { key: 'jobs', el: <JobsCard /> },
-        { key: 'crew', el: <CrewRoute /> },
+        // Crew is a compact foreman-gated card everywhere on the dashboard
+        // (grid and swipe) -- the full roster lives at /console/crew.
+        ...(hasForemanRole() ? [{ key: 'crew', el: <CrewPresenceCard /> }] : []),
         { key: 'invoices', el: <InvoicesCard /> },
         { key: 'comm', el: <CommRoute />, pad: false },
       ];
@@ -129,6 +133,16 @@ export function AdaptiveDashboard() {
               <Card className="h-[172px]">
                 <SystemCard />
               </Card>
+              {/* Crew entry point (Plan 5 Task 5): a compact, foreman-gated
+                  presence summary linking to /console/crew. This is crew's
+                  single dashboard presence -- matches the Jobs/Invoices
+                  idiom of a compact card + [open] link, not a full inline
+                  screen embed. */}
+              {hasForemanRole() && (
+                <Card className="h-[172px]">
+                  <CrewPresenceCard />
+                </Card>
+              )}
             </div>
             <div
               className="grid gap-3 sm:gap-4 items-start"
@@ -136,9 +150,6 @@ export function AdaptiveDashboard() {
             >
               <Card className="h-[280px]">
                 <JobsCard />
-              </Card>
-              <Card className="h-[280px]">
-                <CrewRoute />
               </Card>
               <Card className="h-[280px]">
                 <InvoicesCard />

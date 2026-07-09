@@ -15,13 +15,15 @@ import com.guildofsmiths.trademesh.ai.AIPrompts
 import com.guildofsmiths.trademesh.ai.OpenRouterClient
 import com.guildofsmiths.trademesh.data.IntentRepository
 import com.guildofsmiths.trademesh.data.UserPreferences
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.ConsoleSeparator
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 
 @Composable
 fun PlanScreen(
     onNavigateToJob: () -> Unit = {}
 ) {
+    val colors = LocalSmithColors.current
     var showCreateDialog by remember { mutableStateOf(false) }
     var selectedIntent by remember { mutableStateOf<IntentData?>(null) }
     var selectedVersion by remember { mutableStateOf<IntentVersionData?>(null) }
@@ -32,9 +34,9 @@ fun PlanScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(ConsoleTheme.background)
+            .background(colors.bgBase)
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
+            .padding(12.dp)
     ) {
         // Header
         Row(
@@ -42,7 +44,7 @@ fun PlanScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "PROPOSALS", style = ConsoleTheme.title)
+            Text(text = "PROPOSALS", style = SmithType.title.copy(color = colors.ink))
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -55,10 +57,10 @@ fun PlanScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "INTENTS", style = ConsoleTheme.captionBold)
+            Text(text = "INTENTS", style = SmithType.captionBold.copy(color = colors.inkMuted))
             Text(
                 text = "[+] NEW PROPOSAL",
-                style = ConsoleTheme.action,
+                style = SmithType.action.copy(color = colors.accent),
                 modifier = Modifier
                     .clickable { showCreateDialog = true }
                     .padding(4.dp)
@@ -70,13 +72,13 @@ fun PlanScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .padding(24.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = "No proposals yet.\nCreate one to define scope, tasks,\nequipment, and crew for your jobs.",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                    style = SmithType.caption.copy(color = colors.inkMuted),
                     textAlign = TextAlign.Center
                 )
             }
@@ -162,31 +164,32 @@ private fun IntentListItem(
     version: IntentVersionData,
     onClick: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface)
+            .background(colors.bgPanel)
             .clickable(onClick = onClick)
-            .padding(12.dp),
+            .padding(9.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = "${version.status.icon} ${version.scopeStatement.take(40)}",
-                style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text)
+                style = SmithType.bodySmall.copy(color = colors.ink)
             )
             val taskCount = version.taskDescriptions.size
             val supplyCount = version.suppliesNeeded.size
             Text(
                 text = "v${version.versionNumber}  ${version.status.displayName}  ${version.crewSize} crew  ${taskCount}T ${supplyCount}S",
-                style = ConsoleTheme.caption
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
         }
         Text(
             text = ">",
-            style = ConsoleTheme.body,
-            color = ConsoleTheme.textMuted
+            style = SmithType.body,
+            color = colors.inkMuted
         )
     }
 }

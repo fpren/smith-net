@@ -133,5 +133,39 @@ describe('JobsListRoute', () => {
       expect(listContainer?.className).toMatch(/hidden/);
       expect(listContainer?.className).toMatch(/xl:block/);
     });
+
+    it('applies the panel-in slide animation class to the outlet wrapper, keyed on the active id', () => {
+      useJobsStore.getState().setJobs([j('a', 'planned')]);
+      renderNestedAt('/console/jobs/a');
+      const panel = screen.getByText('Detail placeholder').closest('.panel-in');
+      expect(panel).not.toBeNull();
+    });
+
+    it('does not render "Select a job" when the job list itself is empty and no id is active (double-EmptyState fix)', async () => {
+      server.use(http.get('/api/jobs', () => HttpResponse.json({ jobs: [] })));
+      renderNestedAt('/console/jobs');
+      await screen.findByText(/no jobs yet/i);
+      expect(screen.queryByText('Select a job')).not.toBeInTheDocument();
+    });
+
+    it('remounts the panel-in wrapper (re-triggering the slide-in animation) when the active job id changes', () => {
+      // The panel wrapper is keyed on detailMatch?.params.id (see JobsListRoute),
+      // so switching the selected job must unmount + remount that node -- that
+      // remount is what re-runs the CSS animation. Prove it via node identity:
+      // same className, different element instance.
+      useJobsStore.getState().setJobs([j('a', 'planned'), j('b', 'in_progress')]);
+      const { container } = renderNestedAt('/console/jobs/a');
+
+      const first = container.querySelector('.panel-in');
+      expect(first).not.toBeNull();
+
+      const linkToB = container.querySelector('a[href="/console/jobs/b"]');
+      expect(linkToB).not.toBeNull();
+      fireEvent.click(linkToB!);
+
+      const second = container.querySelector('.panel-in');
+      expect(second).not.toBeNull();
+      expect(second).not.toBe(first);
+    });
   });
 });

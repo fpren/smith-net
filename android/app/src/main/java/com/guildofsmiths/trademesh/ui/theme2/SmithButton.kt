@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -25,6 +26,7 @@ fun SmithButton(
     modifier: Modifier = Modifier,
     variant: SmithButtonVariant = SmithButtonVariant.Primary,
     enabled: Boolean = true,
+    shape: Shape = RoundedCornerShape(999.dp),
 ) {
     val colors = LocalSmithColors.current
     val (bg, fg) = when (variant) {
@@ -41,7 +43,7 @@ fun SmithButton(
             color = if (enabled) fg else fg.copy(alpha = 0.5f),
         ),
         modifier = modifier
-            .clip(RoundedCornerShape(999.dp))
+            .clip(shape)
             .background(if (enabled) bg else bg.copy(alpha = 0.5f))
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 10.dp),
