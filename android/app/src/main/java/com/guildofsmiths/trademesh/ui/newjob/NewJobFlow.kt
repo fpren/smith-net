@@ -812,8 +812,10 @@ private fun <T> FlowRow(items: List<T>, itemContent: @Composable (T) -> Unit) {
 @Composable
 private fun SuggestionChip(label: String, added: Boolean, onClick: () -> Unit) {
     val colors = LocalSmithColors.current
+    // Selected = accent fill + on-accent text, the app's standard selected-pill
+    // treatment (theme toggle, stage chips). accent-on-accent was invisible.
     val bg = if (added) colors.accent else colors.bgBase
-    val textColor = if (added) colors.accent else colors.inkMuted
+    val textColor = if (added) colors.inkOnAccent else colors.inkMuted
     Box(
         modifier = Modifier
             .background(bg)
