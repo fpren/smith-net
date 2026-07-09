@@ -26,12 +26,16 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
 import com.guildofsmiths.trademesh.ui.ConsoleSeparator
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.invoice.InvoicePreviewDialog
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithButton
 import com.guildofsmiths.trademesh.ui.theme2.SmithButtonVariant
 import com.guildofsmiths.trademesh.ui.theme2.SmithConfirmDialog
 import com.guildofsmiths.trademesh.ui.theme2.SmithDialog
+import com.guildofsmiths.trademesh.ui.theme2.SmithEmptyState
+import com.guildofsmiths.trademesh.ui.theme2.SmithErrorState
+import com.guildofsmiths.trademesh.ui.theme2.SmithLoadingState
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import com.guildofsmiths.trademesh.data.ClientInfo
 import com.guildofsmiths.trademesh.data.ClientRepository
 import com.guildofsmiths.trademesh.data.RoleContext
@@ -67,6 +71,7 @@ fun JobBoardScreen(
      *  (NavRoutes.NEW_JOB) so this matches the dashboard JOBS "[+ NEW]" action. */
     onNewJob: () -> Unit = {}
 ) {
+    val colors = LocalSmithColors.current
     val jobs by viewModel.jobs.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
@@ -107,7 +112,7 @@ fun JobBoardScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(ConsoleTheme.background)
+            .background(colors.bgBase)
     ) {
         ConsoleHeader(
             title = when {
@@ -119,19 +124,11 @@ fun JobBoardScreen(
         )
         ConsoleSeparator()
 
-        error?.let { errorMsg ->
-            Text(
-                text = "! $errorMsg",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.error),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-            )
-        }
-
         // Stats Dashboard
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.surface)
+                .background(colors.bgPanel)
                 .padding(12.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
@@ -149,24 +146,24 @@ fun JobBoardScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
                         .clickable { filterStatus = if (filterStatus == status) null else status }
-                        .background(if (isSelected) ConsoleTheme.accent.copy(alpha = 0.1f) else ConsoleTheme.surface)
+                        .background(if (isSelected) colors.accent.copy(alpha = 0.1f) else colors.bgPanel)
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     Text(
                         text = count.toString(),
-                        style = ConsoleTheme.header.copy(
+                        style = SmithType.header.copy(
                             color = when {
-                                isSelected -> ConsoleTheme.accent
-                                status == JobStatus.IN_PROGRESS && count > 0 -> ConsoleTheme.warning
-                                status == JobStatus.DONE && count > 0 -> ConsoleTheme.success
-                                else -> ConsoleTheme.text
+                                isSelected -> colors.accent
+                                status == JobStatus.IN_PROGRESS && count > 0 -> colors.attention
+                                status == JobStatus.DONE && count > 0 -> colors.statusOnline
+                                else -> colors.ink
                             }
                         )
                     )
                     Text(
                         text = label,
-                        style = ConsoleTheme.caption.copy(
-                            color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.textMuted
+                        style = SmithType.caption.copy(
+                            color = if (isSelected) colors.accent else colors.inkMuted
                         )
                     )
                 }
@@ -186,20 +183,20 @@ fun JobBoardScreen(
             Text(
                 text = if (filterStatus != null) "${filterStatus!!.displayName} (${filteredJobs.size})"
                        else "ALL JOBS (${jobs.size})",
-                style = ConsoleTheme.captionBold
+                style = SmithType.captionBold.copy(color = colors.inkMuted)
             )
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (filterStatus != null) {
                     Text(
                         text = "CLEAR",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                        style = SmithType.action.copy(color = colors.inkMuted),
                         modifier = Modifier.clickable { filterStatus = null }
                     )
                 }
                 if (!RoleContext.isTeamMember()) {
                     Text(
                         text = "+ NEW",
-                        style = ConsoleTheme.action,
+                        style = SmithType.action.copy(color = colors.accent),
                         modifier = Modifier.clickable { onNewJob() }
                     )
                 }
@@ -208,40 +205,31 @@ fun JobBoardScreen(
 
         ConsoleSeparator()
 
-        if (isLoading) {
-            Text(text = "Loading...", style = ConsoleTheme.caption, modifier = Modifier.padding(16.dp))
-        }
-
-        // Active jobs list with swipe actions
-        LazyColumn(
-            modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            items(filteredJobs.sortedByDescending { it.updatedAt }) { job ->
-                SwipeableJobRow(
-                    job = job,
-                    onClick = { viewModel.selectJob(job) },
-                    onArchive = { viewModel.archiveJob(job.id) },
-                    onDelete = { viewModel.deleteJob(job.id) }
+        // Active jobs list with swipe actions — Smith trio per JobBoardViewModel's
+        // isLoading/error flags (same signal ArchiveScreen's job tab already wires to).
+        Box(modifier = Modifier.weight(1f)) {
+            when {
+                error != null -> SmithErrorState(
+                    message = error ?: "Couldn't load jobs.",
+                    onRetry = { viewModel.loadJobs() }
                 )
-            }
-
-            if (filteredJobs.isEmpty() && !isLoading) {
-                item {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = if (filterStatus != null) "No ${filterStatus!!.displayName.lowercase()} jobs"
-                                   else "No jobs yet",
-                            style = ConsoleTheme.body
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = if (RoleContext.isTeamMember()) "Tasks will appear when assigned by your lead"
-                                   else "Tap + NEW to create one",
-                            style = ConsoleTheme.caption
+                isLoading && jobs.isEmpty() -> SmithLoadingState(label = "LOADING JOBS")
+                filteredJobs.isEmpty() -> SmithEmptyState(
+                    title = if (filterStatus != null) "No ${filterStatus!!.displayName.lowercase()} jobs"
+                            else "No jobs yet",
+                    hint = if (RoleContext.isTeamMember()) "Tasks will appear when assigned by your lead"
+                           else "Tap + NEW to create one"
+                )
+                else -> LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(filteredJobs.sortedByDescending { it.updatedAt }) { job ->
+                        SwipeableJobRow(
+                            job = job,
+                            onClick = { viewModel.selectJob(job) },
+                            onArchive = { viewModel.archiveJob(job.id) },
+                            onDelete = { viewModel.deleteJob(job.id) }
                         )
                     }
                 }
@@ -400,10 +388,11 @@ fun JobBoardScreen(
 
 @Composable
 private fun JobRow(job: Job, onClick: () -> Unit) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface)
+            .background(colors.bgPanel)
             .clickable { onClick() }
             .padding(12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -422,12 +411,12 @@ private fun JobRow(job: Job, onClick: () -> Unit) {
                     JobStatus.DONE -> "[OK]"
                     else -> "[--]"
                 },
-                style = ConsoleTheme.bodyBold.copy(
+                style = SmithType.bodyBold.copy(
                     color = when (job.status) {
-                        JobStatus.IN_PROGRESS -> ConsoleTheme.warning
-                        JobStatus.REVIEW -> ConsoleTheme.accent
-                        JobStatus.DONE -> ConsoleTheme.success
-                        else -> ConsoleTheme.textMuted
+                        JobStatus.IN_PROGRESS -> colors.attention
+                        JobStatus.REVIEW -> colors.accent
+                        JobStatus.DONE -> colors.statusOnline
+                        else -> colors.inkMuted
                     }
                 )
             )
@@ -437,24 +426,24 @@ private fun JobRow(job: Job, onClick: () -> Unit) {
                     if (job.priority == Priority.HIGH || job.priority == Priority.URGENT) {
                         Text(
                             text = if (job.priority == Priority.URGENT) "!!" else "!",
-                            style = ConsoleTheme.bodyBold.copy(
-                                color = if (job.priority == Priority.URGENT) ConsoleTheme.error else ConsoleTheme.warning
+                            style = SmithType.bodyBold.copy(
+                                color = if (job.priority == Priority.URGENT) colors.statusError else colors.attention
                             )
                         )
                     }
-                    Text(text = job.title, style = ConsoleTheme.body, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(text = job.title, style = SmithType.body.copy(color = colors.ink), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(text = job.status.displayName, style = ConsoleTheme.caption)
+                    Text(text = job.status.displayName, style = SmithType.caption.copy(color = colors.inkMuted))
                     if (job.crewSize > 1) {
-                        Text(text = "${job.crewSize} crew", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                        Text(text = "${job.crewSize} crew", style = SmithType.caption.copy(color = colors.inkMuted))
                     }
                 }
             }
         }
 
-        Text(text = "VIEW >", style = ConsoleTheme.action, modifier = Modifier.clickable { onClick() })
+        Text(text = "VIEW >", style = SmithType.action.copy(color = colors.accent), modifier = Modifier.clickable { onClick() })
     }
 }
 
@@ -469,6 +458,7 @@ private fun SwipeableJobRow(
     onArchive: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     var offsetX by remember { mutableStateOf(0f) }
     val archiveThreshold = -150f
     val deleteThreshold = 150f
@@ -481,13 +471,13 @@ private fun SwipeableJobRow(
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .background(ConsoleTheme.error.copy(alpha = 0.3f))
+                    .background(colors.statusError.copy(alpha = 0.3f))
                     .padding(start = 16.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
                 Text(
                     text = "DELETE →",
-                    style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.error)
+                    style = SmithType.bodyBold.copy(color = colors.statusError)
                 )
             }
         }
@@ -497,13 +487,13 @@ private fun SwipeableJobRow(
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .background(ConsoleTheme.warning.copy(alpha = 0.3f))
+                    .background(colors.attention.copy(alpha = 0.3f))
                     .padding(end = 16.dp),
                 contentAlignment = Alignment.CenterEnd
             ) {
                 Text(
                     text = "← ARCHIVE",
-                    style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.warning)
+                    style = SmithType.bodyBold.copy(color = colors.attention)
                 )
             }
         }
@@ -513,7 +503,7 @@ private fun SwipeableJobRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .offset { IntOffset(offsetX.roundToInt(), 0) }
-                .background(ConsoleTheme.surface)
+                .background(colors.bgPanel)
                 .pointerInput(Unit) {
                     detectHorizontalDragGestures(
                         onDragEnd = {
@@ -548,12 +538,12 @@ private fun SwipeableJobRow(
                         JobStatus.DONE -> "[OK]"
                         else -> "[--]"
                     },
-                    style = ConsoleTheme.bodyBold.copy(
+                    style = SmithType.bodyBold.copy(
                         color = when (job.status) {
-                            JobStatus.IN_PROGRESS -> ConsoleTheme.warning
-                            JobStatus.REVIEW -> ConsoleTheme.accent
-                            JobStatus.DONE -> ConsoleTheme.success
-                            else -> ConsoleTheme.textMuted
+                            JobStatus.IN_PROGRESS -> colors.attention
+                            JobStatus.REVIEW -> colors.accent
+                            JobStatus.DONE -> colors.statusOnline
+                            else -> colors.inkMuted
                         }
                     )
                 )
@@ -563,26 +553,26 @@ private fun SwipeableJobRow(
                         if (job.priority == Priority.HIGH || job.priority == Priority.URGENT) {
                             Text(
                                 text = if (job.priority == Priority.URGENT) "!!" else "!",
-                                style = ConsoleTheme.bodyBold.copy(
-                                    color = if (job.priority == Priority.URGENT) ConsoleTheme.error else ConsoleTheme.warning
+                                style = SmithType.bodyBold.copy(
+                                    color = if (job.priority == Priority.URGENT) colors.statusError else colors.attention
                                 )
                             )
                         }
-                        Text(text = job.title, style = ConsoleTheme.body, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(text = job.title, style = SmithType.body.copy(color = colors.ink), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(text = job.status.displayName, style = ConsoleTheme.caption)
+                        Text(text = job.status.displayName, style = SmithType.caption.copy(color = colors.inkMuted))
                         // Show created date
                         Text(
                             text = formatShortDate(job.createdAt),
-                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                            style = SmithType.caption.copy(color = colors.inkMuted)
                         )
                     }
                 }
             }
 
-            Text(text = ">", style = ConsoleTheme.action)
+            Text(text = ">", style = SmithType.action.copy(color = colors.accent))
         }
     }
     
@@ -645,6 +635,7 @@ private fun JobWorkflowDialog(
      *  confirms a cross-job clock switch. */
     startClock: (jobId: String, jobTitle: String, taskId: String?, performStart: () -> Unit) -> Unit = { _, _, _, _ -> }
 ) {
+    val colors = LocalSmithColors.current
     var showAddTask by remember { mutableStateOf(false) }
     var newTaskTitle by remember { mutableStateOf("") }
     var showAddNote by remember { mutableStateOf(false) }
@@ -687,18 +678,18 @@ private fun JobWorkflowDialog(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "[${job.status.displayName}]",
-                    style = ConsoleTheme.captionBold.copy(
+                    style = SmithType.captionBold.copy(
                         color = when (job.status) {
-                            JobStatus.IN_PROGRESS -> ConsoleTheme.warning
-                            JobStatus.REVIEW -> ConsoleTheme.accent
-                            JobStatus.DONE -> ConsoleTheme.success
-                            else -> ConsoleTheme.textMuted
+                            JobStatus.IN_PROGRESS -> colors.attention
+                            JobStatus.REVIEW -> colors.accent
+                            JobStatus.DONE -> colors.statusOnline
+                            else -> colors.inkMuted
                         }
                     )
                 )
-                Text(text = job.priority.displayName, style = ConsoleTheme.caption)
+                Text(text = job.priority.displayName, style = SmithType.caption.copy(color = colors.inkMuted))
             }
-            Text(text = "X", style = ConsoleTheme.action, modifier = Modifier.clickable { onDismiss() })
+            Text(text = "X", style = SmithType.action.copy(color = colors.accent), modifier = Modifier.clickable { onDismiss() })
         }
         Spacer(modifier = Modifier.height(8.dp))
         Column(
@@ -714,28 +705,28 @@ private fun JobWorkflowDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "CLIENT", style = ConsoleTheme.captionBold)
+                        Text(text = "CLIENT", style = SmithType.captionBold.copy(color = colors.inkMuted))
                         val cName = job.clientName
                         if (cName.isNullOrBlank()) {
                             Text(
                                 text = "— not set —",
-                                style = ConsoleTheme.body.copy(color = ConsoleTheme.textMuted)
+                                style = SmithType.body.copy(color = colors.inkMuted)
                             )
                         } else {
-                            Text(text = cName, style = ConsoleTheme.body)
+                            Text(text = cName, style = SmithType.body.copy(color = colors.ink))
                             if (job.clientPhone.isNotBlank()) Text(
                                 text = job.clientPhone,
-                                style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted)
+                                style = SmithType.bodySmall.copy(color = colors.inkMuted)
                             )
                             if (job.clientAddress.isNotBlank()) Text(
                                 text = job.clientAddress,
-                                style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted)
+                                style = SmithType.bodySmall.copy(color = colors.inkMuted)
                             )
                         }
                     }
                     Text(
                         text = if (showClientPicker) "[CLOSE]" else if (job.clientName.isNullOrBlank()) "[+ LINK]" else "[CHANGE]",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                        style = SmithType.action.copy(color = colors.accent),
                         modifier = Modifier.clickable {
                             showClientPicker = !showClientPicker
                             if (showClientPicker) {
@@ -752,20 +743,20 @@ private fun JobWorkflowDialog(
                         ClientRepository.getClients(allJobsForClients)
                     }
                     Column(
-                        modifier = Modifier.fillMaxWidth().background(ConsoleTheme.surface).padding(8.dp),
+                        modifier = Modifier.fillMaxWidth().background(colors.bgPanel).padding(8.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         if (saved.isNotEmpty()) {
                             BasicTextField(
                                 value = clientPickerSearch, onValueChange = { clientPickerSearch = it },
-                                textStyle = ConsoleTheme.bodySmall, cursorBrush = SolidColor(ConsoleTheme.cursor),
+                                textStyle = SmithType.bodySmall.copy(color = colors.inkMuted), cursorBrush = SolidColor(colors.ink),
                                 singleLine = true,
-                                modifier = Modifier.fillMaxWidth().background(ConsoleTheme.background).padding(8.dp),
+                                modifier = Modifier.fillMaxWidth().background(colors.bgBase).padding(8.dp),
                                 decorationBox = { inner ->
                                     Box {
                                         if (clientPickerSearch.isEmpty()) Text(
                                             "Search saved clients...",
-                                            style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder)
+                                            style = SmithType.bodySmall.copy(color = colors.inkMuted)
                                         )
                                         inner()
                                     }
@@ -777,7 +768,7 @@ private fun JobWorkflowDialog(
                                 .forEach { c ->
                                     Text(
                                         text = "• ${c.name}" + if (c.jobCount > 0) "  (${c.jobCount})" else "",
-                                        style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.accent),
+                                        style = SmithType.bodySmall.copy(color = colors.accent),
                                         modifier = Modifier.fillMaxWidth().clickable {
                                             viewModel.setClient(job.id, c.name, c.phone, c.address)
                                             showClientPicker = false
@@ -786,16 +777,16 @@ private fun JobWorkflowDialog(
                                 }
                             ConsoleSeparator()
                         }
-                        Text("OR ADD NEW", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+                        Text("OR ADD NEW", style = SmithType.captionBold.copy(color = colors.inkMuted))
                         BasicTextField(
                             value = clientNewName, onValueChange = { clientNewName = it },
-                            textStyle = ConsoleTheme.body, cursorBrush = SolidColor(ConsoleTheme.cursor), singleLine = true,
-                            modifier = Modifier.fillMaxWidth().background(ConsoleTheme.background).padding(8.dp),
+                            textStyle = SmithType.body.copy(color = colors.ink), cursorBrush = SolidColor(colors.ink), singleLine = true,
+                            modifier = Modifier.fillMaxWidth().background(colors.bgBase).padding(8.dp),
                             decorationBox = { inner ->
                                 Box {
                                     if (clientNewName.isEmpty()) Text(
                                         "Client name (e.g. Aegis Assure Inc)",
-                                        style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder)
+                                        style = SmithType.body.copy(color = colors.inkMuted)
                                     )
                                     inner()
                                 }
@@ -804,14 +795,14 @@ private fun JobWorkflowDialog(
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             BasicTextField(
                                 value = clientNewPhone, onValueChange = { clientNewPhone = it },
-                                textStyle = ConsoleTheme.bodySmall, cursorBrush = SolidColor(ConsoleTheme.cursor), singleLine = true,
-                                modifier = Modifier.weight(1f).background(ConsoleTheme.background).padding(8.dp),
+                                textStyle = SmithType.bodySmall.copy(color = colors.inkMuted), cursorBrush = SolidColor(colors.ink), singleLine = true,
+                                modifier = Modifier.weight(1f).background(colors.bgBase).padding(8.dp),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                                 decorationBox = { inner ->
                                     Box {
                                         if (clientNewPhone.isEmpty()) Text(
                                             "Phone (optional)",
-                                            style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder)
+                                            style = SmithType.bodySmall.copy(color = colors.inkMuted)
                                         )
                                         inner()
                                     }
@@ -819,13 +810,13 @@ private fun JobWorkflowDialog(
                             )
                             BasicTextField(
                                 value = clientNewAddress, onValueChange = { clientNewAddress = it },
-                                textStyle = ConsoleTheme.bodySmall, cursorBrush = SolidColor(ConsoleTheme.cursor), singleLine = true,
-                                modifier = Modifier.weight(1f).background(ConsoleTheme.background).padding(8.dp),
+                                textStyle = SmithType.bodySmall.copy(color = colors.inkMuted), cursorBrush = SolidColor(colors.ink), singleLine = true,
+                                modifier = Modifier.weight(1f).background(colors.bgBase).padding(8.dp),
                                 decorationBox = { inner ->
                                     Box {
                                         if (clientNewAddress.isEmpty()) Text(
                                             "Address (optional)",
-                                            style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder)
+                                            style = SmithType.bodySmall.copy(color = colors.inkMuted)
                                         )
                                         inner()
                                     }
@@ -834,8 +825,8 @@ private fun JobWorkflowDialog(
                         }
                         Text(
                             text = "[SAVE CLIENT]",
-                            style = ConsoleTheme.action.copy(
-                                color = if (clientNewName.isNotBlank()) ConsoleTheme.success else ConsoleTheme.textDim
+                            style = SmithType.action.copy(
+                                color = if (clientNewName.isNotBlank()) colors.statusOnline else colors.inkMuted
                             ),
                             modifier = Modifier.clickable {
                                 if (clientNewName.isNotBlank()) {
@@ -862,19 +853,19 @@ private fun JobWorkflowDialog(
                 // JOB DETAILS
                 // ═══════════════════════════════════════════════════
                 if (job.description.isNotEmpty() && job.description.lowercase() != "n/a") {
-                    Text(text = "DESCRIPTION", style = ConsoleTheme.captionBold)
-                    Text(text = job.description, style = ConsoleTheme.body)
+                    Text(text = "DESCRIPTION", style = SmithType.captionBold.copy(color = colors.inkMuted))
+                    Text(text = job.description, style = SmithType.body.copy(color = colors.ink))
                 }
 
                 if (job.expensesNote.isNotEmpty() && job.expensesNote.lowercase() != "n/a") {
-                    Text(text = "EXPENSES (NOTE)", style = ConsoleTheme.captionBold)
-                    Text(text = job.expensesNote, style = ConsoleTheme.body)
+                    Text(text = "EXPENSES (NOTE)", style = SmithType.captionBold.copy(color = colors.inkMuted))
+                    Text(text = job.expensesNote, style = SmithType.body.copy(color = colors.ink))
                 }
 
                 if (job.crew.isNotEmpty()) {
-                    Text(text = "CREW (${job.crew.size})", style = ConsoleTheme.captionBold)
+                    Text(text = "CREW (${job.crew.size})", style = SmithType.captionBold.copy(color = colors.inkMuted))
                     job.crew.forEach { member ->
-                        Text(text = "• ${member.name} - ${member.occupation}", style = ConsoleTheme.body)
+                        Text(text = "• ${member.name} - ${member.occupation}", style = SmithType.body.copy(color = colors.ink))
                     }
                 }
 
@@ -888,12 +879,12 @@ private fun JobWorkflowDialog(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "CHECKLIST", style = ConsoleTheme.captionBold)
+                        Text(text = "CHECKLIST", style = SmithType.captionBold.copy(color = colors.inkMuted))
                         val checkedCount = job.materials.count { it.checked }
                         Text(
                             text = "$checkedCount/${job.materials.size}",
-                            style = ConsoleTheme.captionBold.copy(
-                                color = if (allMaterialsChecked) ConsoleTheme.success else ConsoleTheme.textMuted
+                            style = SmithType.captionBold.copy(
+                                color = if (allMaterialsChecked) colors.statusOnline else colors.inkMuted
                             )
                         )
                     }
@@ -902,7 +893,7 @@ private fun JobWorkflowDialog(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(ConsoleTheme.surface)
+                                .background(colors.bgPanel)
                                 .clickable { 
                                     if (!material.checked) {
                                         // Show cost dialog when checking off
@@ -922,19 +913,19 @@ private fun JobWorkflowDialog(
                         ) {
                             Text(
                                 text = if (material.checked) "[X]" else "[  ]",
-                                style = ConsoleTheme.bodyBold.copy(
-                                    color = if (material.checked) ConsoleTheme.success else ConsoleTheme.textMuted
+                                style = SmithType.bodyBold.copy(
+                                    color = if (material.checked) colors.statusOnline else colors.inkMuted
                                 )
                             )
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(text = material.name, style = ConsoleTheme.body)
+                                Text(text = material.name, style = SmithType.body.copy(color = colors.ink))
                                 if (material.totalCost > 0) {
                                     Text(
                                         text = "$${String.format("%.2f", material.totalCost)} @ ${material.vendor.ifEmpty { "—" }}",
-                                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.success)
+                                        style = SmithType.caption.copy(color = colors.statusOnline)
                                     )
                                 } else if (material.notes.isNotEmpty()) {
-                                    Text(text = material.notes, style = ConsoleTheme.caption)
+                                    Text(text = material.notes, style = SmithType.caption.copy(color = colors.inkMuted))
                                 }
                             }
                         }
@@ -950,19 +941,19 @@ private fun JobWorkflowDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = "TASKS", style = ConsoleTheme.captionBold)
+                    Text(text = "TASKS", style = SmithType.captionBold.copy(color = colors.inkMuted))
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         val doneCount = tasks.count { it.status == TaskStatus.DONE }
                         Text(
                             text = "$doneCount/${tasks.size}",
-                            style = ConsoleTheme.captionBold.copy(
-                                color = if (allTasksComplete && tasks.isNotEmpty()) ConsoleTheme.success 
-                                        else ConsoleTheme.textMuted
+                            style = SmithType.captionBold.copy(
+                                color = if (allTasksComplete && tasks.isNotEmpty()) colors.statusOnline 
+                                        else colors.inkMuted
                             )
                         )
                         Text(
                             text = "+ ADD",
-                            style = ConsoleTheme.action,
+                            style = SmithType.action.copy(color = colors.accent),
                             modifier = Modifier.clickable { showAddTask = true }
                         )
                     }
@@ -976,14 +967,14 @@ private fun JobWorkflowDialog(
                     //                     wants — kept manual to avoid surprises)
                     //   [X] DONE          tap → toggleTask reverts to PENDING
                     val (label, color) = when (task.status) {
-                        TaskStatus.DONE -> "[X]" to ConsoleTheme.success
-                        TaskStatus.IN_PROGRESS -> "[▶]" to ConsoleTheme.accent
-                        else -> "[ ]" to ConsoleTheme.textMuted
+                        TaskStatus.DONE -> "[X]" to colors.statusOnline
+                        TaskStatus.IN_PROGRESS -> "[▶]" to colors.accent
+                        else -> "[ ]" to colors.inkMuted
                     }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(ConsoleTheme.surface)
+                            .background(colors.bgPanel)
                             .clickable {
                                 when (task.status) {
                                     TaskStatus.PENDING, TaskStatus.BLOCKED -> {
@@ -1012,9 +1003,9 @@ private fun JobWorkflowDialog(
                     ) {
                         Text(
                             text = label,
-                            style = ConsoleTheme.bodyBold.copy(color = color)
+                            style = SmithType.bodyBold.copy(color = color)
                         )
-                        Text(text = task.title, style = ConsoleTheme.body, modifier = Modifier.weight(1f))
+                        Text(text = task.title, style = SmithType.body.copy(color = colors.ink), modifier = Modifier.weight(1f))
                     }
                 }
 
@@ -1027,17 +1018,17 @@ private fun JobWorkflowDialog(
                         BasicTextField(
                             value = newTaskTitle,
                             onValueChange = { newTaskTitle = it },
-                            textStyle = ConsoleTheme.body,
-                            cursorBrush = SolidColor(ConsoleTheme.cursor),
+                            textStyle = SmithType.body.copy(color = colors.ink),
+                            cursorBrush = SolidColor(colors.ink),
                             singleLine = true,
                             modifier = Modifier
                                 .weight(1f)
-                                .background(ConsoleTheme.surface)
+                                .background(colors.bgPanel)
                                 .padding(10.dp),
                             decorationBox = { innerTextField ->
                                 Box {
                                     if (newTaskTitle.isEmpty()) {
-                                        Text("Task description...", style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder))
+                                        Text("Task description...", style = SmithType.body.copy(color = colors.inkMuted))
                                     }
                                     innerTextField()
                                 }
@@ -1045,7 +1036,7 @@ private fun JobWorkflowDialog(
                         )
                         Text(
                             text = "ADD",
-                            style = ConsoleTheme.action,
+                            style = SmithType.action.copy(color = colors.accent),
                             modifier = Modifier.clickable {
                                 if (newTaskTitle.isNotBlank()) {
                                     viewModel.createTask(job.id, newTaskTitle)
@@ -1066,10 +1057,10 @@ private fun JobWorkflowDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = "WORK LOG", style = ConsoleTheme.captionBold)
+                    Text(text = "WORK LOG", style = SmithType.captionBold.copy(color = colors.inkMuted))
                     Text(
                         text = "+ ADD NOTE",
-                        style = ConsoleTheme.action,
+                        style = SmithType.action.copy(color = colors.accent),
                         modifier = Modifier.clickable { showAddNote = true }
                     )
                 }
@@ -1081,7 +1072,7 @@ private fun JobWorkflowDialog(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(ConsoleTheme.surface)
+                            .background(colors.bgPanel)
                             .clickable(enabled = isLong) {
                                 expandedNotes[note.timestamp] = !expanded
                             }
@@ -1089,7 +1080,7 @@ private fun JobWorkflowDialog(
                     ) {
                         Text(
                             text = note.text,
-                            style = ConsoleTheme.body,
+                            style = SmithType.body.copy(color = colors.ink),
                             maxLines = if (!isLong || expanded) Int.MAX_VALUE else 2,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -1099,12 +1090,12 @@ private fun JobWorkflowDialog(
                         ) {
                             Text(
                                 text = formatTimestamp(note.timestamp),
-                                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                                style = SmithType.caption.copy(color = colors.inkMuted)
                             )
                             if (isLong) {
                                 Text(
                                     text = if (expanded) "[COLLAPSE]" else "[EXPAND]",
-                                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent)
+                                    style = SmithType.caption.copy(color = colors.accent)
                                 )
                             }
                         }
@@ -1117,17 +1108,17 @@ private fun JobWorkflowDialog(
                         BasicTextField(
                             value = newNote,
                             onValueChange = { newNote = it },
-                            textStyle = ConsoleTheme.body,
-                            cursorBrush = SolidColor(ConsoleTheme.cursor),
+                            textStyle = SmithType.body.copy(color = colors.ink),
+                            cursorBrush = SolidColor(colors.ink),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(ConsoleTheme.surface)
+                                .background(colors.bgPanel)
                                 .padding(10.dp)
                                 .height(60.dp),
                             decorationBox = { innerTextField ->
                                 Box {
                                     if (newNote.isEmpty()) {
-                                        Text("Add work notes, extra work orders, etc...", style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder))
+                                        Text("Add work notes, extra work orders, etc...", style = SmithType.body.copy(color = colors.inkMuted))
                                     }
                                     innerTextField()
                                 }
@@ -1136,7 +1127,7 @@ private fun JobWorkflowDialog(
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(
                                 text = "SAVE NOTE",
-                                style = ConsoleTheme.action,
+                                style = SmithType.action.copy(color = colors.accent),
                                 modifier = Modifier.clickable {
                                     if (newNote.isNotBlank()) {
                                         viewModel.addWorkLog(job.id, newNote)
@@ -1147,7 +1138,7 @@ private fun JobWorkflowDialog(
                             )
                             Text(
                                 text = "CANCEL",
-                                style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                                style = SmithType.action.copy(color = colors.inkMuted),
                                 modifier = Modifier.clickable { 
                                     showAddNote = false
                                     newNote = ""
@@ -1158,7 +1149,7 @@ private fun JobWorkflowDialog(
                 }
 
                 if (job.workLog.isEmpty() && !showAddNote) {
-                    Text(text = "No work logged yet", style = ConsoleTheme.caption)
+                    Text(text = "No work logged yet", style = SmithType.caption.copy(color = colors.inkMuted))
                 }
 
                 ConsoleSeparator()
@@ -1172,7 +1163,7 @@ private fun JobWorkflowDialog(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(ConsoleTheme.success.copy(alpha = 0.15f))
+                                .background(colors.statusOnline.copy(alpha = 0.15f))
                                 .clickable {
                                     // Job stage IS sticky and forward-only, so flipping
                                     // TODO→IN_PROGRESS is fine to do eagerly. The deferred
@@ -1189,7 +1180,7 @@ private fun JobWorkflowDialog(
                                 .padding(16.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(text = "START WORKING >>", style = ConsoleTheme.header.copy(color = ConsoleTheme.success))
+                            Text(text = "START WORKING >>", style = SmithType.header.copy(color = colors.statusOnline))
                         }
                     }
                     
@@ -1198,15 +1189,15 @@ private fun JobWorkflowDialog(
                         if (!canAdvance) {
                             Text(
                                 text = "! Complete all tasks and check off materials before submitting for review",
-                                style = ConsoleTheme.caption.copy(color = ConsoleTheme.warning)
+                                style = SmithType.caption.copy(color = colors.attention)
                             )
                         }
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .background(
-                                    if (canAdvance) ConsoleTheme.accent.copy(alpha = 0.15f)
-                                    else ConsoleTheme.textDim.copy(alpha = 0.1f)
+                                    if (canAdvance) colors.accent.copy(alpha = 0.15f)
+                                    else colors.inkMuted.copy(alpha = 0.1f)
                                 )
                                 .clickable(enabled = canAdvance) { showConfirmAdvance = true }
                                 .padding(16.dp),
@@ -1214,8 +1205,8 @@ private fun JobWorkflowDialog(
                         ) {
                             Text(
                                 text = "SUBMIT FOR REVIEW >>",
-                                style = ConsoleTheme.header.copy(
-                                    color = if (canAdvance) ConsoleTheme.accent else ConsoleTheme.textDim
+                                style = SmithType.header.copy(
+                                    color = if (canAdvance) colors.accent else colors.inkMuted
                                 )
                             )
                         }
@@ -1224,17 +1215,17 @@ private fun JobWorkflowDialog(
                     JobStatus.REVIEW -> {
                         Text(
                             text = "Review completed work. Add photos or notes for any issues found.",
-                            style = ConsoleTheme.caption
+                            style = SmithType.caption.copy(color = colors.inkMuted)
                         )
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(ConsoleTheme.success.copy(alpha = 0.15f))
+                                .background(colors.statusOnline.copy(alpha = 0.15f))
                                 .clickable { viewModel.moveJob(job.id, JobStatus.DONE) }
                                 .padding(16.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(text = "MARK COMPLETE >>", style = ConsoleTheme.header.copy(color = ConsoleTheme.success))
+                            Text(text = "MARK COMPLETE >>", style = SmithType.header.copy(color = colors.statusOnline))
                         }
                     }
                     
@@ -1242,7 +1233,7 @@ private fun JobWorkflowDialog(
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(
                                 text = "✓ Job completed",
-                                style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.success),
+                                style = SmithType.bodyBold.copy(color = colors.statusOnline),
                                 modifier = Modifier.padding(vertical = 8.dp)
                             )
                             
@@ -1251,12 +1242,12 @@ private fun JobWorkflowDialog(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .background(ConsoleTheme.accent.copy(alpha = 0.15f))
+                                        .background(colors.accent.copy(alpha = 0.15f))
                                         .clickable { viewModel.generateInvoice(job) }
                                         .padding(16.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(text = "[$] GENERATE INVOICE", style = ConsoleTheme.header.copy(color = ConsoleTheme.accent))
+                                    Text(text = "[$] GENERATE INVOICE", style = SmithType.header.copy(color = colors.accent))
                                 }
                             }
                         }
@@ -1271,20 +1262,20 @@ private fun JobWorkflowDialog(
                 if (!showDeleteConfirm) {
                     Text(
                         text = "DELETE JOB",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.error),
+                        style = SmithType.action.copy(color = colors.statusError),
                         modifier = Modifier.clickable { showDeleteConfirm = true }
                     )
                 } else {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(text = "Delete this job?", style = ConsoleTheme.body)
+                        Text(text = "Delete this job?", style = SmithType.body.copy(color = colors.ink))
                         Text(
                             text = "YES",
-                            style = ConsoleTheme.action.copy(color = ConsoleTheme.error),
+                            style = SmithType.action.copy(color = colors.statusError),
                             modifier = Modifier.clickable { viewModel.deleteJob(job.id); onDismiss() }
                         )
                         Text(
                             text = "NO",
-                            style = ConsoleTheme.action.copy(color = ConsoleTheme.textMuted),
+                            style = SmithType.action.copy(color = colors.inkMuted),
                             modifier = Modifier.clickable { showDeleteConfirm = false }
                         )
                     }
@@ -1350,18 +1341,18 @@ private fun JobWorkflowDialog(
                             .semantics { testTagsAsResourceId = true },
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text(text = material.name, style = ConsoleTheme.bodyBold)
+                        Text(text = material.name, style = SmithType.bodyBold.copy(color = colors.ink))
                         
                         // Quantity and Unit
-                        Text(text = "QUANTITY", style = ConsoleTheme.captionBold)
+                        Text(text = "QUANTITY", style = SmithType.captionBold.copy(color = colors.inkMuted))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             BasicTextField(
                                 value = materialQty,
                                 onValueChange = { materialQty = it.filter { c -> c.isDigit() || c == '.' } },
-                                textStyle = ConsoleTheme.body,
-                                cursorBrush = SolidColor(ConsoleTheme.cursor),
+                                textStyle = SmithType.body.copy(color = colors.ink),
+                                cursorBrush = SolidColor(colors.ink),
                                 singleLine = true,
-                                modifier = Modifier.width(80.dp).background(ConsoleTheme.surface).padding(10.dp),
+                                modifier = Modifier.width(80.dp).background(colors.bgPanel).padding(10.dp),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                             )
                             
@@ -1370,8 +1361,8 @@ private fun JobWorkflowDialog(
                                 listOf("ea", "ft", "lot", "hr").forEach { unit ->
                                     Text(
                                         text = if (materialUnit == unit) "[$unit]" else unit,
-                                        style = ConsoleTheme.action.copy(
-                                            color = if (materialUnit == unit) ConsoleTheme.accent else ConsoleTheme.textMuted
+                                        style = SmithType.action.copy(
+                                            color = if (materialUnit == unit) colors.accent else colors.inkMuted
                                         ),
                                         modifier = Modifier.clickable { materialUnit = unit }
                                     )
@@ -1380,21 +1371,21 @@ private fun JobWorkflowDialog(
                         }
                         
                         // Total Cost
-                        Text(text = "TOTAL COST ($)", style = ConsoleTheme.captionBold)
+                        Text(text = "TOTAL COST ($)", style = SmithType.captionBold.copy(color = colors.inkMuted))
                         BasicTextField(
                             value = materialCost,
                             onValueChange = { materialCost = it.filter { c -> c.isDigit() || c == '.' } },
-                            textStyle = ConsoleTheme.body,
-                            cursorBrush = SolidColor(ConsoleTheme.cursor),
+                            textStyle = SmithType.body.copy(color = colors.ink),
+                            cursorBrush = SolidColor(colors.ink),
                             singleLine = true,
-                            modifier = Modifier.fillMaxWidth().testTag("solo_e2e_material_cost").background(ConsoleTheme.surface).padding(10.dp),
+                            modifier = Modifier.fillMaxWidth().testTag("solo_e2e_material_cost").background(colors.bgPanel).padding(10.dp),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             decorationBox = { innerTextField ->
                                 Row {
-                                    Text("$ ", style = ConsoleTheme.body.copy(color = ConsoleTheme.textMuted))
+                                    Text("$ ", style = SmithType.body.copy(color = colors.inkMuted))
                                     Box {
                                         if (materialCost.isEmpty()) {
-                                            Text("0.00", style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder))
+                                            Text("0.00", style = SmithType.body.copy(color = colors.inkMuted))
                                         }
                                         innerTextField()
                                     }
@@ -1403,13 +1394,13 @@ private fun JobWorkflowDialog(
                         )
                         
                         // Vendor
-                        Text(text = "VENDOR (optional)", style = ConsoleTheme.captionBold)
+                        Text(text = "VENDOR (optional)", style = SmithType.captionBold.copy(color = colors.inkMuted))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             listOf("HD", "Lowes", "Supply", "Other").forEach { v ->
                                 Text(
                                     text = if (materialVendor == v) "[$v]" else v,
-                                    style = ConsoleTheme.action.copy(
-                                        color = if (materialVendor == v) ConsoleTheme.accent else ConsoleTheme.textMuted
+                                    style = SmithType.action.copy(
+                                        color = if (materialVendor == v) colors.accent else colors.inkMuted
                                     ),
                                     modifier = Modifier.clickable { materialVendor = v }
                                 )
@@ -1420,7 +1411,7 @@ private fun JobWorkflowDialog(
                         
                         Text(
                             text = "Skip cost to just mark as used",
-                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                            style = SmithType.caption.copy(color = colors.inkMuted)
                         )
                     }
             }
@@ -1450,6 +1441,7 @@ private fun CreateJobDialogWithPreview(
     initialClientAddress: String = "",
     savedClients: List<ClientInfo> = emptyList()
 ) {
+    val colors = LocalSmithColors.current
     var currentStep by remember { mutableStateOf(JobDialogStep.EDIT) }
 
     var title by remember { mutableStateOf(initialTitle) }
@@ -1494,7 +1486,7 @@ private fun CreateJobDialogWithPreview(
     
     // Border color for warning flash
     val inputBorderColor by animateColorAsState(
-        targetValue = if (showWarningFlash) ConsoleTheme.error else ConsoleTheme.surface,
+        targetValue = if (showWarningFlash) colors.statusError else colors.bgPanel,
         animationSpec = tween(durationMillis = 150),
         label = "inputBorder"
     )
@@ -1545,7 +1537,7 @@ private fun CreateJobDialogWithPreview(
         if (currentStep == JobDialogStep.PREVIEW) {
             Text(
                 text = "[EDIT]",
-                style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                style = SmithType.action.copy(color = colors.accent),
                 modifier = Modifier.clickable { currentStep = JobDialogStep.EDIT }
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -1553,7 +1545,7 @@ private fun CreateJobDialogWithPreview(
         if (hasEnteredData && currentStep == JobDialogStep.EDIT) {
             Text(
                 text = "Use CANCEL to close or PREVIEW to view summary",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.warning)
+                style = SmithType.caption.copy(color = colors.attention)
             )
             Spacer(modifier = Modifier.height(8.dp))
         }
@@ -1566,18 +1558,18 @@ private fun CreateJobDialogWithPreview(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // Title
-                    Text(text = "JOB TITLE *", style = ConsoleTheme.captionBold)
+                    Text(text = "JOB TITLE *", style = SmithType.captionBold.copy(color = colors.inkMuted))
                     BasicTextField(
                         value = title,
                         onValueChange = { title = it },
-                        textStyle = ConsoleTheme.body,
-                        cursorBrush = SolidColor(ConsoleTheme.cursor),
+                        textStyle = SmithType.body.copy(color = colors.ink),
+                        cursorBrush = SolidColor(colors.ink),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().background(inputBorderColor).padding(2.dp)
-                            .background(ConsoleTheme.surface).padding(10.dp),
+                            .background(colors.bgPanel).padding(10.dp),
                         decorationBox = { innerTextField ->
                             Box {
-                                if (title.isEmpty()) Text("Enter job title...", style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder))
+                                if (title.isEmpty()) Text("Enter job title...", style = SmithType.body.copy(color = colors.inkMuted))
                                 innerTextField()
                             }
                         }
@@ -1585,16 +1577,16 @@ private fun CreateJobDialogWithPreview(
 
                     // Priority
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "PRIORITY:", style = ConsoleTheme.captionBold)
+                        Text(text = "PRIORITY:", style = SmithType.captionBold.copy(color = colors.inkMuted))
                         Priority.values().forEach { p ->
                             val isSelected = priority == p
                             Text(
                                 text = if (isSelected) "[${p.displayName}]" else p.displayName,
-                                style = ConsoleTheme.action.copy(
-                                    color = when { isSelected && p == Priority.URGENT -> ConsoleTheme.error
-                                        isSelected && p == Priority.HIGH -> ConsoleTheme.warning
-                                        isSelected -> ConsoleTheme.accent
-                                        else -> ConsoleTheme.textMuted }
+                                style = SmithType.action.copy(
+                                    color = when { isSelected && p == Priority.URGENT -> colors.statusError
+                                        isSelected && p == Priority.HIGH -> colors.attention
+                                        isSelected -> colors.accent
+                                        else -> colors.inkMuted }
                                 ),
                                 modifier = Modifier.clickable { priority = p }
                             )
@@ -1607,30 +1599,30 @@ private fun CreateJobDialogWithPreview(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "CLIENT (or N/A)", style = ConsoleTheme.captionBold)
+                        Text(text = "CLIENT (or N/A)", style = SmithType.captionBold.copy(color = colors.inkMuted))
                         if (savedClients.isNotEmpty()) {
                             Text(
                                 text = if (clientPickerOpen) "[CLOSE]" else "[Choose saved profile ▾]",
-                                style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                                style = SmithType.action.copy(color = colors.accent),
                                 modifier = Modifier.clickable { clientPickerOpen = !clientPickerOpen }
                             )
                         }
                     }
                     if (clientPickerOpen && savedClients.isNotEmpty()) {
                         Column(
-                            modifier = Modifier.fillMaxWidth().background(ConsoleTheme.surface).padding(8.dp),
+                            modifier = Modifier.fillMaxWidth().background(colors.bgPanel).padding(8.dp),
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             BasicTextField(
                                 value = clientSearch, onValueChange = { clientSearch = it },
-                                textStyle = ConsoleTheme.bodySmall, cursorBrush = SolidColor(ConsoleTheme.cursor),
+                                textStyle = SmithType.bodySmall.copy(color = colors.inkMuted), cursorBrush = SolidColor(colors.ink),
                                 singleLine = true,
-                                modifier = Modifier.fillMaxWidth().background(ConsoleTheme.background).padding(8.dp),
+                                modifier = Modifier.fillMaxWidth().background(colors.bgBase).padding(8.dp),
                                 decorationBox = { innerTextField ->
                                     Box {
                                         if (clientSearch.isEmpty()) Text(
                                             "Search clients...",
-                                            style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder)
+                                            style = SmithType.bodySmall.copy(color = colors.inkMuted)
                                         )
                                         innerTextField()
                                     }
@@ -1642,13 +1634,13 @@ private fun CreateJobDialogWithPreview(
                             if (filtered.isEmpty()) {
                                 Text(
                                     text = "No matches. Type below to add new.",
-                                    style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted)
+                                    style = SmithType.bodySmall.copy(color = colors.inkMuted)
                                 )
                             } else {
                                 filtered.take(8).forEach { c ->
                                     Text(
                                         text = "• ${c.name}" + if (c.jobCount > 0) "  (${c.jobCount} job${if (c.jobCount == 1) "" else "s"})" else "",
-                                        style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.accent),
+                                        style = SmithType.bodySmall.copy(color = colors.accent),
                                         modifier = Modifier.fillMaxWidth().clickable {
                                             clientName = c.name
                                             clientPhone = c.phone
@@ -1661,7 +1653,7 @@ private fun CreateJobDialogWithPreview(
                             }
                             Text(
                                 text = "[+ NEW CLIENT — clear and type below]",
-                                style = ConsoleTheme.action.copy(color = ConsoleTheme.warning),
+                                style = SmithType.action.copy(color = colors.attention),
                                 modifier = Modifier.clickable {
                                     clientName = ""
                                     clientPhone = ""
@@ -1674,14 +1666,14 @@ private fun CreateJobDialogWithPreview(
                     }
                     BasicTextField(
                         value = clientName, onValueChange = { clientName = it },
-                        textStyle = ConsoleTheme.body, cursorBrush = SolidColor(ConsoleTheme.cursor), singleLine = true,
+                        textStyle = SmithType.body.copy(color = colors.ink), cursorBrush = SolidColor(colors.ink), singleLine = true,
                         modifier = Modifier.fillMaxWidth().background(inputBorderColor).padding(2.dp)
-                            .background(ConsoleTheme.surface).padding(10.dp),
+                            .background(colors.bgPanel).padding(10.dp),
                         decorationBox = { innerTextField ->
                             Box {
                                 if (clientName.isEmpty()) Text(
                                     "Client name (e.g. Aegis Assure Inc)",
-                                    style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder)
+                                    style = SmithType.body.copy(color = colors.inkMuted)
                                 )
                                 innerTextField()
                             }
@@ -1691,14 +1683,14 @@ private fun CreateJobDialogWithPreview(
                         Column(modifier = Modifier.weight(1f)) {
                             BasicTextField(
                                 value = clientPhone, onValueChange = { clientPhone = it },
-                                textStyle = ConsoleTheme.bodySmall, cursorBrush = SolidColor(ConsoleTheme.cursor), singleLine = true,
-                                modifier = Modifier.fillMaxWidth().background(ConsoleTheme.surface).padding(8.dp),
+                                textStyle = SmithType.bodySmall.copy(color = colors.inkMuted), cursorBrush = SolidColor(colors.ink), singleLine = true,
+                                modifier = Modifier.fillMaxWidth().background(colors.bgPanel).padding(8.dp),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                                 decorationBox = { innerTextField ->
                                     Box {
                                         if (clientPhone.isEmpty()) Text(
                                             "Phone (optional)",
-                                            style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder)
+                                            style = SmithType.bodySmall.copy(color = colors.inkMuted)
                                         )
                                         innerTextField()
                                     }
@@ -1708,13 +1700,13 @@ private fun CreateJobDialogWithPreview(
                         Column(modifier = Modifier.weight(1f)) {
                             BasicTextField(
                                 value = clientAddress, onValueChange = { clientAddress = it },
-                                textStyle = ConsoleTheme.bodySmall, cursorBrush = SolidColor(ConsoleTheme.cursor), singleLine = true,
-                                modifier = Modifier.fillMaxWidth().background(ConsoleTheme.surface).padding(8.dp),
+                                textStyle = SmithType.bodySmall.copy(color = colors.inkMuted), cursorBrush = SolidColor(colors.ink), singleLine = true,
+                                modifier = Modifier.fillMaxWidth().background(colors.bgPanel).padding(8.dp),
                                 decorationBox = { innerTextField ->
                                     Box {
                                         if (clientAddress.isEmpty()) Text(
                                             "Address (optional)",
-                                            style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder)
+                                            style = SmithType.bodySmall.copy(color = colors.inkMuted)
                                         )
                                         innerTextField()
                                     }
@@ -1724,52 +1716,52 @@ private fun CreateJobDialogWithPreview(
                     }
 
                     // Description
-                    Text(text = "DESCRIPTION (or N/A)", style = ConsoleTheme.captionBold)
+                    Text(text = "DESCRIPTION (or N/A)", style = SmithType.captionBold.copy(color = colors.inkMuted))
                     BasicTextField(
                         value = description, onValueChange = { description = it },
-                        textStyle = ConsoleTheme.bodySmall, cursorBrush = SolidColor(ConsoleTheme.cursor),
+                        textStyle = SmithType.bodySmall.copy(color = colors.inkMuted), cursorBrush = SolidColor(colors.ink),
                         modifier = Modifier.fillMaxWidth().background(inputBorderColor).padding(2.dp)
-                            .background(ConsoleTheme.surface).padding(10.dp).height(40.dp),
+                            .background(colors.bgPanel).padding(10.dp).height(40.dp),
                         decorationBox = { innerTextField ->
-                            Box { if (description.isEmpty()) Text("Description or N/A...", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder)); innerTextField() }
+                            Box { if (description.isEmpty()) Text("Description or N/A...", style = SmithType.bodySmall.copy(color = colors.inkMuted)); innerTextField() }
                         }
                     )
 
                     // Expenses
-                    Text(text = "EXPENSES (or N/A)", style = ConsoleTheme.captionBold)
+                    Text(text = "EXPENSES (or N/A)", style = SmithType.captionBold.copy(color = colors.inkMuted))
                     BasicTextField(
                         value = expenses, onValueChange = { expenses = it },
-                        textStyle = ConsoleTheme.bodySmall, cursorBrush = SolidColor(ConsoleTheme.cursor), singleLine = true,
+                        textStyle = SmithType.bodySmall.copy(color = colors.inkMuted), cursorBrush = SolidColor(colors.ink), singleLine = true,
                         modifier = Modifier.fillMaxWidth().background(inputBorderColor).padding(2.dp)
-                            .background(ConsoleTheme.surface).padding(10.dp),
+                            .background(colors.bgPanel).padding(10.dp),
                         decorationBox = { innerTextField ->
-                            Box { if (expenses.isEmpty()) Text("$0.00 or N/A...", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder)); innerTextField() }
+                            Box { if (expenses.isEmpty()) Text("$0.00 or N/A...", style = SmithType.bodySmall.copy(color = colors.inkMuted)); innerTextField() }
                         }
                     )
 
                     // Date fields (optional)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(text = "START (MM/DD/YYYY)", style = ConsoleTheme.caption)
+                            Text(text = "START (MM/DD/YYYY)", style = SmithType.caption.copy(color = colors.inkMuted))
                             BasicTextField(
                                 value = startDateStr, onValueChange = { startDateStr = it.take(10) },
-                                textStyle = ConsoleTheme.bodySmall, cursorBrush = SolidColor(ConsoleTheme.cursor), singleLine = true,
+                                textStyle = SmithType.bodySmall.copy(color = colors.inkMuted), cursorBrush = SolidColor(colors.ink), singleLine = true,
                                 modifier = Modifier.fillMaxWidth().background(inputBorderColor).padding(1.dp)
-                                    .background(ConsoleTheme.surface).padding(8.dp),
+                                    .background(colors.bgPanel).padding(8.dp),
                                 decorationBox = { innerTextField ->
-                                    Box { if (startDateStr.isEmpty()) Text("Optional", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder)); innerTextField() }
+                                    Box { if (startDateStr.isEmpty()) Text("Optional", style = SmithType.bodySmall.copy(color = colors.inkMuted)); innerTextField() }
                                 }
                             )
                         }
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(text = "END (MM/DD/YYYY)", style = ConsoleTheme.caption)
+                            Text(text = "END (MM/DD/YYYY)", style = SmithType.caption.copy(color = colors.inkMuted))
                             BasicTextField(
                                 value = endDateStr, onValueChange = { endDateStr = it.take(10) },
-                                textStyle = ConsoleTheme.bodySmall, cursorBrush = SolidColor(ConsoleTheme.cursor), singleLine = true,
+                                textStyle = SmithType.bodySmall.copy(color = colors.inkMuted), cursorBrush = SolidColor(colors.ink), singleLine = true,
                                 modifier = Modifier.fillMaxWidth().background(inputBorderColor).padding(1.dp)
-                                    .background(ConsoleTheme.surface).padding(8.dp),
+                                    .background(colors.bgPanel).padding(8.dp),
                                 decorationBox = { innerTextField ->
-                                    Box { if (endDateStr.isEmpty()) Text("Optional", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder)); innerTextField() }
+                                    Box { if (endDateStr.isEmpty()) Text("Optional", style = SmithType.bodySmall.copy(color = colors.inkMuted)); innerTextField() }
                                 }
                             )
                         }
@@ -1778,45 +1770,45 @@ private fun CreateJobDialogWithPreview(
                     ConsoleSeparator()
 
                     // Materials/Tools checklist
-                    Text(text = "CHECKLIST (tools & materials)", style = ConsoleTheme.captionBold)
+                    Text(text = "CHECKLIST (tools & materials)", style = SmithType.captionBold.copy(color = colors.inkMuted))
                     materials.forEach { material ->
-                        Row(modifier = Modifier.fillMaxWidth().background(ConsoleTheme.surface).padding(6.dp),
+                        Row(modifier = Modifier.fillMaxWidth().background(colors.bgPanel).padding(6.dp),
                             horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "• ${material.name}", style = ConsoleTheme.body)
-                            Text(text = "X", style = ConsoleTheme.action.copy(color = ConsoleTheme.error),
+                            Text(text = "• ${material.name}", style = SmithType.body.copy(color = colors.ink))
+                            Text(text = "X", style = SmithType.action.copy(color = colors.statusError),
                                 modifier = Modifier.clickable { materials = materials.filter { it != material } })
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                         BasicTextField(
                             value = newMaterialName, onValueChange = { newMaterialName = it },
-                            textStyle = ConsoleTheme.bodySmall, cursorBrush = SolidColor(ConsoleTheme.cursor), singleLine = true,
-                            modifier = Modifier.weight(1f).background(ConsoleTheme.surface).padding(6.dp),
+                            textStyle = SmithType.bodySmall.copy(color = colors.inkMuted), cursorBrush = SolidColor(colors.ink), singleLine = true,
+                            modifier = Modifier.weight(1f).background(colors.bgPanel).padding(6.dp),
                             decorationBox = { innerTextField ->
-                                Box { if (newMaterialName.isEmpty()) Text("Add item...", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder)); innerTextField() }
+                                Box { if (newMaterialName.isEmpty()) Text("Add item...", style = SmithType.bodySmall.copy(color = colors.inkMuted)); innerTextField() }
                             }
                         )
-                        Text(text = "+", style = ConsoleTheme.action, modifier = Modifier.clickable {
+                        Text(text = "+", style = SmithType.action.copy(color = colors.accent), modifier = Modifier.clickable {
                             if (newMaterialName.isNotBlank()) { materials = materials + Material(name = newMaterialName); newMaterialName = "" }
                         })
                     }
 
                     // Crew
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "CREW:", style = ConsoleTheme.captionBold)
+                        Text(text = "CREW:", style = SmithType.captionBold.copy(color = colors.inkMuted))
                         BasicTextField(
                             value = crewSize, onValueChange = { crewSize = it.filter { c -> c.isDigit() }.ifEmpty { "1" } },
-                            textStyle = ConsoleTheme.body, cursorBrush = SolidColor(ConsoleTheme.cursor), singleLine = true,
-                            modifier = Modifier.width(40.dp).background(ConsoleTheme.surface).padding(6.dp),
+                            textStyle = SmithType.body.copy(color = colors.ink), cursorBrush = SolidColor(colors.ink), singleLine = true,
+                            modifier = Modifier.width(40.dp).background(colors.bgPanel).padding(6.dp),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                         )
                     }
                     if (crewMembers.isNotEmpty()) {
                         crewMembers.forEach { member ->
-                            Row(modifier = Modifier.fillMaxWidth().background(ConsoleTheme.surface).padding(4.dp),
+                            Row(modifier = Modifier.fillMaxWidth().background(colors.bgPanel).padding(4.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                Text(text = "${member.name} - ${member.occupation}", style = ConsoleTheme.bodySmall)
-                                Text(text = "X", style = ConsoleTheme.action.copy(color = ConsoleTheme.error),
+                                Text(text = "${member.name} - ${member.occupation}", style = SmithType.bodySmall.copy(color = colors.inkMuted))
+                                Text(text = "X", style = SmithType.action.copy(color = colors.statusError),
                                     modifier = Modifier.clickable { crewMembers = crewMembers.filter { it != member } })
                             }
                         }
@@ -1824,21 +1816,21 @@ private fun CreateJobDialogWithPreview(
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                         BasicTextField(
                             value = newMemberName, onValueChange = { newMemberName = it },
-                            textStyle = ConsoleTheme.bodySmall, cursorBrush = SolidColor(ConsoleTheme.cursor), singleLine = true,
-                            modifier = Modifier.weight(0.4f).background(ConsoleTheme.surface).padding(4.dp),
+                            textStyle = SmithType.bodySmall.copy(color = colors.inkMuted), cursorBrush = SolidColor(colors.ink), singleLine = true,
+                            modifier = Modifier.weight(0.4f).background(colors.bgPanel).padding(4.dp),
                             decorationBox = { innerTextField ->
-                                Box { if (newMemberName.isEmpty()) Text("Name", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder)); innerTextField() }
+                                Box { if (newMemberName.isEmpty()) Text("Name", style = SmithType.bodySmall.copy(color = colors.inkMuted)); innerTextField() }
                             }
                         )
                         BasicTextField(
                             value = newMemberOccupation, onValueChange = { newMemberOccupation = it },
-                            textStyle = ConsoleTheme.bodySmall, cursorBrush = SolidColor(ConsoleTheme.cursor), singleLine = true,
-                            modifier = Modifier.weight(0.4f).background(ConsoleTheme.surface).padding(4.dp),
+                            textStyle = SmithType.bodySmall.copy(color = colors.inkMuted), cursorBrush = SolidColor(colors.ink), singleLine = true,
+                            modifier = Modifier.weight(0.4f).background(colors.bgPanel).padding(4.dp),
                             decorationBox = { innerTextField ->
-                                Box { if (newMemberOccupation.isEmpty()) Text("Role", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.placeholder)); innerTextField() }
+                                Box { if (newMemberOccupation.isEmpty()) Text("Role", style = SmithType.bodySmall.copy(color = colors.inkMuted)); innerTextField() }
                             }
                         )
-                        Text(text = "+", style = ConsoleTheme.action, modifier = Modifier.clickable {
+                        Text(text = "+", style = SmithType.action.copy(color = colors.accent), modifier = Modifier.clickable {
                             if (newMemberName.isNotBlank()) {
                                 crewMembers = crewMembers + CrewMember(name = newMemberName, occupation = newMemberOccupation.ifBlank { "Worker" })
                                 newMemberName = ""; newMemberOccupation = ""
@@ -1856,62 +1848,62 @@ private fun CreateJobDialogWithPreview(
                 ) {
                     // Title and Priority
                     Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                        Text(text = title.ifEmpty { "(No title)" }, style = ConsoleTheme.header)
-                        Text(text = "[${priority.displayName}]", style = ConsoleTheme.bodyBold.copy(
-                            color = when (priority) { Priority.URGENT -> ConsoleTheme.error; Priority.HIGH -> ConsoleTheme.warning; else -> ConsoleTheme.textMuted }
+                        Text(text = title.ifEmpty { "(No title)" }, style = SmithType.header.copy(color = colors.ink))
+                        Text(text = "[${priority.displayName}]", style = SmithType.bodyBold.copy(
+                            color = when (priority) { Priority.URGENT -> colors.statusError; Priority.HIGH -> colors.attention; else -> colors.inkMuted }
                         ))
                     }
                     
                     // Created timestamp (will be set on create)
-                    Text(text = "Created: ${formatShortDate(System.currentTimeMillis())}", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                    Text(text = "Created: ${formatShortDate(System.currentTimeMillis())}", style = SmithType.caption.copy(color = colors.inkMuted))
 
                     ConsoleSeparator()
 
                     // Client
                     if (clientName.isNotEmpty()) {
-                        Text(text = "CLIENT", style = ConsoleTheme.captionBold)
-                        Text(text = clientName, style = ConsoleTheme.body)
-                        if (clientPhone.isNotEmpty()) Text(text = clientPhone, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted))
-                        if (clientAddress.isNotEmpty()) Text(text = clientAddress, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.textMuted))
+                        Text(text = "CLIENT", style = SmithType.captionBold.copy(color = colors.inkMuted))
+                        Text(text = clientName, style = SmithType.body.copy(color = colors.ink))
+                        if (clientPhone.isNotEmpty()) Text(text = clientPhone, style = SmithType.bodySmall.copy(color = colors.inkMuted))
+                        if (clientAddress.isNotEmpty()) Text(text = clientAddress, style = SmithType.bodySmall.copy(color = colors.inkMuted))
                     }
 
                     // Description
                     if (description.isNotEmpty()) {
-                        Text(text = "DESCRIPTION", style = ConsoleTheme.captionBold)
-                        Text(text = description, style = ConsoleTheme.body)
+                        Text(text = "DESCRIPTION", style = SmithType.captionBold.copy(color = colors.inkMuted))
+                        Text(text = description, style = SmithType.body.copy(color = colors.ink))
                     }
                     
                     // Expenses
                     if (expenses.isNotEmpty()) {
-                        Text(text = "EXPENSES", style = ConsoleTheme.captionBold)
-                        Text(text = expenses, style = ConsoleTheme.body)
+                        Text(text = "EXPENSES", style = SmithType.captionBold.copy(color = colors.inkMuted))
+                        Text(text = expenses, style = SmithType.body.copy(color = colors.ink))
                     }
                     
                     // Dates
                     if (startDateStr.isNotEmpty() || endDateStr.isNotEmpty()) {
-                        Text(text = "SCHEDULE", style = ConsoleTheme.captionBold)
+                        Text(text = "SCHEDULE", style = SmithType.captionBold.copy(color = colors.inkMuted))
                         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            if (startDateStr.isNotEmpty()) Text(text = "Start: $startDateStr", style = ConsoleTheme.body)
-                            if (endDateStr.isNotEmpty()) Text(text = "End: $endDateStr", style = ConsoleTheme.body)
+                            if (startDateStr.isNotEmpty()) Text(text = "Start: $startDateStr", style = SmithType.body.copy(color = colors.ink))
+                            if (endDateStr.isNotEmpty()) Text(text = "End: $endDateStr", style = SmithType.body.copy(color = colors.ink))
                         }
                     }
                     
                     // Checklist
                     if (materials.isNotEmpty()) {
                         ConsoleSeparator()
-                        Text(text = "CHECKLIST (${materials.size} items)", style = ConsoleTheme.captionBold)
+                        Text(text = "CHECKLIST (${materials.size} items)", style = SmithType.captionBold.copy(color = colors.inkMuted))
                         materials.forEach { material ->
-                            Text(text = "□ ${material.name}", style = ConsoleTheme.body)
+                            Text(text = "□ ${material.name}", style = SmithType.body.copy(color = colors.ink))
                         }
                     }
                     
                     // Crew
                     if (crewMembers.isNotEmpty() || (crewSize.toIntOrNull() ?: 1) > 1) {
                         ConsoleSeparator()
-                        Text(text = "CREW (${crewSize})", style = ConsoleTheme.captionBold)
+                        Text(text = "CREW (${crewSize})", style = SmithType.captionBold.copy(color = colors.inkMuted))
                         if (crewMembers.isNotEmpty()) {
                             crewMembers.forEach { member ->
-                                Text(text = "• ${member.name} - ${member.occupation}", style = ConsoleTheme.body)
+                                Text(text = "• ${member.name} - ${member.occupation}", style = SmithType.body.copy(color = colors.ink))
                             }
                         }
                     }
@@ -1921,7 +1913,7 @@ private fun CreateJobDialogWithPreview(
                     // Confirmation note
                     Text(
                         text = "Review above details. Tap CREATE JOB to add to board.",
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.warning)
+                        style = SmithType.caption.copy(color = colors.attention)
                     )
                 }
             }

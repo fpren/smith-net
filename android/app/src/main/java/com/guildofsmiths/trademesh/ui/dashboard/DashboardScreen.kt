@@ -15,13 +15,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.JobStage
 import com.guildofsmiths.trademesh.ai.AISupervisor
@@ -31,6 +29,10 @@ import com.guildofsmiths.trademesh.data.RoleContext
 import com.guildofsmiths.trademesh.data.Permission
 import com.guildofsmiths.trademesh.data.BeaconRepository
 import com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithErrorState
+import com.guildofsmiths.trademesh.ui.theme2.SmithLoadingState
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 
 // ════════════════════════════════════════════════════════════════════
 // DASHBOARD SCREEN — Role-Adaptive Command Surface
@@ -58,6 +60,8 @@ fun DashboardScreen(
     onExpenses: () -> Unit = {},
     viewModel: DashboardViewModel = viewModel()
 ) {
+    val colors = LocalSmithColors.current
+
     LaunchedEffect(jobs) {
         viewModel.loadJobs(jobs)
         viewModel.refreshClockState()
@@ -98,6 +102,11 @@ fun DashboardScreen(
     var assigningJob by remember { mutableStateOf<com.guildofsmiths.trademesh.ui.jobboard.Job?>(null) }
     val activityOwner = LocalContext.current as ViewModelStoreOwner
     val jobViewModel: JobBoardViewModel = viewModel(viewModelStoreOwner = activityOwner)
+    // JOBS_PANEL trio — same activity-scoped JobBoardViewModel instance MainActivity
+    // feeds `jobs` from (see NavRoutes.DASHBOARD composable), so its isLoading/error
+    // flags are a real signal for this screen's job list, not a bespoke stand-in.
+    val jobsLoading by jobViewModel.isLoading.collectAsState()
+    val jobsError by jobViewModel.error.collectAsState()
 
     if (assigningJob != null) {
         CrewAssignDialog(
@@ -153,7 +162,7 @@ fun DashboardScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(ConsoleTheme.background)
+            .background(colors.bgBase)
     ) {
         Column(
             modifier = Modifier
@@ -179,7 +188,7 @@ fun DashboardScreen(
                         ) {
                             Text(
                                 text = headerTitle,
-                                style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.text),
+                                style = SmithType.bodyBold.copy(color = colors.ink),
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(4.dp))
                                     .clickable(
@@ -194,8 +203,8 @@ fun DashboardScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                val clockBg = if (isClockedIn) ConsoleTheme.success.copy(alpha = 0.10f) else ConsoleTheme.surface
-                                val clockColor = if (isClockedIn) ConsoleTheme.success else ConsoleTheme.textMuted
+                                val clockBg = if (isClockedIn) colors.statusOnline.copy(alpha = 0.10f) else colors.bgPanel
+                                val clockColor = if (isClockedIn) colors.statusOnline else colors.inkMuted
                                 val clockLabel = if (isClockedIn) {
                                     val elapsed = if (activeEntryInfo.second > 0) {
                                         val secs = ((nowMs - activeEntryInfo.second) / 1000).coerceAtLeast(0)
@@ -213,22 +222,22 @@ fun DashboardScreen(
                                 Box(
                                     modifier = Modifier
                                         .background(clockBg, RoundedCornerShape(4.dp))
-                                        .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                                        .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
                                         .clip(RoundedCornerShape(4.dp))
                                         .clickable(
                                             interactionSource = remember { MutableInteractionSource() },
-                                            indication = rememberRipple(bounded = true, color = ConsoleTheme.accent),
+                                            indication = rememberRipple(bounded = true, color = colors.accent),
                                             onClick = { onClockIn() }
                                         )
                                         .padding(horizontal = 10.dp, vertical = 6.dp)
                                 ) {
-                                    Text(clockLabel, style = ConsoleTheme.caption.copy(color = clockColor))
+                                    Text(clockLabel, style = SmithType.caption.copy(color = clockColor))
                                 }
 
                                 Box(
                                     modifier = Modifier
-                                        .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                                        .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                                        .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                                        .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
                                         .clip(RoundedCornerShape(4.dp))
                                         .clickable(
                                             interactionSource = remember { MutableInteractionSource() },
@@ -237,7 +246,7 @@ fun DashboardScreen(
                                         )
                                         .padding(horizontal = 10.dp, vertical = 6.dp)
                                 ) {
-                                    Text("[⚙]", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                                    Text("[⚙]", style = SmithType.caption.copy(color = colors.inkMuted))
                                 }
                             }
                         }
@@ -256,8 +265,8 @@ fun DashboardScreen(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                                    .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.04f), RoundedCornerShape(4.dp))
+                                    .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                                    .border(0.5.dp, colors.ink.copy(alpha = 0.04f), RoundedCornerShape(4.dp))
                                     .clip(RoundedCornerShape(4.dp))
                                     .clickable(
                                         interactionSource = remember { MutableInteractionSource() },
@@ -272,11 +281,11 @@ fun DashboardScreen(
                                     val preview = (ch.lastMessagePreview ?: "").take(35)
                                     val name = ch.name
                                     val hasUnread = ch.unreadCount > 0
-                                    val color = if (hasUnread) ConsoleTheme.accent else ConsoleTheme.textMuted
+                                    val color = if (hasUnread) colors.accent else colors.inkMuted
 
                                     Text(
                                         text = "$name: \"$preview\"  $age",
-                                        style = ConsoleTheme.caption.copy(color = color),
+                                        style = SmithType.caption.copy(color = color),
                                         maxLines = 1, overflow = TextOverflow.Ellipsis
                                     )
                                 }
@@ -322,8 +331,8 @@ fun DashboardScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                                .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                                .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                                .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
                                 .padding(14.dp)
                         ) {
                             Row(
@@ -332,17 +341,17 @@ fun DashboardScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text("JOBS", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
-                                    Text("${viewModel.getActiveJobCount()} active", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                                    Text("JOBS", style = SmithType.captionBold.copy(color = colors.inkMuted))
+                                    Text("${viewModel.getActiveJobCount()} active", style = SmithType.caption.copy(color = colors.inkMuted))
                                     val outstanding = viewModel.getOutstandingTotal()
                                     if (outstanding > 0 && (RoleContext.can(Permission.VIEW_FINANCIALS) || RoleContext.isSolo())) {
-                                        Text("· $${String.format("%.0f", outstanding)} owed", style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent))
+                                        Text("· $${String.format("%.0f", outstanding)} owed", style = SmithType.caption.copy(color = colors.accent))
                                     }
                                 }
                                 if (RoleContext.can(Permission.MANAGE_JOBS)) {
                                     Text(
                                         text = "[+ NEW]",
-                                        style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                                        style = SmithType.action.copy(color = colors.accent),
                                         modifier = Modifier.clickable { onNewJob() }.padding(2.dp)
                                     )
                                 }
@@ -350,60 +359,69 @@ fun DashboardScreen(
 
                             Spacer(modifier = Modifier.height(10.dp))
 
-                            val displayJobs = if (selectedDay != null) viewModel.getJobsForDay(selectedDay!!) else viewModel.getPrioritizedJobs()
-                            val visibleJobs = if (selectedDay != null) displayJobs else displayJobs.take(3)
+                            when {
+                                jobsError != null -> SmithErrorState(
+                                    message = jobsError ?: "Couldn't load jobs.",
+                                    onRetry = { jobViewModel.loadJobs() }
+                                )
+                                jobsLoading && activeJobs.isEmpty() -> SmithLoadingState(label = "LOADING JOBS")
+                                else -> {
+                                    val displayJobs = if (selectedDay != null) viewModel.getJobsForDay(selectedDay!!) else viewModel.getPrioritizedJobs()
+                                    val visibleJobs = if (selectedDay != null) displayJobs else displayJobs.take(3)
 
-                            for (slot in 0 until 3) {
-                                val job = visibleJobs.getOrNull(slot)
-                                if (job != null) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(52.dp)
-                                            .clickable(
-                                                interactionSource = remember { MutableInteractionSource() },
-                                                indication = rememberRipple(bounded = true),
-                                                onClick = { onJobClick(job.id) }
-                                            )
-                                            .padding(vertical = 8.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = "${job.stage.icon} ${job.clientName ?: job.title}",
-                                                style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text)
-                                            )
-                                            val timeContext = formatJobTimeContext(job)
-                                            val addressShort = job.clientAddress.take(25)
-                                            val moneyContext = if (job.stage == JobStage.INVOICE) {
-                                                val invoiceTotal = job.materials.sumOf { it.totalCost } + (job.hourlyRate * 8)
-                                                " · $${String.format("%.0f", invoiceTotal)}"
-                                            } else ""
-                                            Text(
-                                                text = "${job.stage.displayName} · $addressShort · $timeContext$moneyContext",
-                                                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
-                                                maxLines = 1, overflow = TextOverflow.Ellipsis
-                                            )
+                                    for (slot in 0 until 3) {
+                                        val job = visibleJobs.getOrNull(slot)
+                                        if (job != null) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(52.dp)
+                                                    .clickable(
+                                                        interactionSource = remember { MutableInteractionSource() },
+                                                        indication = rememberRipple(bounded = true),
+                                                        onClick = { onJobClick(job.id) }
+                                                    )
+                                                    .padding(vertical = 8.dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = "${job.stage.icon} ${job.clientName ?: job.title}",
+                                                        style = SmithType.bodySmall.copy(color = colors.ink)
+                                                    )
+                                                    val timeContext = formatJobTimeContext(job)
+                                                    val addressShort = job.clientAddress.take(25)
+                                                    val moneyContext = if (job.stage == JobStage.INVOICE) {
+                                                        val invoiceTotal = job.materials.sumOf { it.totalCost } + (job.hourlyRate * 8)
+                                                        " · $${String.format("%.0f", invoiceTotal)}"
+                                                    } else ""
+                                                    Text(
+                                                        text = "${job.stage.displayName} · $addressShort · $timeContext$moneyContext",
+                                                        style = SmithType.caption.copy(color = colors.inkMuted),
+                                                        maxLines = 1, overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+                                                Text(">", style = SmithType.caption.copy(color = colors.inkMuted), modifier = Modifier.padding(start = 8.dp))
+                                            }
+                                        } else if (slot == 0 && activeJobs.isEmpty()) {
+                                            Box(modifier = Modifier.fillMaxWidth().height(52.dp).padding(vertical = 8.dp), contentAlignment = Alignment.CenterStart) {
+                                                Text("No active jobs. Tap [+ NEW] to get started.", style = SmithType.caption.copy(color = colors.inkMuted))
+                                            }
+                                        } else {
+                                            Spacer(modifier = Modifier.fillMaxWidth().height(52.dp))
                                         }
-                                        Text(">", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted), modifier = Modifier.padding(start = 8.dp))
+                                        if (slot < 2) {
+                                            Box(Modifier.fillMaxWidth().height(0.5.dp).background(colors.ink.copy(alpha = 0.06f)))
+                                        }
                                     }
-                                } else if (slot == 0 && activeJobs.isEmpty()) {
-                                    Box(modifier = Modifier.fillMaxWidth().height(52.dp).padding(vertical = 8.dp), contentAlignment = Alignment.CenterStart) {
-                                        Text("No active jobs. Tap [+ NEW] to get started.", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
-                                    }
-                                } else {
-                                    Spacer(modifier = Modifier.fillMaxWidth().height(52.dp))
-                                }
-                                if (slot < 2) {
-                                    Box(Modifier.fillMaxWidth().height(0.5.dp).background(ConsoleTheme.text.copy(alpha = 0.06f)))
-                                }
-                            }
 
-                            if (selectedDay != null) {
-                                Text("[Clear filter]", style = ConsoleTheme.action.copy(color = ConsoleTheme.accent), modifier = Modifier.clickable { selectedDay = null }.padding(vertical = 6.dp))
-                            } else if (displayJobs.size > 3) {
-                                Text("[See all ${displayJobs.size} jobs >]", style = ConsoleTheme.action.copy(color = ConsoleTheme.accent), modifier = Modifier.clickable { onJobBoard() }.padding(vertical = 6.dp))
+                                    if (selectedDay != null) {
+                                        Text("[Clear filter]", style = SmithType.action.copy(color = colors.accent), modifier = Modifier.clickable { selectedDay = null }.padding(vertical = 6.dp))
+                                    } else if (displayJobs.size > 3) {
+                                        Text("[See all ${displayJobs.size} jobs >]", style = SmithType.action.copy(color = colors.accent), modifier = Modifier.clickable { onJobBoard() }.padding(vertical = 6.dp))
+                                    }
+                                }
                             }
                         }
                     }
@@ -415,12 +433,12 @@ fun DashboardScreen(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                                    .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                                    .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                                    .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
                                     .padding(14.dp),
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                Text("GETTING STARTED", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+                                Text("GETTING STARTED", style = SmithType.captionBold.copy(color = colors.inkMuted))
                                 if (needsProfile) GettingStartedRow("[Set up profile]", onProfile)
                                 if (needsJob) GettingStartedRow("[Create first job]", onNewJob)
                             }
@@ -442,8 +460,8 @@ fun DashboardScreen(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                                    .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                                    .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                                    .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
                                     .clip(RoundedCornerShape(4.dp))
                                     .clickable(
                                         interactionSource = remember { MutableInteractionSource() },
@@ -452,21 +470,21 @@ fun DashboardScreen(
                                     )
                                     .padding(14.dp)
                             ) {
-                                Text("PROGRESS", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+                                Text("PROGRESS", style = SmithType.captionBold.copy(color = colors.inkMuted))
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Box(Modifier.weight(1f).height(6.dp).background(ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(3.dp))) {
-                                        Box(Modifier.fillMaxHeight().fillMaxWidth(progress).background(ConsoleTheme.accent, RoundedCornerShape(3.dp)))
+                                    Box(Modifier.weight(1f).height(6.dp).background(colors.ink.copy(alpha = 0.06f), RoundedCornerShape(3.dp))) {
+                                        Box(Modifier.fillMaxHeight().fillMaxWidth(progress).background(colors.accent, RoundedCornerShape(3.dp)))
                                     }
-                                    Text("$completedCount/$totalCount this month", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                                    Text("$completedCount/$totalCount this month", style = SmithType.caption.copy(color = colors.inkMuted))
                                 }
                                 Spacer(modifier = Modifier.height(6.dp))
                                 val commonJobs = viewModel.getCommonJobTypes()
                                 if (commonJobs.isNotEmpty()) {
-                                    Text("Common: ${commonJobs.joinToString(", ")}", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                                    Text("Common: ${commonJobs.joinToString(", ")}", style = SmithType.caption.copy(color = colors.inkMuted))
                                 }
                                 if (earned > 0 || owed > 0) {
-                                    Text("$${String.format("%.0f", earned)} earned · $${String.format("%.0f", owed)} owed", style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent))
+                                    Text("$${String.format("%.0f", earned)} earned · $${String.format("%.0f", owed)} owed", style = SmithType.caption.copy(color = colors.accent))
                                 }
                                 // Cumulative "spent" — labor hours × rate + materials
                                 // across every job, regardless of stage. Surfaces work
@@ -477,7 +495,7 @@ fun DashboardScreen(
                                     val hoursLabel = if (h > 0) "${h}h ${m}m" else "${m}m"
                                     Text(
                                         "$${String.format("%.0f", spent)} spent · $hoursLabel worked",
-                                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.text)
+                                        style = SmithType.caption.copy(color = colors.ink)
                                     )
                                 }
                                 if (minutesToday > 0) {
@@ -486,7 +504,7 @@ fun DashboardScreen(
                                     val todayLabel = if (h > 0) "${h}h ${m}m" else "${m}m"
                                     Text(
                                         "Today: $todayLabel",
-                                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.success)
+                                        style = SmithType.caption.copy(color = colors.statusOnline)
                                     )
                                 }
                             }
@@ -520,19 +538,19 @@ fun DashboardScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                                .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                                .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                                .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
                                 .padding(14.dp),
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Text("TODAY", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+                            Text("TODAY", style = SmithType.captionBold.copy(color = colors.inkMuted))
                             if (todayActivity.isEmpty()) {
-                                Text("No activity yet today.", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted), modifier = Modifier.padding(vertical = 4.dp))
+                                Text("No activity yet today.", style = SmithType.caption.copy(color = colors.inkMuted), modifier = Modifier.padding(vertical = 4.dp))
                             } else {
                                 todayActivity.forEach { event ->
                                     Text(
                                         text = event.description,
-                                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.text),
+                                        style = SmithType.caption.copy(color = colors.ink),
                                         maxLines = 1, overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -561,6 +579,7 @@ private fun MonthCalendar(
     selectedDay: Int?,
     onDayClick: (Int) -> Unit
 ) {
+    val colors = LocalSmithColors.current
     val cal = java.util.Calendar.getInstance()
     val todayOfMonth = cal.get(java.util.Calendar.DAY_OF_MONTH)
 
@@ -577,8 +596,8 @@ private fun MonthCalendar(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(4.dp))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
             .padding(14.dp)
     ) {
         // Header: SCHEDULE + month label
@@ -586,8 +605,8 @@ private fun MonthCalendar(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("SCHEDULE", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
-            Text(monthName, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+            Text("SCHEDULE", style = SmithType.captionBold.copy(color = colors.inkMuted))
+            Text(monthName, style = SmithType.caption.copy(color = colors.inkMuted))
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -599,7 +618,7 @@ private fun MonthCalendar(
         ) {
             dayNames.forEach { name ->
                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    Text(name, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                    Text(name, style = SmithType.caption.copy(color = colors.inkMuted))
                 }
             }
         }
@@ -634,10 +653,10 @@ private fun MonthCalendar(
                                     .clip(CircleShape)
                                     .then(
                                         when {
-                                            isSelected -> Modifier.background(ConsoleTheme.accent, CircleShape)
-                                            isToday && hasJob -> Modifier.background(ConsoleTheme.accent, CircleShape)
-                                            isToday -> Modifier.border(1.5.dp, ConsoleTheme.accent, CircleShape)
-                                            hasJob -> Modifier.background(ConsoleTheme.accent.copy(alpha = 0.10f), CircleShape)
+                                            isSelected -> Modifier.background(colors.accent, CircleShape)
+                                            isToday && hasJob -> Modifier.background(colors.accent, CircleShape)
+                                            isToday -> Modifier.border(1.5.dp, colors.accent, CircleShape)
+                                            hasJob -> Modifier.background(colors.accent.copy(alpha = 0.10f), CircleShape)
                                             else -> Modifier
                                         }
                                     )
@@ -646,13 +665,13 @@ private fun MonthCalendar(
                             ) {
                                 Text(
                                     text = "$dayNum",
-                                    style = ConsoleTheme.caption.copy(
+                                    style = SmithType.caption.copy(
                                         color = when {
-                                            isSelected -> Color.White
-                                            isToday && hasJob -> Color.White
-                                            isToday -> ConsoleTheme.accent
-                                            hasJob -> ConsoleTheme.accent
-                                            else -> ConsoleTheme.textMuted
+                                            isSelected -> colors.inkOnAccent
+                                            isToday && hasJob -> colors.inkOnAccent
+                                            isToday -> colors.accent
+                                            hasJob -> colors.accent
+                                            else -> colors.inkMuted
                                         }
                                     )
                                 )
@@ -671,20 +690,21 @@ private fun MonthCalendar(
 
 @Composable
 private fun QuickAction(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val colors = LocalSmithColors.current
     Box(
         modifier = modifier
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(4.dp))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
             .clip(RoundedCornerShape(4.dp))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = rememberRipple(bounded = true, color = ConsoleTheme.accent),
+                indication = rememberRipple(bounded = true, color = colors.accent),
                 onClick = onClick
             )
             .padding(horizontal = 12.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(label, style = ConsoleTheme.action.copy(color = ConsoleTheme.text))
+        Text(label, style = SmithType.action.copy(color = colors.ink))
     }
 }
 
@@ -694,15 +714,16 @@ private fun QuickAction(label: String, modifier: Modifier = Modifier, onClick: (
 
 @Composable
 private fun GettingStartedRow(label: String, onClick: () -> Unit) {
+    val colors = LocalSmithColors.current
     Text(
         text = label,
-        style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+        style = SmithType.action.copy(color = colors.accent),
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(4.dp))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = rememberRipple(bounded = true, color = ConsoleTheme.accent),
+                indication = rememberRipple(bounded = true, color = colors.accent),
                 onClick = onClick
             )
             .padding(vertical = 8.dp, horizontal = 4.dp)
