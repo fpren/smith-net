@@ -20,7 +20,10 @@ import com.guildofsmiths.trademesh.data.CrewPresenceRepository
 import com.guildofsmiths.trademesh.data.LocationTrailRepository
 import com.guildofsmiths.trademesh.db.LocationPointEntity
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.Tokens2
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
+import com.guildofsmiths.trademesh.ui.theme2.tabular
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -30,6 +33,7 @@ fun LostAndFoundScreen(
     targetUserId: String,
     onBack: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     val context = LocalContext.current
     val crew by CrewPresenceRepository.crew.collectAsState()
     val member = remember(crew, targetUserId) {
@@ -44,24 +48,24 @@ fun LostAndFoundScreen(
         trail = LocationTrailRepository.getRecent(targetUserId, limit = 50)
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(ConsoleTheme.background)) {
+    Column(modifier = Modifier.fillMaxSize().background(colors.bgBase)) {
         ConsoleHeader(title = "LOST & FOUND", onBackClick = onBack)
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(12.dp),
+                .padding(9.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
                 member?.name ?: targetUserId,
-                style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.text)
+                style = SmithType.bodyBold.copy(color = colors.ink)
             )
             if (member?.trade != null) {
                 Text(
                     "${member.trade} · ${member.status.label}",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                    style = SmithType.caption.copy(color = colors.inkMuted)
                 )
             }
 
@@ -70,41 +74,41 @@ fun LostAndFoundScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                        .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
-                        .padding(16.dp),
+                        .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusOps))
+                        .border(1.dp, colors.line, RoundedCornerShape(Tokens2.RadiusOps))
+                        .padding(12.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("No location history yet.", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                    Text("No location history yet.", style = SmithType.caption.copy(color = colors.inkMuted))
                 }
             } else {
                 val age = formatAge(System.currentTimeMillis() - lk.timestamp)
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                        .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
-                        .padding(12.dp),
+                        .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusOps))
+                        .border(1.dp, colors.line, RoundedCornerShape(Tokens2.RadiusOps))
+                        .padding(9.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text("LAST SEEN", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
-                    Text("$age ago", style = ConsoleTheme.bodyBold.copy(color = ConsoleTheme.accent))
+                    Text("LAST SEEN", style = SmithType.captionBold.copy(color = colors.inkMuted))
+                    Text("$age ago", style = SmithType.bodyBold.copy(color = colors.accent).tabular)
                     Text(
                         "${String.format("%.6f", lk.latitude)}, ${String.format("%.6f", lk.longitude)}",
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.text)
+                        style = SmithType.caption.copy(color = colors.ink).tabular
                     )
                     lk.accuracyMeters?.let {
                         Text("Accuracy: ${String.format("%.0f", it)} m · source: ${lk.source}",
-                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                            style = SmithType.caption.copy(color = colors.inkMuted))
                     }
                     Spacer(Modifier.height(6.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .background(ConsoleTheme.accent.copy(alpha = 0.14f), RoundedCornerShape(4.dp))
-                                .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
-                                .clip(RoundedCornerShape(4.dp))
+                                .background(colors.accent.copy(alpha = 0.14f), RoundedCornerShape(Tokens2.RadiusOps))
+                                .border(1.dp, colors.line, RoundedCornerShape(Tokens2.RadiusOps))
+                                .clip(RoundedCornerShape(Tokens2.RadiusOps))
                                 .clickable {
                                     val uri = Uri.parse("geo:${lk.latitude},${lk.longitude}?q=${lk.latitude},${lk.longitude}(${member?.name ?: "Last seen"})")
                                     context.startActivity(Intent(Intent.ACTION_VIEW, uri))
@@ -112,22 +116,22 @@ fun LostAndFoundScreen(
                                 .padding(vertical = 10.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("[Directions]", style = ConsoleTheme.action.copy(color = ConsoleTheme.accent))
+                            Text("[Directions]", style = SmithType.action.copy(color = colors.accent))
                         }
                         if (member?.phone != null) {
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                                    .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
-                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusOps))
+                                    .border(1.dp, colors.line, RoundedCornerShape(Tokens2.RadiusOps))
+                                    .clip(RoundedCornerShape(Tokens2.RadiusOps))
                                     .clickable {
                                         context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:${member.phone}")))
                                     }
                                     .padding(vertical = 10.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("[Call]", style = ConsoleTheme.action.copy(color = ConsoleTheme.text))
+                                Text("[Call]", style = SmithType.action.copy(color = colors.ink))
                             }
                         }
                     }
@@ -137,12 +141,12 @@ fun LostAndFoundScreen(
             // Trail
             if (trail.isNotEmpty()) {
                 Text("TRAIL (last ${trail.size} points)",
-                    style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
+                    style = SmithType.captionBold.copy(color = colors.inkMuted))
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                        .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
+                        .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusOps))
+                        .border(1.dp, colors.line, RoundedCornerShape(Tokens2.RadiusOps))
                         .padding(vertical = 4.dp)
                 ) {
                     val fmt = SimpleDateFormat("MMM d · HH:mm:ss", Locale.US)
@@ -158,10 +162,10 @@ fun LostAndFoundScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(fmt.format(Date(p.timestamp)),
-                                style = ConsoleTheme.caption.copy(color = ConsoleTheme.text))
+                                style = SmithType.caption.copy(color = colors.ink).tabular)
                             Text(
                                 "${String.format("%.5f", p.latitude)}, ${String.format("%.5f", p.longitude)}",
-                                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                                style = SmithType.caption.copy(color = colors.inkMuted).tabular
                             )
                         }
                     }

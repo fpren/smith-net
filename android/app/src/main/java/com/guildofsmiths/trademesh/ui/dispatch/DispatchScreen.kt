@@ -21,12 +21,15 @@ import com.guildofsmiths.trademesh.data.CrewPresenceInfo
 import com.guildofsmiths.trademesh.data.CrewPresenceRepository
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
 import com.guildofsmiths.trademesh.ui.ConsoleSeparator
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.Tokens2
 import com.guildofsmiths.trademesh.ui.dashboard.CrewAssignDialog
 import com.guildofsmiths.trademesh.ui.dashboard.CrewProfileSheet
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel
 import com.guildofsmiths.trademesh.ui.jobboard.JobStage
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
+import com.guildofsmiths.trademesh.ui.theme2.tabular
 
 @Composable
 fun DispatchScreen(
@@ -36,6 +39,7 @@ fun DispatchScreen(
     onMessageCrew: ((CrewPresenceInfo) -> Unit)? = null,
     viewModel: JobBoardViewModel = viewModel()
 ) {
+    val colors = LocalSmithColors.current
     val allJobs by viewModel.jobs.collectAsState()
     val crew = remember { CrewPresenceRepository.getCrew() }
 
@@ -72,7 +76,7 @@ fun DispatchScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(ConsoleTheme.background)
+            .background(colors.bgBase)
     ) {
         ConsoleHeader(title = "DISPATCH", onBackClick = onBack)
         ConsoleSeparator()
@@ -81,19 +85,19 @@ fun DispatchScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            DispatchStat(Modifier.weight(1f), "UNASSIGNED", unassignedJobs.size, Color(0xFFD97706))
-            DispatchStat(Modifier.weight(1f), "ASSIGNED", assignedJobs.size, ConsoleTheme.success)
-            DispatchStat(Modifier.weight(1f), "CREW", crew.size, ConsoleTheme.accent)
+            DispatchStat(Modifier.weight(1f), "UNASSIGNED", unassignedJobs.size, colors.attention)
+            DispatchStat(Modifier.weight(1f), "ASSIGNED", assignedJobs.size, colors.statusOnline)
+            DispatchStat(Modifier.weight(1f), "CREW", crew.size, colors.accent)
         }
 
         ConsoleSeparator()
 
         LazyColumn(
             modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // ── UNASSIGNED JOBS ────────────────────────────────
@@ -101,7 +105,7 @@ fun DispatchScreen(
                 item {
                     Text(
                         "UNASSIGNED (${unassignedJobs.size})",
-                        style = ConsoleTheme.captionBold.copy(color = Color(0xFFD97706)),
+                        style = SmithType.captionBold.copy(color = colors.attention),
                         modifier = Modifier.padding(bottom = 4.dp)
                     )
                 }
@@ -122,7 +126,7 @@ fun DispatchScreen(
                 item {
                     Text(
                         "ASSIGNED (${assignedJobs.size})",
-                        style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.success),
+                        style = SmithType.captionBold.copy(color = colors.statusOnline),
                         modifier = Modifier.padding(bottom = 4.dp)
                     )
                 }
@@ -140,11 +144,11 @@ fun DispatchScreen(
 
             // ── CREW ROSTER ───────────────────────────────────
             item {
-                Box(Modifier.fillMaxWidth().height(0.5.dp).background(ConsoleTheme.text.copy(alpha = 0.08f)))
+                Box(Modifier.fillMaxWidth().height(1.dp).background(colors.line))
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     "CREW ROSTER",
-                    style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted),
+                    style = SmithType.captionBold.copy(color = colors.inkMuted),
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
             }
@@ -161,7 +165,7 @@ fun DispatchScreen(
                 item {
                     Text(
                         "No active jobs to dispatch.",
-                        style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                        style = SmithType.caption.copy(color = colors.inkMuted),
                         modifier = Modifier.padding(vertical = 16.dp)
                     )
                 }
@@ -177,15 +181,16 @@ private fun DispatchStat(
     count: Int,
     color: Color
 ) {
+    val colors = LocalSmithColors.current
     Column(
         modifier = modifier
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusOps))
+            .border(1.dp, colors.line, RoundedCornerShape(Tokens2.RadiusOps))
             .padding(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(count.toString(), style = ConsoleTheme.bodyBold.copy(color = color))
-        Text(label, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        Text(count.toString(), style = SmithType.bodyBold.copy(color = color).tabular)
+        Text(label, style = SmithType.caption.copy(color = colors.inkMuted))
     }
 }
 
@@ -196,34 +201,35 @@ private fun DispatchJobCard(
     onJobClick: () -> Unit,
     onAssign: () -> Unit
 ) {
-    val borderColor = if (isUnassigned) Color(0xFFD97706).copy(alpha = 0.25f) else ConsoleTheme.text.copy(alpha = 0.06f)
+    val colors = LocalSmithColors.current
+    val borderColor = if (isUnassigned) colors.attention.copy(alpha = 0.25f) else colors.line
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-            .border(0.5.dp, borderColor, RoundedCornerShape(4.dp))
-            .clip(RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusOps))
+            .border(1.dp, borderColor, RoundedCornerShape(Tokens2.RadiusOps))
+            .clip(RoundedCornerShape(Tokens2.RadiusOps))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = rememberRipple(bounded = true),
                 onClick = onJobClick
             )
-            .padding(12.dp),
+            .padding(9.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 if (isUnassigned) "! ${job.clientName ?: job.title}" else "${job.clientName ?: job.title}",
-                style = ConsoleTheme.bodySmall.copy(
-                    color = if (isUnassigned) ConsoleTheme.text else ConsoleTheme.text
+                style = SmithType.bodySmall.copy(
+                    color = if (isUnassigned) colors.ink else colors.ink
                 ),
                 maxLines = 1, overflow = TextOverflow.Ellipsis
             )
             Text(
                 "${job.stage.displayName} · ${job.clientAddress.take(30)}",
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
 
             // Show assigned crew
@@ -233,7 +239,7 @@ private fun DispatchJobCard(
                     job.crew.forEach { member ->
                         Text(
                             "(${member.name})",
-                            style = ConsoleTheme.caption.copy(color = ConsoleTheme.success)
+                            style = SmithType.caption.copy(color = colors.statusOnline)
                         )
                     }
                 }
@@ -242,8 +248,8 @@ private fun DispatchJobCard(
 
         Text(
             if (isUnassigned) "[Assign]" else "[+ Crew]",
-            style = ConsoleTheme.action.copy(
-                color = if (isUnassigned) Color(0xFFD97706) else ConsoleTheme.accent
+            style = SmithType.action.copy(
+                color = if (isUnassigned) colors.attention else colors.accent
             ),
             modifier = Modifier
                 .clickable { onAssign() }
@@ -258,29 +264,30 @@ private fun CrewRosterCard(
     assignedJob: Job?,
     onClick: () -> Unit
 ) {
+    val colors = LocalSmithColors.current
     val dot = when (member.status) {
         ClockStatus.ON_CLOCK -> "●"
         ClockStatus.ON_BREAK -> "◐"
         ClockStatus.OFF_CLOCK -> "○"
     }
     val dotColor = when (member.status) {
-        ClockStatus.ON_CLOCK -> ConsoleTheme.success
-        ClockStatus.ON_BREAK -> ConsoleTheme.accent
-        ClockStatus.OFF_CLOCK -> ConsoleTheme.textMuted
+        ClockStatus.ON_CLOCK -> colors.statusOnline
+        ClockStatus.ON_BREAK -> colors.accent
+        ClockStatus.OFF_CLOCK -> colors.inkMuted
     }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
-            .clip(RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusOps))
+            .border(1.dp, colors.line, RoundedCornerShape(Tokens2.RadiusOps))
+            .clip(RoundedCornerShape(Tokens2.RadiusOps))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = rememberRipple(bounded = true),
                 onClick = onClick
             )
-            .padding(12.dp),
+            .padding(9.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -289,16 +296,16 @@ private fun CrewRosterCard(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.weight(1f)
         ) {
-            Text(dot, style = ConsoleTheme.bodySmall.copy(color = dotColor))
+            Text(dot, style = SmithType.bodySmall.copy(color = dotColor))
             Column {
-                Text(member.name, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text))
+                Text(member.name, style = SmithType.bodySmall.copy(color = colors.ink))
                 Text(
                     buildString {
                         append(member.trade)
                         if (member.currentJobTitle != null) append(" · ${member.currentJobTitle}")
                         else append(" · available")
                     },
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted),
+                    style = SmithType.caption.copy(color = colors.inkMuted),
                     maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
             }
@@ -307,9 +314,9 @@ private fun CrewRosterCard(
         // Hours
         if (member.clockInTime != null) {
             val mins = (System.currentTimeMillis() - member.clockInTime) / 60_000
-            Text("${mins / 60}h ${mins % 60}m", style = ConsoleTheme.caption.copy(color = ConsoleTheme.accent))
+            Text("${mins / 60}h ${mins % 60}m", style = SmithType.caption.copy(color = colors.accent).tabular)
         } else {
-            Text(member.status.label, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+            Text(member.status.label, style = SmithType.caption.copy(color = colors.inkMuted))
         }
     }
 }
