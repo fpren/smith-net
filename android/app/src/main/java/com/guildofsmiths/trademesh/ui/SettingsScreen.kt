@@ -37,6 +37,9 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -57,6 +60,7 @@ import com.guildofsmiths.trademesh.service.AuthService
 import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithConfirmDialog
 import com.guildofsmiths.trademesh.ui.theme2.SmithType
+import com.guildofsmiths.trademesh.ui.theme2.ThemePreference
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -73,11 +77,13 @@ fun SettingsScreen(
     onNameChanged: (String) -> Unit,
     onProfileClick: (() -> Unit)? = null,
     onSignOut: (() -> Unit)? = null,
+    onThemePreferenceChange: (ThemePreference) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val colors = LocalSmithColors.current
     var userName by remember { mutableStateOf(UserPreferences.getUserName()) }
     var hasChanges by remember { mutableStateOf(false) }
+    var themePreference by remember { mutableStateOf(UserPreferences.getThemePreference()) }
     val isScanning by BoundaryEngine.isScanning.collectAsState()
     val isMeshConnected by BoundaryEngine.isMeshConnected.collectAsState()
     val isGatewayConnected by BoundaryEngine.isGatewayConnected.collectAsState()
@@ -140,6 +146,22 @@ fun SettingsScreen(
                 }
                 Text(text = ">", style = SmithType.body, color = colors.inkMuted)
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            ConsoleSeparator()
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // ════════════════════════════════════════════════════════════════
+            // APPEARANCE — Light / Dark / System
+            // ════════════════════════════════════════════════════════════════
+            AppearanceSection(
+                current = themePreference,
+                onSelect = { pref ->
+                    themePreference = pref
+                    UserPreferences.setThemePreference(pref)
+                    onThemePreferenceChange(pref)
+                }
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
             ConsoleSeparator()
@@ -1205,6 +1227,61 @@ private fun SmithAISection() {
                     color = if (autoDegradeEnabled) colors.statusOnline else colors.inkMuted
                 )
             )
+        }
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// APPEARANCE SECTION — Light / Dark / System segmented control
+// ════════════════════════════════════════════════════════════════════════════
+
+private val ThemeOptions = listOf(
+    ThemePreference.LIGHT to "LIGHT",
+    ThemePreference.DARK to "DARK",
+    ThemePreference.SYSTEM to "SYSTEM",
+)
+
+@Composable
+private fun AppearanceSection(
+    current: ThemePreference,
+    onSelect: (ThemePreference) -> Unit,
+) {
+    val colors = LocalSmithColors.current
+
+    Column {
+        Text(text = "APPEARANCE", style = SmithType.captionBold.copy(color = colors.inkMuted))
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            ThemeOptions.forEach { (pref, label) ->
+                val isSelected = pref == current
+                Text(
+                    text = label,
+                    textAlign = TextAlign.Center,
+                    style = TextStyle(
+                        fontFamily = ConsoleTheme.jetBrainsMono,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 0.5.sp,
+                        color = if (isSelected) colors.inkOnAccent else colors.inkMuted
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(4.dp))
+                        .then(
+                            if (isSelected) {
+                                Modifier.background(colors.accent)
+                            } else {
+                                Modifier.border(1.dp, colors.line, RoundedCornerShape(4.dp))
+                            }
+                        )
+                        .clickable { onSelect(pref) }
+                        .padding(vertical = 10.dp)
+                )
+            }
         }
     }
 }

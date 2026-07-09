@@ -351,22 +351,6 @@ private fun BeaconRow(
     }
 }
 
-/** Non-composable color set for legacy call sites (e.g. InviteBanner.kt) that
- * cannot reach [LocalSmithColors]. Pinned to the light v2 palette — matches
- * ConsoleTheme's own light-only nature; revisit if those call sites become
- * composable-context and can read LocalSmithColors directly. */
-object AppColors {
-    val background = com.guildofsmiths.trademesh.ui.Tokens2.Light.BgBase
-    val surface = com.guildofsmiths.trademesh.ui.Tokens2.Light.BgPanel
-    val surfaceHighlight = com.guildofsmiths.trademesh.ui.Tokens2.Light.BgPanel
-    val text = com.guildofsmiths.trademesh.ui.Tokens2.Light.Ink
-    val textMuted = com.guildofsmiths.trademesh.ui.Tokens2.Light.InkMuted
-    val accent = com.guildofsmiths.trademesh.ui.Tokens2.Light.Accent
-    val accentGreen = com.guildofsmiths.trademesh.ui.Tokens2.Light.StatusOnline
-    val accentOrange = com.guildofsmiths.trademesh.ui.Tokens2.Light.Attention
-    val divider = com.guildofsmiths.trademesh.ui.Tokens2.Light.Line
-}
-
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
 private fun BeaconListScreenPreview() {

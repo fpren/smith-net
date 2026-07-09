@@ -24,13 +24,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 
 /**
  * Banner showing pending channel invites.
@@ -77,10 +77,11 @@ private fun InviteCard(
     onDecline: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(AppColors.accentGreen.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+            .background(colors.statusOnline.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -90,39 +91,39 @@ private fun InviteCard(
                 style = TextStyle(
                     fontFamily = FontFamily.Monospace,
                     fontSize = 11.sp,
-                    color = AppColors.accentGreen
+                    color = colors.statusOnline
                 )
             )
-            
+
             Spacer(modifier = Modifier.height(2.dp))
-            
+
             Text(
                 text = "#$channelName",
                 style = TextStyle(
                     fontFamily = FontFamily.Monospace,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = AppColors.text
+                    color = colors.ink
                 )
             )
-            
+
             Text(
                 text = "from $senderName",
                 style = TextStyle(
                     fontFamily = FontFamily.Monospace,
                     fontSize = 11.sp,
-                    color = AppColors.textMuted
+                    color = colors.inkMuted
                 )
             )
         }
-        
+
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             OutlinedButton(
                 onClick = onDecline,
                 colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = AppColors.textMuted
+                    contentColor = colors.inkMuted
                 )
             ) {
                 Text(
@@ -133,12 +134,12 @@ private fun InviteCard(
                     )
                 )
             }
-            
+
             Button(
                 onClick = onAccept,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = AppColors.accentGreen,
-                    contentColor = Color.Black
+                    containerColor = colors.statusOnline,
+                    contentColor = colors.inkOnAccent
                 )
             ) {
                 Text(

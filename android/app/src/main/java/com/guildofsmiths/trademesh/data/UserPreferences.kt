@@ -3,6 +3,7 @@ package com.guildofsmiths.trademesh.data
 import android.content.Context
 import android.content.SharedPreferences
 import com.guildofsmiths.trademesh.ui.Language
+import com.guildofsmiths.trademesh.ui.theme2.ThemePreference
 import java.util.UUID
 
 /**
@@ -45,6 +46,7 @@ object UserPreferences {
     private const val KEY_OPENROUTER_API_KEY = "openrouter_api_key"
     private const val KEY_AI_SUPERVISOR_MODE = "ai_supervisor_mode"
     private const val KEY_MESH_SOLO_OVERRIDE = "mesh_solo_override"
+    private const val KEY_THEME_PREFERENCE = "theme_preference"
 
     private var prefs: SharedPreferences? = null
     
@@ -176,6 +178,27 @@ object UserPreferences {
      */
     fun setAIMode(mode: AIMode) {
         prefs?.edit()?.putString(KEY_AI_MODE, mode.name.lowercase())?.apply()
+    }
+
+    /**
+     * Get the user's theme preference (Light/Dark/System).
+     * Default: SYSTEM. Unknown/corrupt stored values fall back to SYSTEM.
+     */
+    fun getThemePreference(): ThemePreference {
+        val prefString = prefs?.getString(KEY_THEME_PREFERENCE, ThemePreference.SYSTEM.name)
+            ?: ThemePreference.SYSTEM.name
+        return try {
+            ThemePreference.valueOf(prefString)
+        } catch (e: IllegalArgumentException) {
+            ThemePreference.SYSTEM
+        }
+    }
+
+    /**
+     * Set the user's theme preference.
+     */
+    fun setThemePreference(preference: ThemePreference) {
+        prefs?.edit()?.putString(KEY_THEME_PREFERENCE, preference.name)?.apply()
     }
 
     /**

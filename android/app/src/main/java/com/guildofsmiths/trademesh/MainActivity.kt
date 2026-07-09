@@ -16,6 +16,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 
 import androidx.compose.material3.Surface
@@ -67,6 +68,9 @@ import com.guildofsmiths.trademesh.ui.timetracking.TimeTrackingScreen
 import com.guildofsmiths.trademesh.ui.theme.TradeMeshTheme
 import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithTheme
+import com.guildofsmiths.trademesh.ui.theme2.ThemePreference
+import com.guildofsmiths.trademesh.ui.theme2.resolveDark
+import com.guildofsmiths.trademesh.ui.theme2.smithColorsFor
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
@@ -251,8 +255,18 @@ class MainActivity : ComponentActivity() {
         
         // Setup UI with navigation
         setContent {
-            TradeMeshTheme {
-                SmithTheme(darkEnabled = false) {
+            // Live theme preference — seeded from the persisted UserPreferences value
+            // and updated in place when the user flips it in Settings, so the flip is
+            // immediate (no restart required).
+            var themePref by remember { mutableStateOf(UserPreferences.getThemePreference()) }
+            val dark = resolveDark(themePref, isSystemInDarkTheme(), darkEnabled = true)
+            val resolvedBgBase = smithColorsFor(dark).bgBase
+
+            TradeMeshTheme(
+                statusBarColor = resolvedBgBase,
+                lightIcons = !dark
+            ) {
+                SmithTheme(darkEnabled = true, themePreference = themePref) {
                 Surface(
                     // Expose Compose testTags as Android resource-ids so Maestro / UI
                     // automation can target stable ids (e.g. id: "solo_e2e_*").
@@ -830,10 +844,17 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate(NavRoutes.AUTH) {
                                         popUpTo(0) { inclusive = true }
                                     }
+                                },
+                                onThemePreferenceChange = { pref ->
+                                    // SettingsScreen already persisted this via
+                                    // UserPreferences.setThemePreference; this just
+                                    // flips the live state so SmithTheme recomposes
+                                    // immediately instead of waiting for a restart.
+                                    themePref = pref
                                 }
                             )
                         }
-                        
+
                         // C-11: Job Board
                         composable(NavRoutes.JOB_BOARD) {
                             val jobViewModel: com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel = viewModel(viewModelStoreOwner = this@MainActivity)
