@@ -266,7 +266,7 @@ class MainActivity : ComponentActivity() {
                 statusBarColor = resolvedBgBase,
                 lightIcons = !dark
             ) {
-                SmithTheme(darkEnabled = true, themePreference = themePref) {
+                SmithTheme(darkEnabled = true, themePreference = themePref, resolvedDark = dark) {
                 Surface(
                     // Expose Compose testTags as Android resource-ids so Maestro / UI
                     // automation can target stable ids (e.g. id: "solo_e2e_*").

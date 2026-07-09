@@ -66,9 +66,13 @@ fun resolveDark(pref: ThemePreference, systemDark: Boolean, darkEnabled: Boolean
 fun SmithTheme(
     darkEnabled: Boolean = false,
     themePreference: ThemePreference = ThemePreference.SYSTEM,
+    resolvedDark: Boolean? = null,
     content: @Composable () -> Unit,
 ) {
-    val dark = resolveDark(themePreference, isSystemInDarkTheme(), darkEnabled)
+    // When the caller already resolved the theme (MainActivity resolves once and
+    // also feeds the status bar), reuse that value -- one resolution, no drift
+    // between window chrome and palette.
+    val dark = resolvedDark ?: resolveDark(themePreference, isSystemInDarkTheme(), darkEnabled)
     val colors = smithColorsFor(dark = dark)
     CompositionLocalProvider(LocalSmithColors provides colors, content = content)
 }
