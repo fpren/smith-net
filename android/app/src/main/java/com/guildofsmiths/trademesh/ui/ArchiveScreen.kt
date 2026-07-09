@@ -23,6 +23,10 @@ import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel
 import com.guildofsmiths.trademesh.ui.jobboard.JobStage
 import com.guildofsmiths.trademesh.ui.jobboard.JobStatus
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithErrorState
+import com.guildofsmiths.trademesh.ui.theme2.SmithLoadingState
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import com.guildofsmiths.trademesh.ui.timetracking.TimeEntry
 import java.text.SimpleDateFormat
 import java.util.*
@@ -37,8 +41,11 @@ fun ArchiveScreen(
     onJobClick: ((String) -> Unit)? = null,
     viewModel: JobBoardViewModel = viewModel()
 ) {
+    val colors = LocalSmithColors.current
     val activeJobs by viewModel.jobs.collectAsState()
     val archivedJobs by viewModel.archivedJobs.collectAsState()
+    val jobsLoading by viewModel.isLoading.collectAsState()
+    val jobsError by viewModel.error.collectAsState()
     val timeEntries by TimeEntryRepository.entries.collectAsState()
     var archivedMessages by remember { mutableStateOf(MessageRepository.getArchivedMessages()) }
 
@@ -67,7 +74,7 @@ fun ArchiveScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(ConsoleTheme.background)
+            .background(colors.bgBase)
     ) {
         ConsoleHeader(title = "ARCHIVE", onBackClick = onNavigateBack)
         ConsoleSeparator()
@@ -79,10 +86,10 @@ fun ArchiveScreen(
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            AuditStatCard(Modifier.weight(1f), "TOTAL", totalJobs.toString(), ConsoleTheme.text)
-            AuditStatCard(Modifier.weight(1f), "CLOSED", closedJobs.toString(), ConsoleTheme.success)
-            AuditStatCard(Modifier.weight(1f), "HOURS", String.format("%.0f", totalHours), ConsoleTheme.accent)
-            AuditStatCard(Modifier.weight(1f), "VALUE", "$${String.format("%,.0f", totalRevenue)}", Color(0xFFD97706))
+            AuditStatCard(Modifier.weight(1f), "TOTAL", totalJobs.toString(), colors.ink)
+            AuditStatCard(Modifier.weight(1f), "CLOSED", closedJobs.toString(), colors.statusOnline)
+            AuditStatCard(Modifier.weight(1f), "HOURS", String.format("%.0f", totalHours), colors.accent)
+            AuditStatCard(Modifier.weight(1f), "VALUE", "$${String.format("%,.0f", totalRevenue)}", colors.attention)
         }
 
         // ── TABS ──────────────────────────────────────────
@@ -102,13 +109,13 @@ fun ArchiveScreen(
                 val isSelected = selectedTab == index
                 Text(
                     text = "$tab ($count)",
-                    style = ConsoleTheme.captionBold.copy(
-                        color = if (isSelected) ConsoleTheme.accent else ConsoleTheme.textMuted
+                    style = SmithType.captionBold.copy(
+                        color = if (isSelected) colors.accent else colors.inkMuted
                     ),
                     modifier = Modifier
                         .clip(RoundedCornerShape(4.dp))
                         .then(
-                            if (isSelected) Modifier.background(ConsoleTheme.accent.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
+                            if (isSelected) Modifier.background(colors.accent.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
                             else Modifier
                         )
                         .clickable { selectedTab = index }
@@ -121,7 +128,14 @@ fun ArchiveScreen(
 
         // ── TAB CONTENT ───────────────────────────────────
         when (selectedTab) {
-            0 -> AllJobsTab(activeJobs, archivedJobs, viewModel, onJobClick)
+            0 -> when {
+                jobsError != null -> SmithErrorState(
+                    message = jobsError ?: "Couldn't load jobs.",
+                    onRetry = { viewModel.loadJobs() }
+                )
+                jobsLoading && allJobs.isEmpty() -> SmithLoadingState(label = "LOADING JOBS")
+                else -> AllJobsTab(activeJobs, archivedJobs, viewModel, onJobClick)
+            }
             1 -> TimeEntriesTab(timeEntries)
             2 -> MessagesTab(archivedMessages)
         }
@@ -139,6 +153,7 @@ private fun AllJobsTab(
     viewModel: JobBoardViewModel,
     onJobClick: ((String) -> Unit)?
 ) {
+    val colors = LocalSmithColors.current
     var showArchived by remember { mutableStateOf(true) }
     var showActive by remember { mutableStateOf(true) }
 
@@ -158,11 +173,11 @@ private fun AllJobsTab(
             ) {
                 Text(
                     "ACTIVE (${activeJobs.size})",
-                    style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.success)
+                    style = SmithType.captionBold.copy(color = colors.statusOnline)
                 )
                 Text(
                     if (showActive) "[—]" else "[+]",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                    style = SmithType.caption.copy(color = colors.inkMuted)
                 )
             }
         }
@@ -173,7 +188,7 @@ private fun AllJobsTab(
             }
             if (activeJobs.isEmpty()) {
                 item {
-                    Text("No active jobs.", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted), modifier = Modifier.padding(8.dp))
+                    Text("No active jobs.", style = SmithType.caption.copy(color = colors.inkMuted), modifier = Modifier.padding(8.dp))
                 }
             }
         }
@@ -191,11 +206,11 @@ private fun AllJobsTab(
             ) {
                 Text(
                     "ARCHIVED (${archivedJobs.size})",
-                    style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted)
+                    style = SmithType.captionBold.copy(color = colors.inkMuted)
                 )
                 Text(
                     if (showArchived) "[—]" else "[+]",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                    style = SmithType.caption.copy(color = colors.inkMuted)
                 )
             }
         }
@@ -206,7 +221,7 @@ private fun AllJobsTab(
             }
             if (archivedJobs.isEmpty()) {
                 item {
-                    Text("No archived jobs.", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted), modifier = Modifier.padding(8.dp))
+                    Text("No archived jobs.", style = SmithType.caption.copy(color = colors.inkMuted), modifier = Modifier.padding(8.dp))
                 }
             }
         }
@@ -220,6 +235,7 @@ private fun AuditJobRow(
     onJobClick: ((String) -> Unit)?,
     onRestore: (() -> Unit)? = null
 ) {
+    val colors = LocalSmithColors.current
     val materialsCost = job.materials.sumOf { it.totalCost }
     val laborCost = job.hourlyRate * 8
     val total = materialsCost + laborCost
@@ -228,10 +244,10 @@ private fun AuditJobRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(4.dp))
             .border(
                 0.5.dp,
-                if (isArchived) ConsoleTheme.text.copy(alpha = 0.04f) else ConsoleTheme.text.copy(alpha = 0.06f),
+                if (isArchived) colors.ink.copy(alpha = 0.04f) else colors.ink.copy(alpha = 0.06f),
                 RoundedCornerShape(4.dp)
             )
             .clip(RoundedCornerShape(4.dp))
@@ -251,8 +267,8 @@ private fun AuditJobRow(
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "${job.stage.icon} ${job.clientName ?: job.title}",
-                    style = ConsoleTheme.bodySmall.copy(
-                        color = if (isArchived) ConsoleTheme.textMuted else ConsoleTheme.text
+                    style = SmithType.bodySmall.copy(
+                        color = if (isArchived) colors.inkMuted else colors.ink
                     ),
                     maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
@@ -264,19 +280,19 @@ private fun AuditJobRow(
                     append(job.stage.displayName)
                     if (job.clientAddress.isNotBlank()) append(" · ${job.clientAddress.take(25)}")
                 },
-                style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
 
             // Crew line
             if (crewNames.isNotBlank()) {
-                Text("Crew: $crewNames", style = ConsoleTheme.caption.copy(color = ConsoleTheme.success))
+                Text("Crew: $crewNames", style = SmithType.caption.copy(color = colors.statusOnline))
             }
 
             // Materials + cost
             if (job.materials.isNotEmpty()) {
                 Text(
                     "${job.materials.size} materials · ${job.materials.count { it.checked }} checked",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                    style = SmithType.caption.copy(color = colors.inkMuted)
                 )
             }
 
@@ -284,7 +300,7 @@ private fun AuditJobRow(
             if (isArchived && job.archivedAt != null) {
                 Text(
                     "Archived ${formatShortDate(job.archivedAt)}${job.archiveReason?.let { " · $it" } ?: ""}",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)
+                    style = SmithType.caption.copy(color = colors.inkMuted)
                 )
             }
         }
@@ -292,13 +308,13 @@ private fun AuditJobRow(
         // Right side: value + restore
         Column(horizontalAlignment = Alignment.End) {
             if (total > 0) {
-                Text("$${String.format("%,.0f", total)}", style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.accent))
+                Text("$${String.format("%,.0f", total)}", style = SmithType.bodySmall.copy(color = colors.accent))
             }
             if (onRestore != null) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     "[Restore]",
-                    style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                    style = SmithType.action.copy(color = colors.accent),
                     modifier = Modifier.clickable { onRestore() }
                 )
             }
@@ -312,15 +328,16 @@ private fun AuditJobRow(
 
 @Composable
 private fun TimeEntriesTab(timeEntries: List<TimeEntry>) {
+    val colors = LocalSmithColors.current
     if (timeEntries.isEmpty()) {
         Box(
             modifier = Modifier.fillMaxSize().padding(32.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("No time entries recorded.", style = ConsoleTheme.body)
+                Text("No time entries recorded.", style = SmithType.body.copy(color = colors.ink))
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Clock in on a job to start tracking time.", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                Text("Clock in on a job to start tracking time.", style = SmithType.caption.copy(color = colors.inkMuted))
             }
         }
         return
@@ -348,15 +365,15 @@ private fun TimeEntriesTab(timeEntries: List<TimeEntry>) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("TOTAL HOURS", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted))
-                Text(String.format("%.1f hrs", totalHours), style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.accent))
+                Text("TOTAL HOURS", style = SmithType.captionBold.copy(color = colors.inkMuted))
+                Text(String.format("%.1f hrs", totalHours), style = SmithType.bodySmall.copy(color = colors.accent))
             }
             Spacer(modifier = Modifier.height(4.dp))
         }
 
         grouped.forEach { (date, entries) ->
             item {
-                Text(date, style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted), modifier = Modifier.padding(top = 8.dp, bottom = 4.dp))
+                Text(date, style = SmithType.captionBold.copy(color = colors.inkMuted), modifier = Modifier.padding(top = 8.dp, bottom = 4.dp))
             }
             items(entries, key = { it.id }) { entry ->
                 val duration = if (entry.clockOutTime != null) {
@@ -370,23 +387,23 @@ private fun TimeEntriesTab(timeEntries: List<TimeEntry>) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                        .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                        .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                        .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
                         .padding(12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(title, style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text("$startStr — $endStr", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                        Text(title, style = SmithType.bodySmall.copy(color = colors.ink), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text("$startStr — $endStr", style = SmithType.caption.copy(color = colors.inkMuted))
                         if (entry.notes.isNotEmpty()) {
-                            Text(entry.notes.joinToString(" · ") { it.text }, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(entry.notes.joinToString(" · ") { it.text }, style = SmithType.caption.copy(color = colors.inkMuted), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
                     Text(
                         duration,
-                        style = ConsoleTheme.bodySmall.copy(
-                            color = if (entry.clockOutTime == null) ConsoleTheme.success else ConsoleTheme.accent
+                        style = SmithType.bodySmall.copy(
+                            color = if (entry.clockOutTime == null) colors.statusOnline else colors.accent
                         )
                     )
                 }
@@ -401,15 +418,16 @@ private fun TimeEntriesTab(timeEntries: List<TimeEntry>) {
 
 @Composable
 private fun MessagesTab(archivedMessages: List<Message>) {
+    val colors = LocalSmithColors.current
     if (archivedMessages.isEmpty()) {
         Box(
             modifier = Modifier.fillMaxSize().padding(32.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("No archived messages.", style = ConsoleTheme.body)
+                Text("No archived messages.", style = SmithType.body.copy(color = colors.ink))
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Archived messages will appear here.", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                Text("Archived messages will appear here.", style = SmithType.caption.copy(color = colors.inkMuted))
             }
         }
         return
@@ -424,8 +442,8 @@ private fun MessagesTab(archivedMessages: List<Message>) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-                    .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                    .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                    .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
                     .padding(12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
@@ -434,25 +452,25 @@ private fun MessagesTab(archivedMessages: List<Message>) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             message.content.take(60) + if (message.content.length > 60) "..." else "",
-                            style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.text),
+                            style = SmithType.bodySmall.copy(color = colors.ink),
                             maxLines = 1, overflow = TextOverflow.Ellipsis
                         )
                         if (message.aiGenerated) {
-                            Text(message.getAISourceLabel() ?: "[AI]", style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent))
+                            Text(message.getAISourceLabel() ?: "[AI]", style = SmithType.captionBold.copy(color = colors.accent))
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(message.senderName, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
-                        Text("· #${message.channelId}", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                        Text(message.senderName, style = SmithType.caption.copy(color = colors.inkMuted))
+                        Text("· #${message.channelId}", style = SmithType.caption.copy(color = colors.inkMuted))
                         message.archivedAt?.let {
-                            Text("· ${formatShortDate(it)}", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+                            Text("· ${formatShortDate(it)}", style = SmithType.caption.copy(color = colors.inkMuted))
                         }
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         "[Restore]",
-                        style = ConsoleTheme.action.copy(color = ConsoleTheme.accent),
+                        style = SmithType.action.copy(color = colors.accent),
                         modifier = Modifier.clickable { MessageRepository.unarchiveMessage(message.id) }
                     )
                 }
@@ -472,15 +490,16 @@ private fun AuditStatCard(
     value: String,
     color: Color
 ) {
+    val colors = LocalSmithColors.current
     Column(
         modifier = modifier
-            .background(ConsoleTheme.surface, RoundedCornerShape(4.dp))
-            .border(0.5.dp, ConsoleTheme.text.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(4.dp))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
             .padding(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(value, style = ConsoleTheme.bodySmall.copy(color = color))
-        Text(label, style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted))
+        Text(value, style = SmithType.bodySmall.copy(color = color))
+        Text(label, style = SmithType.caption.copy(color = colors.inkMuted))
     }
 }
 

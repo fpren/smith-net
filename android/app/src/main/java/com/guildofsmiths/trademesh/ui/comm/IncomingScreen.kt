@@ -34,8 +34,9 @@ import com.guildofsmiths.trademesh.data.ChannelType
 import com.guildofsmiths.trademesh.data.ColleagueRepository
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
 import com.guildofsmiths.trademesh.ui.ConsoleSeparator
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.components.SmithAvatar
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 
 /**
  * Incoming & Requests front. Stranger cross-org DMs auto-open (no backend gate),
@@ -48,6 +49,7 @@ fun IncomingScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val colors = LocalSmithColors.current
     val beacons by BeaconRepository.beacons.collectAsState()
     var tab by remember { mutableStateOf(0) } // 0 = requests, 1 = history
 
@@ -70,8 +72,8 @@ fun IncomingScreen(
     val history = strangerDms.filter { it.second.unreadCount == 0 }
     val shown = if (tab == 0) requests else history
 
-    Column(modifier = modifier.fillMaxSize().background(ConsoleTheme.background)) {
-        ConsoleHeader(title = "INCOMING", onBackClick = onBack, modifier = Modifier.background(ConsoleTheme.surface))
+    Column(modifier = modifier.fillMaxSize().background(colors.bgBase)) {
+        ConsoleHeader(title = "INCOMING", onBackClick = onBack, modifier = Modifier.background(colors.bgPanel))
         ConsoleSeparator()
 
         Row(
@@ -86,7 +88,7 @@ fun IncomingScreen(
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
                     if (tab == 0) "No new requests." else "No past requests.",
-                    style = ConsoleTheme.commBody.copy(color = ConsoleTheme.textMuted)
+                    style = SmithType.commBody.copy(color = colors.inkMuted)
                 )
             }
         } else {
@@ -104,12 +106,13 @@ fun IncomingScreen(
 
 @Composable
 private fun SegPill(label: String, active: Boolean, onClick: () -> Unit) {
+    val colors = LocalSmithColors.current
     Text(
         text = label,
-        style = ConsoleTheme.commId.copy(color = if (active) ConsoleTheme.surface else ConsoleTheme.textMuted),
+        style = SmithType.commId.copy(color = if (active) colors.bgPanel else colors.inkMuted),
         modifier = Modifier
             .clip(RoundedCornerShape(14.dp))
-            .background(if (active) ConsoleTheme.accent else ConsoleTheme.surface)
+            .background(if (active) colors.accent else colors.bgPanel)
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 6.dp)
     )
@@ -117,6 +120,7 @@ private fun SegPill(label: String, active: Boolean, onClick: () -> Unit) {
 
 @Composable
 private fun IncomingRow(channel: Channel, onClick: () -> Unit) {
+    val colors = LocalSmithColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -124,20 +128,20 @@ private fun IncomingRow(channel: Channel, onClick: () -> Unit) {
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        SmithAvatar(name = channel.name, size = 40, statusColor = ConsoleTheme.success)
+        SmithAvatar(name = channel.name, size = 40, statusColor = colors.statusOnline)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(channel.name, style = ConsoleTheme.commName, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(channel.name, style = SmithType.commName.copy(color = colors.ink), maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
                 channel.lastMessagePreview ?: "wants to connect",
-                style = ConsoleTheme.commTimestamp,
+                style = SmithType.commTimestamp.copy(color = colors.inkMuted),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
         if (channel.unreadCount > 0) {
             Spacer(Modifier.width(8.dp))
-            Text("${channel.unreadCount}", style = ConsoleTheme.commId.copy(color = ConsoleTheme.accent))
+            Text("${channel.unreadCount}", style = SmithType.commId.copy(color = colors.accent))
         }
     }
 }

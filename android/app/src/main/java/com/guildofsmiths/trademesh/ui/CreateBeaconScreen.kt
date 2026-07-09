@@ -25,6 +25,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.Beacon
 import com.guildofsmiths.trademesh.data.BeaconRepository
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 
 /**
  * Create beacon — bold, clean form.
@@ -35,31 +37,32 @@ fun CreateBeaconScreen(
     onBeaconCreated: (Beacon) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     var beaconName by remember { mutableStateOf("") }
     var beaconDescription by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(ConsoleTheme.background)
+            .background(colors.bgBase)
     ) {
         // Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ConsoleTheme.surface)
+                .background(colors.bgPanel)
                 .clickable(onClick = onBackClick)
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "←", style = ConsoleTheme.title)
+            Text(text = "←", style = SmithType.title.copy(color = colors.ink))
             Spacer(modifier = Modifier.width(14.dp))
-            Text(text = "NEW BEACON", style = ConsoleTheme.title)
+            Text(text = "NEW BEACON", style = SmithType.title.copy(color = colors.ink))
         }
-        
+
         ConsoleSeparator()
-        
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -67,82 +70,82 @@ fun CreateBeaconScreen(
         ) {
             Text(
                 text = "Create a new mesh network",
-                style = ConsoleTheme.bodySmall
+                style = SmithType.bodySmall.copy(color = colors.inkMuted)
             )
-            
+
             Spacer(modifier = Modifier.height(24.dp))
-            
-            Text(text = "NETWORK NAME", style = ConsoleTheme.captionBold)
+
+            Text(text = "NETWORK NAME", style = SmithType.captionBold.copy(color = colors.inkMuted))
             Spacer(modifier = Modifier.height(6.dp))
-            
+
             BasicTextField(
                 value = beaconName,
                 onValueChange = {
                     beaconName = it.take(30)
                     errorMessage = null
                 },
-                textStyle = ConsoleTheme.body,
-                cursorBrush = SolidColor(ConsoleTheme.cursor),
+                textStyle = SmithType.body.copy(color = colors.ink),
+                cursorBrush = SolidColor(colors.ink),
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .padding(14.dp),
                 decorationBox = { innerTextField ->
                     Box {
                         if (beaconName.isEmpty()) {
                             Text(
                                 text = "Market, Meetup, etc",
-                                style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder)
+                                style = SmithType.body.copy(color = colors.inkMuted)
                             )
                         }
                         innerTextField()
                     }
                 }
             )
-            
+
             if (errorMessage != null) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = errorMessage!!,
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.warning)
+                    style = SmithType.caption.copy(color = colors.attention)
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(20.dp))
-            
-            Text(text = "DESCRIPTION (OPTIONAL)", style = ConsoleTheme.captionBold)
+
+            Text(text = "DESCRIPTION (OPTIONAL)", style = SmithType.captionBold.copy(color = colors.inkMuted))
             Spacer(modifier = Modifier.height(6.dp))
-            
+
             BasicTextField(
                 value = beaconDescription,
                 onValueChange = { beaconDescription = it.take(100) },
-                textStyle = ConsoleTheme.body,
-                cursorBrush = SolidColor(ConsoleTheme.cursor),
+                textStyle = SmithType.body.copy(color = colors.ink),
+                cursorBrush = SolidColor(colors.ink),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(80.dp)
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .padding(14.dp),
                 decorationBox = { innerTextField ->
                     Box {
                         if (beaconDescription.isEmpty()) {
                             Text(
                                 text = "What is this network for?",
-                                style = ConsoleTheme.body.copy(color = ConsoleTheme.placeholder)
+                                style = SmithType.body.copy(color = colors.inkMuted)
                             )
                         }
                         innerTextField()
                     }
                 }
             )
-            
+
             Spacer(modifier = Modifier.height(32.dp))
-            
+
             if (beaconName.trim().length >= 3) {
                 Text(
                     text = "CREATE →",
-                    style = ConsoleTheme.action,
+                    style = SmithType.action.copy(color = colors.accent),
                     modifier = Modifier
                         .clickable {
                             val name = beaconName.trim()
@@ -156,16 +159,16 @@ fun CreateBeaconScreen(
                         .padding(vertical = 8.dp)
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(24.dp))
-            
+
             ConsoleSeparator()
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             Text(
                 text = "Each beacon has a unique BLE UUID",
-                style = ConsoleTheme.caption
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
         }
     }

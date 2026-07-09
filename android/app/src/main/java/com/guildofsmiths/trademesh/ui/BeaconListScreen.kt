@@ -48,6 +48,8 @@ import com.guildofsmiths.trademesh.data.BeaconRepository
 import com.guildofsmiths.trademesh.data.PeerRepository
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 
 /**
  * Smith Net — Main beacon list with bold branding.
@@ -61,6 +63,7 @@ fun BeaconListScreen(
     onCreateBeaconClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     val beacons by BeaconRepository.beacons.collectAsState()
     val isMeshConnected by BoundaryEngine.isMeshConnected.collectAsState()
     val isScanning by BoundaryEngine.isScanning.collectAsState()
@@ -116,15 +119,15 @@ fun BeaconListScreen(
     
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = ConsoleTheme.background,
+        containerColor = colors.bgBase,
         floatingActionButton = {
             if (onCreateBeaconClick != null) {
                 Text(
                     text = "+ NEW",
-                    style = ConsoleTheme.action,
+                    style = SmithType.action.copy(color = colors.accent),
                     modifier = Modifier
                         .clickable(onClick = onCreateBeaconClick)
-                        .background(ConsoleTheme.surface)
+                        .background(colors.bgPanel)
                         .padding(horizontal = 16.dp, vertical = 10.dp)
                 )
             }
@@ -139,19 +142,19 @@ fun BeaconListScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ConsoleTheme.surface)
+                    .background(colors.bgPanel)
                     .padding(horizontal = 20.dp, vertical = 20.dp)
             ) {
                 // Brand with version and status dot
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = ConsoleTheme.APP_NAME,
-                        style = ConsoleTheme.brand
+                        style = SmithType.brand.copy(color = colors.ink)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = ConsoleTheme.APP_VERSION,
-                        style = ConsoleTheme.version,
+                        style = SmithType.version.copy(color = colors.inkMuted),
                         modifier = Modifier.padding(bottom = 4.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -162,16 +165,16 @@ fun BeaconListScreen(
                             .clip(CircleShape)
                             .background(
                                 when {
-                                    isScanning -> ConsoleTheme.success
-                                    isMeshConnected -> ConsoleTheme.warning
-                                    else -> ConsoleTheme.textDim
+                                    isScanning -> colors.statusOnline
+                                    isMeshConnected -> colors.attention
+                                    else -> colors.inkMuted
                                 }
                             )
                     )
                 }
-                
+
                 Spacer(modifier = Modifier.height(4.dp))
-                
+
                 // User + nav row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -179,28 +182,28 @@ fun BeaconListScreen(
                 ) {
                     Text(
                         text = UserPreferences.getDisplayName(),
-                        style = ConsoleTheme.bodySmall.copy(color = ConsoleTheme.accent),
+                        style = SmithType.bodySmall.copy(color = colors.accent),
                         modifier = Modifier
                             .weight(1f)
                             .clickable(onClick = { onProfileClick?.invoke() })
                     )
-                    
+
                     if (onPeersClick != null) {
                         Text(
                             text = if (activePeerCount > 0) "PEERS ($activePeerCount)" else "PEERS",
-                            style = ConsoleTheme.captionBold.copy(
-                                color = if (activePeerCount > 0) ConsoleTheme.success else ConsoleTheme.textMuted
+                            style = SmithType.captionBold.copy(
+                                color = if (activePeerCount > 0) colors.statusOnline else colors.inkMuted
                             ),
                             modifier = Modifier
                                 .clickable(onClick = onPeersClick)
                                 .padding(8.dp)
                         )
                     }
-                    
+
                     if (onSettingsClick != null) {
                         Text(
                             text = "SETTINGS",
-                            style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.textMuted),
+                            style = SmithType.captionBold.copy(color = colors.inkMuted),
                             modifier = Modifier
                                 .clickable(onClick = onSettingsClick)
                                 .padding(8.dp)
@@ -247,17 +250,17 @@ fun BeaconListScreen(
                         if (dragOffset > 20f) {
                             Text(
                                 text = if (dragOffset >= pullThreshold) "release to refresh" else "pull down...",
-                                style = ConsoleTheme.caption
+                                style = SmithType.caption.copy(color = colors.inkMuted)
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                         }
                         Text(
                             text = "no networks yet",
-                            style = ConsoleTheme.bodySmall
+                            style = SmithType.bodySmall.copy(color = colors.inkMuted)
                         )
                         if (isRefreshing) {
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(text = "refreshing...", style = ConsoleTheme.caption)
+                            Text(text = "refreshing...", style = SmithType.caption.copy(color = colors.inkMuted))
                         }
                     }
                 }
@@ -277,11 +280,11 @@ fun BeaconListScreen(
                                     .padding(vertical = 8.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(text = "refreshing...", style = ConsoleTheme.caption)
+                                Text(text = "refreshing...", style = SmithType.caption.copy(color = colors.inkMuted))
                             }
                         }
                     }
-                    
+
                     items(beacons, key = { it.id }) { beacon ->
                         BeaconRow(
                             beacon = beacon,
@@ -301,7 +304,7 @@ fun BeaconListScreen(
             ) {
                 Text(
                     text = "made by ${ConsoleTheme.STUDIO}",
-                    style = ConsoleTheme.caption.copy(color = ConsoleTheme.textDim)
+                    style = SmithType.caption.copy(color = colors.inkMuted)
                 )
             }
         }
@@ -314,8 +317,9 @@ private fun BeaconRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalSmithColors.current
     val totalUnread = beacon.channels.sumOf { it.unreadCount }
-    
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -324,39 +328,43 @@ private fun BeaconRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = beacon.name, style = ConsoleTheme.bodyBold)
+            Text(text = beacon.name, style = SmithType.bodyBold.copy(color = colors.ink))
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = "${beacon.channels.size} channels",
-                style = ConsoleTheme.caption
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
         }
-        
+
         if (totalUnread > 0) {
             Text(
                 text = "$totalUnread",
-                style = ConsoleTheme.captionBold.copy(color = ConsoleTheme.accent)
+                style = SmithType.captionBold.copy(color = colors.accent)
             )
             Spacer(modifier = Modifier.width(10.dp))
         }
-        
+
         Text(
             text = "→",
-            style = ConsoleTheme.header.copy(color = ConsoleTheme.textDim)
+            style = SmithType.header.copy(color = colors.inkMuted)
         )
     }
 }
 
+/** Non-composable color set for legacy call sites (e.g. InviteBanner.kt) that
+ * cannot reach [LocalSmithColors]. Pinned to the light v2 palette — matches
+ * ConsoleTheme's own light-only nature; revisit if those call sites become
+ * composable-context and can read LocalSmithColors directly. */
 object AppColors {
-    val background = ConsoleTheme.background
-    val surface = ConsoleTheme.surface
-    val surfaceHighlight = ConsoleTheme.surface
-    val text = ConsoleTheme.text
-    val textMuted = ConsoleTheme.textMuted
-    val accent = ConsoleTheme.accent
-    val accentGreen = ConsoleTheme.success
-    val accentOrange = ConsoleTheme.warning
-    val divider = ConsoleTheme.separator
+    val background = com.guildofsmiths.trademesh.ui.Tokens2.Light.BgBase
+    val surface = com.guildofsmiths.trademesh.ui.Tokens2.Light.BgPanel
+    val surfaceHighlight = com.guildofsmiths.trademesh.ui.Tokens2.Light.BgPanel
+    val text = com.guildofsmiths.trademesh.ui.Tokens2.Light.Ink
+    val textMuted = com.guildofsmiths.trademesh.ui.Tokens2.Light.InkMuted
+    val accent = com.guildofsmiths.trademesh.ui.Tokens2.Light.Accent
+    val accentGreen = com.guildofsmiths.trademesh.ui.Tokens2.Light.StatusOnline
+    val accentOrange = com.guildofsmiths.trademesh.ui.Tokens2.Light.Attention
+    val divider = com.guildofsmiths.trademesh.ui.Tokens2.Light.Line
 }
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
