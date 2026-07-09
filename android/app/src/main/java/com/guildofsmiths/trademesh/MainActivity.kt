@@ -50,7 +50,6 @@ import com.guildofsmiths.trademesh.ui.BeaconListScreen
 import com.guildofsmiths.trademesh.ui.ChatListScreen
 import com.guildofsmiths.trademesh.ui.NewConversationScreen
 import com.guildofsmiths.trademesh.ui.ChannelListScreen
-import com.guildofsmiths.trademesh.ui.ConsoleTheme
 import com.guildofsmiths.trademesh.ui.ConversationScreen
 import com.guildofsmiths.trademesh.ui.ConversationViewModel
 import com.guildofsmiths.trademesh.ui.CreateBeaconScreen
@@ -66,6 +65,8 @@ import com.guildofsmiths.trademesh.ui.clients.ClientDetailScreen
 import com.guildofsmiths.trademesh.ui.jobboard.JobBoardScreen
 import com.guildofsmiths.trademesh.ui.timetracking.TimeTrackingScreen
 import com.guildofsmiths.trademesh.ui.theme.TradeMeshTheme
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithTheme
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
@@ -251,13 +252,14 @@ class MainActivity : ComponentActivity() {
         // Setup UI with navigation
         setContent {
             TradeMeshTheme {
+                SmithTheme(darkEnabled = false) {
                 Surface(
                     // Expose Compose testTags as Android resource-ids so Maestro / UI
                     // automation can target stable ids (e.g. id: "solo_e2e_*").
                     modifier = Modifier
                         .fillMaxSize()
                         .semantics { testTagsAsResourceId = true },
-                    color = ConsoleTheme.background
+                    color = LocalSmithColors.current.bgBase
                 ) {
                     val navController = rememberNavController()
 
@@ -1333,6 +1335,7 @@ class MainActivity : ComponentActivity() {
                     }
                     } // Column
                 }
+                } // SmithTheme
             }
         }
     }

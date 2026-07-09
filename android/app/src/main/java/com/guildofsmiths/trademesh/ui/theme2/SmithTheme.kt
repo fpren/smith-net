@@ -41,12 +41,34 @@ fun smithColorsFor(dark: Boolean): SmithColors = if (dark) SmithColors(
 
 val LocalSmithColors = staticCompositionLocalOf { smithColorsFor(dark = false) }
 
+/** User-facing theme preference. Resolution happens in [resolveDark]. */
+enum class ThemePreference { LIGHT, DARK, SYSTEM }
+
+/**
+ * Pure resolution rule for whether dark palette should be active. darkEnabled is the
+ * master kill switch: while false (Plans 4-5, until Task 9 flips it) every preference
+ * resolves to light, regardless of system theme. Kept side-effect free and JVM-testable.
+ */
+fun resolveDark(pref: ThemePreference, systemDark: Boolean, darkEnabled: Boolean): Boolean {
+    if (!darkEnabled) return false
+    return when (pref) {
+        ThemePreference.LIGHT -> false
+        ThemePreference.DARK -> true
+        ThemePreference.SYSTEM -> systemDark
+    }
+}
+
 /**
  * v2 theme provider. darkEnabled stays false until screens are token-clean
  * (Plans 4-5): components must be dark-READY without flipping the app dark.
  */
 @Composable
-fun SmithTheme(darkEnabled: Boolean = false, content: @Composable () -> Unit) {
-    val colors = smithColorsFor(dark = darkEnabled && isSystemInDarkTheme())
+fun SmithTheme(
+    darkEnabled: Boolean = false,
+    themePreference: ThemePreference = ThemePreference.SYSTEM,
+    content: @Composable () -> Unit,
+) {
+    val dark = resolveDark(themePreference, isSystemInDarkTheme(), darkEnabled)
+    val colors = smithColorsFor(dark = dark)
     CompositionLocalProvider(LocalSmithColors provides colors, content = content)
 }
