@@ -12,6 +12,7 @@
 // server applies them in the same causal order regardless of when they drain.
 
 import { db, OUTBOX_STORE } from './db';
+import { httpCall } from '../api/httpCall';
 
 export type OutboxStatus = 'pending' | 'in_flight' | 'done' | 'failed';
 
@@ -101,11 +102,18 @@ interface MutateResult<T = any> {
   error?: string;
 }
 
-/** POST/PATCH a mutation directly with its idempotency key. */
-async function send(op: Pick<OutboxOp, 'id' | 'method' | 'path' | 'body'>): Promise<Response> {
-  return fetch(op.path, {
+/**
+ * POST/PATCH a mutation directly with its idempotency key, routed through
+ * httpCall so a 401 gets the same silent-refresh + retry-once + (session
+ * expiry) treatment every other console mutation gets. httpCall throws on a
+ * genuine network failure (fetch rejects) same as a raw fetch would -- the
+ * mutate()/drainOutbox() callers' offline-queue try/catch still applies.
+ */
+async function send<T = any>(
+  op: Pick<OutboxOp, 'id' | 'method' | 'path' | 'body'>,
+): ReturnType<typeof httpCall<T>> {
+  return httpCall<T>(op.path, {
     method: op.method,
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json', 'Idempotency-Key': op.id },
     body: op.body !== undefined ? JSON.stringify(op.body) : undefined,
   });
@@ -126,13 +134,11 @@ export async function mutate<T = any>(input: {
 }): Promise<MutateResult<T>> {
   const id = uuid();
   try {
-    const res = await send({ id, method: input.method, path: input.path, body: input.body });
+    const res = await send<T>({ id, method: input.method, path: input.path, body: input.body });
     if (res.ok) {
-      const data = res.status === 204 ? undefined : await res.json().catch(() => undefined);
-      return { ok: true, queued: false, status: res.status, data };
+      return { ok: true, queued: false, data: res.data };
     }
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    return { ok: false, queued: false, status: res.status, error: err?.error ?? 'Request failed' };
+    return { ok: false, queued: false, status: res.status, error: res.error };
   } catch {
     // Network unreachable -> queue with the SAME id so the eventual replay is
     // idempotent with this attempt (if it secretly went through, no dup).

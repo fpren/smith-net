@@ -65,6 +65,11 @@
 }
 .comm-bubble { animation: commBubble .32s cubic-bezier(.2,.8,.2,1) both; }
 .comm-ring-in { animation: commRingIn .3s cubic-bezier(.2,.8,.2,1) both; }
+.comm-pop { animation: commPop .28s cubic-bezier(.2,.8,.2,1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .comm-bubble, .comm-ring-in, .comm-pop { animation: none; }
+}
 
 /* Plan 4: map marker styles. Used by createJobMarkerElement(). */
 .job-marker {

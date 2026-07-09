@@ -43,8 +43,7 @@ export function ScreenPopHeader({ channel }: Props) {
   return (
     <div
       key={channel.id}
-      className="comm-surface flex items-center gap-3 px-4 py-3 border-b border-sn-line bg-sn-bg-panel"
-      style={{ animation: 'commPop .28s cubic-bezier(.2,.8,.2,1)' }}
+      className="comm-surface comm-pop flex items-center gap-3 px-4 py-3 border-b border-sn-line bg-sn-bg-panel"
     >
       {isDm ? (
         <Avatar name={name} color={accentForId(peerId ?? channel.id)} size={36} photoUrl={peer?.avatarUrl} statusColor={ring} />

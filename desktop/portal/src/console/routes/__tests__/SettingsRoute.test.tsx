@@ -72,4 +72,22 @@ describe('SettingsRoute Appearance section', () => {
     const lightBtn = screen.getByText(/^light$/i);
     expect(lightBtn.className).not.toContain('bg-sn-accent');
   });
+
+  it('exposes the toggle as a radiogroup with only the selected option aria-checked', () => {
+    render(<MemoryRouter><SettingsRoute /></MemoryRouter>);
+    expect(screen.getByRole('radiogroup', { name: /theme/i })).toBeInTheDocument();
+
+    const lightBtn = screen.getByRole('radio', { name: /^light$/i });
+    const darkBtn = screen.getByRole('radio', { name: /^dark$/i });
+    const systemBtn = screen.getByRole('radio', { name: /^system$/i });
+
+    // Starting state is 'system' (see beforeEach).
+    expect(systemBtn).toHaveAttribute('aria-checked', 'true');
+    expect(lightBtn).toHaveAttribute('aria-checked', 'false');
+    expect(darkBtn).toHaveAttribute('aria-checked', 'false');
+
+    fireEvent.click(darkBtn);
+    expect(darkBtn).toHaveAttribute('aria-checked', 'true');
+    expect(systemBtn).toHaveAttribute('aria-checked', 'false');
+  });
 });

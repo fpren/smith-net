@@ -292,16 +292,19 @@ export function SettingsRoute() {
       {/* APPEARANCE */}
       <SectionHeader>Appearance</SectionHeader>
       <Row>
-        <div className="flex gap-2">
+        <div className="flex gap-2" role="radiogroup" aria-label="Theme">
           {THEME_OPTIONS.map((o) => {
             const selected = o.choice === theme;
             return (
               <button
                 key={o.choice}
                 type="button"
+                role="radio"
+                aria-checked={selected}
                 onClick={() => setTheme(o.choice)}
                 className={
                   'flex-1 rounded px-3 py-2 font-data text-xs uppercase transition-colors ' +
+                  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-sn-accent ' +
                   (selected
                     ? 'bg-sn-accent text-sn-ink-on-accent'
                     : 'text-sn-ink-muted hover:text-sn-ink border border-sn-line')

@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SMITH NET</title>
+    <script>try{var t=localStorage.getItem('sn-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
     <style>
       * {
         margin: 0;
@@ -16,7 +17,7 @@
         color: #1C2128;
       }
       @media (prefers-color-scheme: dark) {
-        body { background: #14171C; color: #E9ECF1; }
+        html:not([data-theme="light"]) body { background: #14171C; color: #E9ECF1; }
       }
     </style>
   </head>

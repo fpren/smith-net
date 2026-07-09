@@ -1,7 +1,10 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { http, HttpResponse } from 'msw';
+import { server } from '../../test/msw-server';
 import { mutate, drainOutbox, pendingCount } from '../outbox';
 import { db, OUTBOX_STORE } from '../db';
+import { resetSessionExpiredGuard } from '../../api/httpCall';
 
 // Minimal Response-like stub (avoids depending on a global fetch Response).
 const mockRes = (status: number, body: any) => ({
@@ -16,6 +19,12 @@ const offline = () => vi.fn().mockRejectedValue(new TypeError('Failed to fetch')
 beforeEach(async () => {
   await (await db()).clear(OUTBOX_STORE);
   vi.restoreAllMocks();
+  // outbox's send() now goes through httpCall, which calls the real global
+  // fetch -- undo any vi.stubGlobal('fetch', ...) a prior test in this file
+  // left in place so MSW-backed tests below hit the real (mocked-by-MSW)
+  // network path rather than a stale stub.
+  vi.unstubAllGlobals();
+  resetSessionExpiredGuard();
 });
 
 describe('offline outbox', () => {
@@ -63,6 +72,35 @@ describe('offline outbox', () => {
 
     expect(res.failed).toBe(1);
     expect(res.drained).toBe(0);
+  });
+
+  it('a mutation that 401s once gets the silent refresh + retry (MSW) instead of failing/queuing', async () => {
+    let jobCalls = 0;
+    let refreshCalls = 0;
+    server.use(
+      http.post('/api/jobs', () => {
+        jobCalls += 1;
+        if (jobCalls === 1) {
+          return HttpResponse.json({ error: 'unauthorized' }, { status: 401 });
+        }
+        return HttpResponse.json({ job: { id: 'j1' } }, { status: 201 });
+      }),
+      http.post('/api/auth/refresh', () => {
+        refreshCalls += 1;
+        return HttpResponse.json({ accessToken: 'a2', refreshToken: 'r2', expiresIn: 604800 });
+      }),
+    );
+
+    const r = await mutate({
+      profileId: 'A', method: 'POST', path: '/api/jobs', body: { title: 'x' }, label: 'job:create',
+    });
+
+    expect(r.ok).toBe(true);
+    expect(r.queued).toBe(false);
+    expect(r.data).toEqual({ job: { id: 'j1' } });
+    expect(jobCalls).toBe(2);
+    expect(refreshCalls).toBe(1);
+    expect(await pendingCount()).toBe(0);
   });
 
   it('replays multiple ops in causal (lamport, createdAt) order', async () => {
