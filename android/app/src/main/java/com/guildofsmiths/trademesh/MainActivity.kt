@@ -1426,8 +1426,11 @@ class MainActivity : ComponentActivity() {
                 UserPreferences.setWebAuthenticated(true)
                 
                 // The Supabase client should automatically pick up the session
-                // Trigger a refresh to update the UI
-                SupabaseAuth.refreshSession()
+                // Trigger a refresh to update the UI. refreshSession() is a
+                // suspend fun (Task 3: 401 -> refreshSession wiring), so hop
+                // onto lifecycleScope; this call site stays fire-and-forget
+                // as it was before.
+                lifecycleScope.launch { SupabaseAuth.refreshSession() }
             }
         }
         

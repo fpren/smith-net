@@ -2,6 +2,8 @@ package com.guildofsmiths.trademesh.data
 
 import android.util.Log
 import com.guildofsmiths.trademesh.BuildConfig
+import com.guildofsmiths.trademesh.service.AuthService
+import com.guildofsmiths.trademesh.service.AuthedRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -32,11 +34,20 @@ class PresenceApiClient(private val client: OkHttpClient) {
 
     private val baseUrl: String get() = BuildConfig.BACKEND_URL
 
+    // Bearer token comes from HttpClientFactory's auth interceptor (reads
+    // AuthService.getAccessToken()), so a 401 refreshes via
+    // AuthService.refreshToken() -- see AuthedRequest's kdoc.
+    private suspend fun executeWithAuthRetry(req: Request) =
+        AuthedRequest.withAuthRetry(
+            isAuthFailure = { it.code == 401 },
+            refresh = { AuthService.refreshToken() },
+        ) { client.newCall(req).execute() }
+
     /** Returns the shift id (UUID string) on success; throws on 4xx/5xx. */
     suspend fun startShift(source: String = "android"): String = withContext(Dispatchers.IO) {
         val body = JSONObject().put("source", source).toString().toRequestBody(JSON)
         val req = Request.Builder().url("$baseUrl/api/shifts/start").post(body).build()
-        client.newCall(req).execute().use { res ->
+        executeWithAuthRetry(req).use { res ->
             if (!res.isSuccessful) throw IOException("startShift HTTP ${res.code}")
             val json = JSONObject(res.body?.string() ?: "{}")
             // Backend response shape: {"shift": {"id": "...", ...}}
@@ -50,7 +61,7 @@ class PresenceApiClient(private val client: OkHttpClient) {
             .url("$baseUrl/api/shifts/end")
             .post("".toRequestBody(JSON))
             .build()
-        client.newCall(req).execute().use { res ->
+        executeWithAuthRetry(req).use { res ->
             if (res.code == 404) return@withContext  // already off-clock
             if (!res.isSuccessful) throw IOException("endShift HTTP ${res.code}")
         }
@@ -73,7 +84,7 @@ class PresenceApiClient(private val client: OkHttpClient) {
             .url("$baseUrl/api/presence/location")
             .post(payload.toString().toRequestBody(JSON))
             .build()
-        client.newCall(req).execute().use { res ->
+        executeWithAuthRetry(req).use { res ->
             if (res.code == 403) {
                 Log.w(TAG, "postLocation 403 - no open shift; caller should stop tracking")
                 return@withContext false

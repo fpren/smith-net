@@ -2,6 +2,7 @@ package com.guildofsmiths.trademesh.data
 
 import android.util.Log
 import com.guildofsmiths.trademesh.BuildConfig
+import com.guildofsmiths.trademesh.service.AuthedRequest
 import com.guildofsmiths.trademesh.ui.invoice.Invoice
 import com.guildofsmiths.trademesh.ui.proposal.Proposal
 import kotlinx.coroutines.Dispatchers
@@ -75,7 +76,11 @@ object PublicLinkClient {
             // /api/invoice-links and /api/proposals sit behind authenticateToken.
             SupabaseAuth.getAccessToken()?.let { builder.header("Authorization", "Bearer $it") }
             val req = builder.build()
-            http.newCall(req).execute().use { resp ->
+            // SupabaseAuth-backed Bearer token -> use AuthedRequest's default
+            // refresh (SupabaseAuth.refreshSession), not AuthService's.
+            AuthedRequest.withAuthRetry(isAuthFailure = { it.code == 401 }) {
+                http.newCall(req).execute()
+            }.use { resp ->
                 if (!resp.isSuccessful) {
                     Log.w(TAG, "POST $path -> ${resp.code}")
                     return@withContext null

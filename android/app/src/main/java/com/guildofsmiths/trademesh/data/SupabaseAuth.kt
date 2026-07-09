@@ -8,12 +8,10 @@ import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.gotrue.auth
 import io.ktor.client.engine.okhttp.OkHttp
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 
@@ -239,25 +237,31 @@ object SupabaseAuth {
 
     // ── session refresh ─────────────────────────────────────────────────────
 
-    /** Refresh the access token from the stored refresh token, then reload the
-     *  user from /api/auth/me. Fire-and-forget; safe to call on resume / deep link. */
-    fun refreshSession() {
-        CoroutineScope(Dispatchers.IO).launch {
-            val refresh = prefs?.getString("refresh_token", null) ?: return@launch
-            val tokens = HetznerAuthClient.refresh(refresh)
-            if (tokens.ok) {
-                saveTokens(tokens.accessToken, tokens.refreshToken)
-                val token = tokens.accessToken
-                if (token != null) {
-                    val user = HetznerAuthClient.me(token)
-                    if (user != null) {
-                        _currentUser.value = user
-                        saveUserToPrefs(user)
-                    }
+    /**
+     * Refresh the access token from the stored refresh token, then reload the
+     * user from /api/auth/me. Suspend (not fire-and-forget) so a caller that
+     * hit a 401 on a Bearer token sourced from [getAccessToken] -- e.g.
+     * [com.guildofsmiths.trademesh.service.AuthedRequest] -- can await
+     * completion before retrying. Returns true iff the backend issued a fresh
+     * token pair.
+     */
+    suspend fun refreshSession(): Boolean = withContext(Dispatchers.IO) {
+        val refresh = prefs?.getString("refresh_token", null) ?: return@withContext false
+        val tokens = HetznerAuthClient.refresh(refresh)
+        if (tokens.ok) {
+            saveTokens(tokens.accessToken, tokens.refreshToken)
+            val token = tokens.accessToken
+            if (token != null) {
+                val user = HetznerAuthClient.me(token)
+                if (user != null) {
+                    _currentUser.value = user
+                    saveUserToPrefs(user)
                 }
-            } else {
-                Log.w(TAG, "Session refresh failed: ${tokens.error}")
             }
+            true
+        } else {
+            Log.w(TAG, "Session refresh failed: ${tokens.error}")
+            false
         }
     }
 
