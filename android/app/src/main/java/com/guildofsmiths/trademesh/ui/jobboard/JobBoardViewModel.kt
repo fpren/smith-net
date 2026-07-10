@@ -399,10 +399,23 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
         loadJobsFromBackend()
     }
 
+    // Local ids of creates whose POST response hasn't landed yet. The backend
+    // commits the row before its response reaches the phone, so a racing GET
+    // (map open right after create) can download the new job's backend twin
+    // under a different id BEFORE adoptBackendJob swaps the local id — the
+    // merge would append it as a duplicate. While any create is in flight,
+    // merge skips appending backend-only jobs; they land on the next refresh.
+    private val pendingCreates = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
     // Local jobs keep every locally-authored field; a backend copy of the
     // same id contributes geocoded latitude/longitude (and an address for
-    // jobs that only exist remotely). Backend-only jobs are appended.
-    internal fun mergeBackendJobs(local: List<Job>, backend: List<Job>): List<Job> {
+    // jobs that only exist remotely). Backend-only jobs are appended unless
+    // a create is pending (see pendingCreates).
+    internal fun mergeBackendJobs(
+        local: List<Job>,
+        backend: List<Job>,
+        pending: Set<String> = emptySet()
+    ): List<Job> {
         val backendById = backend.associateBy { it.id }
         val merged = local.map { l ->
             val remote = backendById[l.id] ?: return@map l
@@ -412,8 +425,10 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
                 clientAddress = l.clientAddress.ifBlank { remote.clientAddress }
             )
         }.toMutableList()
-        val localIds = local.map { it.id }.toSet()
-        backend.forEach { if (it.id !in localIds) merged.add(it) }
+        if (pending.isEmpty()) {
+            val localIds = local.map { it.id }.toSet()
+            backend.forEach { if (it.id !in localIds) merged.add(it) }
+        }
         return merged
     }
 
@@ -452,7 +467,9 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
 
                         // Merge with local jobs (local fields win; backend
                         // contributes geocoded coords the phone can't compute)
-                        _jobs.value = mergeBackendJobs(_jobs.value, jobsList)
+                        _jobs.value = mergeBackendJobs(
+                            _jobs.value, jobsList, pendingCreates.toSet()
+                        )
                         persistJobs()
                     } catch (e: Exception) {
                         // Parse error - keep local jobs; only surface if nothing local.
@@ -687,6 +704,7 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
 
     private fun syncJobToBackend(job: Job) {
         val token = AuthService.getAccessToken() ?: return
+        pendingCreates.add(job.id)
 
         val request = Request.Builder()
             .url("$baseUrl/api/jobs")
@@ -697,13 +715,17 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 // Keep local job even if backend fails
+                pendingCreates.remove(job.id)
             }
             override fun onResponse(call: Call, response: Response) {
-                if (!response.isSuccessful) return
-                val backendJob = runCatching {
+                val backendJob = if (response.isSuccessful) runCatching {
                     JSONObject(response.body?.string() ?: "").getJSONObject("job")
-                }.getOrNull() ?: return
-                adoptBackendJob(job.id, backendJob)
+                }.getOrNull() else null
+                if (backendJob != null) {
+                    adoptBackendJob(job.id, backendJob) // clears pendingCreates
+                } else {
+                    pendingCreates.remove(job.id)
+                }
             }
         })
     }
@@ -718,19 +740,16 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
 
     // The backend assigns its own UUID on create; adopt it as the job's id so
     // later syncs (coords from the geocoder, status moves) can match by id.
-    // Runs on an OkHttp thread — StateFlow and SharedPreferences are safe.
+    // Runs on an OkHttp thread — apply/atomics keep this crash-safe, though a
+    // simultaneous main-thread edit could still lose a race (single-user app;
+    // accepted).
     internal fun adoptBackendJob(localId: String, backendJson: JSONObject) {
+        pendingCreates.remove(localId)
         val backendId = backendJson.optString("id", "")
         if (backendId.isBlank() || backendId == localId) return
         val lat = if (backendJson.has("latitude") && !backendJson.isNull("latitude")) backendJson.getDouble("latitude") else null
         val lng = if (backendJson.has("longitude") && !backendJson.isNull("longitude")) backendJson.getDouble("longitude") else null
-        _jobs.value = _jobs.value.map { j ->
-            if (j.id == localId) j.copy(
-                id = backendId,
-                latitude = lat ?: j.latitude,
-                longitude = lng ?: j.longitude
-            ) else j
-        }
+        _jobs.value = adoptBackendJobIntoList(_jobs.value, localId, backendId, lat, lng)
         _selectedJob.value?.let { sel ->
             if (sel.id == localId) _selectedJob.value = sel.copy(id = backendId)
         }
@@ -739,6 +758,25 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
         persistJobs()
         persistTasks()
     }
+
+    // Pure list transform: drop any twin a racing merge already appended
+    // under the backend id (self-healing), then rename the local job to the
+    // backend identity, folding in coords when the backend has them.
+    internal fun adoptBackendJobIntoList(
+        jobs: List<Job>,
+        localId: String,
+        backendId: String,
+        lat: Double?,
+        lng: Double?
+    ): List<Job> = jobs
+        .filterNot { it.id == backendId }
+        .map { j ->
+            if (j.id == localId) j.copy(
+                id = backendId,
+                latitude = lat ?: j.latitude,
+                longitude = lng ?: j.longitude
+            ) else j
+        }
 
     fun moveJob(jobId: String, newStatus: JobStatus) {
         // Update locally immediately

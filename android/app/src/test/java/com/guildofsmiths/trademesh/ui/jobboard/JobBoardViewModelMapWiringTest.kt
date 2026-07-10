@@ -151,6 +151,57 @@ class JobBoardViewModelMapWiringTest {
         assertEquals(2.0, merged.single().longitude!!, 1e-9)
     }
 
+    // ── create/refresh race: no duplicate jobs ──────────────────────────────
+    // The backend commits the row before the create response reaches the
+    // phone, so a map-open GET can download the new job's backend twin under
+    // a different id before adoptBackendJob swaps the local id.
+
+    @Test
+    fun `merge skips appending backend-only jobs while a create is pending`() {
+        val local = Job(
+            id = "local-uuid", title = "Panel upgrade",
+            clientAddress = "847 Flatbush Ave, Brooklyn NY",
+            createdBy = "u1", createdAt = 0L, updatedAt = 0L
+        )
+        // The same job as the backend sees it: different id, coords pending.
+        val backendTwin = Job(
+            id = "backend-uuid", title = "Panel upgrade",
+            createdBy = "f-1", createdAt = 0L, updatedAt = 0L
+        )
+
+        val merged = vm.mergeBackendJobs(
+            listOf(local), listOf(backendTwin), pending = setOf("local-uuid")
+        )
+
+        assertEquals(listOf("local-uuid"), merged.map { it.id })
+    }
+
+    @Test
+    fun `adoptBackendJob heals a twin a racing merge already appended`() {
+        val local = Job(
+            id = "local-uuid", title = "Panel upgrade",
+            clientAddress = "847 Flatbush Ave, Brooklyn NY",
+            createdBy = "u1", createdAt = 0L, updatedAt = 0L
+        )
+        val appendedTwin = Job(
+            id = "backend-uuid", title = "Panel upgrade",
+            latitude = 40.6505, longitude = -73.9612,
+            createdBy = "f-1", createdAt = 0L, updatedAt = 0L
+        )
+
+        val healed = vm.adoptBackendJobIntoList(
+            listOf(local, appendedTwin), "local-uuid", "backend-uuid",
+            lat = 40.6505, lng = -73.9612
+        )
+
+        assertEquals(1, healed.size)
+        assertEquals("backend-uuid", healed.single().id)
+        assertEquals("Panel upgrade", healed.single().title)
+        assertEquals(40.6505, healed.single().latitude!!, 1e-9)
+        // the locally-authored address survives (the twin is dropped, not kept)
+        assertEquals("847 Flatbush Ave, Brooklyn NY", healed.single().clientAddress)
+    }
+
     // ── the create response's backend identity is adopted ──────────────────
 
     @Test
