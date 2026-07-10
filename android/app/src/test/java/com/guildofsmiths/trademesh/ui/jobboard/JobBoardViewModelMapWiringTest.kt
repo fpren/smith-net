@@ -202,6 +202,20 @@ class JobBoardViewModelMapWiringTest {
         assertEquals("847 Flatbush Ave, Brooklyn NY", healed.single().clientAddress)
     }
 
+    @Test
+    fun `adoptBackendJobIntoList is idempotent - repeat call never deletes the job`() {
+        val local = Job(
+            id = "local-uuid", title = "Panel upgrade",
+            createdBy = "u1", createdAt = 0L, updatedAt = 0L
+        )
+
+        val once = vm.adoptBackendJobIntoList(listOf(local), "local-uuid", "backend-uuid", 1.0, 2.0)
+        val twice = vm.adoptBackendJobIntoList(once, "local-uuid", "backend-uuid", 1.0, 2.0)
+
+        assertEquals(once, twice)
+        assertEquals("backend-uuid", twice.single().id)
+    }
+
     // ── the create response's backend identity is adopted ──────────────────
 
     @Test

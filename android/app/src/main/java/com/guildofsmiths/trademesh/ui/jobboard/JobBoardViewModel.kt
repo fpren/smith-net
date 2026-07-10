@@ -768,15 +768,21 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
         backendId: String,
         lat: Double?,
         lng: Double?
-    ): List<Job> = jobs
-        .filterNot { it.id == backendId }
-        .map { j ->
-            if (j.id == localId) j.copy(
-                id = backendId,
-                latitude = lat ?: j.latitude,
-                longitude = lng ?: j.longitude
-            ) else j
-        }
+    ): List<Job> {
+        // Idempotency guard: with no job at localId (already adopted), the
+        // filterNot below would strip the REAL job and return nothing — a
+        // repeat call must be a no-op, never a silent delete.
+        if (jobs.none { it.id == localId }) return jobs
+        return jobs
+            .filterNot { it.id == backendId }
+            .map { j ->
+                if (j.id == localId) j.copy(
+                    id = backendId,
+                    latitude = lat ?: j.latitude,
+                    longitude = lng ?: j.longitude
+                ) else j
+            }
+    }
 
     fun moveJob(jobId: String, newStatus: JobStatus) {
         // Update locally immediately
