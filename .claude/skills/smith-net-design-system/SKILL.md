@@ -1,179 +1,179 @@
 ---
 name: smith-net-design-system
-description: UI design conventions for Smith Net Android app — light mode ONLY, monospace font ONLY, ConsoleTheme runtime API (NOT MaterialTheme), no Material widgets (custom Composables instead), Unicode glyphs as icons (no Material Icons). Use when writing or modifying any Compose UI in /android/, adding new screens or components, or making styling decisions.
+description: UI design conventions for Smith Net (both platforms) — Design System v2 "Crew Soft / North Cobalt". Tokens-only colors from design/tokens.json (LocalSmithColors on Android, sn-* classes on web), light-first WITH a user dark toggle, Inter + JetBrains Mono + Syne typography, crew vs ops moods, Smith* components instead of Material widgets, glyphs per design/GLYPHS.md. Use when writing or modifying ANY UI in /android/ or /desktop/portal/, adding screens or components, or making styling decisions.
 ---
 
-# Smith Net — Design system conventions
+# Smith Net — Design System v2 (Crew Soft / North Cobalt)
 
-This skill activates anytime you're writing or editing Jetpack Compose UI code in this project.
+This skill activates for any UI work in this project. **v2 is law** (the v1
+light-only/monospace lock is repealed — spec:
+`docs/superpowers/specs/2026-07-08-design-system-v2-design.md`).
 
-## Light mode is FORCED. Never branch on dark mode.
+## One token source. Never type a color.
 
-`TradeMeshTheme` always returns `LightColorScheme` regardless of system setting. The `DarkColorScheme` in `Theme.kt` is **dead code** — treat it as not existing. Don't introduce `isSystemInDarkTheme()` branches in new UI.
+`design/tokens.json` is the single source of truth. `node scripts/gen-tokens.mjs`
+(repo root) generates:
 
-## Use `ConsoleTheme.*` — never `MaterialTheme.*`
+- `desktop/portal/src/styles/tokens.css` — `--sn-*` CSS vars (light + `[data-theme="dark"]` + `prefers-color-scheme` fallback)
+- `desktop/portal/tailwind.tokens.cjs` — `sn-*` Tailwind classes
+- `android/.../ui/Tokens2.kt` — `Tokens2.Light/Dark` + `AvatarPalette` + radii + durations
 
-The app does NOT consume `MaterialTheme.colorScheme.*` or `MaterialTheme.typography.*` directly. Every screen reads from a sibling object **`ConsoleTheme`** (in `ui/ConsoleTheme.kt`).
+`gen-tokens.mjs --check` gates CI. **Never hand-edit generated files. Never
+hardcode hex in UI code** — edit tokens.json and regenerate. Components must
+never do hex math on token values (use `color-mix()` on web — see
+Avatar.tsx/Chip.tsx precedent).
 
-```kotlin
-ConsoleTheme.background    // page bg
-ConsoleTheme.surface       // card / row bg
-ConsoleTheme.surfaceVariant
-ConsoleTheme.textPrimary   // body text
-ConsoleTheme.textMuted     // secondary text
-ConsoleTheme.outline       // borders, separators
-ConsoleTheme.primary       // primary actions
-ConsoleTheme.onPrimary
-ConsoleTheme.success       // status green / paid / done
-ConsoleTheme.warning       // sparing
-ConsoleTheme.error         // ONLY for delete-confirmation dialog body text
+## The palette (North Cobalt) — by JOB, not by hue
 
-ConsoleTheme.title         // ALL-CAPS screen + section titles
-ConsoleTheme.body          // body text
-ConsoleTheme.bodyBold      // emphasized body
-ConsoleTheme.caption       // small text
-ConsoleTheme.captionBold   // ALL-CAPS section labels, status pills
-```
+| Token | Light | Dark | Job |
+|---|---|---|---|
+| bgBase | #F7F8FA | #14171C | page background |
+| bgPanel | #FFFFFF | #1D2129 | cards, rows, sheets |
+| bgSunken | #EEF1F5 | #0E1013 | wells, message bubbles |
+| line | #E2E6EC | #2B303A | hairlines, borders |
+| ink | #1C2128 | #E9ECF1 | body text |
+| inkMuted | #7A8290 | #8A93A3 | secondary text |
+| accent | #2F5FE8 | #6B8CFF | **acts** — primary actions, links, selection |
+| attention | #E8590C | #FF8A3D | **warns/attends** — unread badges, NEW divider, warnings, FAILED |
+| statusOnline | #3E9B4F | #63C76F | online, success, in-progress |
+| statusError | #D64545 | #FF6B6B | destructive, danger, errors |
+| overlay | #00000066 | | scrims |
+| inkOnAccent | #FFFFFF | | text on accent/danger fills |
+| avatar a1-a6 | theme-invariant | | deterministic identity colors (hash by id/name) |
 
-## Monospace EVERYWHERE
+**Accent discipline: cobalt acts, amber warns, statusError destroys. Never swap
+jobs.** Unread is ALWAYS amber, never accent.
 
-`FontFamily.Monospace` is the only font family. Don't import custom fonts. Don't use italic. The monospace look IS the brand.
+## Dark mode is real. Both platforms.
 
-## Casing rules
+- Web: `themeStore` stamps `data-theme` (persisted `localStorage['sn-theme']`;
+  pre-paint stamp in index.html). Toggle lives in Settings → Appearance.
+- Android: `SmithTheme` is mounted at the app root (MainActivity) with
+  `darkEnabled = true`; the preference lives in `UserPreferences`
+  (`ThemePreference LIGHT/DARK/SYSTEM`); ONE `resolveDark()` result feeds both
+  the palette and the status bar (pass `resolvedDark` — never resolve twice).
+- Every new surface must be dark-correct by construction: tokens only, no
+  light-assuming rgba/white/black. Exception: QR codes are deliberately
+  light-fixed for scannability (documented in QrCodes.kt).
 
-- **ALL CAPS** for: screen titles, section headers, status pills, tier names, button labels
-- **Mixed case** for: body content, descriptions, user-entered text, message bodies
-- **Sentence case** for: dialog body text only
+## Typography
 
-## Color palette (ALL allowed colors — don't introduce new hex)
+- **Inter** — all UI text (web: `font-sans`, fully shipped. Android: the
+  TARGET per tokens.json `fonts.ui`; `ConsoleTheme.inter` exists but today
+  most `SmithType` styles still run IBM Plex Sans/Mono — the font migration
+  is OUTSTANDING DEBT, don't describe it as done).
+- **JetBrains Mono** — data, timestamps, ids, glyphs, microcopy (web:
+  `font-data`, shipped; Android: `ConsoleTheme.jetBrainsMono`, used by the
+  comm styles so far).
+- **Syne** — display/logotype only (`font-display`).
+- Android text styles come from **`SmithType`** (theme2) — they are COLORLESS;
+  always pass `color = colors.X` explicitly. `ConsoleTheme` retains font
+  families, string constants, its colorless TextStyles, and three shell
+  composables — its color palette is deleted.
+- Numeric readouts (counts, money, durations) get tabular numerals:
+  `SmithType.x.tabular` (Android) / `tabular-nums` (web).
 
-| Hex | Token | Use |
+## Two moods: crew (soft) and ops (terminal)
+
+Rule: if a laborer sees it daily it is **crew**; if a foreman runs the job from
+it, **ops**. Mood = shape/density. Theme (colors) is the same for both.
+
+**Crew** (comm, dashboard, jobs, invoices, expenses, clients, supply, time,
+settings, profile, onboarding, auth): 20dp/px cards and sheets
+(`Tokens2.RadiusCard` / `rounded-sn-card`), 14 bubbles (`RadiusBubble` /
+`rounded-sn-bubble`), pill buttons/inputs (`999` / `rounded-sn-input`),
+`shadow-sn-sm/md` on web.
+
+**Ops** (dispatch, plan/proposals, map overlays, admin health): **0 radius**
+(`Tokens2.RadiusOps` / `rounded-sn-ops`), 1dp/1px `line` hairlines, mono
+UPPERCASE labels, ~0.75 spacing density, NO shadows, tabular numerals on every
+number. Android ops call sites use `SmithDialog(ops = true)` and
+`SmithButton(shape = RoundedCornerShape(Tokens2.RadiusOps))`.
+
+## Components — Smith*, never Material
+
+| Need | Android | Web |
 |---|---|---|
-| `#F6F8FA` | background | page bg |
-| `#FFFFFF` | surface | rows, cards |
-| `#EFF2F5` | surfaceVariant | subtle distinction |
-| `#1F2328` | textPrimary | body text |
-| `#656D76` | textMuted | secondary text |
-| `#D0D7DE` | outline | separators |
-| `#0969DA` | primary | actions, links |
-| `#FFFFFF` | onPrimary | text on primary fill |
-| `#1A7F37` | success | status green |
-| `#DCFFE4` | successContainer | success tint |
-| `#9A6700` | warning | cap-approached (sparing) |
-| `#CF222E` | error | text-only inside delete dialog |
-| `#7D8590` | statusGrey | offline / disconnected dots |
+| Button | `SmithButton` (Primary/Ghost/Danger, `shape` for ops) | `Button` (ui/, sn tokens) |
+| Dialog | `SmithDialog` (`destructive`, `ops`, `sizeFraction`) | `SmithDialog` (`size 'md'/'lg'`) |
+| Confirm | `SmithConfirmDialog` (`confirmIsDanger`, `confirmEnabled` in-flight guard) | `ConfirmDialog` |
+| Bottom sheet | `SmithSheet` | slide-over / dialog per context |
+| States | `SmithLoadingState/SmithEmptyState/SmithErrorState` | `LoadingState/EmptyState/ErrorState` (ui/StateViews) |
+| Avatar | `SmithAvatar` (AvatarPalette hash, presence dot) | `Avatar` (avatar tokens, statusColor ring) |
 
-## Don't use Material widgets — use custom Composables
+Allowed Material on Android: `material3.Text` (text primitive) and
+`CircularProgressIndicator` inside SmithLoadingState only. Everything else
+Material (AlertDialog, ModalBottomSheet, Button, TextField widgets, MaterialTheme
+color reads) is banned in new code. AlertDialog/ModalBottomSheet: zero remain —
+don't regress. Material Button/TextField/DropdownMenu: KNOWN DEBT survives in
+InviteBanner.kt, NewConversationScreen.kt, ProfileScreen.kt,
+plan/IntentComponents.kt — migrate on touch, never add new.
 
-| Need | Use this | Don't use |
-|---|---|---|
-| Button | Custom: surface-bg `Box` with text + optional border. Primary: `primary` fill. | `Button`, `OutlinedButton`, `TextButton` |
-| Card | `Modifier.background(surface).padding(...)` Box/Column | Material `Card` (has elevation) |
-| List item | Section pattern (see below) | `ListItem` |
-| Top bar | Custom Row: `←` glyph + ALL-CAPS title | `TopAppBar` |
-| Bottom nav | `ui/components/BottomToolbar.kt` (custom 5-tab) | `BottomAppBar`, `NavigationBar` |
-| Switch | `((●))/((○))` text glyph | Material `Switch` |
-| Text field | `BasicTextField` + custom border | `OutlinedTextField`, `TextField` |
-| Dialog | Custom Composable, conditionally rendered | `AlertDialog` |
-| Snackbar | `Toast.makeText().show()` | `Snackbar` |
-| Tabs | Custom Row of `Text` with selection state | `TabRow` |
+## Every screen ships the state trio
 
-**Exception (allowed):** `LinearProgressIndicator` for AI model load (existing pattern).
+LoadingState while the primary fetch is in flight, EmptyState when the primary
+collection is empty, ErrorState (+retry where a reload exists) on failure —
+precedence **loading → error → empty → data**. Wire retry to a real reload
+(hooks return `{ reload }` bound to the mount's cancellation on web). Never
+share a stale flag across list/detail scopes (the false-error-flash bug class —
+stores use `listStale`/`detailStale`). Empty states are text only — no
+illustrations, no emoji, no forced cheer.
 
-## Icons = Unicode glyphs only
+## Glyphs per `design/GLYPHS.md` only
 
-| Glyph | Meaning |
-|---|---|
-| `←` | back |
-| `>` | forward / chevron-right |
-| `●` | filled status / on |
-| `○` | empty status / off |
-| `((●))` `((○))` | toggle (Signal-style) |
-| `★` | bonus star (per-tier bonuses) |
-| `·` | bullet / inline separator |
+`●` online · `○` offline · `[▣]` photo · `[▶]` voice/play · `[≡]` file ·
+`>` prompt · `←` back · `↵` send · `▾` disclosure · `↓` jump-to-latest (comm
+pill only). Glyphs render in JetBrains Mono. New iconography goes into the
+registry FIRST. No icon libraries on comm surfaces; elsewhere a single
+line-icon set (Lucide, 1.5px stroke, inkMuted) is permitted where no glyph
+exists — but note Lucide is NOT installed today (add the package first; the
+current precedent for a non-glyph icon is SmithRail's hand-written inline SVG
+gear). ASCII tokens (`[x]`, `[+]`, `[>]`) are fine. **No emoji anywhere.**
 
-**Don't add** `androidx.compose.material.icons.*` imports.
+## Motion (spec §9)
 
-## Section + List Item pattern (most-used in app)
+200–250ms, `cubic-bezier(.2,.8,.2,1)`. Web slide-in panels use `.panel-in`
+(220ms, keyed remount). `prefers-reduced-motion` must disable animations (web
+media block; Android animator scale). The comm `commBubble` entrance is kept.
+No spring physics, no shimmer, no confetti.
 
-```kotlin
-Text("SECTION NAME", style = ConsoleTheme.captionBold)
-Spacer(Modifier.height(10.dp))
-Row(
-  Modifier.fillMaxWidth().background(ConsoleTheme.surface).padding(14.dp),
-  verticalAlignment = Alignment.CenterVertically,
-  horizontalArrangement = Arrangement.SpaceBetween
-) {
-  Column { Text("Item title", style = ConsoleTheme.bodyBold)
-           Text("Item caption", style = ConsoleTheme.caption.copy(color = ConsoleTheme.textMuted)) }
-  Text(">", style = ConsoleTheme.body, color = ConsoleTheme.textMuted)
-}
-Spacer(Modifier.height(16.dp))
-ConsoleSeparator()
-Spacer(Modifier.height(12.dp))
-```
+## Destructive confirmations
 
-## Header pattern
+No outside-tap dismiss; explicit cancel button; Escape/back = cancel is
+allowed; cancel gets initial focus (web) / Ghost variant (Android); confirm is
+`statusError` only when genuinely destructive (`confirmIsDanger = false` for
+status changes). Disable confirm while the operation is in flight
+(`confirmEnabled = !inFlight`).
 
-```kotlin
-Row(
-  Modifier.fillMaxWidth().background(ConsoleTheme.surface).clickable(onClick = onBackClick)
-    .padding(horizontal = 16.dp, vertical = 14.dp),
-  verticalAlignment = Alignment.CenterVertically
-) {
-  Text("←", style = ConsoleTheme.title)
-  Spacer(Modifier.width(14.dp))
-  Text("SCREEN TITLE", style = ConsoleTheme.title)
-}
-ConsoleSeparator()
-```
+## Gates that must never regress
 
-## No motion beyond 5 primitives
-
-| Primitive | Use |
-|---|---|
-| Snap (0ms) | Most state changes |
-| Tick (1Hz) | Live clock displays |
-| Crossfade 200ms | Lock overlay appear/disappear |
-| Material progress | AI model load only |
-| Toast | Transient notifications |
-
-**Forbidden:** spring/bounce, animations > 250ms, hero/shared-element transitions, skeleton shimmer (use literal `· · ·` text dots), confetti.
-
-## Tier gates SHOW + LOCK; role gates HIDE
-
-- **Role gates HIDE** the feature entirely (existing pattern: `if (RoleContext.can(Permission.X))`)
-- **Tier gates SHOW the feature dimmed/locked + CTA** (new pattern: `LockedFeatureOverlay` + `EntitlementLock`)
-
-## Confirmation dialogs DON'T dismiss on outside-tap
-
-Cancel-subscription and Delete-account confirmations require explicit choice. Back-button = the safer choice (KEEP). Outside-tap on the dimmed background does nothing.
-
-## Empty states have NO illustrations
-
-ALL-CAPS body text + a single text-link to start the right action. No spot-art, no emoji, no "Looks like a quiet day!" friendliness.
+- Tier gates SHOW + LOCK (dimmed + upgrade CTA); role gates HIDE. Unchanged from v1.
+- Maestro e2e (`android/maestro/smithnet_solo_e2e.yaml`) pins visible strings
+  (bracketed nav labels `[Home]`/`[Clients]`/`[Plan]`, `[▶] LOGIN`, flow copy)
+  and `solo_e2e_*` testTags — **grep the yaml before renaming ANY user-visible
+  string or tag.**
+- `gen-tokens --check` runs in portal-ci — the only automated design gate.
+  The hex / `console-*` / Material-widget bans are NOT CI-enforced: verify by
+  manual grep before merging (component regression tests like
+  StateViews.test.tsx cover only their own files).
 
 ## Don't do
 
-- ❌ Import `androidx.compose.material3.{Button|Card|Switch|AlertDialog|Snackbar|TopAppBar|BottomAppBar|NavigationBar|NavigationDrawer|OutlinedTextField|TextField|ListItem}`
-- ❌ Read from `MaterialTheme.colorScheme.*` or `MaterialTheme.typography.*`
-- ❌ Hardcode hex outside the palette
-- ❌ Use a font family other than `FontFamily.Monospace`
-- ❌ Add `Modifier.shadow(...)` or `graphicsLayer(shadowElevation=...)`
-- ❌ Add `Brush.linearGradient` to surfaces
-- ❌ Add `isSystemInDarkTheme()` for new UI
-- ❌ Use sentence-case for a section header
-- ❌ Add emoji to user-facing text
-- ❌ Use `error` color as a button background
-- ❌ Add Material Icons (`androidx.compose.material.icons.*`)
-- ❌ Add animation longer than 250ms or use spring physics
-- ❌ Use `RoundedCornerShape(>= 12.dp)` for cards / rows
+- ❌ Hardcode hex / `Color(0x...)` / named colors in UI code (tokens only)
+- ❌ Hand-edit tokens.css / tailwind.tokens.cjs / Tokens2.kt (generated)
+- ❌ Read `MaterialTheme.colorScheme` or add Material widgets (Android)
+- ❌ Use `console-*` classes or the deleted ConsoleTheme colors (they no longer exist)
+- ❌ Give amber an "acts" job or accent a "warns" job
+- ❌ Ship a screen without the state trio
+- ❌ Add emoji, icon libraries on comm, or unregistered glyphs
+- ❌ Rename Maestro-pinned strings or `solo_e2e_*` tags
+- ❌ Resolve dark twice (Android) or read theme outside themeStore/SmithTheme
+- ❌ Animations >250ms, spring physics, shimmer
 - ❌ Communicate state by color alone (always pair with text)
 
 ## Linked specs
 
-- `docs/design/EXTRACTED-PATTERNS.md` — patterns extracted from shipping code (binding constraint)
-- `docs/design/DESIGN-SYSTEM.md` — formal system rules
-- `docs/tokens/DESIGN-TOKENS.md` — machine-readable tokens
-- `docs/states/STATE-SPEC.md` — 108 enumerated states
-- `docs/states/MICRO-INTERACTIONS.md` — interaction primitives
+- `docs/superpowers/specs/2026-07-08-design-system-v2-design.md` — THE spec (amended §8: web shell = desktop Android)
+- `design/tokens.json` + `design/GLYPHS.md` — tokens and glyph registry
+- `.claude/skills/smith-net-frontend-overlay/SKILL.md` — web specifics
+- `.claude/skills/smith-net-android-overlay/SKILL.md` — Android specifics
