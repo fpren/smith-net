@@ -58,15 +58,18 @@ jobs.** Unread is ALWAYS amber, never accent.
 
 ## Typography
 
-- **Inter** — all UI text (Android: `ConsoleTheme.inter` with FontVariation
-  weight pinning; web: `font-sans`).
+- **Inter** — all UI text (web: `font-sans`, fully shipped. Android: the
+  TARGET per tokens.json `fonts.ui`; `ConsoleTheme.inter` exists but today
+  most `SmithType` styles still run IBM Plex Sans/Mono — the font migration
+  is OUTSTANDING DEBT, don't describe it as done).
 - **JetBrains Mono** — data, timestamps, ids, glyphs, microcopy (web:
-  `font-data`; Android: `ConsoleTheme.jetBrainsMono`).
+  `font-data`, shipped; Android: `ConsoleTheme.jetBrainsMono`, used by the
+  comm styles so far).
 - **Syne** — display/logotype only (`font-display`).
 - Android text styles come from **`SmithType`** (theme2) — they are COLORLESS;
-  always pass `color = colors.X` explicitly. `ConsoleTheme` retains ONLY font
-  families, string constants, and three shell composables — its color palette
-  is deleted.
+  always pass `color = colors.X` explicitly. `ConsoleTheme` retains font
+  families, string constants, its colorless TextStyles, and three shell
+  composables — its color palette is deleted.
 - Numeric readouts (counts, money, durations) get tabular numerals:
   `SmithType.x.tabular` (Android) / `tabular-nums` (web).
 
@@ -101,7 +104,10 @@ number. Android ops call sites use `SmithDialog(ops = true)` and
 Allowed Material on Android: `material3.Text` (text primitive) and
 `CircularProgressIndicator` inside SmithLoadingState only. Everything else
 Material (AlertDialog, ModalBottomSheet, Button, TextField widgets, MaterialTheme
-color reads) is banned in new code — the purge is complete; don't regress it.
+color reads) is banned in new code. AlertDialog/ModalBottomSheet: zero remain —
+don't regress. Material Button/TextField/DropdownMenu: KNOWN DEBT survives in
+InviteBanner.kt, NewConversationScreen.kt, ProfileScreen.kt,
+plan/IntentComponents.kt — migrate on touch, never add new.
 
 ## Every screen ships the state trio
 
@@ -120,7 +126,9 @@ illustrations, no emoji, no forced cheer.
 pill only). Glyphs render in JetBrains Mono. New iconography goes into the
 registry FIRST. No icon libraries on comm surfaces; elsewhere a single
 line-icon set (Lucide, 1.5px stroke, inkMuted) is permitted where no glyph
-exists. ASCII tokens (`[x]`, `[+]`, `[>]`) are fine. **No emoji anywhere.**
+exists — but note Lucide is NOT installed today (add the package first; the
+current precedent for a non-glyph icon is SmithRail's hand-written inline SVG
+gear). ASCII tokens (`[x]`, `[+]`, `[>]`) are fine. **No emoji anywhere.**
 
 ## Motion (spec §9)
 
@@ -144,8 +152,10 @@ status changes). Disable confirm while the operation is in flight
   (bracketed nav labels `[Home]`/`[Clients]`/`[Plan]`, `[▶] LOGIN`, flow copy)
   and `solo_e2e_*` testTags — **grep the yaml before renaming ANY user-visible
   string or tag.**
-- CI greps: zero raw hex outside token files; zero `console-*`; zero Material
-  AlertDialog/ModalBottomSheet; `gen-tokens --check`.
+- `gen-tokens --check` runs in portal-ci — the only automated design gate.
+  The hex / `console-*` / Material-widget bans are NOT CI-enforced: verify by
+  manual grep before merging (component regression tests like
+  StateViews.test.tsx cover only their own files).
 
 ## Don't do
 

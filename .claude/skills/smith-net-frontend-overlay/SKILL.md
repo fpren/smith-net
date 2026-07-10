@@ -30,7 +30,8 @@ mono uppercase for section/data labels; sentence case for body copy.
 
 ## Override 3: The shell is a desktop Android (spec §8 as amended)
 
-- `SmithRail` (64px glyph rail, `lg:`+) is the primary navigation —
+- `SmithRail` (64px icon rail with mono-abbreviation tab labels — HO/CLK/COM/
+  MAP/…, NOT GLYPHS.md entries; `lg:`+) is the primary navigation —
   role-adaptive (worker: Home/Clock/Comm; foreman adds Map/Jobs/Clients/
   Invoices/Crew; admin adds Admin), gear + avatar + logout at the bottom,
   `aria-label` full names on abbreviated tabs.
@@ -39,7 +40,10 @@ mono uppercase for section/data labels; sentence case for body copy.
 - Jobs/clients/invoices are NESTED routes: at `xl` the detail renders in a
   420px panel BESIDE the list (`.panel-in` motion, keyed remount, independent
   scroll in BOTH states — never flip a column's scroll mode on selection);
-  below `xl` detail replaces the list exactly like the phone.
+  below `xl` detail replaces the list exactly like the phone. When the LIST
+  itself is empty, suppress the panel's "select an item" EmptyState (the
+  double-EmptyState guard — see `noJobsYet` in JobsListRoute.tsx); any new
+  nested list/detail route needs the same guard.
 - Shell breakpoints are `lg` (1024) and `xl` (1280); content-level `md:`
   utilities are unrelated — don't migrate them.
 
@@ -66,11 +70,13 @@ focus-visible:outline-sn-accent` on every interactive element.
 
 ## Override 6: Comm surface specifics
 
-7-minute sender coalescing (`messageGrouping.ts`), LEFT-aligned rows only (own
-messages differ by name color, never alignment), status microcopy
-PENDING/SENT/FAILED/SEEN (mono 10px uppercase, own messages only, precedence
-failed > pending > seen > sent; DELIVERED is reserved/never rendered), MeshChip
-only for `origin === 'mesh' || 'gateway'`, amber unread grammar (bold name +
+7-minute sender coalescing PLUS a new group on any calendar-day change
+(`messageGrouping.ts`), LEFT-aligned rows only (own messages differ by name
+color, never alignment), status microcopy PENDING/SENT/FAILED/SEEN (mono 10px
+uppercase, own messages only, precedence failed > pending > seen > sent;
+DELIVERED is reserved/never rendered), the mesh badge (inline span in
+MessageRow.tsx — `MeshChip` is the ANDROID composable's name) only for
+`origin === 'mesh' || 'gateway'`, amber unread grammar (bold name +
 `bg-sn-attention` badge + frozen NEW divider + `↓ latest` pill). Optimistic
 sends keep their client UUID through retry.
 
