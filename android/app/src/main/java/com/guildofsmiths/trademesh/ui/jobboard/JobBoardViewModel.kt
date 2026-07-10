@@ -172,6 +172,8 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
         put("clientName", job.clientName ?: "")
         put("clientPhone", job.clientPhone)
         put("clientAddress", job.clientAddress)
+        if (job.latitude != null) put("latitude", job.latitude)
+        if (job.longitude != null) put("longitude", job.longitude)
         put("status", job.status.name)
         put("stage", job.stage.name)
         put("priority", job.priority.name)
@@ -205,6 +207,8 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
             clientName = clientName.ifBlank { null },
             clientPhone = json.optString("clientPhone", ""),
             clientAddress = json.optString("clientAddress", ""),
+            latitude = if (json.has("latitude") && !json.isNull("latitude")) json.getDouble("latitude") else null,
+            longitude = if (json.has("longitude") && !json.isNull("longitude")) json.getDouble("longitude") else null,
             status = runCatching { JobStatus.valueOf(json.optString("status", "TODO")) }
                 .getOrDefault(JobStatus.TODO),
             stage = runCatching { JobStage.valueOf(json.optString("stage", "LEAD")) }
@@ -270,6 +274,8 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
                 clientName = "Maria Rodriguez",
                 clientPhone = "718-555-0142",
                 clientAddress = "847 Flatbush Ave, Brooklyn NY",
+                latitude = 40.6505,
+                longitude = -73.9612,
                 description = "Replace 100A Federal Pacific with 200A Square D. Run new feeder from meter to panel.",
                 stage = JobStage.IN_PROGRESS,
                 status = JobStatus.IN_PROGRESS,
@@ -293,6 +299,8 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
                 clientName = "Tony Bianchi",
                 clientPhone = "347-555-0298",
                 clientAddress = "1220 Ocean Pkwy, Brooklyn NY",
+                latitude = 40.6275,
+                longitude = -73.9685,
                 description = "Rough-in electrical for kitchen remodel: 6 new circuits, dedicated 50A range, under-cabinet LED.",
                 stage = JobStage.PROPOSAL,
                 status = JobStatus.TODO,
@@ -314,6 +322,8 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
                 clientName = "Angela Park",
                 clientPhone = "917-555-0811",
                 clientAddress = "55 W 125th St, Apt 4B, Manhattan NY",
+                latitude = 40.8088,
+                longitude = -73.9442,
                 description = "Install GFCI outlets in two bathrooms per NEC 210.8. Replace old 2-prong with grounded GFCI.",
                 stage = JobStage.INVOICE,
                 status = JobStatus.DONE,
@@ -383,6 +393,30 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
         }
     }
 
+    /** Re-pull jobs from the backend (e.g. when the map opens, so freshly
+     *  geocoded coordinates land without an app restart). */
+    fun refreshFromBackend() {
+        loadJobsFromBackend()
+    }
+
+    // Local jobs keep every locally-authored field; a backend copy of the
+    // same id contributes geocoded latitude/longitude (and an address for
+    // jobs that only exist remotely). Backend-only jobs are appended.
+    internal fun mergeBackendJobs(local: List<Job>, backend: List<Job>): List<Job> {
+        val backendById = backend.associateBy { it.id }
+        val merged = local.map { l ->
+            val remote = backendById[l.id] ?: return@map l
+            l.copy(
+                latitude = remote.latitude ?: l.latitude,
+                longitude = remote.longitude ?: l.longitude,
+                clientAddress = l.clientAddress.ifBlank { remote.clientAddress }
+            )
+        }.toMutableList()
+        val localIds = local.map { it.id }.toSet()
+        backend.forEach { if (it.id !in localIds) merged.add(it) }
+        return merged
+    }
+
     private fun loadJobsFromBackend() {
         val token = AuthService.getAccessToken()
         if (token == null) {
@@ -416,15 +450,10 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
                             jobsList.add(parseJob(jobsArray.getJSONObject(i)))
                         }
 
-                        // Merge with local jobs
-                        val localIds = _jobs.value.map { it.id }.toSet()
-                        val merged = _jobs.value.toMutableList()
-                        jobsList.forEach { job ->
-                            if (job.id !in localIds) {
-                                merged.add(job)
-                            }
-                        }
-                        _jobs.value = merged
+                        // Merge with local jobs (local fields win; backend
+                        // contributes geocoded coords the phone can't compute)
+                        _jobs.value = mergeBackendJobs(_jobs.value, jobsList)
+                        persistJobs()
                     } catch (e: Exception) {
                         // Parse error - keep local jobs; only surface if nothing local.
                         surfaceLoadFailureIfNoLocalData()
@@ -659,16 +688,10 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
     private fun syncJobToBackend(job: Job) {
         val token = AuthService.getAccessToken() ?: return
 
-        val json = JSONObject().apply {
-            put("title", job.title)
-            put("description", job.description)
-            put("priority", job.priority.name.lowercase())
-        }
-
         val request = Request.Builder()
             .url("$baseUrl/api/jobs")
             .header("Authorization", "Bearer $token")
-            .post(json.toString().toRequestBody("application/json".toMediaType()))
+            .post(buildCreateJobBody(job).toString().toRequestBody("application/json".toMediaType()))
             .build()
 
         client.newCall(request).enqueue(object : Callback {
@@ -676,9 +699,45 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
                 // Keep local job even if backend fails
             }
             override fun onResponse(call: Call, response: Response) {
-                // Job synced or failed - either way we have local copy
+                if (!response.isSuccessful) return
+                val backendJob = runCatching {
+                    JSONObject(response.body?.string() ?: "").getJSONObject("job")
+                }.getOrNull() ?: return
+                adoptBackendJob(job.id, backendJob)
             }
         })
+    }
+
+    // The backend create schema is zod .strict(): unknown keys (e.g. priority)
+    // reject the whole request with a 400. Send only what it accepts.
+    internal fun buildCreateJobBody(job: Job): JSONObject = JSONObject().apply {
+        put("title", job.title)
+        if (job.description.isNotBlank()) put("description", job.description)
+        job.clientAddress.takeIf { it.isNotBlank() }?.let { put("location", it) }
+    }
+
+    // The backend assigns its own UUID on create; adopt it as the job's id so
+    // later syncs (coords from the geocoder, status moves) can match by id.
+    // Runs on an OkHttp thread — StateFlow and SharedPreferences are safe.
+    internal fun adoptBackendJob(localId: String, backendJson: JSONObject) {
+        val backendId = backendJson.optString("id", "")
+        if (backendId.isBlank() || backendId == localId) return
+        val lat = if (backendJson.has("latitude") && !backendJson.isNull("latitude")) backendJson.getDouble("latitude") else null
+        val lng = if (backendJson.has("longitude") && !backendJson.isNull("longitude")) backendJson.getDouble("longitude") else null
+        _jobs.value = _jobs.value.map { j ->
+            if (j.id == localId) j.copy(
+                id = backendId,
+                latitude = lat ?: j.latitude,
+                longitude = lng ?: j.longitude
+            ) else j
+        }
+        _selectedJob.value?.let { sel ->
+            if (sel.id == localId) _selectedJob.value = sel.copy(id = backendId)
+        }
+        localTasks.remove(localId)?.let { localTasks[backendId] = it }
+        syncToRepository()
+        persistJobs()
+        persistTasks()
     }
 
     fun moveJob(jobId: String, newStatus: JobStatus) {
@@ -1341,7 +1400,11 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
     // PARSING
     // ════════════════════════════════════════════════════════════════════
 
-    private fun parseJob(json: JSONObject): Job {
+    // Backend jobs (jobsService.mapJobRow) carry foremanId (not createdBy),
+    // ISO-8601 date strings (not epoch millis), a nested client object, and
+    // latitude/longitude from the geocode worker. Parse tolerantly — one
+    // strict getString here used to throw and silently kill the whole merge.
+    internal fun parseJob(json: JSONObject): Job {
         val assignedToArray = json.optJSONArray("assignedTo") ?: JSONArray()
         val assignedTo = mutableListOf<String>()
         for (i in 0 until assignedToArray.length()) {
@@ -1354,31 +1417,48 @@ class JobBoardViewModel(application: android.app.Application) : AndroidViewModel
             tags.add(tagsArray.getString(i))
         }
 
+        val location = json.optString("location", "").ifBlank { null }
         return Job(
             id = json.getString("id"),
             title = json.getString("title"),
             description = json.optString("description", ""),
             projectId = json.optString("projectId", null),
-            clientName = json.optString("clientName", null),
-            location = json.optString("location", null),
+            clientName = json.optJSONObject("client")?.optString("name")?.ifBlank { null }
+                ?: json.optString("clientName", "").ifBlank { null },
+            location = location,
+            clientAddress = location ?: "",
+            latitude = if (json.has("latitude") && !json.isNull("latitude")) json.getDouble("latitude") else null,
+            longitude = if (json.has("longitude") && !json.isNull("longitude")) json.getDouble("longitude") else null,
             status = try {
                 JobStatus.valueOf(json.getString("status").uppercase())
             } catch (e: Exception) {
                 JobStatus.BACKLOG
             },
+            stage = runCatching { JobStage.valueOf(json.optString("stage", "").uppercase()) }
+                .getOrDefault(JobStage.LEAD),
             priority = try {
                 Priority.valueOf(json.getString("priority").uppercase())
             } catch (e: Exception) {
                 Priority.MEDIUM
             },
-            createdBy = json.getString("createdBy"),
+            createdBy = json.optString("createdBy", "").ifBlank { json.optString("foremanId", "") },
             assignedTo = assignedTo,
-            createdAt = json.getLong("createdAt"),
-            updatedAt = json.getLong("updatedAt"),
+            createdAt = parseBackendTimestamp(json, "createdAt"),
+            updatedAt = parseBackendTimestamp(json, "updatedAt"),
             dueDate = if (json.has("dueDate") && !json.isNull("dueDate")) json.optLong("dueDate") else null,
             completedAt = if (json.has("completedAt") && !json.isNull("completedAt")) json.optLong("completedAt") else null,
             tags = tags
         )
+    }
+
+    // Accepts epoch millis (legacy/local) or ISO-8601 strings (backend).
+    internal fun parseBackendTimestamp(json: JSONObject, key: String): Long {
+        if (!json.has(key) || json.isNull(key)) return System.currentTimeMillis()
+        val asLong = json.optLong(key, 0L)
+        if (asLong > 0L) return asLong
+        return runCatching {
+            java.time.Instant.parse(json.getString(key)).toEpochMilli()
+        }.getOrDefault(System.currentTimeMillis())
     }
 
     private fun parseTask(json: JSONObject): Task {

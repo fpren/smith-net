@@ -656,7 +656,9 @@ fun SiteMapModule(
     }
     val activeJobs = remember(allJobs) { allJobs.filter { it.stage != JobStage.CLOSED } }
 
-    // Coordinates for known addresses
+    // Demo crew-site coordinates — used ONLY for crew-presence markers
+    // (crew.currentSite is a bare address string with no coords of its own).
+    // Job markers plot from job.latitude/longitude; never add jobs here.
     val siteCoords = mapOf(
         "847 Flatbush Ave, Brooklyn NY" to GeoPoint(40.6505, -73.9612),
         "55 W 125th St, Apt 4B, Manhattan NY" to GeoPoint(40.8088, -73.9442),
@@ -732,24 +734,27 @@ fun SiteMapModule(
                     val placedCoords = mutableListOf<GeoPoint>()
 
                     if (isSolo) {
+                        // Geocoded coords only — jobs not yet geocoded have no pin.
                         activeJobs.forEach { job ->
+                            val lat = job.latitude
+                            val lng = job.longitude
+                            if (lat == null || lng == null) return@forEach
                             val addr = job.clientAddress
-                            if (addr.isNotBlank()) {
-                                val coords = siteCoords[addr] ?: return@forEach
-                                val marker = Marker(mapView).apply {
-                                    position = coords
-                                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                                    title = job.clientName ?: job.title
-                                    snippet = "${job.stage.displayName} · $addr"
-                                    setOnMarkerClickListener { _, _ ->
-                                        selectedJob = job
-                                        selectedSite = null
-                                        true
-                                    }
+                            val coords = GeoPoint(lat, lng)
+                            val marker = Marker(mapView).apply {
+                                position = coords
+                                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                                title = job.clientName ?: job.title
+                                snippet = if (addr.isNotBlank()) "${job.stage.displayName} · $addr"
+                                          else job.stage.displayName
+                                setOnMarkerClickListener { _, _ ->
+                                    selectedJob = job
+                                    selectedSite = null
+                                    true
                                 }
-                                mapView.overlays.add(marker)
-                                placedCoords.add(coords)
                             }
+                            mapView.overlays.add(marker)
+                            placedCoords.add(coords)
                         }
                     } else {
                         bySite.forEach { (site, members) ->
@@ -1221,6 +1226,8 @@ fun AIInboxModule() {
 // ════════════════════════════════════════════════════════════════════
 
 // Mock coordinates for demo sites (Brooklyn & Manhattan)
+// Demo crew-site coordinates — used ONLY for crew-presence markers (see note
+// in SiteMapModule). Job markers plot from job.latitude/longitude.
 private val SITE_COORDS = mapOf(
     "847 Flatbush Ave, Brooklyn NY" to GeoPoint(40.6505, -73.9612),
     "55 W 125th St, Apt 4B, Manhattan NY" to GeoPoint(40.8088, -73.9442),
@@ -1305,17 +1312,22 @@ fun CrewMapView(
                     mapView.overlays.add(marker)
                 }
 
-                // Job-site markers — only for jobs whose address has known coords
-                // and aren't already represented by a crew-on-site marker.
+                // Job-site markers — plotted from the job's geocoded
+                // latitude/longitude (backend geocode worker; demo seeds carry
+                // theirs inline). Jobs without coords yet simply have no pin.
+                // Skip jobs already represented by a crew-on-site marker.
                 activeJobs.forEach { job ->
+                    val lat = job.latitude
+                    val lng = job.longitude
+                    if (lat == null || lng == null) return@forEach
                     val addr = job.clientAddress
-                    if (addr.isBlank() || bySite.containsKey(addr)) return@forEach
-                    val coords = SITE_COORDS[addr] ?: return@forEach
+                    if (addr.isNotBlank() && bySite.containsKey(addr)) return@forEach
                     val marker = Marker(mapView).apply {
-                        position = coords
+                        position = GeoPoint(lat, lng)
                         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                         title = job.clientName ?: job.title
-                        snippet = "${job.stage.displayName} · $addr"
+                        snippet = if (addr.isNotBlank()) "${job.stage.displayName} · $addr"
+                                  else job.stage.displayName
                         setOnMarkerClickListener { _, _ ->
                             onJobClick(job.id)
                             true
