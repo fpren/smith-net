@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,6 +41,9 @@ fun MapScreen(
     val colors = LocalSmithColors.current
     val crew by CrewPresenceRepository.crew.collectAsState()
     val allJobs by jobViewModel.jobs.collectAsState()
+    // Geocoding is async on the backend — re-pull on map open so coords for
+    // recently created jobs land without an app restart.
+    LaunchedEffect(Unit) { jobViewModel.refreshFromBackend() }
     val activeJobs = allJobs.filter { it.stage != JobStage.CLOSED }
     val bySite = remember(crew) {
         crew.filter { it.currentSite != null }.groupBy { it.currentSite!! }
