@@ -1,101 +1,111 @@
 ---
 name: smith-net-frontend-overlay
-description: Smith Net project-specific overlay on top of the frontend-design foundation skill. Constrains generic frontend best practices to Smith Net's brand (light-mode-only Console aesthetic + monospace + no Material widgets + light-only palette). Use for ANY UI work in /android/ or /desktop/portal/. This OVERRIDES generic frontend-design defaults.
+description: Smith Net web-portal overlay on top of the frontend-design foundation skill and smith-net-design-system. Constrains generic frontend practice to Design System v2 on /desktop/portal/ — sn-* tokens, dark toggle, SmithRail desktop-Android shell, slide-in detail panels, state trio, httpCall. Use for ANY UI work in /desktop/portal/. Overrides generic frontend-design defaults.
 ---
 
-# Smith Net frontend overlay
+# Smith Net frontend overlay (web portal, Design System v2)
 
-This skill **layers on top of** `frontend-design:frontend-design`. When that skill loads with generic best practices, this overlay applies Smith Net's specific brand constraints. **Smith Net constraints WIN** when they conflict with generic defaults.
+Layers on top of `frontend-design:frontend-design` and
+`smith-net-design-system`. **Smith Net constraints WIN over generic defaults.**
 
-## Foundation skill referenced
+## Override 1: Colors are sn-* tokens. Both themes, always.
 
-`frontend-design:frontend-design` — generic distinctive-frontend creation skill from the frontend-design plugin.
+Every color is an `sn-*` Tailwind class (`bg-sn-bg-panel`, `text-sn-ink`,
+`border-sn-line`, `text-sn-attention`, `bg-sn-overlay`, `text-sn-ink-on-accent`,
+`bg-sn-avatar-a1..a6`) or a `var(--sn-*)` in CSS/inline styles. The v1
+`console-*` classes and `theme/consoleTheme.ts` are DELETED — anything
+referencing them will not build. Dark works via `data-theme` on `<html>`
+(themeStore; Settings → Appearance; pre-paint stamp in index.html): never write
+light-assuming values (`bg-white`, `text-black`, warm rgba) — and never do hex
+math on a token (use `color-mix(in srgb, var(--sn-x) N%, transparent)`).
 
-## Overrides
+## Override 2: Typography is Inter + JetBrains Mono + Syne
 
-### Override 1: Light mode is forced. No dark variants.
+`font-sans` = Inter (body/UI), `font-data` = JetBrains Mono (data, timestamps,
+ids, glyphs, microcopy — prefer it over the legacy `font-mono` alias in new
+code), `font-display` = Syne (logotype). Fonts are self-hosted via fontsource
+imports in `src/console/index.css`. The comm surface additionally has
+`font-commsans`/`font-commmono` utilities (scoped to `.comm-surface`). Labels:
+mono uppercase for section/data labels; sentence case for body copy.
 
-Generic frontend-design may suggest dark/light theming. **For Smith Net: no.** The app forces `LightColorScheme` regardless of system setting. Don't generate dark-mode CSS, don't add `prefers-color-scheme: dark` queries, don't propose dark-mode toggles.
+## Override 3: The shell is a desktop Android (spec §8 as amended)
 
-### Override 2: Monospace EVERYWHERE — even body text
+- `SmithRail` (64px glyph rail, `lg:`+) is the primary navigation —
+  role-adaptive (worker: Home/Clock/Comm; foreman adds Map/Jobs/Clients/
+  Invoices/Crew; admin adds Admin), gear + avatar + logout at the bottom,
+  `aria-label` full names on abbreviated tabs.
+- `TopStrip` = brand + role chip + ShiftClock. `BottomTabBar` (<`lg`) carries
+  the mobile set + Settings (account access) + foreman Map.
+- Jobs/clients/invoices are NESTED routes: at `xl` the detail renders in a
+  420px panel BESIDE the list (`.panel-in` motion, keyed remount, independent
+  scroll in BOTH states — never flip a column's scroll mode on selection);
+  below `xl` detail replaces the list exactly like the phone.
+- Shell breakpoints are `lg` (1024) and `xl` (1280); content-level `md:`
+  utilities are unrelated — don't migrate them.
 
-Generic guidance often suggests monospace for code only and a body font (sans-serif) for prose. **For Smith Net: monospace for everything.** `FontFamily.Monospace` (Android) / `font-family: 'Courier New', Consolas, monospace` (web). No Inter, no SF Pro, no Roboto, no Geist Sans.
+## Override 4: States and data fetching
 
-### Override 3: No Material widgets in Android
+- Every route renders `LoadingState/EmptyState/ErrorState` from
+  `components/ui/StateViews` with precedence loading → error → empty → data.
+- All API clients go through `console/api/httpCall.ts` (401 → single-flight
+  refresh → retry once → one session-expired redirect). Never hand-roll fetch
+  in a client; the offline outbox also routes through it.
+- Pollers/hooks return `{ reload }` bound to the mount's cancellation (the
+  `reloadRef` pattern in useJobsPolling) — retries must not write stale data
+  after navigation. Stale flags are scoped per view (`listStale`/`detailStale`).
 
-Don't import `androidx.compose.material3.*` widgets (`Button`, `Card`, `AlertDialog`, `Snackbar`, `Switch`, `OutlinedTextField`, `TopAppBar`, etc.). Use the project's custom Composables that read from `ConsoleTheme.*`. Exception: `LinearProgressIndicator` for AI model load is allowed.
+## Override 5: Components and dialogs
 
-### Override 4: 11-color palette — don't introduce new hex
+Shared primitives live in `components/ui/` and are already tokenized: Button,
+Input, Card, Badge, Pill, Toast, Avatar, ProgressBar, SectionHeader,
+StateViews, SmithDialog/ConfirmDialog (Modal is a thin alias, `size="lg"` for
+forms). Destructive flows use ConfirmDialog (backdrop inert, Escape cancels,
+cancel focused). `window.confirm` is extinct — never reintroduce it. Focus
+convention: `focus-visible:outline focus-visible:outline-2
+focus-visible:outline-sn-accent` on every interactive element.
 
-The full allowed palette is in `docs/tokens/DESIGN-TOKENS.md`. Don't generate UI with colors outside it. Don't propose accent gradients, hover states with new tints, or "subtle backgrounds" with new hex values. Use `surfaceVariant` (`#EFF2F5`) for any "tinted background" need.
+## Override 6: Comm surface specifics
 
-### Override 5: Unicode glyphs as icons. No icon libraries.
+7-minute sender coalescing (`messageGrouping.ts`), LEFT-aligned rows only (own
+messages differ by name color, never alignment), status microcopy
+PENDING/SENT/FAILED/SEEN (mono 10px uppercase, own messages only, precedence
+failed > pending > seen > sent; DELIVERED is reserved/never rendered), MeshChip
+only for `origin === 'mesh' || 'gateway'`, amber unread grammar (bold name +
+`bg-sn-attention` badge + frozen NEW divider + `↓ latest` pill). Optimistic
+sends keep their client UUID through retry.
 
-Don't import Material Icons, Lucide, Heroicons, Phosphor, Tabler, etc. Use existing Unicode glyphs (`←`, `>`, `●`, `○`, `((●))`, `((○))`, `★`, `·`). If a new symbol is genuinely needed, design it for the pixel-art style and add to `ui/PixelIcons.kt` only.
+## Override 7: Ops surfaces (admin, map stats)
 
-### Override 6: ALL CAPS for labels, mixed case for content
+Flat (no radius/shadow), `font-data uppercase` table headers, `tabular-nums`
+on every numeric cell, dense `px-2 py-1.5` cells. See smith-net-design-system
+for the full mood rules.
 
-Generic copy guidance is sentence case. **For Smith Net:**
-- ALL CAPS: screen titles, section headers, status pills, button labels
-- Mixed case: body content, descriptions, user-entered text
-- Sentence case: dialog body text only
+## Override 8: Motion
 
-### Override 7: No motion beyond 5 primitives
+200–250ms `cubic-bezier(.2,.8,.2,1)`; `.panel-in` for detail panels;
+`prefers-reduced-motion` media block must disable every animation you add.
+No spring/shimmer/confetti.
 
-Generic frontend skills often suggest delightful micro-animations. **For Smith Net:** snap (0ms), tick (1Hz live clocks), Crossfade 200ms (overlays only), Material progress (AI model load only), Toast (transient). **Forbidden:** spring physics, anything > 250ms, hero/shared-element transitions, skeleton shimmer (use literal `· · ·` text dots), confetti, pulse breathing.
+## Testing conventions
 
-### Override 8: Empty states have NO illustrations
-
-Don't generate "delightful empty state" illustrations. ALL-CAPS text + a single text-link to start the right action.
-
-### Override 9: Tier gates SHOW + LOCK (don't hide)
-
-Generic accessibility guidance might say "don't show users features they can't use." For Smith Net **TIER**-gated features:
-- Show the feature dimmed (40% alpha background)
-- Top card explains what it is + what tier unlocks it
-- Primary CTA leads to upgrade
-
-(Role-gated features still HIDE per generic guidance — that's a separate rule.)
-
-### Override 10: Confirmation dialogs DON'T dismiss on outside-tap
-
-For destructive actions (cancel subscription, delete account), the dialog requires explicit choice. Generic dialog patterns often allow outside-tap to dismiss; Smith Net does not for these surfaces.
-
-## When generic frontend-design and this overlay conflict
-
-This overlay wins. Always. The generic skill provides a starting point; Smith Net's constraints are non-negotiable.
-
-## When this overlay applies
-
-Active in:
-- `/android/` (Compose UI) — every UI file
-- `/desktop/portal/` (React/Tailwind) — port the same constraints; React equivalents below
-
-## React/Tailwind equivalents (desktop portal)
-
-When porting Android components to React:
-
-| Android (Compose) | React + Tailwind |
-|---|---|
-| `ConsoleTheme.background` | `bg-[#F6F8FA]` |
-| `ConsoleTheme.surface` | `bg-white` |
-| `ConsoleTheme.textPrimary` | `text-[#1F2328]` |
-| `ConsoleTheme.textMuted` | `text-[#656D76]` |
-| `ConsoleTheme.primary` | `text-[#0969DA]` / `bg-[#0969DA]` |
-| `FontFamily.Monospace` | `font-mono` (Tailwind) — verify it points to a true monospace |
-| ALL CAPS text | `tracking-wide uppercase` |
-| `RoundedCornerShape(6.dp)` button | `rounded-md` |
-| `CircleShape` status dot | `rounded-full w-2 h-2` |
-| `ConsoleSeparator` | `border-t border-[#D0D7DE]` |
+Vitest + RTL + MSW. MSW handlers must enforce the SAME validation as the real
+backend (the attachment-only-message bug class: a mock looser than the route
+makes green tests lie). Assert primitives by role (`status`/`alert`), not
+implementation trivia. No test may pin a deleted class system.
 
 ## Don't do
 
-(Inherits all `smith-net-design-system` "Don't do" entries.)
+(Inherits all `smith-net-design-system` don'ts.) Plus:
+- ❌ `console-*` classes, `consoleTheme.ts`, hardcoded palette hex (all deleted)
+- ❌ `prefers-color-scheme`-only theming (the user toggle must win — pattern: `:root:not([data-theme="light"])`)
+- ❌ Hand-rolled fetch in api clients (httpCall only)
+- ❌ Right-aligned own-messages, accent-colored unread, icon libraries on comm
+- ❌ Shared stale flags across list/detail scopes
+- ❌ New shell breakpoints other than lg/xl for nav concerns
 
 ## Linked specs
 
 - Foundation: `frontend-design:frontend-design` skill
-- `docs/design/EXTRACTED-PATTERNS.md` — patterns from shipping code
-- `docs/design/DESIGN-SYSTEM.md` — formal system rules
-- `docs/tokens/DESIGN-TOKENS.md` — machine-readable tokens
-- `.claude/skills/smith-net-design-system/SKILL.md` — Step 12 design rules
+- `docs/superpowers/specs/2026-07-08-design-system-v2-design.md` (§8 amended)
+- `.claude/skills/smith-net-design-system/SKILL.md` — the system itself
+- `design/GLYPHS.md` — glyph registry

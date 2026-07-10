@@ -1,6 +1,6 @@
 ---
 name: smith-net-android-overlay
-description: Smith Net project-specific overlay on top of ecc-android-clean-architecture. Constrains generic Android Clean Architecture to Smith Net's actual layout — Jetpack Compose + ConsoleTheme + BoundaryEngine for transport routing + on-device Llama via JNI + mesh BLE/WiFi-Direct + cord-based state via VectorClock. Use for ANY Android work in /android/.
+description: Smith Net project-specific overlay on top of ecc-android-clean-architecture. Constrains generic Android Clean Architecture to Smith Net's actual layout — Jetpack Compose + Design System v2 (LocalSmithColors/SmithType/theme2) + BoundaryEngine for transport routing + on-device Llama via JNI + mesh BLE/WiFi-Direct + cord-based state via VectorClock. Use for ANY Android work in /android/.
 ---
 
 # Smith Net Android overlay
@@ -23,7 +23,8 @@ com.guildofsmiths.trademesh
   ├── engine/              — BoundaryEngine (THE C-03 boundary singleton)
   ├── service/             — MeshService, ChatManager, GatewayClient, ReconciliationEngine
   ├── ui/                  — Compose screens
-  │   ├── theme/           — Theme.kt (light-only)
+  │   ├── theme/           — Theme.kt (Material wrapper; scheme still light — removal tracked per spec §12)
+  │   ├── theme2/          — Design System v2: SmithTheme (mounted at root), SmithType, Smith components, SmithStates, SmithTabular
   │   ├── components/      — shared Composables (BottomToolbar, LeftSidebar, TradePickerField, etc.)
   │   ├── dashboard/       — Dashboard + modules + viewmodel
   │   ├── jobboard/, jobpipeline/, newjob/, plan/, invoice/, expenses/, etc.
@@ -35,9 +36,21 @@ com.guildofsmiths.trademesh
 
 **Don't reorganize the package structure.** New code follows the existing layout. New screens go under `ui/<domain>/`.
 
-### Override 2: Use `ConsoleTheme.*`, not `MaterialTheme.*`
+### Override 2: Colors from `LocalSmithColors`, styles from `SmithType`
 
-(See `smith-net-design-system` skill for the full rule.) For overlay purposes: any new Composable in `/android/` reads styles from `ConsoleTheme`, not from `MaterialTheme`.
+(See `smith-net-design-system` for the full v2 rule.) Any new Composable reads
+`val colors = LocalSmithColors.current` (declared right after the parameter
+list — never inside a lambda parameter) and passes explicit colors with the
+COLORLESS `SmithType` text styles: `Text(x, style = SmithType.body, color =
+colors.ink)`. `ConsoleTheme` retains ONLY font families (`inter`,
+`jetBrainsMono`, ...), string constants, and the BottomNavBar/ConsoleHeader/
+ConsoleSeparator composables — its v1 color palette is DELETED; referencing it
+will not compile. Never read `MaterialTheme.colorScheme`. Numeric readouts use
+`SmithType.x.tabular`. Components: SmithButton / SmithDialog(+ `ops`,
+`destructive`) / SmithConfirmDialog(`confirmEnabled`) / SmithSheet /
+SmithLoading-Empty-ErrorState / SmithAvatar — all in `ui/theme2/` and
+`ui/components/`. Sanctioned Material: `material3.Text` and the
+CircularProgressIndicator inside SmithLoadingState.
 
 ### Override 3: BoundaryEngine is the routing singleton
 
@@ -123,6 +136,23 @@ Never use `Timer`, never use `Handler`. Always coroutine `delay`.
 
 `BuildFlags.SEED_DEMO_DATA` — gate demo data behind this. `BuildFlags.SUPABASE_ENABLED = false` — Supabase Realtime path. New beta features get `BuildFlags.<NAME>` flags, not feature-flag services.
 
+### Override 13: 401s refresh the session
+
+REST calls that carry a Bearer token wrap in `AuthedRequest.withAuthRetry`
+(one refresh + one retry); pick the refresh matching the client's token store
+— `AuthService.refreshToken()` for HttpClientFactory-routed clients,
+`SupabaseAuth.refreshSession()` for clients reading SupabaseAuth directly (two
+independent stores; refreshing the wrong one silently no-ops). Build the
+Request INSIDE the retried block so the retry re-reads the fresh token. Both
+refresh paths are single-flight — never add a parallel refresh.
+
+### Override 14: Maestro guard
+
+`android/maestro/smithnet_solo_e2e.yaml` pins visible strings (bracketed nav
+labels from BottomNavBar, `[▶] LOGIN`, onboarding/proposal flow copy) and
+`solo_e2e_*` testTags. Grep the yaml before renaming ANY user-visible string;
+tags survive refactors on the same logical control.
+
 ## When generic Android Clean Architecture and this overlay conflict
 
 This overlay wins. The foundation skill provides the Clean Architecture lens; Smith Net's actual structure constrains it. If you find a generic recommendation (e.g., "wrap repositories in a UseCase layer") that doesn't match the existing code: don't introduce it speculatively. Match the code as it is.
@@ -131,15 +161,15 @@ This overlay wins. The foundation skill provides the Clean Architecture lens; Sm
 
 - ❌ Reorganize `/android/app/src/main/java/com/guildofsmiths/trademesh/` package structure
 - ❌ Introduce Hilt / Koin / Dagger / RxJava / LiveData / Redux / MVI / Molecule / Square Anvil
-- ❌ Use Material Compose widgets directly (custom Composables only)
-- ❌ Read from `MaterialTheme.*` (use `ConsoleTheme.*`)
+- ❌ Use Material Compose widgets (AlertDialog/ModalBottomSheet/Button/TextField widgets — the purge is complete; Smith* components only; `material3.Text` allowed)
+- ❌ Read from `MaterialTheme.*` or the deleted ConsoleTheme colors (use `LocalSmithColors` + `SmithType`)
 - ❌ Bypass `BoundaryEngine` for outbound messages
 - ❌ Send messages without VectorClock
 - ❌ Call cloud AI from Android directly (server-side `llmInterface.ts` only, via API)
 - ❌ Use `Timer` / `Handler.postDelayed` (use coroutine `delay`)
 - ❌ Create new Repository singletons when an existing one fits
 - ❌ Add `SUPABASE_ENABLED = true` for new features (Hetzner path is canonical)
-- ❌ Branch on `isSystemInDarkTheme()` (light-only forced)
+- ❌ Resolve dark ad-hoc: theme flows from `SmithTheme(darkEnabled = true, themePreference, resolvedDark)` at the app root (UserPreferences.ThemePreference). One `resolveDark()` result feeds palette AND status bar — never resolve twice, never read `isSystemInDarkTheme()` for colors in a screen
 - ❌ Persist ephemeral channel content locally past session (per ChannelPersistence.EPHEMERAL)
 
 ## Linked specs
@@ -147,6 +177,7 @@ This overlay wins. The foundation skill provides the Clean Architecture lens; Sm
 - Foundation: `ecc-android-clean-architecture` skill
 - `docs/architecture/ARCHITECTURE.md §1, §6` — Android in the system
 - `docs/specs/DEV-READINESS.md §1.6` — Android subsystem inventory
-- `.claude/skills/smith-net-design-system/SKILL.md` — UI rules
+- `.claude/skills/smith-net-design-system/SKILL.md` — Design System v2 rules
+- `docs/superpowers/specs/2026-07-08-design-system-v2-design.md` — the v2 spec
 - `.claude/skills/smith-net-determinism/SKILL.md` — VectorClock + Cord rules
 - `.claude/skills/smith-net-architecture/SKILL.md` — overall conventions
