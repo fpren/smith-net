@@ -10,8 +10,6 @@ import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,6 +22,7 @@ import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithButton
 import com.guildofsmiths.trademesh.ui.theme2.SmithButtonVariant
 import com.guildofsmiths.trademesh.ui.theme2.SmithDialog
+import com.guildofsmiths.trademesh.ui.theme2.SmithTextField
 import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import kotlinx.coroutines.launch
 
@@ -128,23 +127,17 @@ fun CreateIntentDialog(
         ) {
                 // ── SCOPE ──
                 ProposalSection(label = "SCOPE OF WORK *") {
-                    TextField(
+                    SmithTextField(
                         value = scopeStatement,
                         onValueChange = { scopeStatement = it },
-                        placeholder = { Text("Describe the work to be performed...", style = SmithType.caption.copy(color = colors.inkMuted)) },
+                        placeholder = "Describe the work to be performed...",
+                        ops = true,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("solo_e2e_intent_scope")
                             .onFocusChanged { state ->
                                 if (!state.isFocused) triggerAssist()
                             },
-                        textStyle = SmithType.body.copy(color = colors.ink),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = colors.bgPanel,
-                            unfocusedContainerColor = colors.bgPanel,
-                            focusedIndicatorColor = colors.accent,
-                            unfocusedIndicatorColor = colors.ink.copy(alpha = 0.2f)
-                        )
                     )
                     if (isAssisting) {
                         Spacer(modifier = Modifier.height(4.dp))
@@ -249,19 +242,12 @@ private fun ProposalTextField(
     placeholder: String,
     modifier: Modifier = Modifier
 ) {
-    val colors = LocalSmithColors.current
-    TextField(
+    SmithTextField(
         value = value,
         onValueChange = onValueChange,
-        placeholder = { Text(placeholder, style = SmithType.caption.copy(color = colors.inkMuted)) },
+        placeholder = placeholder,
+        ops = true,
         modifier = modifier.fillMaxWidth(),
-        textStyle = SmithType.body.copy(color = colors.ink),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = colors.bgPanel,
-            unfocusedContainerColor = colors.bgPanel,
-            focusedIndicatorColor = colors.accent,
-            unfocusedIndicatorColor = colors.ink.copy(alpha = 0.2f)
-        )
     )
 }
 
@@ -284,23 +270,17 @@ private fun DynamicListField(
                     style = SmithType.caption.copy(color = colors.inkMuted),
                     modifier = Modifier.width(24.dp)
                 )
-                TextField(
+                SmithTextField(
                     value = line,
                     onValueChange = { newValue ->
                         val updated = lines.toMutableList()
                         updated[index] = newValue
                         onLinesChange(updated)
                     },
-                    placeholder = { Text(placeholder, style = SmithType.caption.copy(color = colors.inkMuted)) },
-                    modifier = (if (tagPrefix != null) Modifier.testTag("${tagPrefix}_$index") else Modifier).weight(1f),
-                    textStyle = SmithType.bodySmall.copy(color = colors.ink),
+                    placeholder = placeholder,
+                    ops = true,
                     singleLine = true,
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = colors.bgPanel,
-                        unfocusedContainerColor = colors.bgPanel,
-                        focusedIndicatorColor = colors.accent,
-                        unfocusedIndicatorColor = colors.ink.copy(alpha = 0.1f)
-                    )
+                    modifier = (if (tagPrefix != null) Modifier.testTag("${tagPrefix}_$index") else Modifier).weight(1f),
                 )
                 if (lines.size > 1) {
                     Text(

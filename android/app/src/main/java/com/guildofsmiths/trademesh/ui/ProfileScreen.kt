@@ -8,21 +8,19 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
 import com.guildofsmiths.trademesh.data.SupabaseAuth
 import com.guildofsmiths.trademesh.data.UserPreferences
+import com.guildofsmiths.trademesh.ui.Tokens2
 import com.guildofsmiths.trademesh.ui.components.TradePickerField
 import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithTextField
 import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import kotlinx.coroutines.launch
 
@@ -283,19 +281,11 @@ private fun ProfileEditField(
     val colors = LocalSmithColors.current
     Column {
         Text(text = label, style = SmithType.caption.copy(color = colors.inkMuted))
-        TextField(
+        SmithTextField(
             value = value,
             onValueChange = onValueChange,
-            placeholder = { Text(placeholder, style = SmithType.caption.copy(color = colors.inkMuted)) },
+            placeholder = placeholder,
             modifier = Modifier.fillMaxWidth(),
-            textStyle = SmithType.body.copy(color = colors.ink),
-            singleLine = true,
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = colors.bgPanel,
-                unfocusedContainerColor = colors.bgPanel,
-                focusedIndicatorColor = colors.accent,
-                unfocusedIndicatorColor = colors.inkMuted
-            )
         )
     }
 }
@@ -311,31 +301,37 @@ private fun ProfileDropdown(
     var expanded by remember { mutableStateOf(false) }
     Column {
         Text(text = label, style = SmithType.caption.copy(color = colors.inkMuted))
-        Box(modifier = Modifier.fillMaxWidth()) {
+        Box {
             Text(
                 text = current,
                 style = SmithType.body.copy(color = colors.ink),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(colors.bgPanel)
                     .clickable { expanded = true }
-                    .padding(12.dp)
+                    .background(colors.bgSunken, RoundedCornerShape(Tokens2.RadiusControl))
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
             )
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-                modifier = Modifier
-                    .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                    .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
-            ) {
-                options.forEachIndexed { index, option ->
-                    DropdownMenuItem(
-                        text = { Text(option, style = SmithType.body.copy(color = colors.ink)) },
-                        onClick = {
-                            onSelect(index)
-                            expanded = false
+            if (expanded) {
+                Popup(onDismissRequest = { expanded = false }) {
+                    Column(
+                        modifier = Modifier
+                            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusControl))
+                            .border(1.dp, colors.line, RoundedCornerShape(Tokens2.RadiusControl))
+                            .width(IntrinsicSize.Max),
+                    ) {
+                        options.forEachIndexed { index, option ->
+                            Text(
+                                text = option,
+                                style = SmithType.body.copy(
+                                    color = if (option == current) colors.accent else colors.ink,
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onSelect(index); expanded = false }
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                            )
                         }
-                    )
+                    }
                 }
             }
         }
