@@ -324,7 +324,7 @@ fun ReportScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(Tokens2.RadiusCard))
+                                    .clip(RoundedCornerShape(Tokens2.RadiusControl))
                                     .clickable(
                                         interactionSource = remember { MutableInteractionSource() },
                                         indication = rememberRipple(bounded = true),
@@ -355,7 +355,7 @@ fun ReportScreen(
                         "[Open Expenses page →]",
                         style = SmithType.action.copy(color = colors.accent),
                         modifier = Modifier
-                            .clip(RoundedCornerShape(Tokens2.RadiusCard))
+                            .clip(RoundedCornerShape(Tokens2.RadiusControl))
                             .clickable { onOpenExpenses() }
                             .padding(vertical = 4.dp)
                     )
@@ -405,7 +405,7 @@ fun ReportScreen(
                                     .fillMaxWidth()
                                     .then(
                                         if (entry.jobId != null) Modifier
-                                            .clip(RoundedCornerShape(Tokens2.RadiusCard))
+                                            .clip(RoundedCornerShape(Tokens2.RadiusControl))
                                             .clickable(
                                                 interactionSource = remember { MutableInteractionSource() },
                                                 indication = rememberRipple(bounded = true),

@@ -252,9 +252,9 @@ private fun ToolbarButton(label: String, accent: Boolean = false, onClick: () ->
     val colors = LocalSmithColors.current
     Box(
         modifier = Modifier
-            .background(if (accent) colors.accent.copy(alpha = 0.14f) else colors.bgPanel, RoundedCornerShape(Tokens2.RadiusPill))
-            .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(Tokens2.RadiusPill))
-            .clip(RoundedCornerShape(Tokens2.RadiusPill))
+            .background(if (accent) colors.accent.copy(alpha = 0.14f) else colors.bgPanel, RoundedCornerShape(Tokens2.RadiusControl))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(Tokens2.RadiusControl))
+            .clip(RoundedCornerShape(Tokens2.RadiusControl))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = rememberRipple(bounded = true, color = colors.accent),
