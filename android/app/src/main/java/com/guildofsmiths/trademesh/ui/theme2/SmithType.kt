@@ -11,13 +11,14 @@ import com.guildofsmiths.trademesh.ui.ConsoleTheme
  *
  * M1 font mapping (spec 2026-07-11-modern-look-fixes-design.md): UI text =
  * Inter, data/mono = JetBrains Mono, display = Syne. Comm styles keep
- * Public Sans + JetBrains Mono (locked Plan 3 decision). IBM Plex is
- * retired. Color is stripped to [Color.Unspecified]; screens paint from
- * [LocalSmithColors] at the call site.
+ * Public Sans + JetBrains Mono (locked Plan 3 decision). The prior IBM
+ * body/mono families have been retired. Color is stripped to
+ * [Color.Unspecified]; screens paint from [LocalSmithColors] at the call site.
  *
  * Note: jetBrainsMono declares Normal(400) + Medium(500) only; SemiBold
  * styles (captionBold/prefix/action) resolve to the nearest weight exactly
- * as they did under plexMono (same declared weight set) — visual parity.
+ * as they did under the prior mono family (same declared weight set) —
+ * visual parity.
  */
 object SmithType {
 

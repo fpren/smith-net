@@ -32,7 +32,7 @@ import com.guildofsmiths.trademesh.ui.theme2.SmithType
 /**
  * smith net — Altara Design Tokens
  *
- * Warm parchment palette, Syne display headers, IBM Plex body/mono.
+ * Warm parchment palette, Syne display headers, Inter body / JetBrains Mono data.
  * Indie studio, not startup.
  */
 object ConsoleTheme {
@@ -51,15 +51,6 @@ object ConsoleTheme {
         Font(R.font.syne_semibold, FontWeight.SemiBold),
         Font(R.font.syne_bold, FontWeight.Bold),
     )
-    val plexSans = FontFamily(
-        Font(R.font.ibm_plex_sans_regular, FontWeight.Normal),
-        Font(R.font.ibm_plex_sans_medium, FontWeight.Medium),
-        Font(R.font.ibm_plex_sans_semibold, FontWeight.SemiBold),
-    )
-    val plexMono = FontFamily(
-        Font(R.font.ibm_plex_mono_regular, FontWeight.Normal),
-        Font(R.font.ibm_plex_mono_medium, FontWeight.Medium),
-    )
     val inter = FontFamily(
         Font(
             R.font.inter_variable, FontWeight.Normal,
@@ -75,14 +66,11 @@ object ConsoleTheme {
         ),
     )
 
-    // Backward-compatibility alias
-    val mono = plexMono
-
     // Comm-surface fonts (sanctioned exception, 2026-06-15): the redesigned
     // comm "softphone" pairs a proportional sans (Public Sans, names +
     // conversation) with a technical mono (JetBrains Mono, ids + dialpad +
     // timestamps). Additive ONLY — applied via the comm* TextStyles below and
-    // referenced solely by comm screens, so the rest of the app keeps Plex/Syne.
+    // referenced by the comm* SmithType styles.
     val publicSans = FontFamily(
         Font(R.font.public_sans_regular, FontWeight.Normal),
         Font(R.font.public_sans_medium, FontWeight.Medium),
@@ -91,135 +79,6 @@ object ConsoleTheme {
     val jetBrainsMono = FontFamily(
         Font(R.font.jetbrains_mono_regular, FontWeight.Normal),
         Font(R.font.jetbrains_mono_medium, FontWeight.Medium),
-    )
-
-    // ═══════════════════════════════════════════════════════════════
-    // TYPOGRAPHY
-    // ═══════════════════════════════════════════════════════════════
-    // Colorless — every TextStyle here has zero call sites in the app that
-    // rely on a baked color (verified by grepping for `ConsoleTheme.<style>`
-    // app-wide: zero hits). Design System v2's Tokens2/LocalSmithColors is
-    // the only color system; callers apply color via `.copy(color = ...)`.
-
-    // Brand header — Syne, bold, spaced
-    val brand = TextStyle(
-        fontFamily = syne,
-        fontSize = 24.sp,
-        fontWeight = FontWeight.Bold,
-        letterSpacing = 2.sp
-    )
-
-    val version = TextStyle(
-        fontFamily = plexMono,
-        fontSize = 10.sp,
-        fontWeight = FontWeight.Medium,
-        letterSpacing = 0.5.sp
-    )
-
-    val title = TextStyle(
-        fontFamily = syne,
-        fontSize = 22.sp,
-        fontWeight = FontWeight.Bold,
-        letterSpacing = 0.3.sp
-    )
-
-    val header = TextStyle(
-        fontFamily = syne,
-        fontSize = 18.sp,
-        fontWeight = FontWeight.Bold,
-        letterSpacing = 0.2.sp
-    )
-
-    val body = TextStyle(
-        fontFamily = plexSans,
-        fontSize = 16.sp,
-        fontWeight = FontWeight.Medium
-    )
-
-    val bodyBold = TextStyle(
-        fontFamily = plexSans,
-        fontSize = 16.sp,
-        fontWeight = FontWeight.SemiBold
-    )
-
-    val bodySmall = TextStyle(
-        fontFamily = plexSans,
-        fontSize = 14.sp,
-        fontWeight = FontWeight.Medium
-    )
-
-    val caption = TextStyle(
-        fontFamily = plexMono,
-        fontSize = 12.sp,
-        fontWeight = FontWeight.Medium
-    )
-
-    val captionBold = TextStyle(
-        fontFamily = plexMono,
-        fontSize = 12.sp,
-        fontWeight = FontWeight.SemiBold
-    )
-
-    val timestamp = TextStyle(
-        fontFamily = plexMono,
-        fontSize = 10.sp,
-        fontWeight = FontWeight.Medium,
-        letterSpacing = (-0.3).sp
-    )
-
-    val prefix = TextStyle(
-        fontFamily = plexMono,
-        fontSize = 12.sp,
-        fontWeight = FontWeight.SemiBold,
-        letterSpacing = (-0.5).sp
-    )
-
-    val prompt = TextStyle(
-        fontFamily = plexMono,
-        fontSize = 13.sp,
-        fontWeight = FontWeight.Medium
-    )
-
-    val action = TextStyle(
-        fontFamily = plexMono,
-        fontSize = 13.sp,
-        fontWeight = FontWeight.SemiBold
-    )
-
-    // ── Comm-surface typography (Public Sans + JetBrains Mono) ──────────
-    // Additive; used only by comm screens. Names + conversation in sans, the
-    // "machine" parts (ids, dialpad, timestamps) in mono.
-
-    val commName = TextStyle(
-        fontFamily = publicSans,
-        fontSize = 15.sp,
-        fontWeight = FontWeight.SemiBold
-    )
-
-    val commBody = TextStyle(
-        fontFamily = publicSans,
-        fontSize = 15.sp,
-        fontWeight = FontWeight.Normal
-    )
-
-    val commId = TextStyle(
-        fontFamily = jetBrainsMono,
-        fontSize = 12.sp,
-        fontWeight = FontWeight.Medium,
-        letterSpacing = 1.sp
-    )
-
-    val commTimestamp = TextStyle(
-        fontFamily = jetBrainsMono,
-        fontSize = 10.sp,
-        fontWeight = FontWeight.Normal
-    )
-
-    val dialpad = TextStyle(
-        fontFamily = jetBrainsMono,
-        fontSize = 16.sp,
-        fontWeight = FontWeight.Medium,
-        letterSpacing = 4.sp
     )
 }
 
@@ -247,7 +106,7 @@ fun ConsoleHeader(
             Text(
                 text = "←",
                 style = TextStyle(
-                    fontFamily = ConsoleTheme.plexMono,
+                    fontFamily = ConsoleTheme.jetBrainsMono,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = colors.ink
