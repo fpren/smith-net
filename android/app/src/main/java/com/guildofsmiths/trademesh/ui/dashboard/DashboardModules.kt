@@ -44,6 +44,7 @@ import com.guildofsmiths.trademesh.ui.map.JobDetailPanel
 import com.guildofsmiths.trademesh.ui.map.SiteDetailPanel
 import com.guildofsmiths.trademesh.ui.Tokens2
 import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithCard
 import com.guildofsmiths.trademesh.ui.theme2.SmithType
 
 // ════════════════════════════════════════════════════════════════════
@@ -53,27 +54,22 @@ import com.guildofsmiths.trademesh.ui.theme2.SmithType
 @Composable
 fun MyTasksModule() {
     val colors = LocalSmithColors.current
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(colors.bgPanel, RoundedCornerShape(4.dp))
-            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text("TODAY'S TASKS", style = SmithType.captionBold.copy(color = colors.inkMuted))
-        Spacer(modifier = Modifier.height(4.dp))
+    SmithCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(14.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("TODAY'S TASKS", style = SmithType.captionBold.copy(color = colors.inkMuted))
+            Spacer(modifier = Modifier.height(4.dp))
 
-        // Placeholder — will be populated when task assignment is implemented
-        Text(
-            text = "No tasks assigned yet.",
-            style = SmithType.caption.copy(color = colors.inkMuted),
-            modifier = Modifier.padding(vertical = 8.dp)
-        )
-        Text(
-            text = "Tasks will appear here when your team lead or dispatcher assigns work.",
-            style = SmithType.caption.copy(color = colors.inkMuted)
-        )
+            // Placeholder — will be populated when task assignment is implemented
+            Text(
+                text = "No tasks assigned yet.",
+                style = SmithType.caption.copy(color = colors.inkMuted),
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+            Text(
+                text = "Tasks will appear here when your team lead or dispatcher assigns work.",
+                style = SmithType.caption.copy(color = colors.inkMuted)
+            )
+        }
     }
 }
 
@@ -107,14 +103,8 @@ fun TeamPresenceModule(
         )
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(colors.bgPanel, RoundedCornerShape(4.dp))
-            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
+    SmithCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(14.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -198,7 +188,7 @@ fun TeamPresenceModule(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(4.dp))
+                        .clip(RoundedCornerShape(Tokens2.RadiusControl))
                         .then(
                             if (!isAI) Modifier.clickable(
                                 interactionSource = remember { MutableInteractionSource() },
@@ -276,6 +266,7 @@ fun TeamPresenceModule(
             // OpenStreetMap
             CrewMapView(crew = crew)
         }
+        }
     }
 }
 
@@ -295,9 +286,9 @@ fun DispatchModule(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(3.dp, RoundedCornerShape(4.dp))
-            .background(colors.bgPanel, RoundedCornerShape(4.dp))
-            .border(1.dp, urgencyColor.copy(alpha = 0.25f), RoundedCornerShape(4.dp))
+            .shadow(2.dp, RoundedCornerShape(Tokens2.RadiusCard))
+            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusCard))
+            .border(1.dp, urgencyColor.copy(alpha = 0.25f), RoundedCornerShape(Tokens2.RadiusCard))
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
@@ -316,7 +307,7 @@ fun DispatchModule(
                 if (unassignedJobs.isNotEmpty()) {
                     Box(
                         modifier = Modifier
-                            .background(urgencyColor.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
+                            .background(urgencyColor.copy(alpha = 0.15f), RoundedCornerShape(Tokens2.RadiusPill))
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
@@ -335,8 +326,8 @@ fun DispatchModule(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(urgencyColor.copy(alpha = 0.04f), RoundedCornerShape(4.dp))
-                        .clip(RoundedCornerShape(4.dp))
+                        .background(urgencyColor.copy(alpha = 0.04f), RoundedCornerShape(Tokens2.RadiusControl))
+                        .clip(RoundedCornerShape(Tokens2.RadiusControl))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = rememberRipple(bounded = true),
@@ -361,7 +352,7 @@ fun DispatchModule(
                         style = SmithType.action.copy(color = urgencyColor),
                         modifier = Modifier
                             .clickable { onAssignCrew(job) }
-                            .background(urgencyColor.copy(alpha = 0.10f), RoundedCornerShape(4.dp))
+                            .background(urgencyColor.copy(alpha = 0.10f), RoundedCornerShape(Tokens2.RadiusControl))
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
@@ -387,8 +378,8 @@ fun CrewAssignDialog(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(colors.bgBase, RoundedCornerShape(8.dp))
-                .border(1.dp, colors.ink.copy(alpha = 0.10f), RoundedCornerShape(8.dp))
+                .background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusCard))
+                .border(1.dp, colors.ink.copy(alpha = 0.10f), RoundedCornerShape(Tokens2.RadiusCard))
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
@@ -412,13 +403,13 @@ fun CrewAssignDialog(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(4.dp))
+                            .clip(RoundedCornerShape(Tokens2.RadiusControl))
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = rememberRipple(bounded = true),
                                 onClick = { onAssign(job, member) }
                             )
-                            .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusControl))
                             .padding(10.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
@@ -482,8 +473,8 @@ fun CrewProfileSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(colors.bgBase, RoundedCornerShape(8.dp))
-                .border(1.dp, colors.ink.copy(alpha = 0.10f), RoundedCornerShape(8.dp))
+                .background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusCard))
+                .border(1.dp, colors.ink.copy(alpha = 0.10f), RoundedCornerShape(Tokens2.RadiusCard))
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -538,8 +529,8 @@ fun CrewProfileSheet(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("Progress", style = SmithType.caption.copy(color = colors.inkMuted), modifier = Modifier.width(80.dp))
-                        Box(Modifier.weight(1f).height(6.dp).background(colors.ink.copy(alpha = 0.06f), RoundedCornerShape(3.dp))) {
-                            Box(Modifier.fillMaxHeight().fillMaxWidth(member.taskProgress / 100f).background(colors.accent, RoundedCornerShape(3.dp)))
+                        Box(Modifier.weight(1f).height(6.dp).background(colors.ink.copy(alpha = 0.06f), RoundedCornerShape(Tokens2.RadiusPill))) {
+                            Box(Modifier.fillMaxHeight().fillMaxWidth(member.taskProgress / 100f).background(colors.accent, RoundedCornerShape(Tokens2.RadiusPill)))
                         }
                         Text("${member.taskProgress}%", style = SmithType.caption.copy(color = colors.accent))
                     }
@@ -605,38 +596,33 @@ fun ProjectOverviewModule(
     onProjectsClick: () -> Unit = {}
 ) {
     val colors = LocalSmithColors.current
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(colors.bgPanel, RoundedCornerShape(4.dp))
-            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("PROJECTS", style = SmithType.captionBold.copy(color = colors.inkMuted))
+    SmithCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(14.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("PROJECTS", style = SmithType.captionBold.copy(color = colors.inkMuted))
+                Text(
+                    text = "[+ New]",
+                    style = SmithType.action.copy(color = colors.accent),
+                    modifier = Modifier
+                        .clickable { onProjectsClick() }
+                        .padding(2.dp)
+                )
+            }
+
             Text(
-                text = "[+ New]",
-                style = SmithType.action.copy(color = colors.accent),
-                modifier = Modifier
-                    .clickable { onProjectsClick() }
-                    .padding(2.dp)
+                text = "No projects yet.",
+                style = SmithType.caption.copy(color = colors.inkMuted),
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+            Text(
+                text = "Create a project to manage multiple sites and subcontractors.",
+                style = SmithType.caption.copy(color = colors.inkMuted)
             )
         }
-
-        Text(
-            text = "No projects yet.",
-            style = SmithType.caption.copy(color = colors.inkMuted),
-            modifier = Modifier.padding(vertical = 8.dp)
-        )
-        Text(
-            text = "Create a project to manage multiple sites and subcontractors.",
-            style = SmithType.caption.copy(color = colors.inkMuted)
-        )
     }
 }
 
@@ -675,14 +661,7 @@ fun SiteMapModule(
         Configuration.getInstance().userAgentValue = context.packageName
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(4.dp, RoundedCornerShape(4.dp))
-            .background(colors.bgPanel, RoundedCornerShape(4.dp))
-            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
-            .clip(RoundedCornerShape(4.dp))
-    ) {
+    SmithCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
         // Header
         Row(
             modifier = Modifier
@@ -869,15 +848,8 @@ fun FinancialsModule(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(3.dp, RoundedCornerShape(4.dp))
-            .background(colors.bgPanel, RoundedCornerShape(4.dp))
-            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
+    SmithCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(14.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Header with client dropdown
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -974,6 +946,7 @@ fun FinancialsModule(
                 Text("$${String.format("%,.0f", outstanding)}", style = SmithType.bodySmall.copy(color = colors.accent))
             }
         }
+        }
     }
 }
 
@@ -1053,13 +1026,13 @@ private fun ExpenseBar(
             Modifier
                 .fillMaxWidth()
                 .height(6.dp)
-                .background(colors.ink.copy(alpha = 0.06f), RoundedCornerShape(3.dp))
+                .background(colors.ink.copy(alpha = 0.06f), RoundedCornerShape(Tokens2.RadiusPill))
         ) {
             Box(
                 Modifier
                     .fillMaxHeight()
                     .fillMaxWidth(fraction)
-                    .background(barColor, RoundedCornerShape(3.dp))
+                    .background(barColor, RoundedCornerShape(Tokens2.RadiusPill))
             )
         }
     }
@@ -1086,19 +1059,14 @@ private fun FinancialRow(label: String, value: Double, color: Color) {
 @Composable
 fun HubStatusModule() {
     val colors = LocalSmithColors.current
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(colors.bgPanel, RoundedCornerShape(4.dp))
-            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Text("MESH HUB", style = SmithType.captionBold.copy(color = colors.inkMuted))
-        Text(
-            text = "0 peers connected · Hub idle",
-            style = SmithType.caption.copy(color = colors.inkMuted)
-        )
+    SmithCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(14.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("MESH HUB", style = SmithType.captionBold.copy(color = colors.inkMuted))
+            Text(
+                text = "0 peers connected · Hub idle",
+                style = SmithType.caption.copy(color = colors.inkMuted)
+            )
+        }
     }
 }
 
@@ -1122,14 +1090,8 @@ fun AIInboxModule() {
     val displayInsights = if (isSolo) rawInsights.filter { it.type != AISupervisor.InsightType.CREW } else rawInsights
     if (displayInsights.isEmpty() && !isProcessing) return
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(colors.bgPanel, RoundedCornerShape(4.dp))
-            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
+    SmithCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(14.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1150,8 +1112,8 @@ fun AIInboxModule() {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(colors.bgBase, RoundedCornerShape(4.dp))
-                    .border(0.5.dp, colors.ink.copy(alpha = 0.04f), RoundedCornerShape(4.dp))
+                    .background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusCard))
+                    .border(0.5.dp, colors.ink.copy(alpha = 0.04f), RoundedCornerShape(Tokens2.RadiusCard))
                     .padding(10.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
@@ -1220,6 +1182,7 @@ fun AIInboxModule() {
                 }
             }
         }
+        }
     }
 }
 
@@ -1260,8 +1223,8 @@ fun CrewMapView(
         Modifier
     } else {
         Modifier
-            .clip(RoundedCornerShape(4.dp))
-            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+            .clip(RoundedCornerShape(Tokens2.RadiusOps))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(Tokens2.RadiusOps))
     }
 
     Box(modifier = sizeModifier.then(cornerModifier)) {

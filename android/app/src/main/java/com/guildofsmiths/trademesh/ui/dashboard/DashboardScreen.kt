@@ -29,7 +29,9 @@ import com.guildofsmiths.trademesh.data.RoleContext
 import com.guildofsmiths.trademesh.data.Permission
 import com.guildofsmiths.trademesh.data.BeaconRepository
 import com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel
+import com.guildofsmiths.trademesh.ui.Tokens2
 import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithCard
 import com.guildofsmiths.trademesh.ui.theme2.SmithErrorState
 import com.guildofsmiths.trademesh.ui.theme2.SmithLoadingState
 import com.guildofsmiths.trademesh.ui.theme2.SmithType
@@ -190,7 +192,7 @@ fun DashboardScreen(
                                 text = headerTitle,
                                 style = SmithType.bodyBold.copy(color = colors.ink),
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
+                                    .clip(RoundedCornerShape(Tokens2.RadiusControl))
                                     .clickable(
                                         interactionSource = remember { MutableInteractionSource() },
                                         indication = rememberRipple(bounded = true),
@@ -221,9 +223,9 @@ fun DashboardScreen(
 
                                 Box(
                                     modifier = Modifier
-                                        .background(clockBg, RoundedCornerShape(4.dp))
-                                        .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
-                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(clockBg, RoundedCornerShape(Tokens2.RadiusPill))
+                                        .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(Tokens2.RadiusPill))
+                                        .clip(RoundedCornerShape(Tokens2.RadiusPill))
                                         .clickable(
                                             interactionSource = remember { MutableInteractionSource() },
                                             indication = rememberRipple(bounded = true, color = colors.accent),
@@ -236,9 +238,9 @@ fun DashboardScreen(
 
                                 Box(
                                     modifier = Modifier
-                                        .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                                        .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
-                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusPill))
+                                        .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(Tokens2.RadiusPill))
+                                        .clip(RoundedCornerShape(Tokens2.RadiusPill))
                                         .clickable(
                                             interactionSource = remember { MutableInteractionSource() },
                                             indication = rememberRipple(bounded = true),
@@ -265,9 +267,9 @@ fun DashboardScreen(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                                    .border(0.5.dp, colors.ink.copy(alpha = 0.04f), RoundedCornerShape(4.dp))
-                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusCard))
+                                    .border(0.5.dp, colors.ink.copy(alpha = 0.04f), RoundedCornerShape(Tokens2.RadiusCard))
+                                    .clip(RoundedCornerShape(Tokens2.RadiusCard))
                                     .clickable(
                                         interactionSource = remember { MutableInteractionSource() },
                                         indication = rememberRipple(bounded = true),
@@ -328,13 +330,7 @@ fun DashboardScreen(
 
                     DashboardModule.JOBS_PANEL -> {
                         // ── JOBS (dominant module) ─────────────────────
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                                .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
-                                .padding(14.dp)
-                        ) {
+                        SmithCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(14.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -430,17 +426,12 @@ fun DashboardScreen(
                         val needsProfile = !com.guildofsmiths.trademesh.data.UserPreferences.isOnboardingDataComplete()
                         val needsJob = !viewModel.hasAnyJobs() && RoleContext.can(Permission.MANAGE_JOBS)
                         if (needsProfile || needsJob) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                                    .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
-                                    .padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Text("GETTING STARTED", style = SmithType.captionBold.copy(color = colors.inkMuted))
-                                if (needsProfile) GettingStartedRow("[Set up profile]", onProfile)
-                                if (needsJob) GettingStartedRow("[Create first job]", onNewJob)
+                            SmithCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(14.dp)) {
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Text("GETTING STARTED", style = SmithType.captionBold.copy(color = colors.inkMuted))
+                                    if (needsProfile) GettingStartedRow("[Set up profile]", onProfile)
+                                    if (needsJob) GettingStartedRow("[Create first job]", onNewJob)
+                                }
                             }
                         }
                     }
@@ -460,9 +451,9 @@ fun DashboardScreen(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                                    .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
-                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusCard))
+                                    .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(Tokens2.RadiusCard))
+                                    .clip(RoundedCornerShape(Tokens2.RadiusCard))
                                     .clickable(
                                         interactionSource = remember { MutableInteractionSource() },
                                         indication = rememberRipple(bounded = true),
@@ -473,8 +464,8 @@ fun DashboardScreen(
                                 Text("PROGRESS", style = SmithType.captionBold.copy(color = colors.inkMuted))
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Box(Modifier.weight(1f).height(6.dp).background(colors.ink.copy(alpha = 0.06f), RoundedCornerShape(3.dp))) {
-                                        Box(Modifier.fillMaxHeight().fillMaxWidth(progress).background(colors.accent, RoundedCornerShape(3.dp)))
+                                    Box(Modifier.weight(1f).height(6.dp).background(colors.ink.copy(alpha = 0.06f), RoundedCornerShape(Tokens2.RadiusPill))) {
+                                        Box(Modifier.fillMaxHeight().fillMaxWidth(progress).background(colors.accent, RoundedCornerShape(Tokens2.RadiusPill)))
                                     }
                                     Text("$completedCount/$totalCount this month", style = SmithType.caption.copy(color = colors.inkMuted))
                                 }
@@ -535,28 +526,23 @@ fun DashboardScreen(
 
                     DashboardModule.ACTIVITY_LOG -> {
                         val todayActivity = viewModel.getTodayActivity().take(3)
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                                .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
-                                .padding(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Text("TODAY", style = SmithType.captionBold.copy(color = colors.inkMuted))
-                            if (todayActivity.isEmpty()) {
-                                Text("No activity yet today.", style = SmithType.caption.copy(color = colors.inkMuted), modifier = Modifier.padding(vertical = 4.dp))
-                            } else {
-                                todayActivity.forEach { event ->
-                                    Text(
-                                        text = event.description,
-                                        style = SmithType.caption.copy(color = colors.ink),
-                                        maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .then(if (event.jobId != null) Modifier.clickable { onJobClick(event.jobId) } else Modifier)
-                                            .padding(vertical = 2.dp)
-                                    )
+                        SmithCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(14.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text("TODAY", style = SmithType.captionBold.copy(color = colors.inkMuted))
+                                if (todayActivity.isEmpty()) {
+                                    Text("No activity yet today.", style = SmithType.caption.copy(color = colors.inkMuted), modifier = Modifier.padding(vertical = 4.dp))
+                                } else {
+                                    todayActivity.forEach { event ->
+                                        Text(
+                                            text = event.description,
+                                            style = SmithType.caption.copy(color = colors.ink),
+                                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .then(if (event.jobId != null) Modifier.clickable { onJobClick(event.jobId) } else Modifier)
+                                                .padding(vertical = 2.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -593,13 +579,7 @@ private fun MonthCalendar(
 
     val dayNames = listOf("S", "M", "T", "W", "T", "F", "S")
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(colors.bgPanel, RoundedCornerShape(4.dp))
-            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
-            .padding(14.dp)
-    ) {
+    SmithCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(14.dp)) {
         // Header: SCHEDULE + month label
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -693,9 +673,9 @@ private fun QuickAction(label: String, modifier: Modifier = Modifier, onClick: (
     val colors = LocalSmithColors.current
     Box(
         modifier = modifier
-            .background(colors.bgPanel, RoundedCornerShape(4.dp))
-            .border(0.5.dp, colors.ink.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
-            .clip(RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusControl))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.08f), RoundedCornerShape(Tokens2.RadiusControl))
+            .clip(RoundedCornerShape(Tokens2.RadiusControl))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = rememberRipple(bounded = true, color = colors.accent),
@@ -720,7 +700,7 @@ private fun GettingStartedRow(label: String, onClick: () -> Unit) {
         style = SmithType.action.copy(color = colors.accent),
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(4.dp))
+            .clip(RoundedCornerShape(Tokens2.RadiusControl))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = rememberRipple(bounded = true, color = colors.accent),
