@@ -17,7 +17,9 @@ import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.BolLegalPreferences
 import com.guildofsmiths.trademesh.data.BolLegalPreferences.Group
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
+import com.guildofsmiths.trademesh.ui.Tokens2
 import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithCard
 import com.guildofsmiths.trademesh.ui.theme2.SmithType
 
 @Composable
@@ -80,8 +82,8 @@ fun BolLegalSettingsScreen(onBack: () -> Unit) {
                         cursorBrush = SolidColor(colors.ink),
                         modifier = Modifier
                             .weight(1f)
-                            .background(colors.bgBase, RoundedCornerShape(2.dp))
-                            .border(0.5.dp, colors.ink.copy(alpha = 0.1f), RoundedCornerShape(2.dp))
+                            .background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusTiny))
+                            .border(0.5.dp, colors.ink.copy(alpha = 0.1f), RoundedCornerShape(Tokens2.RadiusTiny))
                             .padding(6.dp)
                     )
                 }
@@ -139,8 +141,8 @@ fun BolLegalSettingsScreen(onBack: () -> Unit) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 80.dp)
-                        .background(colors.bgBase, RoundedCornerShape(4.dp))
-                        .border(0.5.dp, colors.ink.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                        .background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusCard))
+                        .border(0.5.dp, colors.ink.copy(alpha = 0.1f), RoundedCornerShape(Tokens2.RadiusCard))
                         .padding(8.dp)
                 )
                 Text(
@@ -189,7 +191,7 @@ fun BolLegalSettingsScreen(onBack: () -> Unit) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(colors.accent.copy(alpha = 0.14f), RoundedCornerShape(4.dp))
+                        .background(colors.accent.copy(alpha = 0.14f), RoundedCornerShape(Tokens2.RadiusCard))
                         .clickable {
                             BolLegalPreferences.setLabels(shipper, carrier, consignee)
                         }
@@ -231,8 +233,8 @@ private fun GroupSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.bgPanel, RoundedCornerShape(4.dp))
-            .border(0.5.dp, colors.ink.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusCard))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.08f), RoundedCornerShape(Tokens2.RadiusCard))
     ) {
         Row(
             modifier = Modifier
@@ -294,17 +296,15 @@ private fun GroupSection(
 @Composable
 private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
     val colors = LocalSmithColors.current
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(colors.bgPanel, RoundedCornerShape(4.dp))
-            .border(0.5.dp, colors.ink.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+    SmithCard(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(12.dp)
     ) {
-        Text(title, style = SmithType.captionBold.copy(color = colors.inkMuted))
-        Spacer(Modifier.height(4.dp))
-        content()
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(title, style = SmithType.captionBold.copy(color = colors.inkMuted))
+            Spacer(Modifier.height(4.dp))
+            content()
+        }
     }
 }
 
@@ -314,8 +314,8 @@ private fun Checkbox(on: Boolean) {
     Box(
         modifier = Modifier
             .size(18.dp)
-            .background(if (on) colors.accent else colors.bgBase, RoundedCornerShape(2.dp))
-            .border(0.5.dp, colors.ink.copy(alpha = 0.3f), RoundedCornerShape(2.dp)),
+            .background(if (on) colors.accent else colors.bgBase, RoundedCornerShape(Tokens2.RadiusTiny))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.3f), RoundedCornerShape(Tokens2.RadiusTiny)),
         contentAlignment = Alignment.Center
     ) {
         if (on) Text("✓", style = SmithType.caption.copy(color = colors.inkOnAccent))
@@ -335,8 +335,8 @@ private fun LabeledLine(label: String, value: String, onChange: (String) -> Unit
             cursorBrush = SolidColor(colors.ink),
             modifier = Modifier
                 .fillMaxWidth()
-                .background(colors.bgBase, RoundedCornerShape(2.dp))
-                .border(0.5.dp, colors.ink.copy(alpha = 0.1f), RoundedCornerShape(2.dp))
+                .background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusTiny))
+                .border(0.5.dp, colors.ink.copy(alpha = 0.1f), RoundedCornerShape(Tokens2.RadiusTiny))
                 .padding(8.dp)
         )
     }
