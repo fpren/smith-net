@@ -13,6 +13,7 @@ icons (1.5px stroke, ink-muted default) where no glyph exists.
 | `[▣]` | photo attachment | message rows, attachment chips, notifs     | outside media contexts             |
 | `[▶]` | voice/playable   | message rows, attachment chips, notifs     | as a generic "go" affordance       |
 | `[≡]` | file attachment  | message rows, attachment chips, notifs     | as a menu/hamburger                |
+| `[+]` | add / invite     | composer attach action, invite banners     | as arithmetic in body copy         |
 | `>`   | composer prompt  | composer leading position only             | headings, breadcrumbs              |
 | `←`   | back             | screen headers, sheet headers              | inline in sentences                |
 | `↵`   | send             | composer trailing action                   | anywhere else                      |

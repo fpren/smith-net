@@ -215,7 +215,7 @@ object SubAgents {
                 } ?: "Use proper tool handling techniques"
                 return SubAgentResponse.assistance(
                     observation.messageId,
-                    "📋 Material request noted. Check your job's material checklist. As a ${tradeRole.displayName}: $toolTip.",
+                    "[CHK] Material request noted. Check your job's material checklist. As a ${tradeRole.displayName}: $toolTip.",
                     0.8f,
                     listOf(Action(Action.ActionType.CHECK_MATERIAL, "material_inventory"))
                 )
@@ -228,7 +228,7 @@ object SubAgents {
                 return SubAgentResponse(
                     observation.messageId,
                     SubAgentResponse.ResponseType.VALIDATION,
-                    "✅ Material checklist available in your job details. As a ${tradeRole.displayName}: $safetyTip while verifying equipment.",
+                    "✓ Material checklist available in your job details. As a ${tradeRole.displayName}: $safetyTip while verifying equipment.",
                     0.7f
                 )
             }
@@ -237,7 +237,7 @@ object SubAgents {
             return SubAgentResponse(
                 observation.messageId,
                 SubAgentResponse.ResponseType.INFORMATION,
-                "💡 As a ${tradeRole.displayName}, keep your material and tool checklists updated for proper ${roleKnowledge.regulations.firstOrNull() ?: "trade standard"} compliance.",
+                "[TIP] As a ${tradeRole.displayName}, keep your material and tool checklists updated for proper ${roleKnowledge.regulations.firstOrNull() ?: "trade standard"} compliance.",
                 0.5f
             )
         }
@@ -258,7 +258,7 @@ object SubAgents {
                 return SubAgentResponse(
                     observation.messageId,
                     SubAgentResponse.ResponseType.VALIDATION,
-                    "✅ Task completion noted. As a ${tradeRole.displayName}, remember to document all work performed per ${roleKnowledge.regulations.firstOrNull() ?: "trade standards"}.",
+                    "✓ Task completion noted. As a ${tradeRole.displayName}, remember to document all work performed per ${roleKnowledge.regulations.firstOrNull() ?: "trade standards"}.",
                     0.8f,
                     listOf(Action(Action.ActionType.VALIDATE_TASK, "task_completion"))
                 )
@@ -270,7 +270,7 @@ object SubAgents {
                     ?: "Take regular breaks to prevent fatigue"
                 return SubAgentResponse.suggestion(
                     observation.messageId,
-                    "📝 As a ${tradeRole.displayName}, update your job checklist systematically. $dexterityTip.",
+                    "[CHK] As a ${tradeRole.displayName}, update your job checklist systematically. $dexterityTip.",
                     0.6f
                 )
             }
@@ -279,7 +279,7 @@ object SubAgents {
             return SubAgentResponse(
                 observation.messageId,
                 SubAgentResponse.ResponseType.INFORMATION,
-                "🔧 Use the Job Board to create ${tradeRole.displayName}-specific task checklists with proper safety protocols.",
+                "[JOB] Use the Job Board to create ${tradeRole.displayName}-specific task checklists with proper safety protocols.",
                 0.5f
             )
         }
@@ -298,7 +298,7 @@ object SubAgents {
                 return SubAgentResponse(
                     observation.messageId,
                     SubAgentResponse.ResponseType.WARNING,
-                    "⚠️ Safety concern detected. Please ensure proper safety protocols are followed.",
+                    "[!] Safety concern detected. Please ensure proper safety protocols are followed.",
                     0.9f,
                     listOf(Action(Action.ActionType.ALERT_SAFETY, "safety_alert"))
                 )
@@ -309,7 +309,7 @@ object SubAgents {
                 return SubAgentResponse(
                     observation.messageId,
                     SubAgentResponse.ResponseType.WARNING,
-                    "🚨 Emergency situation detected. Follow emergency protocols and contact supervisor if needed.",
+                    "[!] Emergency situation detected. Follow emergency protocols and contact supervisor if needed.",
                     1.0f,
                     listOf(Action(Action.ActionType.ALERT_SAFETY, "emergency_alert"))
                 )
@@ -319,7 +319,7 @@ object SubAgents {
             if (content.contains("permit") || content.contains("inspection")) {
                 return SubAgentResponse.validation(
                     observation.messageId,
-                    "📋 Safety compliance check recommended. Ensure all permits and inspections are current.",
+                    "[CHK] Safety compliance check recommended. Ensure all permits and inspections are current.",
                     0.8f
                 )
             }
@@ -340,7 +340,7 @@ object SubAgents {
             if (content.contains("team") || content.contains("crew") || content.contains("everyone")) {
                 return SubAgentResponse.assistance(
                     observation.messageId,
-                    "👥 Team coordination noted. Consider using the Job Board to assign tasks and track progress.",
+                    "[CREW] Team coordination noted. Consider using the Job Board to assign tasks and track progress.",
                     0.7f,
                     listOf(Action(Action.ActionType.COORDINATE_TEAM, "team_coordination"))
                 )
@@ -351,7 +351,7 @@ object SubAgents {
                 return SubAgentResponse(
                     observation.messageId,
                     SubAgentResponse.ResponseType.INFORMATION,
-                    "📅 For scheduling coordination, check the Time Clock and Job Board for team availability.",
+                    "[SCHED] For scheduling coordination, check the Time Clock and Job Board for team availability.",
                     0.6f
                 )
             }
@@ -376,7 +376,7 @@ object SubAgents {
                 return SubAgentResponse(
                     observation.messageId,
                     SubAgentResponse.ResponseType.INFORMATION,
-                    "📊 Work summary: Tasks completed, time logged, materials verified. Great work today!",
+                    "[SUM] Work summary: Tasks completed, time logged, materials verified. Great work today!",
                     0.7f,
                     listOf(Action(Action.ActionType.SUMMARIZE_ACTIVITY, "daily_summary"))
                 )
@@ -407,7 +407,7 @@ object SubAgents {
             if (isActiveUser && (content.contains("job") || content.contains("work") || content.contains("time"))) {
                 return SubAgentResponse.suggestion(
                     observation.messageId,
-                    "👋 Hey there! Head to Settings and pick your trade (Electrician, HVAC, Plumber, etc.)? It'll make my tips way more useful for your kind of work. No pressure though! 😊",
+                    "Hey there! Head to Settings and pick your trade (Electrician, HVAC, Plumber, etc.)? It'll make my tips way more useful for your kind of work. No pressure though!",
                     0.7f
                 )
             }
@@ -417,7 +417,7 @@ object SubAgents {
                 return SubAgentResponse(
                     observation.messageId,
                     SubAgentResponse.ResponseType.INFORMATION,
-                    "💡 Pro tip: Set your trade role in Settings for personalized suggestions tailored to your specialty!",
+                    "[TIP] Pro tip: Set your trade role in Settings for personalized suggestions tailored to your specialty!",
                     0.4f
                 )
             }
@@ -441,7 +441,7 @@ object SubAgents {
                 val roleContext = if (hasRoleSet) "as a ${tradeRole.displayName}" else "in your trade work"
                 return SubAgentResponse.assistance(
                     observation.messageId,
-                    "🤔 I can help with that $roleContext! Check the Job Board for detailed procedures and checklists.",
+                    "I can help with that $roleContext! Check the Job Board for detailed procedures and checklists.",
                     0.6f
                 )
             }
@@ -456,7 +456,7 @@ object SubAgents {
             return SubAgentResponse(
                 observation.messageId,
                 SubAgentResponse.ResponseType.SUGGESTION,
-                "💡 Need help with your workflow? $roleTip",
+                "[TIP] Need help with your workflow? $roleTip",
                 0.4f
             )
         }

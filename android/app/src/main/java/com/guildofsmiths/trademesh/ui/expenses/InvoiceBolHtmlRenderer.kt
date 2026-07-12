@@ -477,7 +477,7 @@ object InvoiceBolHtmlRenderer {
         /* North Cobalt (Design System v2, 2026-07-09): customer-facing invoice/BOL paper
            matches the app's rebrand. Radii (2px/4px/50%) are left as-is — this is a printed
            customer document, not an app surface, so no need to chase the app's radius scale. */
-        :root{--bg:#F7F8FA;--surface:#FFFFFF;--ink:#1C2128;--muted:#7A8290;--rule:#E2E6EC;--accent:#2F5FE8;--accent-soft:#EEF1F5;--success:#3E9B4F;--warn:#E8590C;--danger:#D64545;--mono:"IBM Plex Mono","SFMono-Regular",Menlo,Consolas,monospace;--sans:-apple-system,"Inter",Segoe UI,Roboto,system-ui,sans-serif}
+        :root{--bg:#F7F8FA;--surface:#FFFFFF;--ink:#1C2128;--muted:#7A8290;--rule:#E2E6EC;--accent:#2F5FE8;--accent-soft:#EEF1F5;--success:#3E9B4F;--warn:#E8590C;--danger:#D64545;--mono:"JetBrains Mono","SFMono-Regular",Menlo,Consolas,monospace;--sans:-apple-system,"Inter",Segoe UI,Roboto,system-ui,sans-serif}
         html,body{background:var(--bg);color:var(--ink);margin:0;font-family:var(--sans);font-size:14px;line-height:1.5}
         .page{max-width:840px;margin:24px auto;background:var(--surface);border:1px solid var(--rule);padding:42px 52px}
         .page+.page{margin-top:32px}

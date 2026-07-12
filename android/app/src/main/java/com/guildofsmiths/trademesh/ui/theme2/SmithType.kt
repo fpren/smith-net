@@ -7,18 +7,18 @@ import androidx.compose.ui.unit.sp
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
 
 /**
- * smith net v2 — colorless typography.
+ * smith net v2 — colorless typography, single source of truth.
  *
- * Mirrors every TextStyle NAME defined in [ConsoleTheme] (font family, size, weight,
- * letter spacing, line height copied field-for-field) but with color stripped to
- * [Color.Unspecified]. Screens paint color from [LocalSmithColors] at the call site
- * (`Text(text, style = SmithType.body, color = colors.ink)`) instead of baking a
- * fixed parchment-palette color into the style, so the same style works under both
- * the light and dark v2 palettes.
+ * M1 font mapping (spec 2026-07-11-modern-look-fixes-design.md): UI text =
+ * Inter, data/mono = JetBrains Mono, display = Syne. Comm styles keep
+ * Public Sans + JetBrains Mono (locked Plan 3 decision). The prior IBM
+ * body/mono families have been retired. Color is stripped to
+ * [Color.Unspecified]; screens paint from [LocalSmithColors] at the call site.
  *
- * Grepped ConsoleTheme.kt directly (2026-07) to confirm the real TextStyle set: it
- * defines exactly these 18 names, all mirrored below. Nothing was skipped and
- * nothing extra was found consumed by crew screens beyond this set.
+ * Note: jetBrainsMono declares Normal(400) + Medium(500) only; SemiBold
+ * styles (captionBold/prefix/action) resolve to the nearest weight exactly
+ * as they did under the prior mono family (same declared weight set) —
+ * visual parity.
  */
 object SmithType {
 
@@ -31,7 +31,7 @@ object SmithType {
     )
 
     val version = TextStyle(
-        fontFamily = ConsoleTheme.plexMono,
+        fontFamily = ConsoleTheme.jetBrainsMono,
         fontSize = 10.sp,
         fontWeight = FontWeight.Medium,
         color = Color.Unspecified,
@@ -55,42 +55,42 @@ object SmithType {
     )
 
     val body = TextStyle(
-        fontFamily = ConsoleTheme.plexSans,
+        fontFamily = ConsoleTheme.inter,
         fontSize = 16.sp,
         fontWeight = FontWeight.Medium,
         color = Color.Unspecified
     )
 
     val bodyBold = TextStyle(
-        fontFamily = ConsoleTheme.plexSans,
+        fontFamily = ConsoleTheme.inter,
         fontSize = 16.sp,
         fontWeight = FontWeight.SemiBold,
         color = Color.Unspecified
     )
 
     val bodySmall = TextStyle(
-        fontFamily = ConsoleTheme.plexSans,
+        fontFamily = ConsoleTheme.inter,
         fontSize = 14.sp,
         fontWeight = FontWeight.Medium,
         color = Color.Unspecified
     )
 
     val caption = TextStyle(
-        fontFamily = ConsoleTheme.plexMono,
+        fontFamily = ConsoleTheme.jetBrainsMono,
         fontSize = 12.sp,
         fontWeight = FontWeight.Medium,
         color = Color.Unspecified
     )
 
     val captionBold = TextStyle(
-        fontFamily = ConsoleTheme.plexMono,
+        fontFamily = ConsoleTheme.jetBrainsMono,
         fontSize = 12.sp,
         fontWeight = FontWeight.SemiBold,
         color = Color.Unspecified
     )
 
     val timestamp = TextStyle(
-        fontFamily = ConsoleTheme.plexMono,
+        fontFamily = ConsoleTheme.jetBrainsMono,
         fontSize = 10.sp,
         fontWeight = FontWeight.Medium,
         color = Color.Unspecified,
@@ -98,7 +98,7 @@ object SmithType {
     )
 
     val prefix = TextStyle(
-        fontFamily = ConsoleTheme.plexMono,
+        fontFamily = ConsoleTheme.jetBrainsMono,
         fontSize = 12.sp,
         fontWeight = FontWeight.SemiBold,
         color = Color.Unspecified,
@@ -106,14 +106,14 @@ object SmithType {
     )
 
     val prompt = TextStyle(
-        fontFamily = ConsoleTheme.plexMono,
+        fontFamily = ConsoleTheme.jetBrainsMono,
         fontSize = 13.sp,
         fontWeight = FontWeight.Medium,
         color = Color.Unspecified
     )
 
     val action = TextStyle(
-        fontFamily = ConsoleTheme.plexMono,
+        fontFamily = ConsoleTheme.jetBrainsMono,
         fontSize = 13.sp,
         fontWeight = FontWeight.SemiBold,
         color = Color.Unspecified
