@@ -427,11 +427,11 @@ object AmbientRuleEngine {
         // Keep mesh payloads tiny - use abbreviations and codes
         return when (response.type) {
             AmbientResponseType.CONFIRMATION -> "✓ ${response.text}"
-            AmbientResponseType.MATERIAL_REQUEST -> "📦 ${response.text}"
-            AmbientResponseType.CHECKLIST -> "📋 ${response.text}"
-            AmbientResponseType.TRANSLATION -> "🌐 ${response.text}"
-            AmbientResponseType.JOB_UPDATE -> "🔧 ${response.text}"
-            AmbientResponseType.DEGRADED -> "⚠️ ${response.text}"
+            AmbientResponseType.MATERIAL_REQUEST -> "[MAT] ${response.text}"
+            AmbientResponseType.CHECKLIST -> "[CHK] ${response.text}"
+            AmbientResponseType.TRANSLATION -> "[TR] ${response.text}"
+            AmbientResponseType.JOB_UPDATE -> "[JOB] ${response.text}"
+            AmbientResponseType.DEGRADED -> "[!] ${response.text}"
         }
     }
 

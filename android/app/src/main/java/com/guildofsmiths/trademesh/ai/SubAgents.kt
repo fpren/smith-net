@@ -215,7 +215,7 @@ object SubAgents {
                 } ?: "Use proper tool handling techniques"
                 return SubAgentResponse.assistance(
                     observation.messageId,
-                    "📋 Material request noted. Check your job's material checklist. As a ${tradeRole.displayName}: $toolTip.",
+                    "[CHK] Material request noted. Check your job's material checklist. As a ${tradeRole.displayName}: $toolTip.",
                     0.8f,
                     listOf(Action(Action.ActionType.CHECK_MATERIAL, "material_inventory"))
                 )
@@ -279,7 +279,7 @@ object SubAgents {
             return SubAgentResponse(
                 observation.messageId,
                 SubAgentResponse.ResponseType.INFORMATION,
-                "🔧 Use the Job Board to create ${tradeRole.displayName}-specific task checklists with proper safety protocols.",
+                "[JOB] Use the Job Board to create ${tradeRole.displayName}-specific task checklists with proper safety protocols.",
                 0.5f
             )
         }
@@ -298,7 +298,7 @@ object SubAgents {
                 return SubAgentResponse(
                     observation.messageId,
                     SubAgentResponse.ResponseType.WARNING,
-                    "⚠️ Safety concern detected. Please ensure proper safety protocols are followed.",
+                    "[!] Safety concern detected. Please ensure proper safety protocols are followed.",
                     0.9f,
                     listOf(Action(Action.ActionType.ALERT_SAFETY, "safety_alert"))
                 )
@@ -319,7 +319,7 @@ object SubAgents {
             if (content.contains("permit") || content.contains("inspection")) {
                 return SubAgentResponse.validation(
                     observation.messageId,
-                    "📋 Safety compliance check recommended. Ensure all permits and inspections are current.",
+                    "[CHK] Safety compliance check recommended. Ensure all permits and inspections are current.",
                     0.8f
                 )
             }

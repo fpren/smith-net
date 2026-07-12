@@ -324,9 +324,9 @@ object OfflineQueueManager {
     private fun formatResponseForChat(response: AIResponse.Success): String {
         val prefix = when (response.intent) {
             AIIntent.CONFIRM -> "✓ "
-            AIIntent.CHECKLIST -> "📋 "
-            AIIntent.TRANSLATE -> "🌐 "
-            AIIntent.TASK_HELP -> "🔧 "
+            AIIntent.CHECKLIST -> "[CHK] "
+            AIIntent.TRANSLATE -> "[TR] "
+            AIIntent.TASK_HELP -> "[JOB] "
             else -> ""
         }
         return "$prefix${response.text}"

@@ -202,7 +202,7 @@ object BatteryGate {
             ThermalStatus.NONE, ThermalStatus.LIGHT -> ""
             ThermalStatus.MODERATE -> " 🌡"
             ThermalStatus.SEVERE -> " 🔥"
-            ThermalStatus.CRITICAL, ThermalStatus.SHUTDOWN -> " ⚠️"
+            ThermalStatus.CRITICAL, ThermalStatus.SHUTDOWN -> " [!]"
         }
         
         val statusText = when (status) {

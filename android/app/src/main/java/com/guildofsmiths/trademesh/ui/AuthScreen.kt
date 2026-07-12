@@ -100,7 +100,7 @@ fun AuthScreen(
             // ══════════════════════════════════════════════════════════════
             
             Text(
-                text = "🔑 RESET PASSWORD",
+                text = "[↻] RESET PASSWORD",
                 style = SmithType.header.copy(color = colors.accent)
             )
             
@@ -500,7 +500,7 @@ fun AuthScreen(
             // ══════════════════════════════════════════════════════════════
             
             Text(
-                text = "⚠ OFFLINE MODE",
+                text = "[!] OFFLINE MODE",
                 style = SmithType.header.copy(color = colors.attention)
             )
             

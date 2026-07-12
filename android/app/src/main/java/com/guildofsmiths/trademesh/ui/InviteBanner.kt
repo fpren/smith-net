@@ -87,7 +87,7 @@ private fun InviteCard(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "📨 Channel Invite",
+                text = "[+] Channel Invite",
                 style = TextStyle(
                     fontFamily = FontFamily.Monospace,
                     fontSize = 11.sp,
