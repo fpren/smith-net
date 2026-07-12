@@ -26,6 +26,8 @@ describe('generated tokens', () => {
   it('tailwind preset carries the ops radius token', () => {
     const preset = readFileSync(resolve(repo, 'desktop/portal/tailwind.tokens.cjs'), 'utf8');
     expect(preset).toContain(`'sn-ops': '${tokens.radius.ops}px'`);
+    expect(preset).toContain(`'sn-control': '${tokens.radius.control}px'`);
+    expect(preset).toContain(`'sn-tiny': '${tokens.radius.tiny}px'`);
   });
 
   it('Tokens2.kt carries both palettes as Compose colors', () => {

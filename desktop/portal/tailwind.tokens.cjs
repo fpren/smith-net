@@ -31,6 +31,8 @@ module.exports = {
         'sn-bubble': '14px',
         'sn-input': '999px',
         'sn-ops': '0px',
+        'sn-control': '10px',
+        'sn-tiny': '6px',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

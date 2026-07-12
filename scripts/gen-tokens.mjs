@@ -60,6 +60,8 @@ ${avatarKeys.map((k) => `        'sn-avatar-${kebab(k)}': 'var(--sn-avatar-${keb
         'sn-bubble': '${t.radius.bubble}px',
         'sn-input': '${t.radius.input}px',
         'sn-ops': '${t.radius.ops}px',
+        'sn-control': '${t.radius.control}px',
+        'sn-tiny': '${t.radius.tiny}px',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
@@ -113,6 +115,9 @@ ${ktAvatarObj()}
     val RadiusCard = ${t.radius.card}.dp
     val RadiusBubble = ${t.radius.bubble}.dp
     val RadiusOps = ${t.radius.ops}.dp
+    val RadiusControl = ${t.radius.control}.dp
+    val RadiusTiny = ${t.radius.tiny}.dp
+    val RadiusPill = ${t.radius.input}.dp // pill sources radius.input: same 999 value, web legacy name
     const val DurationFastMs = ${t.motion.durationFastMs}
     const val DurationBaseMs = ${t.motion.durationBaseMs}
 }
