@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -12,8 +13,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,6 +25,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -345,28 +345,28 @@ private fun TradeScreen(
                 style = if (data.experienceLevel != null) SmithType.body.copy(color = colors.ink)
                         else SmithType.body.copy(color = colors.inkMuted)
             )
-            DropdownMenu(
-                expanded = experienceExpanded,
-                onDismissRequest = { experienceExpanded = false },
-                modifier = Modifier
-                    .fillMaxWidth(0.8f)
-                    .background(colors.bgBase)
-            ) {
-                ExperienceLevel.values().forEach { level ->
-                    DropdownMenuItem(
-                        text = {
-                            androidx.compose.material3.Text(
-                                level.name.lowercase().replaceFirstChar { it.uppercase() }
+            if (experienceExpanded) {
+                Popup(onDismissRequest = { experienceExpanded = false }) {
+                    Column(
+                        modifier = Modifier
+                            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusControl))
+                            .border(1.dp, colors.line, RoundedCornerShape(Tokens2.RadiusControl))
+                            .width(IntrinsicSize.Max),
+                    ) {
+                        ExperienceLevel.values().forEach { level ->
+                            Text(
+                                text = level.name.lowercase().replaceFirstChar { it.uppercase() }
                                     .replace("_", " "),
-                                style = SmithType.body,
-                                color = colors.ink
+                                style = SmithType.body.copy(color = colors.ink),
+                                modifier = Modifier.fillMaxWidth()
+                                    .clickable {
+                                        onDataChange(data.copy(experienceLevel = level))
+                                        experienceExpanded = false
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
                             )
-                        },
-                        onClick = {
-                            onDataChange(data.copy(experienceLevel = level))
-                            experienceExpanded = false
                         }
-                    )
+                    }
                 }
             }
         }

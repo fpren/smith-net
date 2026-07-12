@@ -32,14 +32,13 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.window.Popup
 import kotlin.math.roundToInt
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -275,30 +274,26 @@ fun ConversationScreen(
                             .clickable { menuExpanded = true }
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     )
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false },
-                        modifier = Modifier
-                            .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                            .border(
-                                0.5.dp,
-                                colors.ink.copy(alpha = 0.12f),
-                                RoundedCornerShape(4.dp)
-                            )
-                    ) {
-                        DropdownMenuItem(
-                            text = {
+                    if (menuExpanded) {
+                        Popup(onDismissRequest = { menuExpanded = false }) {
+                            Column(
+                                modifier = Modifier
+                                    .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusControl))
+                                    .border(1.dp, colors.line, RoundedCornerShape(Tokens2.RadiusControl))
+                                    .width(IntrinsicSize.Max),
+                            ) {
                                 Text(
                                     text = "Clear messages (this device)",
-                                    style = SmithType.bodySmall.copy(color = colors.ink)
+                                    style = SmithType.bodySmall.copy(color = colors.ink),
+                                    modifier = Modifier.fillMaxWidth()
+                                        .clickable {
+                                            menuExpanded = false
+                                            showClearDialog = true
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
                                 )
-                            },
-                            onClick = {
-                                menuExpanded = false
-                                showClearDialog = true
-                            },
-                            modifier = Modifier.background(colors.bgPanel)
-                        )
+                            }
+                        }
                     }
                 }
             }
@@ -337,46 +332,43 @@ fun ConversationScreen(
                             .padding(4.dp)
                     )
 
-                    DropdownMenu(
-                        expanded = showPeerSelector,
-                        onDismissRequest = { showPeerSelector = false },
-                        modifier = Modifier
-                            .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                            .border(
-                                0.5.dp,
-                                colors.ink.copy(alpha = 0.12f),
-                                RoundedCornerShape(4.dp)
-                            )
-                    ) {
-                        DropdownMenuItem(
-                            text = {
-                                Text("everyone (group)", style = SmithType.body.copy(color = colors.ink))
-                            },
-                            onClick = {
-                                selectedPeer = null
-                                showPeerSelector = false
-                            },
-                            modifier = Modifier.background(colors.bgPanel)
-                        )
+                    if (showPeerSelector) {
+                        Popup(onDismissRequest = { showPeerSelector = false }) {
+                            Column(
+                                modifier = Modifier
+                                    .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusControl))
+                                    .border(1.dp, colors.line, RoundedCornerShape(Tokens2.RadiusControl))
+                                    .width(IntrinsicSize.Max),
+                            ) {
+                                Text(
+                                    text = "everyone (group)",
+                                    style = SmithType.body.copy(color = colors.ink),
+                                    modifier = Modifier.fillMaxWidth()
+                                        .clickable {
+                                            selectedPeer = null
+                                            showPeerSelector = false
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                )
 
-                        if (activePeers.isNotEmpty()) {
-                            activePeers.forEach { peer ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Column {
+                                if (activePeers.isNotEmpty()) {
+                                    activePeers.forEach { peer ->
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth()
+                                                .clickable {
+                                                    selectedPeer = peer
+                                                    showPeerSelector = false
+                                                }
+                                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                        ) {
                                             Text(peer.userName, style = SmithType.body.copy(color = colors.ink))
                                             Text(
                                                 "${peer.rssi} dBm · ${peer.lastSeenAgo()}",
                                                 style = SmithType.caption.copy(color = colors.inkMuted)
                                             )
                                         }
-                                    },
-                                    onClick = {
-                                        selectedPeer = peer
-                                        showPeerSelector = false
-                                    },
-                                    modifier = Modifier.background(colors.bgPanel)
-                                )
+                                    }
+                                }
                             }
                         }
                     }
@@ -722,75 +714,74 @@ fun ConversationScreen(
                         onClick = { showAttachMenu = !showAttachMenu }
                     )
 
-                    androidx.compose.material3.DropdownMenu(
-                        expanded = showAttachMenu,
-                        onDismissRequest = { showAttachMenu = false },
-                        modifier = Modifier
-                            .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                            .border(
-                                0.5.dp,
-                                colors.ink.copy(alpha = 0.12f),
-                                RoundedCornerShape(4.dp)
-                            )
-                    ) {
-                        // Photo option with pixel camera
-                        Row(
-                            modifier = Modifier
-                                .clickable(enabled = isOnline) {
-                                    showAttachMenu = false
-                                    onCameraClick?.invoke()
+                    if (showAttachMenu) {
+                        Popup(onDismissRequest = { showAttachMenu = false }) {
+                            Column(
+                                modifier = Modifier
+                                    .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusControl))
+                                    .border(1.dp, colors.line, RoundedCornerShape(Tokens2.RadiusControl))
+                                    .width(IntrinsicSize.Max),
+                            ) {
+                                // Photo option with pixel camera
+                                Row(
+                                    modifier = Modifier
+                                        .clickable(enabled = isOnline) {
+                                            showAttachMenu = false
+                                            onCameraClick?.invoke()
+                                        }
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    PixelCamera(enabled = isOnline)
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(
+                                        text = "photo",
+                                        style = SmithType.body.copy(
+                                            color = if (isOnline) colors.ink else colors.inkMuted
+                                        )
+                                    )
                                 }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            PixelCamera(enabled = isOnline)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = "photo",
-                                style = SmithType.body.copy(
-                                    color = if (isOnline) colors.ink else colors.inkMuted
-                                )
-                            )
-                        }
 
-                        // Video option with pixel video icon
-                        Row(
-                            modifier = Modifier
-                                .clickable(enabled = isOnline) {
-                                    showAttachMenu = false
-                                    onVideoClick?.invoke()
+                                // Video option with pixel video icon
+                                Row(
+                                    modifier = Modifier
+                                        .clickable(enabled = isOnline) {
+                                            showAttachMenu = false
+                                            onVideoClick?.invoke()
+                                        }
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    PixelVideo(enabled = isOnline)
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(
+                                        text = "video",
+                                        style = SmithType.body.copy(
+                                            color = if (isOnline) colors.ink else colors.inkMuted
+                                        )
+                                    )
                                 }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            PixelVideo(enabled = isOnline)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = "video",
-                                style = SmithType.body.copy(
-                                    color = if (isOnline) colors.ink else colors.inkMuted
-                                )
-                            )
-                        }
 
-                        // File option with pixel file
-                        Row(
-                            modifier = Modifier
-                                .clickable(enabled = isOnline) {
-                                    showAttachMenu = false
-                                    onFileClick?.invoke()
+                                // File option with pixel file
+                                Row(
+                                    modifier = Modifier
+                                        .clickable(enabled = isOnline) {
+                                            showAttachMenu = false
+                                            onFileClick?.invoke()
+                                        }
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    PixelFile(enabled = isOnline)
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(
+                                        text = "file",
+                                        style = SmithType.body.copy(
+                                            color = if (isOnline) colors.ink else colors.inkMuted
+                                        )
+                                    )
                                 }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            PixelFile(enabled = isOnline)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = "file",
-                                style = SmithType.body.copy(
-                                    color = if (isOnline) colors.ink else colors.inkMuted
-                                )
-                            )
+                            }
                         }
                     }
                 }

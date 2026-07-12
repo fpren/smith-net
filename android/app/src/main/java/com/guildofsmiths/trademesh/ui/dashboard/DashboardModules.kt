@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Popup
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.BoundingBox
@@ -41,6 +42,7 @@ import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.JobStage
 import com.guildofsmiths.trademesh.ui.map.JobDetailPanel
 import com.guildofsmiths.trademesh.ui.map.SiteDetailPanel
+import com.guildofsmiths.trademesh.ui.Tokens2
 import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithType
 
@@ -889,26 +891,26 @@ fun FinancialsModule(
                     style = SmithType.action.copy(color = colors.accent),
                     modifier = Modifier.clickable { showDropdown = !showDropdown }.padding(2.dp)
                 )
-                androidx.compose.material3.DropdownMenu(
-                    expanded = showDropdown,
-                    onDismissRequest = { showDropdown = false },
-                    modifier = Modifier
-                        .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                        .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
-                ) {
-                    clientNames.forEach { client ->
-                        androidx.compose.material3.DropdownMenuItem(
-                            text = {
+                if (showDropdown) {
+                    Popup(onDismissRequest = { showDropdown = false }) {
+                        Column(
+                            modifier = Modifier
+                                .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusControl))
+                                .border(1.dp, colors.line, RoundedCornerShape(Tokens2.RadiusControl))
+                                .width(IntrinsicSize.Max),
+                        ) {
+                            clientNames.forEach { client ->
                                 Text(
-                                    client,
+                                    text = client,
                                     style = SmithType.bodySmall.copy(
                                         color = if (client == selectedClient) colors.accent else colors.ink
-                                    )
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                        .clickable { selectedClient = client; showDropdown = false }
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
                                 )
-                            },
-                            onClick = { selectedClient = client; showDropdown = false },
-                            modifier = Modifier.background(colors.bgPanel)
-                        )
+                            }
+                        }
                     }
                 }
             }
