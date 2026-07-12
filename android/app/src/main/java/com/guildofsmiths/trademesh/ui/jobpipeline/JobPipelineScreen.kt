@@ -40,6 +40,7 @@ import com.guildofsmiths.trademesh.data.UserPreferences
 import kotlinx.coroutines.launch
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
 import com.guildofsmiths.trademesh.ui.ConsoleSeparator
+import com.guildofsmiths.trademesh.ui.Tokens2
 import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import com.guildofsmiths.trademesh.ui.invoice.InvoiceGenerator
@@ -292,8 +293,8 @@ fun JobPipelineScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .shadow(1.dp, RoundedCornerShape(4.dp))
-                            .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                            .shadow(2.dp, RoundedCornerShape(Tokens2.RadiusCard))
+                            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusCard))
                             .clickable { onToggleMaterial(index) }
                             .padding(8.dp)
                     ) {
@@ -359,8 +360,8 @@ fun JobPipelineScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusCard))
+                            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(Tokens2.RadiusCard))
                             .clickable { expanded = !expanded }
                             .padding(10.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -580,15 +581,15 @@ private fun OutlinedActionButton(
         style = SmithType.action.copy(color = drawColor),
         modifier = modifier
             .scale(scale)
-            .shadow(elevation, RoundedCornerShape(4.dp))
+            .shadow(elevation, RoundedCornerShape(Tokens2.RadiusCard))
             .clickable(
                 interactionSource = interaction,
                 indication = null,
                 enabled = enabled,
                 onClick = onClick
             )
-            .background(colors.bgBase, RoundedCornerShape(4.dp))
-            .border(1.dp, drawColor, RoundedCornerShape(4.dp))
+            .background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusCard))
+            .border(1.dp, drawColor, RoundedCornerShape(Tokens2.RadiusCard))
             .padding(horizontal = 14.dp, vertical = 8.dp)
     )
 }
@@ -891,7 +892,7 @@ private fun AddMaterialDialog(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(colors.bgPanel, RoundedCornerShape(4.dp))
+                            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusCard))
                             .clickable {
                                 showVendorPicker = false
                                 if (vendor.url != null) {
@@ -951,7 +952,7 @@ private fun InvoiceDetailPicker(
                 modifier = Modifier
                     .clickable { onSelect(level) }
                     .then(
-                        if (isSelected) Modifier.background(colors.accent.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
+                        if (isSelected) Modifier.background(colors.accent.copy(alpha = 0.08f), RoundedCornerShape(Tokens2.RadiusCard))
                         else Modifier
                     )
                     .padding(horizontal = 6.dp, vertical = 2.dp)

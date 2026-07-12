@@ -584,7 +584,7 @@ fun CrewCheckContent(
 
         Surface(
             onClick = onSolo,
-            shape = RoundedCornerShape(10.dp),
+            shape = RoundedCornerShape(Tokens2.RadiusControl),
             color = colors.bgPanel,
             border = BorderStroke(0.5.dp, colors.line),
             modifier = Modifier.fillMaxWidth(),
@@ -607,7 +607,7 @@ fun CrewCheckContent(
 
         Surface(
             onClick = onForeman,
-            shape = RoundedCornerShape(10.dp),
+            shape = RoundedCornerShape(Tokens2.RadiusControl),
             color = colors.bgPanel,
             border = BorderStroke(0.5.dp, colors.line),
             modifier = Modifier.fillMaxWidth(),
@@ -768,7 +768,7 @@ private fun PageDots(
             Box(
                 modifier = Modifier
                     .size(if (isActive) 10.dp else 8.dp)
-                    .clip(RoundedCornerShape(4.dp))
+                    .clip(RoundedCornerShape(Tokens2.RadiusTiny))
                     .background(
                         if (isActive) colors.accent else colors.line
                     )

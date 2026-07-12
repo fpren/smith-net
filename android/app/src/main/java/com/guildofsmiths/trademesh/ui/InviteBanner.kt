@@ -81,7 +81,7 @@ private fun InviteCard(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(colors.statusOnline.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+            .background(colors.statusOnline.copy(alpha = 0.15f), RoundedCornerShape(Tokens2.RadiusCard))
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

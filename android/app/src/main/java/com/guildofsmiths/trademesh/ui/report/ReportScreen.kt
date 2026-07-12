@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.ExpenseCategoryRepository
 import com.guildofsmiths.trademesh.data.TimeEntryRepository
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
+import com.guildofsmiths.trademesh.ui.Tokens2
 import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import com.guildofsmiths.trademesh.ui.jobboard.Job
@@ -160,14 +161,14 @@ fun ReportScreen(
                         .weight(1f)
                         .background(
                             if (isSelected) colors.accent else colors.bgPanel,
-                            RoundedCornerShape(4.dp)
+                            RoundedCornerShape(Tokens2.RadiusCard)
                         )
                         .border(
                             0.5.dp,
                             if (isSelected) colors.accent else colors.ink.copy(alpha = 0.06f),
-                            RoundedCornerShape(4.dp)
+                            RoundedCornerShape(Tokens2.RadiusCard)
                         )
-                        .clip(RoundedCornerShape(4.dp))
+                        .clip(RoundedCornerShape(Tokens2.RadiusCard))
                         .clickable {
                             selectedPeriod = period
                             periodPrefs.edit().putString("period", period.name).apply()
@@ -209,13 +210,13 @@ fun ReportScreen(
                         Modifier
                             .weight(1f)
                             .height(6.dp)
-                            .background(colors.ink.copy(alpha = 0.06f), RoundedCornerShape(3.dp))
+                            .background(colors.ink.copy(alpha = 0.06f), RoundedCornerShape(Tokens2.RadiusPill))
                     ) {
                         Box(
                             Modifier
                                 .fillMaxHeight()
                                 .fillMaxWidth(progress)
-                                .background(colors.accent, RoundedCornerShape(3.dp))
+                                .background(colors.accent, RoundedCornerShape(Tokens2.RadiusPill))
                         )
                     }
                     Text(
@@ -323,7 +324,7 @@ fun ReportScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(4.dp))
+                                    .clip(RoundedCornerShape(Tokens2.RadiusCard))
                                     .clickable(
                                         interactionSource = remember { MutableInteractionSource() },
                                         indication = rememberRipple(bounded = true),
@@ -354,7 +355,7 @@ fun ReportScreen(
                         "[Open Expenses page →]",
                         style = SmithType.action.copy(color = colors.accent),
                         modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
+                            .clip(RoundedCornerShape(Tokens2.RadiusCard))
                             .clickable { onOpenExpenses() }
                             .padding(vertical = 4.dp)
                     )
@@ -404,7 +405,7 @@ fun ReportScreen(
                                     .fillMaxWidth()
                                     .then(
                                         if (entry.jobId != null) Modifier
-                                            .clip(RoundedCornerShape(4.dp))
+                                            .clip(RoundedCornerShape(Tokens2.RadiusCard))
                                             .clickable(
                                                 interactionSource = remember { MutableInteractionSource() },
                                                 indication = rememberRipple(bounded = true),
@@ -456,8 +457,8 @@ private fun ReportCard(title: String, content: @Composable ColumnScope.() -> Uni
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.bgPanel, RoundedCornerShape(4.dp))
-            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusCard))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(Tokens2.RadiusCard))
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {

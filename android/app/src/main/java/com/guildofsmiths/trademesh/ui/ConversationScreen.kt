@@ -645,7 +645,7 @@ fun ConversationScreen(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 12.dp)
-                    .clip(RoundedCornerShape(999.dp))
+                    .clip(RoundedCornerShape(Tokens2.RadiusPill))
                     .background(colors.accent)
                     .clickable {
                         scope.launch {
@@ -800,7 +800,7 @@ fun ConversationScreen(
                     },
                     modifier = Modifier
                         .weight(1f)
-                        .background(colors.bgBase, RoundedCornerShape(20.dp))
+                        .background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusCard))
                         .padding(horizontal = 14.dp, vertical = 9.dp),
                     textStyle = SmithType.commBody.copy(color = colors.ink),
                     cursorBrush = SolidColor(colors.ink),
@@ -843,7 +843,7 @@ fun ConversationScreen(
                                 inputText = ""
                                 if (!isDmChannel) selectedPeer = null  // Only clear if not in DM channel
                             }
-                            .background(colors.accent, RoundedCornerShape(20.dp))
+                            .background(colors.accent, RoundedCornerShape(Tokens2.RadiusCard))
                             .padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                 } else {
@@ -1230,7 +1230,7 @@ private fun MeshChip(modifier: Modifier = Modifier) {
             color = colors.accent
         ),
         modifier = modifier
-            .border(1.dp, colors.accent, RoundedCornerShape(999.dp))
+            .border(1.dp, colors.accent, RoundedCornerShape(Tokens2.RadiusPill))
             .padding(horizontal = 6.dp, vertical = 1.dp)
     )
 }
@@ -1637,8 +1637,8 @@ private fun ToolCallApprovalCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.bgPanel, RoundedCornerShape(4.dp))
-            .border(0.5.dp, colors.accent.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusCard))
+            .border(0.5.dp, colors.accent.copy(alpha = 0.4f), RoundedCornerShape(Tokens2.RadiusCard))
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
         Text(

@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.ClientRepository
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
+import com.guildofsmiths.trademesh.ui.Tokens2
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.JobStage
 import com.guildofsmiths.trademesh.ui.jobboard.Task
@@ -285,7 +286,7 @@ private fun CurrentJobRow(j: Job, estimate: Double, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(4.dp))
+            .clip(RoundedCornerShape(Tokens2.RadiusCard))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = rememberRipple(bounded = true),
@@ -339,7 +340,7 @@ private fun TaskRow(t: Task, jobTitle: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(4.dp))
+            .clip(RoundedCornerShape(Tokens2.RadiusCard))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = rememberRipple(bounded = true),
@@ -368,7 +369,7 @@ private fun RecentJobRow(j: Job, billed: Double, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(4.dp))
+            .clip(RoundedCornerShape(Tokens2.RadiusCard))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = rememberRipple(bounded = true),
@@ -474,8 +475,8 @@ private fun Section(title: String, content: @Composable () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.bgPanel, RoundedCornerShape(4.dp))
-            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusCard))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(Tokens2.RadiusCard))
             .padding(12.dp)
     ) {
         Text(title, style = SmithType.captionBold.copy(color = colors.inkMuted))
@@ -490,8 +491,8 @@ private fun Card(content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.bgPanel, RoundedCornerShape(4.dp))
-            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusCard))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(Tokens2.RadiusCard))
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
         content = content
@@ -553,7 +554,7 @@ private fun EditField(label: String, value: String, onValueChange: (String) -> U
             textStyle = SmithType.bodySmall.copy(color = colors.ink),
             modifier = Modifier
                 .fillMaxWidth()
-                .background(colors.bgBase, RoundedCornerShape(4.dp))
+                .background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusCard))
                 .padding(8.dp),
             singleLine = true
         )

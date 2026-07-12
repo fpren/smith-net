@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.guildofsmiths.trademesh.ui.Tokens2
 import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import com.guildofsmiths.trademesh.data.RoleContext
@@ -45,8 +46,8 @@ fun LeftSidebar(
                 .background(
                     color = colors.bgPanel,
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(
-                        topEnd = 8.dp,
-                        bottomEnd = 8.dp
+                        topEnd = Tokens2.RadiusControl,
+                        bottomEnd = Tokens2.RadiusControl
                     )
                 )
                 .padding(vertical = 8.dp),

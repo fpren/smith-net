@@ -113,9 +113,9 @@ fun ArchiveScreen(
                         color = if (isSelected) colors.accent else colors.inkMuted
                     ),
                     modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
+                        .clip(RoundedCornerShape(Tokens2.RadiusControl))
                         .then(
-                            if (isSelected) Modifier.background(colors.accent.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
+                            if (isSelected) Modifier.background(colors.accent.copy(alpha = 0.08f), RoundedCornerShape(Tokens2.RadiusControl))
                             else Modifier
                         )
                         .clickable { selectedTab = index }
@@ -244,13 +244,13 @@ private fun AuditJobRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.bgPanel, RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusCard))
             .border(
                 0.5.dp,
                 if (isArchived) colors.ink.copy(alpha = 0.04f) else colors.ink.copy(alpha = 0.06f),
-                RoundedCornerShape(4.dp)
+                RoundedCornerShape(Tokens2.RadiusCard)
             )
-            .clip(RoundedCornerShape(4.dp))
+            .clip(RoundedCornerShape(Tokens2.RadiusCard))
             .then(
                 if (onJobClick != null) Modifier.clickable(
                     interactionSource = remember { MutableInteractionSource() },
@@ -387,8 +387,8 @@ private fun TimeEntriesTab(timeEntries: List<TimeEntry>) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                        .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                        .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusCard))
+                        .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(Tokens2.RadiusCard))
                         .padding(12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
@@ -442,8 +442,8 @@ private fun MessagesTab(archivedMessages: List<Message>) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                    .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                    .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusCard))
+                    .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(Tokens2.RadiusCard))
                     .padding(12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
@@ -493,8 +493,8 @@ private fun AuditStatCard(
     val colors = LocalSmithColors.current
     Column(
         modifier = modifier
-            .background(colors.bgPanel, RoundedCornerShape(4.dp))
-            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusCard))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(Tokens2.RadiusCard))
             .padding(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {

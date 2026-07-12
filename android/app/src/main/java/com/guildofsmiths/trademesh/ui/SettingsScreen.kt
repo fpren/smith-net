@@ -414,9 +414,9 @@ fun SettingsScreen(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .background(if (sel) colors.accent else colors.bgPanel, androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
-                            .border(0.5.dp, colors.ink.copy(alpha = 0.12f), androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
-                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
+                            .background(if (sel) colors.accent else colors.bgPanel, androidx.compose.foundation.shape.RoundedCornerShape(Tokens2.RadiusControl))
+                            .border(0.5.dp, colors.ink.copy(alpha = 0.12f), androidx.compose.foundation.shape.RoundedCornerShape(Tokens2.RadiusControl))
+                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(Tokens2.RadiusControl))
                             .clickable { com.guildofsmiths.trademesh.data.LocationSharingPreferences.setCadence(cad) }
                             .padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center
@@ -773,9 +773,9 @@ private fun SmithAISection() {
                         .border(
                             0.5.dp,
                             if (isSelected) colors.accent else colors.ink.copy(alpha = 0.06f),
-                            RoundedCornerShape(4.dp)
+                            RoundedCornerShape(Tokens2.RadiusControl)
                         )
-                        .clip(RoundedCornerShape(4.dp))
+                        .clip(RoundedCornerShape(Tokens2.RadiusControl))
                         .clickable {
                             supervisorMode = value
                             UserPreferences.setAISupervisorMode(value)
@@ -1273,12 +1273,12 @@ private fun AppearanceSection(
                     ),
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(4.dp))
+                        .clip(RoundedCornerShape(Tokens2.RadiusControl))
                         .then(
                             if (isSelected) {
                                 Modifier.background(colors.accent)
                             } else {
-                                Modifier.border(1.dp, colors.line, RoundedCornerShape(4.dp))
+                                Modifier.border(1.dp, colors.line, RoundedCornerShape(Tokens2.RadiusControl))
                             }
                         )
                         .clickable { onSelect(pref) }
@@ -1854,7 +1854,7 @@ private fun TradePickerContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.bgBase, RoundedCornerShape(8.dp))
+            .background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusCard))
             .padding(16.dp)
     ) {
         // Header

@@ -34,6 +34,7 @@ import com.guildofsmiths.trademesh.data.ChannelType
 import com.guildofsmiths.trademesh.data.ColleagueRepository
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
 import com.guildofsmiths.trademesh.ui.ConsoleSeparator
+import com.guildofsmiths.trademesh.ui.Tokens2
 import com.guildofsmiths.trademesh.ui.components.SmithAvatar
 import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithType
@@ -111,7 +112,7 @@ private fun SegPill(label: String, active: Boolean, onClick: () -> Unit) {
         text = label,
         style = SmithType.commId.copy(color = if (active) colors.bgPanel else colors.inkMuted),
         modifier = Modifier
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(Tokens2.RadiusBubble))
             .background(if (active) colors.accent else colors.bgPanel)
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 6.dp)
