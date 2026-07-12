@@ -191,7 +191,7 @@ fun BolLegalSettingsScreen(onBack: () -> Unit) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(colors.accent.copy(alpha = 0.14f), RoundedCornerShape(Tokens2.RadiusCard))
+                        .background(colors.accent.copy(alpha = 0.14f), RoundedCornerShape(Tokens2.RadiusControl))
                         .clickable {
                             BolLegalPreferences.setLabels(shipper, carrier, consignee)
                         }

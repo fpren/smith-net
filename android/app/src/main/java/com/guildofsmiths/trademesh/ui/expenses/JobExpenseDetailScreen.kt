@@ -388,10 +388,10 @@ private fun ActionButton(label: String, accent: Boolean, modifier: Modifier = Mo
         modifier = modifier
             .background(
                 if (accent) colors.accent.copy(alpha = 0.14f) else colors.bgPanel,
-                RoundedCornerShape(Tokens2.RadiusCard)
+                RoundedCornerShape(Tokens2.RadiusControl)
             )
-            .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(Tokens2.RadiusCard))
-            .clip(RoundedCornerShape(Tokens2.RadiusCard))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(Tokens2.RadiusControl))
+            .clip(RoundedCornerShape(Tokens2.RadiusControl))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = rememberRipple(bounded = true, color = colors.accent),
@@ -669,7 +669,7 @@ private fun AddExpenseSheet(
             Box(
                 modifier = Modifier
                     .size(18.dp)
-                    .border(1.dp, colors.attention, RoundedCornerShape(Tokens2.RadiusPill))
+                    .border(1.dp, colors.attention, RoundedCornerShape(Tokens2.RadiusTiny))
                     .background(if (hazardous) colors.attention.copy(alpha = 0.3f) else Color.Transparent)
                     .clickable { hazardous = !hazardous }
             )

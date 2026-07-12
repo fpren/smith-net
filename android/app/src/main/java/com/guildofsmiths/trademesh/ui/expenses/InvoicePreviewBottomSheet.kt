@@ -221,10 +221,10 @@ private fun ActionBtn(label: String, accent: Boolean, modifier: Modifier = Modif
         modifier = modifier
             .background(
                 if (accent) colors.accent.copy(alpha = 0.14f) else colors.bgPanel,
-                RoundedCornerShape(Tokens2.RadiusCard)
+                RoundedCornerShape(Tokens2.RadiusControl)
             )
-            .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(Tokens2.RadiusCard))
-            .clip(RoundedCornerShape(Tokens2.RadiusCard))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(Tokens2.RadiusControl))
+            .clip(RoundedCornerShape(Tokens2.RadiusControl))
             .clickable(onClick = onClick)
             .padding(vertical = 10.dp),
         contentAlignment = Alignment.Center

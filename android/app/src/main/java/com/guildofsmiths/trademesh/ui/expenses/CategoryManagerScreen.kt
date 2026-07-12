@@ -62,9 +62,9 @@ fun CategoryManagerScreen(onBack: () -> Unit) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(colors.accent.copy(alpha = 0.14f), RoundedCornerShape(Tokens2.RadiusCard))
-                        .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(Tokens2.RadiusCard))
-                        .clip(RoundedCornerShape(Tokens2.RadiusCard))
+                        .background(colors.accent.copy(alpha = 0.14f), RoundedCornerShape(Tokens2.RadiusControl))
+                        .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(Tokens2.RadiusControl))
+                        .clip(RoundedCornerShape(Tokens2.RadiusControl))
                         .clickable { addingNew = true }
                         .padding(vertical = 10.dp),
                     contentAlignment = Alignment.Center
