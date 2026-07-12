@@ -16,8 +16,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.guildofsmiths.trademesh.ui.ConsoleTheme
+import com.guildofsmiths.trademesh.ui.Tokens2
 
-enum class SmithButtonVariant { Primary, Ghost, Danger }
+enum class SmithButtonVariant { Primary, Ghost, Danger, Success }
 
 @Composable
 fun SmithButton(
@@ -26,13 +27,14 @@ fun SmithButton(
     modifier: Modifier = Modifier,
     variant: SmithButtonVariant = SmithButtonVariant.Primary,
     enabled: Boolean = true,
-    shape: Shape = RoundedCornerShape(999.dp),
+    shape: Shape = RoundedCornerShape(Tokens2.RadiusPill),
 ) {
     val colors = LocalSmithColors.current
     val (bg, fg) = when (variant) {
         SmithButtonVariant.Primary -> colors.accent to colors.inkOnAccent
         SmithButtonVariant.Ghost -> Color.Transparent to colors.inkMuted
         SmithButtonVariant.Danger -> colors.statusError to colors.inkOnAccent
+        SmithButtonVariant.Success -> colors.statusOnline to colors.inkOnAccent
     }
     Text(
         text = text,

@@ -32,11 +32,13 @@ import com.guildofsmiths.trademesh.data.TimeEntryRepository
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.ai.AISupervisor
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
+import com.guildofsmiths.trademesh.ui.Tokens2
 import com.guildofsmiths.trademesh.ui.jobboard.FreightTerm
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel
 import com.guildofsmiths.trademesh.ui.jobboard.JobExpense
 import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithCard
 import com.guildofsmiths.trademesh.ui.theme2.SmithEmptyState
 import com.guildofsmiths.trademesh.ui.theme2.SmithErrorState
 import com.guildofsmiths.trademesh.ui.theme2.SmithLoadingState
@@ -129,66 +131,61 @@ fun JobExpenseDetailScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // BOL header card
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                    .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
-                    .padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+            SmithCard(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(12.dp)
             ) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("BOL #: $bolNumber", style = SmithType.captionBold.copy(color = colors.ink))
-                    Text(dateFmt.format(Date()), style = SmithType.caption.copy(color = colors.inkMuted))
-                }
-                Box(Modifier.fillMaxWidth().padding(vertical = 4.dp).height(0.5.dp).background(colors.ink.copy(alpha = 0.08f)))
-
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("SHIP FROM", style = SmithType.captionBold.copy(color = colors.inkMuted))
-                        Text(UserPreferences.getBusinessName().ifBlank { "My Business" }, style = SmithType.caption.copy(color = colors.inkMuted))
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("BOL #: $bolNumber", style = SmithType.captionBold.copy(color = colors.ink))
+                        Text(dateFmt.format(Date()), style = SmithType.caption.copy(color = colors.inkMuted))
                     }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("SHIP TO", style = SmithType.captionBold.copy(color = colors.inkMuted))
-                        Text(job.clientName ?: "—", style = SmithType.caption.copy(color = colors.inkMuted))
-                        if (job.clientAddress.isNotBlank()) {
-                            Text(job.clientAddress, style = SmithType.caption.copy(color = colors.inkMuted))
+                    Box(Modifier.fillMaxWidth().padding(vertical = 4.dp).height(0.5.dp).background(colors.ink.copy(alpha = 0.08f)))
+
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("SHIP FROM", style = SmithType.captionBold.copy(color = colors.inkMuted))
+                            Text(UserPreferences.getBusinessName().ifBlank { "My Business" }, style = SmithType.caption.copy(color = colors.inkMuted))
                         }
-                        if (job.clientPhone.isNotBlank()) {
-                            Text(job.clientPhone, style = SmithType.caption.copy(color = colors.inkMuted))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("SHIP TO", style = SmithType.captionBold.copy(color = colors.inkMuted))
+                            Text(job.clientName ?: "—", style = SmithType.caption.copy(color = colors.inkMuted))
+                            if (job.clientAddress.isNotBlank()) {
+                                Text(job.clientAddress, style = SmithType.caption.copy(color = colors.inkMuted))
+                            }
+                            if (job.clientPhone.isNotBlank()) {
+                                Text(job.clientPhone, style = SmithType.caption.copy(color = colors.inkMuted))
+                            }
                         }
                     }
-                }
 
-                Text(
-                    "Job: ${job.title} · Stage: ${job.stage.displayName}",
-                    style = SmithType.caption.copy(color = colors.ink)
-                )
-
-                // Deposit row (tappable)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(4.dp))
-                        .clickable { showDepositDialog = true }
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
                     Text(
-                        "Deposit collected: $${String.format("%.2f", job.depositCollected)}${if (!job.depositNote.isNullOrBlank()) " · ${job.depositNote}" else ""}",
+                        "Job: ${job.title} · Stage: ${job.stage.displayName}",
                         style = SmithType.caption.copy(color = colors.ink)
                     )
-                    Text("[edit]", style = SmithType.caption.copy(color = colors.accent))
+
+                    // Deposit row (tappable)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(Tokens2.RadiusControl))
+                            .clickable { showDepositDialog = true }
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            "Deposit collected: $${String.format("%.2f", job.depositCollected)}${if (!job.depositNote.isNullOrBlank()) " · ${job.depositNote}" else ""}",
+                            style = SmithType.caption.copy(color = colors.ink)
+                        )
+                        Text("[edit]", style = SmithType.caption.copy(color = colors.accent))
+                    }
                 }
             }
 
             // Line items
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                    .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
-                    .padding(10.dp)
+            SmithCard(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(10.dp)
             ) {
                 // Column headers
                 Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
@@ -391,10 +388,10 @@ private fun ActionButton(label: String, accent: Boolean, modifier: Modifier = Mo
         modifier = modifier
             .background(
                 if (accent) colors.accent.copy(alpha = 0.14f) else colors.bgPanel,
-                RoundedCornerShape(4.dp)
+                RoundedCornerShape(Tokens2.RadiusControl)
             )
-            .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
-            .clip(RoundedCornerShape(4.dp))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(Tokens2.RadiusControl))
+            .clip(RoundedCornerShape(Tokens2.RadiusControl))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = rememberRipple(bounded = true, color = colors.accent),
@@ -450,7 +447,7 @@ private fun ExpenseRowEditable(
                         cursorBrush = SolidColor(colors.ink),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(colors.bgBase, RoundedCornerShape(2.dp))
+                            .background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusTiny))
                             .padding(4.dp)
                     )
                 } else {
@@ -624,10 +621,10 @@ private fun AddExpenseSheet(
                     modifier = Modifier
                         .background(
                             if (selected) colors.accent else colors.bgBase,
-                            RoundedCornerShape(4.dp)
+                            RoundedCornerShape(Tokens2.RadiusPill)
                         )
-                        .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
-                        .clip(RoundedCornerShape(4.dp))
+                        .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(Tokens2.RadiusPill))
+                        .clip(RoundedCornerShape(Tokens2.RadiusPill))
                         .clickable { categoryId = c.id }
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
@@ -656,10 +653,10 @@ private fun AddExpenseSheet(
                     modifier = Modifier
                         .background(
                             if (selected) colors.accent.copy(alpha = 0.2f) else colors.bgBase,
-                            RoundedCornerShape(4.dp)
+                            RoundedCornerShape(Tokens2.RadiusPill)
                         )
-                        .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
-                        .clip(RoundedCornerShape(4.dp))
+                        .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(Tokens2.RadiusPill))
+                        .clip(RoundedCornerShape(Tokens2.RadiusPill))
                         .clickable { freight = ft }
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
@@ -672,7 +669,7 @@ private fun AddExpenseSheet(
             Box(
                 modifier = Modifier
                     .size(18.dp)
-                    .border(1.dp, colors.attention, RoundedCornerShape(2.dp))
+                    .border(1.dp, colors.attention, RoundedCornerShape(Tokens2.RadiusTiny))
                     .background(if (hazardous) colors.attention.copy(alpha = 0.3f) else Color.Transparent)
                     .clickable { hazardous = !hazardous }
             )
@@ -724,8 +721,8 @@ private fun LabeledInput(
             keyboardOptions = if (numeric) KeyboardOptions(keyboardType = KeyboardType.Decimal) else KeyboardOptions.Default,
             modifier = Modifier
                 .fillMaxWidth()
-                .background(colors.bgBase, RoundedCornerShape(2.dp))
-                .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(2.dp))
+                .background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusTiny))
+                .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(Tokens2.RadiusTiny))
                 .padding(8.dp)
         )
     }
@@ -742,20 +739,16 @@ private fun DepositDialog(
     var amount by remember { mutableStateOf(current.cleanStr()) }
     var note by remember { mutableStateOf(currentNote) }
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
-        Column(
-            modifier = Modifier
-                .background(colors.bgPanel, RoundedCornerShape(6.dp))
-                .border(0.5.dp, colors.ink.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text("DEPOSIT", style = SmithType.captionBold.copy(color = colors.ink))
-            LabeledInput("Amount", amount, numeric = true) { amount = it }
-            LabeledInput("Note (check #, method)", note) { note = it }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ActionButton(label = "[cancel]", accent = false, modifier = Modifier.weight(1f), onClick = onDismiss)
-                ActionButton(label = "[save]", accent = true, modifier = Modifier.weight(1f)) {
-                    onSave(amount.toDoubleOrNull() ?: 0.0, note)
+        SmithCard {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("DEPOSIT", style = SmithType.captionBold.copy(color = colors.ink))
+                LabeledInput("Amount", amount, numeric = true) { amount = it }
+                LabeledInput("Note (check #, method)", note) { note = it }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ActionButton(label = "[cancel]", accent = false, modifier = Modifier.weight(1f), onClick = onDismiss)
+                    ActionButton(label = "[save]", accent = true, modifier = Modifier.weight(1f)) {
+                        onSave(amount.toDoubleOrNull() ?: 0.0, note)
+                    }
                 }
             }
         }

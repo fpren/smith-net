@@ -23,11 +23,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.ExpenseCategoryRepository
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
+import com.guildofsmiths.trademesh.ui.Tokens2
 import com.guildofsmiths.trademesh.ui.jobboard.FreightTerm
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel
 import com.guildofsmiths.trademesh.ui.jobboard.JobExpense
 import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithCard
 import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -73,9 +75,9 @@ fun ExpenseCsvImportScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Box(
                     modifier = Modifier
-                        .background(colors.accent.copy(alpha = 0.14f), RoundedCornerShape(4.dp))
-                        .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
-                        .clip(RoundedCornerShape(4.dp))
+                        .background(colors.accent.copy(alpha = 0.14f), RoundedCornerShape(Tokens2.RadiusControl))
+                        .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(Tokens2.RadiusControl))
+                        .clip(RoundedCornerShape(Tokens2.RadiusControl))
                         .clickable { picker.launch(arrayOf("text/csv", "text/*", "text/comma-separated-values", "application/vnd.ms-excel")) }
                         .padding(horizontal = 10.dp, vertical = 8.dp)
                 ) {
@@ -83,9 +85,9 @@ fun ExpenseCsvImportScreen(
                 }
                 Box(
                     modifier = Modifier
-                        .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                        .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
-                        .clip(RoundedCornerShape(4.dp))
+                        .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusControl))
+                        .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(Tokens2.RadiusControl))
+                        .clip(RoundedCornerShape(Tokens2.RadiusControl))
                         .clickable {
                             copyTemplateToDownloads(context, "all_categories.csv")
                             Toast.makeText(context, "Saved all_categories.csv to Downloads", Toast.LENGTH_SHORT).show()
@@ -104,7 +106,7 @@ fun ExpenseCsvImportScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(colors.statusError.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                        .background(colors.statusError.copy(alpha = 0.1f), RoundedCornerShape(Tokens2.RadiusControl))
                         .padding(8.dp)
                 ) {
                     errors.forEach { Text("• $it", style = SmithType.caption.copy(color = colors.statusError)) }
@@ -119,12 +121,9 @@ fun ExpenseCsvImportScreen(
                     style = SmithType.bodySmall.copy(color = colors.ink)
                 )
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                        .border(0.5.dp, colors.ink.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
-                        .padding(8.dp)
+                SmithCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(8.dp)
                 ) {
                     Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
                         Column {
@@ -150,9 +149,9 @@ fun ExpenseCsvImportScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Box(
                         modifier = Modifier
-                            .background(colors.accent.copy(alpha = 0.14f), RoundedCornerShape(4.dp))
-                            .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
-                            .clip(RoundedCornerShape(4.dp))
+                            .background(colors.accent.copy(alpha = 0.14f), RoundedCornerShape(Tokens2.RadiusControl))
+                            .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(Tokens2.RadiusControl))
+                            .clip(RoundedCornerShape(Tokens2.RadiusControl))
                             .clickable {
                                 var imported = 0
                                 var skipped = 0
@@ -182,9 +181,9 @@ fun ExpenseCsvImportScreen(
                     }
                     Box(
                         modifier = Modifier
-                            .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                            .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
-                            .clip(RoundedCornerShape(4.dp))
+                            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusControl))
+                            .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(Tokens2.RadiusControl))
+                            .clip(RoundedCornerShape(Tokens2.RadiusControl))
                             .clickable { parsedRows = emptyList(); fileName = null; errors = emptyList() }
                             .padding(horizontal = 12.dp, vertical = 8.dp)
                     ) {

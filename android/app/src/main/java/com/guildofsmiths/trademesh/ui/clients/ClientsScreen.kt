@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.ClientInfo
 import com.guildofsmiths.trademesh.data.ClientRepository
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
+import com.guildofsmiths.trademesh.ui.Tokens2
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithButton
@@ -66,8 +67,8 @@ fun ClientsScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
-                .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusControl))
+                .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(Tokens2.RadiusControl))
                 .padding(horizontal = 12.dp, vertical = 10.dp)
         ) {
             if (searchQuery.isEmpty()) {
@@ -133,7 +134,7 @@ private fun ClientRow(client: ClientInfo, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(4.dp))
+            .clip(RoundedCornerShape(Tokens2.RadiusControl))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = rememberRipple(bounded = true),
@@ -228,7 +229,7 @@ private fun DialogField(label: String, value: String, onValueChange: (String) ->
             textStyle = SmithType.bodySmall.copy(color = colors.ink),
             modifier = Modifier
                 .fillMaxWidth()
-                .background(colors.bgBase, RoundedCornerShape(4.dp))
+                .background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusControl))
                 .padding(8.dp),
             singleLine = true
         )

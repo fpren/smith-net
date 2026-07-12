@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
+import com.guildofsmiths.trademesh.ui.Tokens2
 import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import com.guildofsmiths.trademesh.ui.jobboard.Job
@@ -116,9 +117,9 @@ fun SupplyScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
-                .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
-                .clip(RoundedCornerShape(4.dp))
+                .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusCard))
+                .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(Tokens2.RadiusCard))
+                .clip(RoundedCornerShape(Tokens2.RadiusCard))
                 .clickable { showJobPicker = !showJobPicker }
                 .padding(horizontal = 12.dp, vertical = 10.dp)
         ) {
@@ -138,8 +139,8 @@ fun SupplyScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
-                    .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                    .border(0.5.dp, colors.ink.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                    .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusCard))
+                    .border(0.5.dp, colors.ink.copy(alpha = 0.1f), RoundedCornerShape(Tokens2.RadiusCard))
             ) {
                 Text(
                     text = "All Jobs",
@@ -210,8 +211,8 @@ fun SupplyScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                    .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+                    .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusCard))
+                    .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(Tokens2.RadiusCard))
                     .padding(14.dp)
             ) {
                 Text("TOTAL", style = SmithType.captionBold.copy(color = colors.inkMuted))
@@ -268,7 +269,7 @@ private fun MaterialRow(item: SupplyItem, onToggle: () -> Unit, onEdit: () -> Un
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(4.dp))
+            .clip(RoundedCornerShape(Tokens2.RadiusControl))
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -351,8 +352,8 @@ private fun MaterialRow(item: SupplyItem, onToggle: () -> Unit, onEdit: () -> Un
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(colors.bgBase, RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(Tokens2.RadiusControl))
+                            .background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusControl))
                             .clickable {
                                 showVendorPicker = false
                                 if (vendor.url != null) {
@@ -439,7 +440,7 @@ private fun MaterialDialog(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(colors.bgBase, RoundedCornerShape(4.dp))
+                            .background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusControl))
                             .clickable { showJobSelect = !showJobSelect }
                             .padding(8.dp)
                     ) {
@@ -449,8 +450,8 @@ private fun MaterialDialog(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(colors.bgBase, RoundedCornerShape(4.dp))
-                                .border(0.5.dp, colors.ink.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                                .background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusControl))
+                                .border(0.5.dp, colors.ink.copy(alpha = 0.1f), RoundedCornerShape(Tokens2.RadiusControl))
                         ) {
                             jobs.forEach { job ->
                                 Text(
@@ -515,7 +516,7 @@ private fun DialogField(
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             modifier = Modifier
                 .fillMaxWidth()
-                .background(colors.bgBase, RoundedCornerShape(4.dp))
+                .background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusControl))
                 .padding(8.dp),
             singleLine = true
         )
@@ -528,8 +529,8 @@ private fun SupplyCard(title: String, content: @Composable ColumnScope.() -> Uni
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.bgPanel, RoundedCornerShape(4.dp))
-            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusCard))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.06f), RoundedCornerShape(Tokens2.RadiusCard))
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {

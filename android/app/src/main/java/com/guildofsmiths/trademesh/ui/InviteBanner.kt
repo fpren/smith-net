@@ -15,9 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -31,6 +28,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.guildofsmiths.trademesh.engine.BoundaryEngine
 import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithButton
+import com.guildofsmiths.trademesh.ui.theme2.SmithButtonVariant
+import com.guildofsmiths.trademesh.ui.theme2.SmithType
 
 /**
  * Banner showing pending channel invites.
@@ -81,18 +81,14 @@ private fun InviteCard(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(colors.statusOnline.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+            .background(colors.statusOnline.copy(alpha = 0.15f), RoundedCornerShape(Tokens2.RadiusCard))
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = "[+] Channel Invite",
-                style = TextStyle(
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 11.sp,
-                    color = colors.statusOnline
-                )
+                style = SmithType.captionBold.copy(color = colors.statusOnline)
             )
 
             Spacer(modifier = Modifier.height(2.dp))
@@ -117,40 +113,9 @@ private fun InviteCard(
             )
         }
 
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            OutlinedButton(
-                onClick = onDecline,
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = colors.inkMuted
-                )
-            ) {
-                Text(
-                    text = "✕",
-                    style = TextStyle(
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                )
-            }
-
-            Button(
-                onClick = onAccept,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colors.statusOnline,
-                    contentColor = colors.inkOnAccent
-                )
-            ) {
-                Text(
-                    text = "Join",
-                    style = TextStyle(
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                )
-            }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SmithButton(text = "✕", onClick = onDecline, variant = SmithButtonVariant.Ghost)
+            SmithButton(text = "Join", onClick = onAccept, variant = SmithButtonVariant.Success)
         }
     }
 }

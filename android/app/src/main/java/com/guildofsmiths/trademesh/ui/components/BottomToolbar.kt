@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.guildofsmiths.trademesh.ui.Tokens2
 import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import com.guildofsmiths.trademesh.data.RoleContext
@@ -93,11 +94,11 @@ private fun ExpandedToolbar(
             .width(160.dp)
             .shadow(
                 elevation = 8.dp,
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(Tokens2.RadiusControl)
             )
             .background(
                 color = colors.bgPanel,
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(Tokens2.RadiusControl)
             )
             .padding(vertical = 4.dp)
     ) {
@@ -211,11 +212,11 @@ private fun TriggerButton(onClick: () -> Unit) {
         modifier = Modifier
             .shadow(
                 elevation = 6.dp,
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(Tokens2.RadiusControl)
             )
             .background(
                 color = colors.accent,
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(Tokens2.RadiusControl)
             )
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp)

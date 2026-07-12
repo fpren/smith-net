@@ -8,13 +8,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,6 +34,7 @@ import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithButton
 import com.guildofsmiths.trademesh.ui.theme2.SmithButtonVariant
 import com.guildofsmiths.trademesh.ui.theme2.SmithDialog
+import com.guildofsmiths.trademesh.ui.theme2.SmithTextField
 import com.guildofsmiths.trademesh.ui.theme2.SmithType
 import kotlinx.coroutines.delay
 
@@ -84,24 +83,14 @@ fun NewConversationScreen(
         ConsoleSeparator()
 
         // Search
-        TextField(
+        SmithTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
-            placeholder = { Text("Search contacts...", style = SmithType.caption.copy(color = colors.inkMuted)) },
+            placeholder = "Search contacts...",
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 8.dp),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = colors.bgPanel,
-                unfocusedContainerColor = colors.bgPanel,
-                focusedTextColor = colors.ink,
-                unfocusedTextColor = colors.ink,
-                cursorColor = colors.accent,
-                focusedIndicatorColor = colors.accent,
-                unfocusedIndicatorColor = Color.Transparent
-            ),
-            textStyle = SmithType.bodySmall.copy(color = colors.ink),
-            singleLine = true
+            imeAction = ImeAction.Search,
         )
 
         ConsoleSeparator()
@@ -630,22 +619,10 @@ private fun ManualEntryDialog(
 
 @Composable
 private fun DialogField(label: String, value: String, onValueChange: (String) -> Unit) {
-    val colors = LocalSmithColors.current
-    TextField(
+    SmithTextField(
         value = value,
         onValueChange = onValueChange,
-        placeholder = { Text(label, style = SmithType.caption.copy(color = colors.inkMuted)) },
+        placeholder = label,
         modifier = Modifier.fillMaxWidth(),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = colors.bgBase,
-            unfocusedContainerColor = colors.bgBase,
-            focusedTextColor = colors.ink,
-            unfocusedTextColor = colors.ink,
-            cursorColor = colors.accent,
-            focusedIndicatorColor = colors.accent,
-            unfocusedIndicatorColor = Color.Transparent
-        ),
-        textStyle = SmithType.bodySmall.copy(color = colors.ink),
-        singleLine = true
     )
 }

@@ -45,6 +45,9 @@ object Tokens2 {
     val RadiusCard = 20.dp
     val RadiusBubble = 14.dp
     val RadiusOps = 0.dp
+    val RadiusControl = 10.dp
+    val RadiusTiny = 6.dp
+    val RadiusPill = 999.dp // pill sources radius.input: same 999 value, web legacy name
     const val DurationFastMs = 200
     const val DurationBaseMs = 250
 }

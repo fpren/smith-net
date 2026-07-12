@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.ExpenseCategoryRepository
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
+import com.guildofsmiths.trademesh.ui.Tokens2
 import com.guildofsmiths.trademesh.ui.jobboard.ExpenseCategoryDef
 import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
 import com.guildofsmiths.trademesh.ui.theme2.SmithType
@@ -61,9 +62,9 @@ fun CategoryManagerScreen(onBack: () -> Unit) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(colors.accent.copy(alpha = 0.14f), RoundedCornerShape(4.dp))
-                        .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
-                        .clip(RoundedCornerShape(4.dp))
+                        .background(colors.accent.copy(alpha = 0.14f), RoundedCornerShape(Tokens2.RadiusControl))
+                        .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(Tokens2.RadiusControl))
+                        .clip(RoundedCornerShape(Tokens2.RadiusControl))
                         .clickable { addingNew = true }
                         .padding(vertical = 10.dp),
                     contentAlignment = Alignment.Center
@@ -87,8 +88,8 @@ private fun CategoryRow(cat: ExpenseCategoryDef) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.bgPanel, RoundedCornerShape(4.dp))
-            .border(0.5.dp, colors.ink.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusCard))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.08f), RoundedCornerShape(Tokens2.RadiusCard))
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -96,7 +97,7 @@ private fun CategoryRow(cat: ExpenseCategoryDef) {
         Box(
             modifier = Modifier
                 .size(14.dp)
-                .background(parseColor(cat.colorHex, fallback = colors.accent), RoundedCornerShape(2.dp))
+                .background(parseColor(cat.colorHex, fallback = colors.accent), RoundedCornerShape(Tokens2.RadiusTiny))
         )
         Spacer(Modifier.width(8.dp))
         if (editing) {
@@ -106,7 +107,7 @@ private fun CategoryRow(cat: ExpenseCategoryDef) {
                     singleLine = true,
                     textStyle = SmithType.bodySmall.copy(color = colors.ink),
                     cursorBrush = SolidColor(colors.ink),
-                    modifier = Modifier.fillMaxWidth().background(colors.bgBase, RoundedCornerShape(2.dp)).padding(4.dp)
+                    modifier = Modifier.fillMaxWidth().background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusTiny)).padding(4.dp)
                 )
                 Spacer(Modifier.height(4.dp))
                 BasicTextField(
@@ -114,7 +115,7 @@ private fun CategoryRow(cat: ExpenseCategoryDef) {
                     singleLine = true,
                     textStyle = SmithType.caption.copy(color = colors.inkMuted),
                     cursorBrush = SolidColor(colors.ink),
-                    modifier = Modifier.width(60.dp).background(colors.bgBase, RoundedCornerShape(2.dp)).padding(4.dp)
+                    modifier = Modifier.width(60.dp).background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusTiny)).padding(4.dp)
                 )
             }
             Text("[save]",
@@ -184,8 +185,8 @@ private fun AddCategoryRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.bgPanel, RoundedCornerShape(4.dp))
-            .border(0.5.dp, colors.accent, RoundedCornerShape(4.dp))
+            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusCard))
+            .border(0.5.dp, colors.accent, RoundedCornerShape(Tokens2.RadiusCard))
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -196,7 +197,7 @@ private fun AddCategoryRow(
                 singleLine = true,
                 textStyle = SmithType.bodySmall.copy(color = colors.ink),
                 cursorBrush = SolidColor(colors.ink),
-                modifier = Modifier.fillMaxWidth().background(colors.bgBase, RoundedCornerShape(2.dp)).padding(4.dp)
+                modifier = Modifier.fillMaxWidth().background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusTiny)).padding(4.dp)
             )
             Spacer(Modifier.height(4.dp))
             Text("Short code (e.g. [A])", style = SmithType.caption.copy(color = colors.inkMuted))
@@ -205,7 +206,7 @@ private fun AddCategoryRow(
                 singleLine = true,
                 textStyle = SmithType.caption.copy(color = colors.ink),
                 cursorBrush = SolidColor(colors.ink),
-                modifier = Modifier.width(60.dp).background(colors.bgBase, RoundedCornerShape(2.dp)).padding(4.dp)
+                modifier = Modifier.width(60.dp).background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusTiny)).padding(4.dp)
             )
         }
         Text("[save]",

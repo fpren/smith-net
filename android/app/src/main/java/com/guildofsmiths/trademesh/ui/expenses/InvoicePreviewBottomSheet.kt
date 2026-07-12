@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.guildofsmiths.trademesh.data.BolLegalPreferences
+import com.guildofsmiths.trademesh.ui.Tokens2
 import com.guildofsmiths.trademesh.ui.invoice.Invoice
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.LegalFooterScope
@@ -164,14 +165,14 @@ private fun <T> RadioRow(
                 modifier = Modifier
                     .background(
                         if (isSel) colors.accent else colors.bgBase,
-                        RoundedCornerShape(4.dp)
+                        RoundedCornerShape(Tokens2.RadiusPill)
                     )
                     .border(
                         0.5.dp,
                         if (isSel) colors.accent else colors.ink.copy(alpha = 0.12f),
-                        RoundedCornerShape(4.dp)
+                        RoundedCornerShape(Tokens2.RadiusPill)
                     )
-                    .clip(RoundedCornerShape(4.dp))
+                    .clip(RoundedCornerShape(Tokens2.RadiusPill))
                     .clickable { onSelect(value) }
                     .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
@@ -201,9 +202,9 @@ private fun Checkbox(label: String, checked: Boolean, onChange: (Boolean) -> Uni
                 .size(18.dp)
                 .background(
                     if (checked) colors.accent else colors.bgBase,
-                    RoundedCornerShape(2.dp)
+                    RoundedCornerShape(Tokens2.RadiusTiny)
                 )
-                .border(0.5.dp, colors.ink.copy(alpha = 0.3f), RoundedCornerShape(2.dp)),
+                .border(0.5.dp, colors.ink.copy(alpha = 0.3f), RoundedCornerShape(Tokens2.RadiusTiny)),
             contentAlignment = Alignment.Center
         ) {
             if (checked) Text("✓", style = SmithType.caption.copy(color = colors.inkOnAccent))
@@ -220,10 +221,10 @@ private fun ActionBtn(label: String, accent: Boolean, modifier: Modifier = Modif
         modifier = modifier
             .background(
                 if (accent) colors.accent.copy(alpha = 0.14f) else colors.bgPanel,
-                RoundedCornerShape(4.dp)
+                RoundedCornerShape(Tokens2.RadiusControl)
             )
-            .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
-            .clip(RoundedCornerShape(4.dp))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(Tokens2.RadiusControl))
+            .clip(RoundedCornerShape(Tokens2.RadiusControl))
             .clickable(onClick = onClick)
             .padding(vertical = 10.dp),
         contentAlignment = Alignment.Center

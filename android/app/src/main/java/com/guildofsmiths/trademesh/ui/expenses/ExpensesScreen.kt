@@ -22,12 +22,14 @@ import androidx.compose.ui.unit.dp
 import com.guildofsmiths.trademesh.data.ExpenseCategoryRepository
 import com.guildofsmiths.trademesh.data.TimeEntryRepository
 import com.guildofsmiths.trademesh.ui.ConsoleHeader
+import com.guildofsmiths.trademesh.ui.Tokens2
 import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.JobBoardViewModel
 import com.guildofsmiths.trademesh.ui.jobboard.JobExpense
 import com.guildofsmiths.trademesh.ui.report.ReportPeriod
 import com.guildofsmiths.trademesh.ui.report.getPeriodStart
 import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.SmithCard
 import com.guildofsmiths.trademesh.ui.theme2.SmithEmptyState
 import com.guildofsmiths.trademesh.ui.theme2.SmithErrorState
 import com.guildofsmiths.trademesh.ui.theme2.SmithLoadingState
@@ -134,9 +136,9 @@ fun ExpensesScreen(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .background(if (sel) colors.accent else colors.bgPanel, RoundedCornerShape(4.dp))
-                        .border(0.5.dp, if (sel) colors.accent else colors.ink.copy(alpha = 0.06f), RoundedCornerShape(4.dp))
-                        .clip(RoundedCornerShape(4.dp))
+                        .background(if (sel) colors.accent else colors.bgPanel, RoundedCornerShape(Tokens2.RadiusControl))
+                        .border(0.5.dp, if (sel) colors.accent else colors.ink.copy(alpha = 0.06f), RoundedCornerShape(Tokens2.RadiusControl))
+                        .clip(RoundedCornerShape(Tokens2.RadiusControl))
                         .clickable {
                             period = p
                             periodPrefs.edit().putString("period", p.name).apply()
@@ -161,9 +163,9 @@ fun ExpensesScreen(
                 val sel = v == view
                 Box(
                     modifier = Modifier
-                        .background(if (sel) colors.accent.copy(alpha = 0.20f) else colors.bgPanel, RoundedCornerShape(4.dp))
-                        .border(0.5.dp, if (sel) colors.accent else colors.ink.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
-                        .clip(RoundedCornerShape(4.dp))
+                        .background(if (sel) colors.accent.copy(alpha = 0.20f) else colors.bgPanel, RoundedCornerShape(Tokens2.RadiusPill))
+                        .border(0.5.dp, if (sel) colors.accent else colors.ink.copy(alpha = 0.08f), RoundedCornerShape(Tokens2.RadiusPill))
+                        .clip(RoundedCornerShape(Tokens2.RadiusPill))
                         .clickable {
                             view = v
                             viewPrefs.edit().putString("view", v.name).apply()
@@ -176,13 +178,11 @@ fun ExpensesScreen(
         }
 
         // Summary strip
-        Column(
+        SmithCard(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 4.dp)
-                .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                .border(0.5.dp, colors.ink.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
-                .padding(8.dp)
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            contentPadding = PaddingValues(8.dp)
         ) {
             if (rollups.isEmpty()) {
                 Text("No expenses this period.", style = SmithType.caption.copy(color = colors.inkMuted))
@@ -252,9 +252,9 @@ private fun ToolbarButton(label: String, accent: Boolean = false, onClick: () ->
     val colors = LocalSmithColors.current
     Box(
         modifier = Modifier
-            .background(if (accent) colors.accent.copy(alpha = 0.14f) else colors.bgPanel, RoundedCornerShape(4.dp))
-            .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
-            .clip(RoundedCornerShape(4.dp))
+            .background(if (accent) colors.accent.copy(alpha = 0.14f) else colors.bgPanel, RoundedCornerShape(Tokens2.RadiusControl))
+            .border(0.5.dp, colors.ink.copy(alpha = 0.12f), RoundedCornerShape(Tokens2.RadiusControl))
+            .clip(RoundedCornerShape(Tokens2.RadiusControl))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = rememberRipple(bounded = true, color = colors.accent),
@@ -294,9 +294,9 @@ private fun ByJobView(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                        .border(0.5.dp, colors.ink.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
-                        .clip(RoundedCornerShape(4.dp))
+                        .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusCard))
+                        .border(0.5.dp, colors.ink.copy(alpha = 0.08f), RoundedCornerShape(Tokens2.RadiusCard))
+                        .clip(RoundedCornerShape(Tokens2.RadiusCard))
                         .clickable { onOpen(job.id) }
                         .padding(12.dp)
                 ) {
@@ -354,12 +354,9 @@ private fun LedgerView(jobs: List<Job>, laborCostFor: (Job) -> Double) {
             byCat.entries.sortedBy { it.key }.forEach { (cid, entries) ->
                 val d = ExpenseCategoryRepository.resolve(cid)
                 val total = entries.sumOf { it.amount }
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(colors.bgPanel, RoundedCornerShape(4.dp))
-                        .border(0.5.dp, colors.ink.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
-                        .padding(10.dp)
+                SmithCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(10.dp)
                 ) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("${d.shortCode} ${d.displayName}", style = SmithType.captionBold.copy(color = colors.ink))
@@ -417,7 +414,7 @@ private fun TimelineView(jobs: List<Job>, onOpen: (String) -> Unit) {
                     androidx.compose.foundation.layout.Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(4.dp))
+                            .clip(RoundedCornerShape(Tokens2.RadiusControl))
                             .clickable { onOpen(r.jobId) }
                             .padding(vertical = 4.dp)
                     ) {
@@ -480,7 +477,7 @@ private fun BolTableView(jobs: List<Job>, onOpen: (String) -> Unit) {
                     rows.forEach { r ->
                         Row(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(2.dp))
+                                .clip(RoundedCornerShape(Tokens2.RadiusTiny))
                                 .clickable { onOpen(r.jobId) }
                                 .padding(vertical = 3.dp)
                         ) {

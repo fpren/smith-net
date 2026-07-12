@@ -46,7 +46,7 @@ fun SmithDialog(
             usePlatformDefaultWidth = sizeFraction == null,
         ),
     ) {
-        val panelShape = if (ops) RoundedCornerShape(Tokens2.RadiusOps) else RoundedCornerShape(20.dp)
+        val panelShape = if (ops) RoundedCornerShape(Tokens2.RadiusOps) else RoundedCornerShape(Tokens2.RadiusCard)
         var panel = Modifier
             .clip(panelShape)
             .background(colors.bgPanel)
