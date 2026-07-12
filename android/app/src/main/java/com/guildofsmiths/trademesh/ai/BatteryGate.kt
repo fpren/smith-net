@@ -197,11 +197,11 @@ object BatteryGate {
         val status = getAIStatus()
         
         val batteryText = "${state.batteryLevel}%"
-        val chargingText = if (state.isCharging) " ⚡" else ""
+        val chargingText = if (state.isCharging) " [CHG]" else ""
         val thermalText = when (state.thermalStatus) {
             ThermalStatus.NONE, ThermalStatus.LIGHT -> ""
-            ThermalStatus.MODERATE -> " 🌡"
-            ThermalStatus.SEVERE -> " 🔥"
+            ThermalStatus.MODERATE -> " [WARM]"
+            ThermalStatus.SEVERE -> " [HOT]"
             ThermalStatus.CRITICAL, ThermalStatus.SHUTDOWN -> " [!]"
         }
         

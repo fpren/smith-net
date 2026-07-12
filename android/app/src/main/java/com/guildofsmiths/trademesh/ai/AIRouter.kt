@@ -482,7 +482,7 @@ object AIRouter {
             when (result) {
                 is GenerationResult.Success -> {
                     // Combine base response with LLM enhancement
-                    "$baseResponse\n\n💡 ${result.text.trim()}"
+                    "$baseResponse\n\n[TIP] ${result.text.trim()}"
                 }
                 else -> baseResponse // Fall back to base response
             }
@@ -508,7 +508,7 @@ object AIRouter {
             val externalResponse = callExternalLLM(prompt)
 
             // Combine with base response
-            "$baseResponse\n\n💡 ${externalResponse.trim()}"
+            "$baseResponse\n\n[TIP] ${externalResponse.trim()}"
 
         } catch (e: Exception) {
             Log.w(TAG, "External LLM call failed", e)
