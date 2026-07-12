@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
+import com.guildofsmiths.trademesh.ui.Tokens2
 
 /**
  * Non-Material bottom sheet: scrim + bottom-aligned panel inside a Dialog
@@ -59,7 +60,7 @@ fun SmithSheet(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                        .clip(RoundedCornerShape(topStart = Tokens2.RadiusCard, topEnd = Tokens2.RadiusCard))
                         .background(colors.bgPanel)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
