@@ -269,7 +269,7 @@ private fun MaterialRow(item: SupplyItem, onToggle: () -> Unit, onEdit: () -> Un
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(Tokens2.RadiusCard))
+            .clip(RoundedCornerShape(Tokens2.RadiusControl))
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

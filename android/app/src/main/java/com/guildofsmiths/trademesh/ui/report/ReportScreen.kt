@@ -161,14 +161,14 @@ fun ReportScreen(
                         .weight(1f)
                         .background(
                             if (isSelected) colors.accent else colors.bgPanel,
-                            RoundedCornerShape(Tokens2.RadiusCard)
+                            RoundedCornerShape(Tokens2.RadiusControl)
                         )
                         .border(
                             0.5.dp,
                             if (isSelected) colors.accent else colors.ink.copy(alpha = 0.06f),
-                            RoundedCornerShape(Tokens2.RadiusCard)
+                            RoundedCornerShape(Tokens2.RadiusControl)
                         )
-                        .clip(RoundedCornerShape(Tokens2.RadiusCard))
+                        .clip(RoundedCornerShape(Tokens2.RadiusControl))
                         .clickable {
                             selectedPeriod = period
                             periodPrefs.edit().putString("period", period.name).apply()

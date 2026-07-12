@@ -286,7 +286,7 @@ private fun CurrentJobRow(j: Job, estimate: Double, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(Tokens2.RadiusCard))
+            .clip(RoundedCornerShape(Tokens2.RadiusControl))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = rememberRipple(bounded = true),
@@ -340,7 +340,7 @@ private fun TaskRow(t: Task, jobTitle: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(Tokens2.RadiusCard))
+            .clip(RoundedCornerShape(Tokens2.RadiusControl))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = rememberRipple(bounded = true),
@@ -369,7 +369,7 @@ private fun RecentJobRow(j: Job, billed: Double, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(Tokens2.RadiusCard))
+            .clip(RoundedCornerShape(Tokens2.RadiusControl))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = rememberRipple(bounded = true),
@@ -554,7 +554,7 @@ private fun EditField(label: String, value: String, onValueChange: (String) -> U
             textStyle = SmithType.bodySmall.copy(color = colors.ink),
             modifier = Modifier
                 .fillMaxWidth()
-                .background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusCard))
+                .background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusControl))
                 .padding(8.dp),
             singleLine = true
         )

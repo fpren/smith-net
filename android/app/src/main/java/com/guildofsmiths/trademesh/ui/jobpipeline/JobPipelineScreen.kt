@@ -581,15 +581,15 @@ private fun OutlinedActionButton(
         style = SmithType.action.copy(color = drawColor),
         modifier = modifier
             .scale(scale)
-            .shadow(elevation, RoundedCornerShape(Tokens2.RadiusCard))
+            .shadow(elevation, RoundedCornerShape(Tokens2.RadiusControl))
             .clickable(
                 interactionSource = interaction,
                 indication = null,
                 enabled = enabled,
                 onClick = onClick
             )
-            .background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusCard))
-            .border(1.dp, drawColor, RoundedCornerShape(Tokens2.RadiusCard))
+            .background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusControl))
+            .border(1.dp, drawColor, RoundedCornerShape(Tokens2.RadiusControl))
             .padding(horizontal = 14.dp, vertical = 8.dp)
     )
 }
@@ -892,7 +892,7 @@ private fun AddMaterialDialog(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusCard))
+                            .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusControl))
                             .clickable {
                                 showVendorPicker = false
                                 if (vendor.url != null) {
@@ -952,7 +952,7 @@ private fun InvoiceDetailPicker(
                 modifier = Modifier
                     .clickable { onSelect(level) }
                     .then(
-                        if (isSelected) Modifier.background(colors.accent.copy(alpha = 0.08f), RoundedCornerShape(Tokens2.RadiusCard))
+                        if (isSelected) Modifier.background(colors.accent.copy(alpha = 0.08f), RoundedCornerShape(Tokens2.RadiusPill))
                         else Modifier
                     )
                     .padding(horizontal = 6.dp, vertical = 2.dp)
