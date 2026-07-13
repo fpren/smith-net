@@ -21,8 +21,10 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Popup
@@ -42,8 +44,11 @@ import com.guildofsmiths.trademesh.ui.jobboard.Job
 import com.guildofsmiths.trademesh.ui.jobboard.JobStage
 import com.guildofsmiths.trademesh.ui.map.JobDetailPanel
 import com.guildofsmiths.trademesh.ui.map.SiteDetailPanel
+import com.guildofsmiths.trademesh.ui.map.applySmithMapTheme
+import com.guildofsmiths.trademesh.ui.map.smithPin
 import com.guildofsmiths.trademesh.ui.Tokens2
 import com.guildofsmiths.trademesh.ui.theme2.LocalSmithColors
+import com.guildofsmiths.trademesh.ui.theme2.LocalSmithDark
 import com.guildofsmiths.trademesh.ui.theme2.SmithCard
 import com.guildofsmiths.trademesh.ui.theme2.SmithType
 
@@ -636,7 +641,6 @@ fun SiteMapModule(
     allJobs: List<Job> = emptyList()
 ) {
     val colors = LocalSmithColors.current
-    val context = LocalContext.current
     val isSolo = com.guildofsmiths.trademesh.data.RoleContext.isSolo()
     val crew = CrewPresenceRepository.getCrew()
     val bySite = remember(crew) {
@@ -644,22 +648,8 @@ fun SiteMapModule(
     }
     val activeJobs = remember(allJobs) { allJobs.filter { it.stage != JobStage.CLOSED } }
 
-    // Demo crew-site coordinates — used ONLY for crew-presence markers
-    // (crew.currentSite is a bare address string with no coords of its own).
-    // Job markers plot from job.latitude/longitude; never add jobs here.
-    val siteCoords = mapOf(
-        "847 Flatbush Ave, Brooklyn NY" to GeoPoint(40.6505, -73.9612),
-        "55 W 125th St, Apt 4B, Manhattan NY" to GeoPoint(40.8088, -73.9442),
-        "1220 Ocean Pkwy, Brooklyn NY" to GeoPoint(40.6275, -73.9685),
-    )
-
     var selectedSite by remember { mutableStateOf<String?>(null) }
     var selectedJob by remember { mutableStateOf<Job?>(null) }
-    val framed = remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        Configuration.getInstance().userAgentValue = context.packageName
-    }
 
     SmithCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
         // Header
@@ -696,89 +686,28 @@ fun SiteMapModule(
                 .fillMaxWidth()
                 .height(180.dp)
         ) {
-            AndroidView(
-                modifier = Modifier.fillMaxSize(),
-                factory = { ctx ->
-                    MapView(ctx).apply {
-                        setTileSource(TileSourceFactory.MAPNIK)
-                        setMultiTouchControls(true)
-                        layoutParams = ViewGroup.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT
-                        )
-                        controller.setZoom(11.5)
-                        controller.setCenter(GeoPoint(40.7128, -73.9560))
-                    }
-                },
-                update = { mapView ->
-                    mapView.overlays.clear()
-                    val placedCoords = mutableListOf<GeoPoint>()
-
-                    if (isSolo) {
-                        // Geocoded coords only — jobs not yet geocoded have no pin.
-                        activeJobs.forEach { job ->
-                            val lat = job.latitude
-                            val lng = job.longitude
-                            if (lat == null || lng == null) return@forEach
-                            val addr = job.clientAddress
-                            val coords = GeoPoint(lat, lng)
-                            val marker = Marker(mapView).apply {
-                                position = coords
-                                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                                title = job.clientName ?: job.title
-                                snippet = if (addr.isNotBlank()) "${job.stage.displayName} · $addr"
-                                          else job.stage.displayName
-                                setOnMarkerClickListener { _, _ ->
-                                    selectedJob = job
-                                    selectedSite = null
-                                    true
-                                }
-                            }
-                            mapView.overlays.add(marker)
-                            placedCoords.add(coords)
-                        }
-                    } else {
-                        bySite.forEach { (site, members) ->
-                            val coords = siteCoords[site] ?: return@forEach
-                            val activeOnSite = members.count { it.status == ClockStatus.ON_CLOCK }
-                            val marker = Marker(mapView).apply {
-                                position = coords
-                                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                                title = members.firstOrNull()?.currentJobTitle ?: site
-                                snippet = "$activeOnSite/${members.size} on site"
-                                setOnMarkerClickListener { _, _ ->
-                                    selectedSite = site
-                                    selectedJob = null
-                                    true
-                                }
-                            }
-                            mapView.overlays.add(marker)
-                            placedCoords.add(coords)
-                        }
-                    }
-
-                    if (!framed.value && placedCoords.isNotEmpty()) {
-                        val frame = {
-                            if (placedCoords.size == 1) {
-                                val p = placedCoords[0]
-                                mapView.controller.setCenter(p)
-                                mapView.controller.setZoom(15.0)
-                            } else {
-                                val box = BoundingBox.fromGeoPointsSafe(placedCoords)
-                                mapView.zoomToBoundingBox(box.increaseByScale(1.3f), false, 24)
-                            }
-                        }
-                        if (mapView.width > 0 && mapView.height > 0) {
-                            frame()
-                        } else {
-                            mapView.addOnFirstLayoutListener { _, _, _, _, _ -> frame() }
-                        }
-                        framed.value = true
-                    }
-
-                    mapView.invalidate()
-                }
-            )
+            if (isSolo) {
+                CrewMapView(
+                    crew = emptyList(),
+                    activeJobs = activeJobs,
+                    onJobClick = { jobId ->
+                        selectedJob = activeJobs.firstOrNull { it.id == jobId }
+                        selectedSite = null
+                    },
+                    autoFrame = true,
+                    embeddedHeight = 180.dp,
+                )
+            } else {
+                CrewMapView(
+                    crew = crew,
+                    onSiteClick = { site ->
+                        selectedSite = site
+                        selectedJob = null
+                    },
+                    autoFrame = true,
+                    embeddedHeight = 180.dp,
+                )
+            }
         }
 
         selectedSite?.let { site ->
@@ -1205,10 +1134,16 @@ fun CrewMapView(
     activeJobs: List<Job> = emptyList(),
     onSiteClick: (siteAddress: String) -> Unit = {},
     onJobClick: (jobId: String) -> Unit = {},
-    fillContainer: Boolean = false
+    fillContainer: Boolean = false,
+    autoFrame: Boolean = false,
+    embeddedHeight: Dp = 200.dp,
 ) {
     val colors = LocalSmithColors.current
     val context = LocalContext.current
+    val dark = LocalSmithDark.current
+    val jobPinTint = colors.accent.toArgb()
+    val crewPinTint = colors.statusOnline.toArgb()
+    val framed = remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         Configuration.getInstance().userAgentValue = context.packageName
@@ -1217,7 +1152,7 @@ fun CrewMapView(
     val sizeModifier = if (fillContainer) {
         Modifier.fillMaxSize()
     } else {
-        Modifier.fillMaxWidth().height(200.dp)
+        Modifier.fillMaxWidth().height(embeddedHeight)
     }
     val cornerModifier = if (fillContainer) {
         Modifier
@@ -1233,6 +1168,7 @@ fun CrewMapView(
             factory = { ctx ->
                 MapView(ctx).apply {
                     setTileSource(TileSourceFactory.MAPNIK)
+                    applySmithMapTheme(dark)
                     setMultiTouchControls(true)
                     layoutParams = ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
@@ -1254,7 +1190,9 @@ fun CrewMapView(
                 }
             },
             update = { mapView ->
+                mapView.applySmithMapTheme(dark)
                 mapView.overlays.clear()
+                val placedCoords = mutableListOf<GeoPoint>()
 
                 // Crew-site markers
                 val bySite = crew.filter { it.currentSite != null }.groupBy { it.currentSite!! }
@@ -1267,6 +1205,7 @@ fun CrewMapView(
                     val marker = Marker(mapView).apply {
                         position = coords
                         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                        icon = smithPin(mapView.context, crewPinTint)
                         title = jobTitle
                         snippet = "$names ($activeCount/${members.size} on site)"
                         setOnMarkerClickListener { _, _ ->
@@ -1275,6 +1214,7 @@ fun CrewMapView(
                         }
                     }
                     mapView.overlays.add(marker)
+                    placedCoords.add(coords)
                 }
 
                 // Job-site markers — plotted from the job's geocoded
@@ -1287,9 +1227,11 @@ fun CrewMapView(
                     if (lat == null || lng == null) return@forEach
                     val addr = job.clientAddress
                     if (addr.isNotBlank() && bySite.containsKey(addr)) return@forEach
+                    val coords = GeoPoint(lat, lng)
                     val marker = Marker(mapView).apply {
-                        position = GeoPoint(lat, lng)
+                        position = coords
                         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                        icon = smithPin(mapView.context, jobPinTint)
                         title = job.clientName ?: job.title
                         snippet = if (addr.isNotBlank()) "${job.stage.displayName} · $addr"
                                   else job.stage.displayName
@@ -1299,6 +1241,26 @@ fun CrewMapView(
                         }
                     }
                     mapView.overlays.add(marker)
+                    placedCoords.add(coords)
+                }
+
+                if (autoFrame && !framed.value && placedCoords.isNotEmpty()) {
+                    val frame = {
+                        if (placedCoords.size == 1) {
+                            val p = placedCoords[0]
+                            mapView.controller.setCenter(p)
+                            mapView.controller.setZoom(15.0)
+                        } else {
+                            val box = BoundingBox.fromGeoPointsSafe(placedCoords)
+                            mapView.zoomToBoundingBox(box.increaseByScale(1.3f), false, 24)
+                        }
+                    }
+                    if (mapView.width > 0 && mapView.height > 0) {
+                        frame()
+                    } else {
+                        mapView.addOnFirstLayoutListener { _, _, _, _, _ -> frame() }
+                    }
+                    framed.value = true
                 }
 
                 // When filling the parent (Map screen), the MapView's tile
