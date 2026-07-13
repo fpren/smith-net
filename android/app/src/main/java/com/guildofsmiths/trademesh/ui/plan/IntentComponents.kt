@@ -132,6 +132,7 @@ fun CreateIntentDialog(
                         onValueChange = { scopeStatement = it },
                         placeholder = "Describe the work to be performed...",
                         ops = true,
+                        singleLine = false,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("solo_e2e_intent_scope")

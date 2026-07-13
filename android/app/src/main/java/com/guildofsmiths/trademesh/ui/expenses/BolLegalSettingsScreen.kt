@@ -141,8 +141,8 @@ fun BolLegalSettingsScreen(onBack: () -> Unit) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 80.dp)
-                        .background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusCard))
-                        .border(0.5.dp, colors.ink.copy(alpha = 0.1f), RoundedCornerShape(Tokens2.RadiusCard))
+                        .background(colors.bgBase, RoundedCornerShape(Tokens2.RadiusControl))
+                        .border(0.5.dp, colors.ink.copy(alpha = 0.1f), RoundedCornerShape(Tokens2.RadiusControl))
                         .padding(8.dp)
                 )
                 Text(

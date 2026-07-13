@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.BoundingBox
@@ -793,7 +794,7 @@ fun FinancialsModule(
                     modifier = Modifier.clickable { showDropdown = !showDropdown }.padding(2.dp)
                 )
                 if (showDropdown) {
-                    Popup(onDismissRequest = { showDropdown = false }) {
+                    Popup(onDismissRequest = { showDropdown = false }, properties = PopupProperties(focusable = true)) {
                         Column(
                             modifier = Modifier
                                 .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusControl))
@@ -1270,7 +1271,7 @@ fun CrewMapView(
                 if (fillContainer) {
                     listOf(50L, 200L, 600L).forEach { delay ->
                         mapView.postDelayed({
-                            val center = GeoPoint(40.7128, -73.9560)
+                            val center = mapView.mapCenter
                             // Big synthetic pan to force osmdroid to re-fetch
                             // tiles for the full visible rect, then snap back.
                             mapView.scrollBy(0, 1000)

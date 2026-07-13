@@ -39,6 +39,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import kotlin.math.roundToInt
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -275,7 +276,7 @@ fun ConversationScreen(
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     )
                     if (menuExpanded) {
-                        Popup(onDismissRequest = { menuExpanded = false }) {
+                        Popup(onDismissRequest = { menuExpanded = false }, properties = PopupProperties(focusable = true)) {
                             Column(
                                 modifier = Modifier
                                     .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusControl))
@@ -333,7 +334,7 @@ fun ConversationScreen(
                     )
 
                     if (showPeerSelector) {
-                        Popup(onDismissRequest = { showPeerSelector = false }) {
+                        Popup(onDismissRequest = { showPeerSelector = false }, properties = PopupProperties(focusable = true)) {
                             Column(
                                 modifier = Modifier
                                     .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusControl))
@@ -715,7 +716,7 @@ fun ConversationScreen(
                     )
 
                     if (showAttachMenu) {
-                        Popup(onDismissRequest = { showAttachMenu = false }) {
+                        Popup(onDismissRequest = { showAttachMenu = false }, properties = PopupProperties(focusable = true)) {
                             Column(
                                 modifier = Modifier
                                     .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusControl))

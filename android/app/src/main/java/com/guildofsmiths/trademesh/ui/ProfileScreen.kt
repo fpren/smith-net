@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import com.guildofsmiths.trademesh.data.SupabaseAuth
 import com.guildofsmiths.trademesh.data.UserPreferences
 import com.guildofsmiths.trademesh.ui.Tokens2
@@ -312,7 +313,7 @@ private fun ProfileDropdown(
                     .padding(horizontal = 12.dp, vertical = 10.dp),
             )
             if (expanded) {
-                Popup(onDismissRequest = { expanded = false }) {
+                Popup(onDismissRequest = { expanded = false }, properties = PopupProperties(focusable = true)) {
                     Column(
                         modifier = Modifier
                             .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusControl))
