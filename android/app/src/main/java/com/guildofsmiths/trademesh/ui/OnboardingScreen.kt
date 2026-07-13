@@ -26,6 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -346,7 +347,7 @@ private fun TradeScreen(
                         else SmithType.body.copy(color = colors.inkMuted)
             )
             if (experienceExpanded) {
-                Popup(onDismissRequest = { experienceExpanded = false }) {
+                Popup(onDismissRequest = { experienceExpanded = false }, properties = PopupProperties(focusable = true)) {
                     Column(
                         modifier = Modifier
                             .background(colors.bgPanel, RoundedCornerShape(Tokens2.RadiusControl))
