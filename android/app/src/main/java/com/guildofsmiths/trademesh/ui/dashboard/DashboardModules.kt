@@ -1200,7 +1200,7 @@ fun CrewMapView(
                     val coords = SITE_COORDS[site] ?: return@forEach
                     val activeCount = members.count { it.status == ClockStatus.ON_CLOCK }
                     val names = members.joinToString(", ") { it.name }
-                    val jobTitle = members.firstOrNull()?.currentJobTitle ?: "Job site"
+                    val jobTitle = members.firstOrNull()?.currentJobTitle ?: site
 
                     val marker = Marker(mapView).apply {
                         position = coords
