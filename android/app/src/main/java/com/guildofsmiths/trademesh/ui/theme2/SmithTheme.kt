@@ -41,6 +41,9 @@ fun smithColorsFor(dark: Boolean): SmithColors = if (dark) SmithColors(
 
 val LocalSmithColors = staticCompositionLocalOf { smithColorsFor(dark = false) }
 
+/** Resolved dark flag for non-Compose consumers (osmdroid tile filter). Provided by [SmithTheme]. */
+val LocalSmithDark = staticCompositionLocalOf { false }
+
 /** User-facing theme preference. Resolution happens in [resolveDark]. */
 enum class ThemePreference { LIGHT, DARK, SYSTEM }
 
@@ -76,5 +79,5 @@ fun SmithTheme(
     // between window chrome and palette.
     val dark = resolvedDark ?: resolveDark(themePreference, isSystemInDarkTheme(), darkEnabled)
     val colors = smithColorsFor(dark = dark)
-    CompositionLocalProvider(LocalSmithColors provides colors, content = content)
+    CompositionLocalProvider(LocalSmithColors provides colors, LocalSmithDark provides dark, content = content)
 }
