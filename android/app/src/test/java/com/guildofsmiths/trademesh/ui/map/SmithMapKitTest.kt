@@ -1,7 +1,6 @@
 package com.guildofsmiths.trademesh.ui.map
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Test
 
 class SmithMapKitTest {
